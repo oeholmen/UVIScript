@@ -1,0 +1,1299 @@
+<UVI4>
+    <Program Name="Program" Bypass="0" BypassInsertFX="0" Gain="1" Pan="0" DisplayName="Simple Synth" TransposeOctaves="0" TransposeSemiTones="0" OutputName="" Polyphony="16" NotePolyphony="0" ProgramPath="$Programs/Synths/Simple Synth.uvip" LoopProgram="0" Streaming="1">
+        <Connections>
+            <SignalConnection Name="SignalConnection 0" Ratio="0" Source="$Program/LFO 2" Destination="Gain" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0">
+                <Connections>
+                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 37" Destination="Ratio" Mapper="Mapper 1" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                </Connections>
+            </SignalConnection>
+        </Connections>
+        <Mappers>
+            <ControlSignalMapper Name="Mapper 0" Min="0" Max="48" Integer="0" Discrete="1" DisplayName="Semitones">0,000000 0,020833 0,041667 0,062500 0,083333 0,104167 0,125000 0,145833 0,166667 0,187500 0,208333 0,229167 0,250000 0,270833 0,291667 0,312500 0,333333 0,354167 0,375000 0,395833 0,416667 0,437500 0,458333 0,479167 0,500000 0,520833 0,541667 0,562500 0,583333 0,604167 0,625000 0,645833 0,666667 0,687500 0,708333 0,729167 0,750000 0,770833 0,791667 0,812500 0,833333 0,854167 0,875000 0,895833 0,916667 0,937500 0,958333 0,979167 1,000000</ControlSignalMapper>
+            <ControlSignalMapper Name="Mapper 1" Min="-1" Max="1" Integer="0" Discrete="0" DisplayName="Bipolar Ramp">-1,000000 -0,984252 -0,968504 -0,952756 -0,937008 -0,921260 -0,905512 -0,889764 -0,874016 -0,858268 -0,842520 -0,826772 -0,811024 -0,795276 -0,779528 -0,763780 -0,748031 -0,732283 -0,716535 -0,700787 -0,685039 -0,669291 -0,653543 -0,637795 -0,622047 -0,606299 -0,590551 -0,574803 -0,559055 -0,543307 -0,527559 -0,511811 -0,496063 -0,480315 -0,464567 -0,448819 -0,433071 -0,417323 -0,401575 -0,385827 -0,370079 -0,354331 -0,338583 -0,322835 -0,307087 -0,291339 -0,275591 -0,259843 -0,244094 -0,228346 -0,212598 -0,196850 -0,181102 -0,165354 -0,149606 -0,133858 -0,118110 -0,102362 -0,086614 -0,070866 -0,055118 -0,039370 -0,023622 -0,007874 0,007874 0,023622 0,039370 0,055118 0,070866 0,086614 0,102362 0,118110 0,133858 0,149606 0,165354 0,181102 0,196850 0,212598 0,228346 0,244094 0,259843 0,275591 0,291339 0,307087 0,322835 0,338583 0,354331 0,370079 0,385827 0,401575 0,417323 0,433071 0,448819 0,464567 0,480315 0,496063 0,511811 0,527559 0,543307 0,559055 0,574803 0,590551 0,606299 0,622047 0,637795 0,653543 0,669291 0,685039 0,700787 0,716535 0,732283 0,748031 0,763780 0,779528 0,795276 0,811024 0,826772 0,842520 0,858268 0,874016 0,889764 0,905512 0,921260 0,937008 0,952756 0,968504 0,984252 1,000000</ControlSignalMapper>
+            <ControlSignalMapper Name="Mapper 2" Min="0" Max="1" Integer="0" Discrete="0" DisplayName="Concave">0,000000 0,015328 0,027869 0,039536 0,050670 0,061424 0,071884 0,082105 0,092127 0,101978 0,111679 0,121248 0,130697 0,140039 0,149282 0,158435 0,167504 0,176496 0,185415 0,194266 0,203054 0,211781 0,220451 0,229067 0,237632 0,246147 0,254616 0,263041 0,271422 0,279763 0,288064 0,296327 0,304553 0,312744 0,320902 0,329026 0,337118 0,345180 0,353211 0,361214 0,369188 0,377135 0,385056 0,392950 0,400820 0,408664 0,416485 0,424283 0,432057 0,439810 0,447541 0,455250 0,462939 0,470607 0,478256 0,485885 0,493495 0,501086 0,508659 0,516215 0,523752 0,531273 0,538776 0,546263 0,553733 0,561188 0,568626 0,576050 0,583457 0,590850 0,598229 0,605592 0,612942 0,620278 0,627599 0,634907 0,642202 0,649484 0,656752 0,664008 0,671251 0,678482 0,685700 0,692907 0,700101 0,707284 0,714455 0,721614 0,728763 0,735900 0,743026 0,750141 0,757246 0,764340 0,771423 0,778496 0,785559 0,792611 0,799654 0,806687 0,813710 0,820723 0,827727 0,834722 0,841707 0,848683 0,855649 0,862607 0,869556 0,876496 0,883427 0,890350 0,897264 0,904169 0,911066 0,917955 0,924835 0,931708 0,938572 0,945428 0,952277 0,959117 0,965950 0,972775 0,979593 0,986403 0,993205 1,000000</ControlSignalMapper>
+            <ControlSignalMapper Name="Mapper 3" Min="0" Max="1" Integer="0" Discrete="1" DisplayName="EightStepRamp">0,000000 0,142857 0,285714 0,428571 0,571429 0,714286 0,857143 1,000000</ControlSignalMapper>
+            <ControlSignalMapper Name="Mapper 4" Min="0" Max="1" Integer="0" Discrete="0" DisplayName="Envelope">0,000000 0,387536 0,430595 0,457968 0,478439 0,494945 0,508854 0,520918 0,531599 0,541202 0,549939 0,557964 0,565393 0,572314 0,578797 0,584899 0,590665 0,596134 0,601336 0,606298 0,611044 0,615592 0,619960 0,624164 0,628214 0,632125 0,635904 0,639563 0,643108 0,646548 0,649888 0,653135 0,656295 0,659372 0,662371 0,665296 0,668151 0,670939 0,673664 0,676329 0,678937 0,681490 0,683991 0,686442 0,688845 0,691202 0,693515 0,695786 0,698016 0,700207 0,702361 0,704478 0,706561 0,708609 0,710626 0,712610 0,714565 0,716490 0,718386 0,720255 0,722098 0,723914 0,725706 0,727473 0,729217 0,730937 0,732635 0,734312 0,735967 0,737602 0,739217 0,740813 0,742390 0,743948 0,745488 0,747011 0,748516 0,750005 0,751477 0,752934 0,754375 0,755801 0,757212 0,758608 0,759990 0,761359 0,762713 0,764055 0,765383 0,766699 0,768002 0,769293 0,770572 0,771840 0,773095 0,774340 0,775573 0,776796 0,778008 0,779210 0,780401 0,781582 0,782754 0,783915 0,785067 0,786210 0,787344 0,788468 0,789584 0,790691 0,791789 0,792879 0,793961 0,795034 0,796100 0,797157 0,798207 0,799249 0,800284 0,801311 0,802331 0,803344 0,804349 0,805348 0,806340 0,807325 0,808303 0,809275 0,810241 0,811200 0,812152 0,813099 0,814039 0,814974 0,815902 0,816825 0,817742 0,818653 0,819558 0,820458 0,821353 0,822242 0,823126 0,824004 0,824877 0,825746 0,826609 0,827467 0,828320 0,829168 0,830012 0,830850 0,831684 0,832514 0,833339 0,834159 0,834975 0,835786 0,836593 0,837396 0,838194 0,838988 0,839778 0,840564 0,841346 0,842124 0,842898 0,843668 0,844434 0,845196 0,845954 0,846709 0,847459 0,848206 0,848950 0,849690 0,850426 0,851159 0,851888 0,852614 0,853336 0,854055 0,854770 0,855483 0,856192 0,856897 0,857600 0,858299 0,858995 0,859688 0,860378 0,861065 0,861748 0,862429 0,863107 0,863782 0,864453 0,865122 0,865789 0,866452 0,867112 0,867770 0,868425 0,869077 0,869726 0,870373 0,871017 0,871658 0,872297 0,872933 0,873567 0,874198 0,874826 0,875452 0,876076 0,876697 0,877316 0,877932 0,878545 0,879157 0,879766 0,880373 0,880977 0,881579 0,882179 0,882776 0,883372 0,883965 0,884555 0,885144 0,885730 0,886315 0,886897 0,887477 0,888055 0,888631 0,889204 0,889776 0,890346 0,890913 0,891479 0,892043 0,892604 0,893164 0,893722 0,894277 0,894831 0,895383 0,895933 0,896482 0,897028 0,897572 0,898115 0,898656 0,899195 0,899732 0,900267 0,900801 0,901333 0,901863 0,902392 0,902918 0,903443 0,903967 0,904488 0,905008 0,905526 0,906043 0,906558 0,907071 0,907583 0,908093 0,908602 0,909109 0,909614 0,910118 0,910620 0,911121 0,911620 0,912118 0,912614 0,913109 0,913602 0,914094 0,914584 0,915073 0,915560 0,916046 0,916530 0,917013 0,917495 0,917975 0,918454 0,918931 0,919408 0,919882 0,920355 0,920827 0,921298 0,921767 0,922235 0,922702 0,923167 0,923631 0,924094 0,924555 0,925015 0,925474 0,925932 0,926388 0,926843 0,927297 0,927750 0,928201 0,928651 0,929100 0,929548 0,929995 0,930440 0,930884 0,931327 0,931769 0,932209 0,932649 0,933087 0,933524 0,933960 0,934395 0,934829 0,935262 0,935693 0,936124 0,936553 0,936981 0,937409 0,937835 0,938260 0,938684 0,939106 0,939528 0,939949 0,940369 0,940787 0,941205 0,941621 0,942037 0,942452 0,942865 0,943278 0,943689 0,944100 0,944509 0,944918 0,945325 0,945732 0,946137 0,946542 0,946946 0,947348 0,947750 0,948151 0,948551 0,948950 0,949348 0,949745 0,950141 0,950536 0,950931 0,951324 0,951716 0,952108 0,952499 0,952889 0,953277 0,953665 0,954053 0,954439 0,954824 0,955209 0,955593 0,955975 0,956357 0,956739 0,957119 0,957498 0,957877 0,958255 0,958632 0,959008 0,959383 0,959757 0,960131 0,960504 0,960876 0,961247 0,961618 0,961987 0,962356 0,962724 0,963092 0,963458 0,963824 0,964189 0,964553 0,964916 0,965279 0,965641 0,966002 0,966362 0,966722 0,967081 0,967439 0,967797 0,968153 0,968509 0,968865 0,969219 0,969573 0,969926 0,970278 0,970630 0,970981 0,971331 0,971681 0,972029 0,972377 0,972725 0,973072 0,973418 0,973763 0,974108 0,974452 0,974795 0,975138 0,975480 0,975821 0,976162 0,976502 0,976841 0,977180 0,977518 0,977855 0,978192 0,978528 0,978863 0,979198 0,979532 0,979866 0,980199 0,980531 0,980863 0,981194 0,981524 0,981854 0,982183 0,982511 0,982839 0,983167 0,983493 0,983819 0,984145 0,984470 0,984794 0,985118 0,985441 0,985764 0,986085 0,986407 0,986728 0,987048 0,987367 0,987686 0,988005 0,988323 0,988640 0,988957 0,989273 0,989589 0,989904 0,990218 0,990532 0,990846 0,991158 0,991471 0,991782 0,992094 0,992404 0,992714 0,993024 0,993333 0,993642 0,993950 0,994257 0,994564 0,994870 0,995176 0,995481 0,995786 0,996091 0,996394 0,996698 0,997000 0,997303 0,997604 0,997906 0,998206 0,998506 0,998806 0,999105 0,999404 0,999702 1,000000</ControlSignalMapper>
+        </Mappers>
+        <ControlSignalSources>
+            <ConstantModulation Name="Macro 1" DisplayName="Osc 1 Shape" Bypass="0" Bipolar="0" Style="0" Value="0">
+                <Properties customPosition="1" x="10" y="20"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 2" DisplayName="Filter Cutoff" Bypass="0" Bipolar="0" Style="0" Value="1">
+                <Properties customPosition="1" x="260" y="125"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 3" DisplayName="Env Amount" Bypass="0" Bipolar="0" Style="0" Value="0.5">
+                <Properties customPosition="1" x="420" y="125"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 4" DisplayName="FEnvAttack" Bypass="0" Bipolar="0" Style="0" Value="0">
+                <Properties customPosition="1" x="10" y="230"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 5" DisplayName="FEnvDecay" Bypass="0" Bipolar="0" Style="0" Value="0">
+                <Properties customPosition="1" x="90" y="230"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 6" DisplayName="FEnvSustain" Bypass="0" Bipolar="0" Style="0" Value="1">
+                <Properties customPosition="1" x="170" y="230"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 7" DisplayName="FEnvRelease" Bypass="0" Bipolar="0" Style="0" Value="0.59692186">
+                <Properties customPosition="1" x="250" y="230"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 8" DisplayName="Osc 1 Mix" Bypass="0" Bipolar="0" Style="0" Value="0.75">
+                <Properties customPosition="1" x="90" y="20"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 9" DisplayName="Osc 2 Shape" Bypass="0" Bipolar="0" Style="0" Value="0">
+                <Properties customPosition="1" x="180" y="20"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 10" DisplayName="Osc 2 Mix" Bypass="0" Bipolar="0" Style="0" Value="0">
+                <Properties customPosition="1" x="260" y="20"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 11" DisplayName="Osc 2 Detune" Bypass="0" Bipolar="0" Style="0" Value="0">
+                <Properties customPosition="1" x="340" y="20"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 12" DisplayName="Osc 2 Pitch" Bypass="0" Bipolar="0" Style="0" Value="0.5">
+                <Properties customPosition="1" x="420" y="20"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 13" DisplayName="Filter Res" Bypass="0" Bipolar="0" Style="0" Value="0">
+                <Properties customPosition="1" x="340" y="125"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 14" DisplayName="Delay" Bypass="0" Bipolar="0" Style="0" Value="0">
+                <Properties customPosition="1" x="10" y="125"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 15" DisplayName="Reverb" Bypass="0" Bipolar="0" Style="0" Value="0">
+                <Properties customPosition="1" x="90" y="125"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 16" DisplayName="Arp on/off" Bypass="0" Bipolar="1" Style="1" Value="0">
+                <Properties customPosition="1" x="170" y="125"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 17" DisplayName="Attack" Bypass="0" Bipolar="0" Style="0" Value="0">
+                <Properties customPosition="1" x="340" y="230"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 18" DisplayName="Decay" Bypass="0" Bipolar="0" Style="0" Value="0">
+                <Properties customPosition="1" x="420" y="230"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 19" DisplayName="Sustain" Bypass="0" Bipolar="0" Style="0" Value="1">
+                <Properties customPosition="1" x="500" y="230"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 20" DisplayName="Release" Bypass="0" Bipolar="0" Style="0" Value="0.72642189">
+                <Properties customPosition="1" x="580" y="230"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 21" DisplayName="Chorus" Bypass="0" Bipolar="0" Style="0" Value="0">
+                <Properties customPosition="0" x="170" y="-1840700051"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 22" DisplayName="Wheel-&gt;Cutoff" Bypass="0" Bipolar="0" Style="0" Value="0.5">
+                <Properties customPosition="0" x="265" y="-1840700051"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 23" DisplayName="Drive" Bypass="0" Bipolar="0" Style="0" Value="0">
+                <Properties customPosition="0" x="360" y="-1840700051"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 24" DisplayName="AT-&gt;Cutoff" Bypass="0" Bipolar="0" Style="0" Value="0.5">
+                <Properties customPosition="0" x="455" y="-1840700051"/>
+            </ConstantModulation>
+            <LFO Name="LFO 1" DisplayName="Vibrato" Bypass="0" SyncToHost="0" DelayTime="0" RiseTime="0" Freq="6.1157823" Depth="1" Phase="0" WaveFormType="2" Retrigger="1" Bipolar="1" Smooth="0">
+                <Connections>
+                    <SignalConnection Name="SignalConnection 0" Ratio="0.34509698" Source="$Program/Macro 33" Destination="Freq" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0.60270745" SignalConnectionVersion="1"/>
+                </Connections>
+            </LFO>
+            <ConstantModulation Name="Macro 25" DisplayName="VibratoAmount" Bypass="0" Bipolar="0" Style="0" Value="0">
+                <Connections>
+                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="@ChanAfterTouch" Destination="Value" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0">
+                        <Connections>
+                            <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 26" Destination="Ratio" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0"/>
+                        </Connections>
+                    </SignalConnection>
+                    <SignalConnection Name="SignalConnection 1" Ratio="1" Source="@MIDI CC 1" Destination="Value" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0">
+                        <Connections>
+                            <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 29" Destination="Ratio" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0"/>
+                        </Connections>
+                    </SignalConnection>
+                </Connections>
+                <Properties customPosition="0" x="550" y="-1840700051"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 26" DisplayName="AT-&gt;Vibrato" Bypass="0" Bipolar="0" Style="0" Value="0">
+                <Properties customPosition="0" x="75" y="-1227133241"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 27" DisplayName="Osc1 LFO-&gt;PWM" Bypass="0" Bipolar="0" Style="0" Value="0">
+                <Properties customPosition="0" x="170" y="-1227133241"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 28" DisplayName="Osc2 LFO-&gt;PWM" Bypass="0" Bipolar="0" Style="0" Value="0">
+                <Properties customPosition="0" x="265" y="-1227133241"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 29" DisplayName="Wheel-&gt;Vibrato" Bypass="0" Bipolar="0" Style="0" Value="0">
+                <Properties customPosition="0" x="360" y="-1227133241"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 30" DisplayName="Key Tracking" Bypass="0" Bipolar="0" Style="0" Value="0">
+                <Properties customPosition="0" x="455" y="-1227133241"/>
+            </ConstantModulation>
+            <LFO Name="LFO 2" DisplayName="LFO" Bypass="0" SyncToHost="0" DelayTime="0" RiseTime="0" Freq="4.5" Depth="1" Phase="0" WaveFormType="2" Retrigger="1" Bipolar="1" Smooth="0">
+                <UserTable>0,000000 0,073491 0,146149 0,217179 0,285859 0,351568 0,413803 0,472191 0,526486 0,576566 0,622417 0,664114 0,701808 0,735702 0,766039 0,793082 0,817107 0,838388 0,857193 -0,226562 -0,226562 -0,226562 -0,229167 -0,231771 -0,234375 -0,234375 -0,234375 -0,234375 -0,236979 -0,239583 -0,242188 -0,242188 -0,242188 -0,242188 -0,242188 -0,242188 -0,242188 -0,242188 -0,242188 -0,242188 -0,242188 -0,242188 -0,242188 -0,242188 -0,242188 -0,242188 -0,242188 -0,242188 -0,242188 -0,239583 -0,236979 -0,234375 -0,231771 -0,229167 -0,226562 -0,225446 -0,224330 -0,223214 -0,222098 -0,220982 -0,219866 -0,218750 -0,214844 -0,210938 -0,207031 -0,203125 -0,199219 -0,195312 -0,192708 -0,190104 -0,187500 -0,184896 -0,182292 -0,179688 0,375000 0,460938 0,515625 0,664062 0,765625 0,781250 0,789062 0,789062 0,789062 0,794271 0,799479 0,804688 0,809896 0,815104 0,820312 0,822545 0,824777 0,827009 0,829241 0,831473 0,833705 0,835938 0,837240 0,838542 0,839844 0,841146 0,842448 0,843750 0,845052 0,846354 0,847656 0,848958 0,850260 0,851562 0,852865 0,854167 0,855469 0,856771 0,858073 0,859375 0,859375 0,859375 0,859375 0,859375 0,859375 0,859375 0,859375 0,859375 0,859375 0,859375 0,859375 0,859375 0,859375 0,859375 0,875000 0,867188 0,843750 0,843750 0,843750 0,843750 0,843750 0,843750 0,843750 0,843750 0,843750 0,843750 0,843750 0,843750 0,843750 0,843750 0,843750 0,843750 0,843750 0,843750 0,843750 0,843750 0,484375 0,453125 0,437500 0,421875 0,410156 0,406250 0,398438 0,390625 0,385417 0,380208 0,375000 0,369792 0,364583 0,359375 0,355469 0,351562 0,344618 0,337674 0,330729 0,323785 0,316840 0,309896 0,302951 0,296007 0,289062 0,281250 0,273438 0,265625 0,257812 0,250000 0,242188 0,234375 0,226562 0,218750 0,210938 0,201562 0,192188 0,182812 0,173438 0,164062 0,154687 0,145313 0,135937 0,126563 0,117188 0,101562 0,085938 0,072266 0,058594 0,044922 0,031250 0,013393 -0,004464 -0,022321 -0,040179 -0,058036 -0,075893 -0,093750 -0,125000 -0,156250 -0,171875 -0,187500 -0,989982 -0,989249 -0,988426 -0,987503 -0,986465 -0,985298 -0,983984 -0,982503 -0,980833 -0,978947 -0,976814 -0,974401 -0,971668 -0,968568 -0,965050 -0,961053 -0,956509 -0,951339 -0,945453 -0,938751 -0,931115 -0,922417 -0,912507 -0,901223 -0,888381 -0,873778 -0,857193 -0,838388 -0,817107 -0,793082 -0,766039 -0,735702 -0,701808 -0,664114 -0,622417 -0,576566 -0,526486 -0,472191 -0,413803 -0,351568 -0,285859 -0,217179 -0,146149 -0,073491</UserTable>
+            </LFO>
+            <ConstantModulation Name="Macro 31" DisplayName="LFO-&gt;Cutoff" Bypass="0" Bipolar="0" Style="0" Value="0.5">
+                <Properties customPosition="0" x="550" y="-1227133241"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 32" DisplayName="Unison Detune" Bypass="0" Bipolar="0" Style="0" Value="0.1">
+                <Properties customPosition="0" x="75" y="-613566431"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 33" DisplayName="Vibrato Rate" Bypass="0" Bipolar="0" Style="0" Value="0.69999999">
+                <Properties customPosition="0" x="170" y="-613566431"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 34" DisplayName="Unison Voices" Bypass="0" Bipolar="0" Style="0" Value="0.125">
+                <Properties customPosition="0" x="265" y="-613566431"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 35" DisplayName="Maximizer on/off" Bypass="0" Bipolar="1" Style="1" Value="0">
+                <Properties customPosition="0" x="360" y="-613566431"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 36" DisplayName="Noise Mix" Bypass="0" Bipolar="0" Style="0" Value="0">
+                <Properties customPosition="0" x="455" y="-613566431"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 37" DisplayName="LFO-&gt;Amp" Bypass="0" Bipolar="0" Style="0" Value="0.5">
+                <Properties customPosition="0" x="550" y="-613566431"/>
+            </ConstantModulation>
+        </ControlSignalSources>
+        <EventProcessors>
+            <ScriptProcessor Name="EventProcessor0" Bypass="0" Osc1="0" Osc1LfoToPwm="0" Osc2="0" Osc2LfoToPwm="0" Osc2FinePitch="0" Osc2Pitch="0" UnisonVoices="1" UnisonDetune="0.1" Osc1Mix="0.75" Osc2Mix="0" NoiseMix="0" NoiseTypeMenu="7" Maximizer="0" Cutoff="1" Resonance="0" KeyTracking="0" WheelToCutoff="0" AftertouchToCutoff="0" EnvelopeAmt="0" WaveFormTypeMenu="3" LfoFreq="4.5" Lfo2Sync="0" Lfo2Trigger="1" LfoToCutoff="0" LfoToAmplitude="0" Attack="0.001" Decay="0.050000001" Sustain="1" Release="0.0099999998" VelocityToAmpEnv="10" FAttack="0.001" FDecay="0.050000001" FSustain="1" FRelease="0.0099999998" VelocityToFilterEnv="10" Reverb="0" Delay="0" Chorus="0" Drive="0" Vibrato="0" VibratoRate="0.69999999" WheelToVibrato="0" AftertouchToVibrato="0" Arp="0" API_version="17">
+                <Properties PresetPath="" ScriptPath="./../../UVIScript/simplesynth.lua"/>
+                <script><![CDATA[--------------------------------------------------------------------------------
+-- Simple Synth
+--------------------------------------------------------------------------------
+
+-- KEYGROUPS
+local osc1Keygroup = Program.layers[1].keygroups[1]
+local osc2Keygroup = Program.layers[2].keygroups[1]
+local noiseKeygroup = Program.layers[3].keygroups[1]
+
+-- OSCILLATORS
+--local osc1 = osc1Keygroup.oscillators[1]
+--local osc2 = osc2Keygroup.oscillators[1]
+local noiseOsc = noiseKeygroup.oscillators[1]
+
+-- MODULATORS
+local lfo1 = Program.modulations["LFO 1"] -- Vibrato
+local lfo2 = Program.modulations["LFO 2"] -- Modulation
+local ampEnv1 = osc1Keygroup.modulations["Amp. Env"]
+local ampEnv2 = osc2Keygroup.modulations["Amp. Env"]
+local ampEnvNoise = noiseKeygroup.modulations["Amp. Env"]
+local filterEnv1 = osc1Keygroup.modulations["Analog ADSR 1"]
+local filterEnv2 = osc2Keygroup.modulations["Analog ADSR 1"]
+local filterEnvNoise = noiseKeygroup.modulations["Analog ADSR 1"]
+
+-- MACROS
+local osc1Shape = Program.modulations["Macro 1"]
+local filterCutoff = Program.modulations["Macro 2"]
+local filterEnvAmount = Program.modulations["Macro 3"]
+local filterAttack = Program.modulations["Macro 4"]
+local filterDecay = Program.modulations["Macro 5"]
+local filterSustain = Program.modulations["Macro 6"]
+local filterRelease = Program.modulations["Macro 7"]
+local osc1Mix = Program.modulations["Macro 8"]
+local osc2Shape = Program.modulations["Macro 9"]
+local osc2Mix = Program.modulations["Macro 10"]
+local osc2Detune = Program.modulations["Macro 11"]
+local osc2Pitch = Program.modulations["Macro 12"]
+local filterResonance = Program.modulations["Macro 13"]
+local delayMix = Program.modulations["Macro 14"]
+local reverbMix = Program.modulations["Macro 15"]
+local arpeggiator = Program.modulations["Macro 16"]
+local ampAttack = Program.modulations["Macro 17"]
+local ampDecay = Program.modulations["Macro 18"]
+local ampSustain = Program.modulations["Macro 19"]
+local ampRelease = Program.modulations["Macro 20"]
+local chorusMix = Program.modulations["Macro 21"]
+local wheelToCutoff = Program.modulations["Macro 22"]
+local driveAmount = Program.modulations["Macro 23"]
+local atToCutoff = Program.modulations["Macro 24"]
+local vibratoAmount = Program.modulations["Macro 25"]
+local atToVibrato = Program.modulations["Macro 26"]
+local osc1LfoToPwm = Program.modulations["Macro 27"]
+local osc2LfoToPwm = Program.modulations["Macro 28"]
+local wheelToVibrato = Program.modulations["Macro 29"]
+local filterKeyTracking = Program.modulations["Macro 30"]
+local lfoToCutoff = Program.modulations["Macro 31"]
+local unisonDetune = Program.modulations["Macro 32"]
+local vibratoRate = Program.modulations["Macro 33"]
+local unisonVoices = Program.modulations["Macro 34"]
+local maximizer = Program.modulations["Macro 35"]
+local noiseMix = Program.modulations["Macro 36"]
+local lfoToAmp = Program.modulations["Macro 37"]
+
+--------------------------------------------------------------------------------
+-- Colours
+--------------------------------------------------------------------------------
+
+local knobColour = "#333333"
+local osc1Colour = "orange"
+local osc2Colour = "yellow"
+local unisonColour = "magenta"
+local filterColour = "green"
+local lfoColour = "pink"
+local filterEnvColour = "red"
+local ampEnvColour = "teal"
+local filterEffectsColour = "blue"
+local pitchColour = "lightblue"
+
+--------------------------------------------------------------------------------
+-- Shape maps
+--------------------------------------------------------------------------------
+
+function basicShapes(value)
+    -- Basic Shapes
+    if value < 0.14 then
+      return "Sine"
+    elseif value < 0.28 then
+      return "Saw"
+    elseif value < 0.43 then
+      return "Tri"
+    elseif value < 0.57 then
+      return "Square"
+    elseif value < 0.72 then
+      return "Pulse"
+    elseif value < 0.86 then
+      return "NarrowPulse"
+    else
+      return "Saw+Square"
+    end  
+end
+
+function basicMini(value)
+  -- Basic Mini
+  if value < 0.25 then
+    return "Saw"
+  elseif value < 0.5 then
+    return "Tri"
+  elseif value < 0.75 then
+    return "Square"
+  else
+    return "Pulse"
+  end
+end
+
+function miniWaveforms(value)
+  -- Mini Waveforms
+  if value < 0.17 then
+    return "Tri/Saw"
+  elseif value < 0.34 then
+    return "Tri"
+  elseif value < 0.5 then
+    return "Saw"
+  elseif value < 0.67 then
+    return "Square"
+  elseif value < 0.83 then
+    return "Pulse"
+  else
+    return "NarrowPulse"
+  end
+end
+
+function sub37Waveforms(value)
+  -- Sub 37 - Tri-Saw-Square
+  if value < 0.3 then
+    return "Tri"
+  elseif value < 0.65 then
+    return "Saw"
+  else
+    return "Square"
+  end
+end
+
+function percent(value)
+  return string.format("%0.1f %%", value*100)
+end
+
+--------------------------------------------------------------------------------
+-- Osc 1
+--------------------------------------------------------------------------------
+
+local osc1Panel = Panel("Osc1Panel")
+
+local osc1ShapeKnob = osc1Panel:Knob("Osc1", 0, 0, 1)
+osc1ShapeKnob.displayName = "Osc 1"
+osc1ShapeKnob.fillColour = knobColour
+osc1ShapeKnob.outlineColour = osc1Colour
+osc1ShapeKnob.changed = function(self)
+  osc1Shape:setParameter("Value", self.value)
+  self.displayText = basicMini(self.value)
+  --self.displayText = basicShapes(self.value)
+  --self.displayText = sub37Waveforms(self.value)
+  --self.displayText = miniWaveforms(self.value)
+  --self.displayText = percent(self.value)
+end
+osc1ShapeKnob:changed()
+
+local osc1LfoToPwmKnob = osc1Panel:Knob("Osc1LfoToPwm", 0, 0, 0.5)
+osc1LfoToPwmKnob.displayName = "LFO->PWM"
+osc1LfoToPwmKnob.mapper = Mapper.Quartic
+osc1LfoToPwmKnob.fillColour = knobColour
+osc1LfoToPwmKnob.outlineColour = lfoColour
+osc1LfoToPwmKnob.changed = function(self)
+  osc1LfoToPwm:setParameter("Value", self.value)
+  self.displayText = percent(self.value)
+end
+osc1LfoToPwmKnob:changed()
+
+--------------------------------------------------------------------------------
+-- Osc 2
+--------------------------------------------------------------------------------
+
+local osc2Panel = Panel("Osc2Panel")
+
+local osc2ShapeKnob = osc2Panel:Knob("Osc2", 0, 0, 1)
+osc2ShapeKnob.displayName = "Osc 2"
+osc2ShapeKnob.fillColour = knobColour
+osc2ShapeKnob.outlineColour = osc2Colour
+osc2ShapeKnob.changed = function(self)
+  osc2Shape:setParameter("Value", self.value)
+  self.displayText = basicMini(self.value)
+  --self.displayText = basicShapes(self.value)
+  --self.displayText = sub37Waveforms(self.value)
+  --self.displayText = miniWaveforms(self.value)
+  --self.displayText = percent(self.value)
+end
+osc2ShapeKnob:changed()
+
+local osc2LfoToPwmKnob = osc2Panel:Knob("Osc2LfoToPwm", 0, 0, 0.5)
+osc2LfoToPwmKnob.displayName = "LFO->PWM"
+osc2LfoToPwmKnob.mapper = Mapper.Quartic
+osc2LfoToPwmKnob.fillColour = knobColour
+osc2LfoToPwmKnob.outlineColour = lfoColour
+osc2LfoToPwmKnob.changed = function(self)
+  osc2LfoToPwm:setParameter("Value", self.value)
+  self.displayText = percent(self.value)
+end
+osc2LfoToPwmKnob:changed()
+
+local osc2DetuneKnob = osc2Panel:Knob("Osc2FinePitch", 0, 0, 1)
+osc2DetuneKnob.displayName = "Fine Pitch"
+osc2DetuneKnob.fillColour = knobColour
+osc2DetuneKnob.outlineColour = osc2Colour
+osc2DetuneKnob.changed = function(self)
+  osc2Detune:setParameter("Value", self.value)
+end
+osc2DetuneKnob:changed()
+
+local osc2PitchKnob = osc2Panel:Knob("Osc2Pitch", 0, -24, 24, true)
+osc2PitchKnob.displayName = "Pitch"
+osc2PitchKnob.fillColour = knobColour
+osc2PitchKnob.outlineColour = osc2Colour
+osc2PitchKnob.changed = function(self)
+  local factor = 1 / 48;
+  local value = (self.value * factor) + 0.5;
+  osc2Pitch:setParameter("Value", value)
+end
+osc2PitchKnob:changed()
+
+--------------------------------------------------------------------------------
+-- Unison
+--------------------------------------------------------------------------------
+
+local unisonPanel = Panel("UnisonPanel")
+
+--local unisonLabel = unisonPanel:Label("Unison")
+
+local unisonVoicesKnob = unisonPanel:Knob("UnisonVoices", 1, 1, 8, true)
+unisonVoicesKnob.displayName = "Unison"
+unisonVoicesKnob.fillColour = knobColour
+unisonVoicesKnob.outlineColour = unisonColour
+unisonVoicesKnob.changed = function(self)
+  local factor = 1 / 8
+  local value = factor * self.value
+  unisonVoices:setParameter("Value", value)
+  if self.value == 1 then
+    self.displayText = "Off"
+    noiseOsc:setParameter("Stereo", false)
+  else
+    self.displayText = tostring(self.value)
+    noiseOsc:setParameter("Stereo", true)
+  end
+end
+unisonVoicesKnob:changed()
+
+local unisonDetuneKnob = unisonPanel:Knob("UnisonDetune", 0.1, 0, 1)
+unisonDetuneKnob.displayName = "Detune"
+unisonDetuneKnob.fillColour = knobColour
+unisonDetuneKnob.outlineColour = unisonColour
+unisonDetuneKnob.changed = function(self)
+  unisonDetune:setParameter("Value", self.value)
+  self.displayText = percent(self.value)
+end
+unisonDetuneKnob:changed()
+
+--------------------------------------------------------------------------------
+-- Mixer
+--------------------------------------------------------------------------------
+
+function formatGainInDb(value)
+  if value == 0 then
+      return "-inf"
+  else
+      local dB = 20 * math.log10(value)
+      return string.format("%0.1f dB", dB)
+  end
+end
+
+local mixerPanel = Panel("Mixer")
+
+local mixerLabel = mixerPanel:Label("Mixer")
+
+local osc1MixKnob = mixerPanel:Knob("Osc1Mix", 0.75, 0, 1)
+osc1MixKnob.displayName = "Osc 1"
+osc1MixKnob.fillColour = knobColour
+osc1MixKnob.outlineColour = osc1Colour
+osc1MixKnob.changed = function(self)
+  osc1Mix:setParameter("Value", self.value)
+  self.displayText = formatGainInDb(self.value)
+end
+osc1MixKnob:changed()
+
+local osc2MixKnob = mixerPanel:Knob("Osc2Mix", 0, 0, 1)
+osc2MixKnob.displayName = "Osc 2"
+osc2MixKnob.fillColour = knobColour
+osc2MixKnob.outlineColour = osc2Colour
+osc2MixKnob.changed = function(self)
+  osc2Mix:setParameter("Value", self.value)
+  self.displayText = formatGainInDb(self.value)
+end
+osc2MixKnob:changed()
+
+local noiseMixKnob = mixerPanel:Knob("NoiseMix", 0, 0, 1)
+noiseMixKnob.displayName = "Noise"
+noiseMixKnob.fillColour = knobColour
+noiseMixKnob.outlineColour = osc2Colour
+noiseMixKnob.changed = function(self)
+  noiseMix:setParameter("Value", self.value)
+  self.displayText = formatGainInDb(self.value)
+end
+noiseMixKnob:changed()
+
+local noiseTypes = {"Band", "S&H", "Static1", "Static2", "Violet", "Blue", "White", "Pink", "Brown", "Lorenz", "Rossler", "Crackle", "Logistic", "Dust", "Velvet"}
+local noiseTypeMenu = mixerPanel:Menu("NoiseTypeMenu", noiseTypes)
+noiseTypeMenu.displayName = "Noise Type"
+noiseTypeMenu.selected = 7
+noiseTypeMenu.changed = function(self)
+  local value = self.value - 1
+  noiseOsc:setParameter("NoiseType", value)
+  --print("menu selection changed:", value, self.selectedText)
+end
+noiseTypeMenu:changed()
+
+local maximizerButton = mixerPanel:OnOffButton("Maximizer", false)
+maximizerButton.fillColour = knobColour
+maximizerButton.outlineColour = filterEffectsColour
+maximizerButton.width = 75
+maximizerButton.changed = function(self)
+  local value = -1
+  if (self.value == true) then
+    value = 1
+  end
+  maximizer:setParameter("Value", value)
+end
+maximizerButton:changed()
+
+--------------------------------------------------------------------------------
+-- Filter
+--------------------------------------------------------------------------------
+
+-- logarithmic mapping for filter cutoff
+local filterMax = 20000.
+local filterMin = 20.
+local filterlogmax = math.log(filterMax)
+local filterlogmin = math.log(filterMin)
+local filterlogrange = filterlogmax-filterlogmin
+function filterMapValue(value)
+    local newValue = (value * filterlogrange) + filterlogmin
+    value = math.exp(newValue)
+    return value
+end
+
+local filterPanel = Panel("Filter")
+
+--local filterLabel = filterPanel:Label("Lowpass Filter")
+
+local cutoffKnob = filterPanel:Knob("Cutoff", 1, 0, 1)
+cutoffKnob.fillColour = knobColour
+cutoffKnob.outlineColour = filterColour
+cutoffKnob.changed = function(self)
+  filterCutoff:setParameter("Value", self.value)
+  local value = filterMapValue(self.value)
+  if value < 1000 then
+      self.displayText = string.format("%0.1f Hz", value)
+  else
+      self.displayText = string.format("%0.1f kHz", value/1000.)
+  end
+end
+cutoffKnob:changed()
+
+local filterResonanceKnob = filterPanel:Knob("Resonance", 0, 0, 1)
+filterResonanceKnob.fillColour = knobColour
+filterResonanceKnob.outlineColour = filterColour
+filterResonanceKnob.changed = function(self)
+  filterResonance:setParameter("Value", self.value)
+  self.displayText = percent(self.value)
+end
+filterResonanceKnob:changed()
+
+local filterKeyTrackingKnob = filterPanel:Knob("KeyTracking", 0, 0, 1)
+filterKeyTrackingKnob.displayName = "Key Track"
+filterKeyTrackingKnob.fillColour = knobColour
+filterKeyTrackingKnob.outlineColour = filterColour
+filterKeyTrackingKnob.changed = function(self)
+  filterKeyTracking:setParameter("Value", self.value)
+end
+filterKeyTrackingKnob:changed()
+
+local wheelToCutoffKnob = filterPanel:Knob("WheelToCutoff", 0, -1, 1)
+wheelToCutoffKnob.displayName = "Modwheel"
+wheelToCutoffKnob.fillColour = knobColour
+wheelToCutoffKnob.outlineColour = filterColour
+wheelToCutoffKnob.changed = function(self)
+  local value = (self.value + 1) * 0.5
+  wheelToCutoff:setParameter("Value", value)
+  --print("Value set:", value)
+  self.displayText = string.format("%0.1f %%", (self.value * 100))
+end
+wheelToCutoffKnob:changed()
+
+local atToCutoffKnob = filterPanel:Knob("AftertouchToCutoff", 0, -1, 1)
+atToCutoffKnob.displayName = "Aftertouch"
+atToCutoffKnob.fillColour = knobColour
+atToCutoffKnob.outlineColour = filterColour
+atToCutoffKnob.changed = function(self)
+  local value = (self.value + 1) * 0.5
+  atToCutoff:setParameter("Value", value)
+  --print("Value set:", value)
+  self.displayText = string.format("%0.1f %%", (self.value * 100))
+end
+atToCutoffKnob:changed()
+
+local envAmtKnob = filterPanel:Knob("EnvelopeAmt", 0, -1, 1)
+envAmtKnob.displayName = "Envelope"
+envAmtKnob.fillColour = knobColour
+envAmtKnob.outlineColour = filterColour
+envAmtKnob.changed = function(self)
+  local value = (self.value + 1) * 0.5
+  filterEnvAmount:setParameter("Value", value)
+  --print("Value set:", value)
+  self.displayText = string.format("%0.1f %%", (self.value * 100))
+end
+envAmtKnob:changed()
+
+--------------------------------------------------------------------------------
+-- LFO
+--------------------------------------------------------------------------------
+
+local lfoPanel = Panel("Lfo")
+--local lfoLabel = lfoPanel:Label("LFO")
+
+local waveFormTypes = {"Sinus", "Square", "Triangle", "Ramp Up", "Ramp Down", "Analog Square", "S&H", "Chaos Lorenz", "Chaos Rossler"}
+local waveFormTypeMenu = lfoPanel:Menu("WaveFormTypeMenu", waveFormTypes)
+waveFormTypeMenu.displayName = "LFO"
+waveFormTypeMenu.selected = 3
+waveFormTypeMenu.changed = function(self)
+  local value = self.value - 1
+  lfo2:setParameter("WaveFormType", value)
+  --print("menu selection changed:", value, self.selectedText)
+end
+waveFormTypeMenu:changed()
+
+local lfoFreqKnob = lfoPanel:Knob("LfoFreq", 4.5, 0.1, 20.)
+lfoFreqKnob.displayName = "LFO Freq"
+lfoFreqKnob.fillColour = knobColour
+lfoFreqKnob.outlineColour = lfoColour
+
+function getDotted(value)
+  return value + (value / 2)
+end
+
+function getTriplet(value)
+  return value  / 3
+end
+
+local lfo2SyncButton = lfoPanel:OnOffButton("Lfo2Sync", false)
+lfo2SyncButton.displayName = "Sync"
+lfo2SyncButton.fillColour = knobColour
+lfo2SyncButton.outlineColour = lfoColour
+lfo2SyncButton.width = 75
+lfo2SyncButton.changed = function(self)
+  lfo2:setParameter("SyncToHost", self.value)
+  if self.value == false then
+    lfoFreqKnob.default = 4.5
+    lfoFreqKnob.mapper = Mapper.Quadratic
+    lfoFreqKnob.changed = function(self)
+      lfo2:setParameter("Freq", self.value)
+      self.displayText = string.format("%0.2f Hz", self.value)
+    end
+    lfoFreqKnob:changed()
+  else
+    lfoFreqKnob.default = 11
+    lfoFreqKnob.mapper = Mapper.Linear
+    lfoFreqKnob.changed = function(self)
+      local resolutions =     { 32,   24,   16,  12,    8,     6,         4,      3,       2, getTriplet(4), getDotted(1), 1, getTriplet(2), getDotted(0.5), 0.5, getTriplet(1), getDotted(0.25), 0.25,  getTriplet(0.5), getDotted(0.125), 0.125}
+      local resolutionNames = {"8x", "6x", "4x", "3x", "2x", "1/1 dot", "1/1", "1/2 dot", "1/2", "1/2 tri", "1/4 dot",   "1/4", "1/4 tri",   "1/8 dot",     "1/8", "1/8 tri",    "1/16 dot",      "1/16", "1/16 tri",     "1/32 dot",      "1/32"}
+      local index = math.floor(self.value) + 1
+      lfo2:setParameter("Freq", resolutions[index])
+      self.displayText = resolutionNames[index]
+    end
+    lfoFreqKnob:changed()
+  end
+end
+lfo2SyncButton:changed()
+
+local lfo2TriggerButton = lfoPanel:OnOffButton("Lfo2Trigger", true)
+lfo2TriggerButton.fillColour = knobColour
+lfo2TriggerButton.outlineColour = lfoColour
+lfo2TriggerButton.width = 75
+lfo2TriggerButton.position = {lfoFreqKnob.width+waveFormTypeMenu.width+25,25}
+lfo2TriggerButton.displayName = "Retrigger"
+lfo2TriggerButton.changed = function(self)
+  local mode = 1
+  if (self.value == false) then
+    mode = 3
+  end
+  lfo2:setParameter("Retrigger", mode)
+end
+lfo2TriggerButton:changed()
+
+local lfoToCutoffKnob = lfoPanel:Knob("LfoToCutoff", 0, -1, 1)
+lfoToCutoffKnob.displayName = "LFO->Filter"
+lfoToCutoffKnob.fillColour = knobColour
+lfoToCutoffKnob.outlineColour = lfoColour
+lfoToCutoffKnob.changed = function(self)
+  local value = (self.value + 1) * 0.5
+  lfoToCutoff:setParameter("Value", value)
+  --print("Value set:", value)
+  self.displayText = string.format("%0.1f %%", (self.value * 100))
+end
+lfoToCutoffKnob:changed()
+
+local lfoToAmpKnob = lfoPanel:Knob("LfoToAmplitude", 0, -1, 1)
+lfoToAmpKnob.displayName = "LFO->Amp"
+lfoToAmpKnob.fillColour = knobColour
+lfoToAmpKnob.outlineColour = lfoColour
+lfoToAmpKnob.changed = function(self)
+  local value = (self.value + 1) * 0.5
+  lfoToAmp:setParameter("Value", value)
+  --print("Value set:", value)
+  self.displayText = string.format("%0.1f %%", (self.value * 100))
+end
+lfoToAmpKnob:changed()
+
+--------------------------------------------------------------------------------
+-- Amp Env
+--------------------------------------------------------------------------------
+
+function formatTimeInSeconds(value)
+  if value < 0.01 then
+      return string.format("%0.2f ms", value*1000)
+  elseif value < 0.1 then
+      return string.format("%0.1f ms", value*1000)
+  elseif value < 1 then
+      return string.format("%0.0f ms", value*1000)
+  else
+      return string.format("%0.2f s", value)
+  end
+end
+
+local ampEnvPanel = Panel("ampEnv1")
+
+local ampEnvLabel = ampEnvPanel:Label("Amp Envelope")
+
+local ampAttackKnob = ampEnvPanel:Knob("Attack", 0.001, 0, 10)
+ampAttackKnob.fillColour = knobColour
+ampAttackKnob.outlineColour = ampEnvColour
+ampAttackKnob.mapper = Mapper.Quartic
+ampAttackKnob.changed = function(self)
+  --ampAttack:setParameter("Value", self.value / 10)
+  ampEnv1:setParameter("AttackTime", self.value)
+  ampEnv2:setParameter("AttackTime", self.value)
+  ampEnvNoise:setParameter("AttackTime", self.value)
+  self.displayText = formatTimeInSeconds(self.value)
+end
+ampAttackKnob:changed()
+
+local ampDecayKnob = ampEnvPanel:Knob("Decay", 0.050, 0, 10)
+ampDecayKnob.fillColour = knobColour
+ampDecayKnob.outlineColour = ampEnvColour
+ampDecayKnob.mapper = Mapper.Quartic
+ampDecayKnob.changed = function(self)
+  --ampDecay:setParameter("Value", self.value)
+  ampEnv1:setParameter("DecayTime", self.value)
+  ampEnv2:setParameter("DecayTime", self.value)
+  ampEnvNoise:setParameter("DecayTime", self.value)
+  self.displayText = formatTimeInSeconds(self.value)
+end
+ampDecayKnob:changed()
+
+local ampSustainKnob = ampEnvPanel:Knob("Sustain", 1, 0, 1)
+ampSustainKnob.fillColour = knobColour
+ampSustainKnob.outlineColour = ampEnvColour
+ampSustainKnob.changed = function(self)
+  ampSustain:setParameter("Value", self.value)
+  self.displayText = percent(self.value)
+end
+ampSustainKnob:changed()
+
+local ampReleaseKnob = ampEnvPanel:Knob("Release", 0.010, 0, 10)
+ampReleaseKnob.fillColour = knobColour
+ampReleaseKnob.outlineColour = ampEnvColour
+ampReleaseKnob.mapper = Mapper.Quartic
+ampReleaseKnob.changed = function(self)
+  --ampRelease:setParameter("Value", self.value)
+  ampEnv1:setParameter("ReleaseTime", self.value)
+  ampEnv2:setParameter("ReleaseTime", self.value)
+  ampEnvNoise:setParameter("ReleaseTime", self.value)
+  self.displayText = formatTimeInSeconds(self.value)
+end
+ampReleaseKnob:changed()
+
+local ampVelocityKnob = ampEnvPanel:Knob("VelocityToAmpEnv", 10, 0, 40)
+ampVelocityKnob.displayName="Velocity"
+ampVelocityKnob.fillColour = knobColour
+ampVelocityKnob.outlineColour = ampEnvColour
+ampVelocityKnob.changed = function(self)
+  ampEnv1:setParameter("DynamicRange", self.value)
+  ampEnv2:setParameter("DynamicRange", self.value)
+  ampEnvNoise:setParameter("DynamicRange", self.value)
+end
+ampVelocityKnob:changed()
+
+--------------------------------------------------------------------------------
+-- Filter Env
+--------------------------------------------------------------------------------
+
+local filterEnvPanel = Panel("FilterEnv1")
+
+local filterEnvLabel = filterEnvPanel:Label("Filter Envelope")
+
+local filterAttackKnob = filterEnvPanel:Knob("FAttack", 0.001, 0, 10)
+filterAttackKnob.displayName="Attack"
+filterAttackKnob.fillColour = knobColour
+filterAttackKnob.outlineColour = filterEnvColour
+filterAttackKnob.mapper = Mapper.Quartic
+filterAttackKnob.changed = function(self)
+  --filterAttack:setParameter("Value", self.value)
+  filterEnv1:setParameter("AttackTime", self.value)
+  filterEnv2:setParameter("AttackTime", self.value)
+  filterEnvNoise:setParameter("AttackTime", self.value)
+  self.displayText = formatTimeInSeconds(self.value)
+end
+filterAttackKnob:changed()
+
+local filterDecayKnob = filterEnvPanel:Knob("FDecay", 0.050, 0, 10)
+filterDecayKnob.displayName="Decay"
+filterDecayKnob.fillColour = knobColour
+filterDecayKnob.outlineColour = filterEnvColour
+filterDecayKnob.mapper = Mapper.Quartic
+filterDecayKnob.changed = function(self)
+  --filterDecay:setParameter("Value", self.value)
+  filterEnv1:setParameter("DecayTime", self.value)
+  filterEnv2:setParameter("DecayTime", self.value)
+  filterEnvNoise:setParameter("DecayTime", self.value)
+  self.displayText = formatTimeInSeconds(self.value)
+end
+filterDecayKnob:changed()
+
+local filterSustainKnob = filterEnvPanel:Knob("FSustain", 1, 0, 1)
+filterSustainKnob.displayName="Sustain"
+filterSustainKnob.fillColour = knobColour
+filterSustainKnob.outlineColour = filterEnvColour
+filterSustainKnob.changed = function(self)
+  filterSustain:setParameter("Value", self.value)
+  self.displayText = percent(self.value)
+end
+filterSustainKnob:changed()
+
+local filterReleaseKnob = filterEnvPanel:Knob("FRelease", 0.010, 0, 10)
+filterReleaseKnob.displayName="Release"
+filterReleaseKnob.fillColour = knobColour
+filterReleaseKnob.outlineColour = filterEnvColour
+filterReleaseKnob.mapper = Mapper.Quartic
+filterReleaseKnob.changed = function(self)
+  --filterRelease:setParameter("Value", self.value)
+  filterEnv1:setParameter("ReleaseTime", self.value)
+  filterEnv2:setParameter("ReleaseTime", self.value)
+  filterEnvNoise:setParameter("ReleaseTime", self.value)
+  self.displayText = formatTimeInSeconds(self.value)
+end
+filterReleaseKnob:changed()
+
+local filterVelocityKnob = filterEnvPanel:Knob("VelocityToFilterEnv", 10, 0, 40)
+filterVelocityKnob.displayName="Velocity"
+filterVelocityKnob.fillColour = knobColour
+filterVelocityKnob.outlineColour = ampEnvColour
+filterVelocityKnob.changed = function(self)
+  filterEnv1:setParameter("DynamicRange", self.value)
+  filterEnv2:setParameter("DynamicRange", self.value)
+  filterEnvNoise:setParameter("DynamicRange", self.value)
+end
+filterVelocityKnob:changed()
+
+--------------------------------------------------------------------------------
+-- Effects
+--------------------------------------------------------------------------------
+
+local effectsPanel = Panel("EffectsPanel")
+
+local effectsLabel = effectsPanel:Label("Effects")
+
+local reverbKnob = effectsPanel:Knob("Reverb", 0, 0, 1)
+reverbKnob.mapper = Mapper.Quadratic
+reverbKnob.fillColour = knobColour
+reverbKnob.outlineColour = filterEffectsColour
+reverbKnob.changed = function(self)
+  reverbMix:setParameter("Value", self.value)
+end
+reverbKnob:changed()
+
+local delayKnob = effectsPanel:Knob("Delay", 0, 0, 1)
+delayKnob.mapper = Mapper.Cubic
+delayKnob.fillColour = knobColour
+delayKnob.outlineColour = filterEffectsColour
+delayKnob.changed = function(self)
+  delayMix:setParameter("Value", self.value)
+end
+delayKnob:changed()
+
+local chorusKnob = effectsPanel:Knob("Chorus", 0, 0, 1)
+chorusKnob.mapper = Mapper.Linear
+chorusKnob.fillColour = knobColour
+chorusKnob.outlineColour = filterEffectsColour
+chorusKnob.changed = function(self)
+  chorusMix:setParameter("Value", self.value)
+end
+chorusKnob:changed()
+
+local driveKnob = effectsPanel:Knob("Drive", 0, 0, 1)
+driveKnob.mapper = Mapper.Cubic
+driveKnob.fillColour = knobColour
+driveKnob.outlineColour = filterEffectsColour
+driveKnob.changed = function(self)
+  driveAmount:setParameter("Value", self.value)
+end
+driveKnob:changed()
+
+--------------------------------------------------------------------------------
+-- Pitch
+--------------------------------------------------------------------------------
+
+local pitchPanel = Panel("PitchPanel")
+
+local vibratoKnob = pitchPanel:Knob("Vibrato", 0, 0, 1)
+vibratoKnob.fillColour = knobColour
+vibratoKnob.outlineColour = pitchColour
+vibratoKnob.changed = function(self)
+  vibratoAmount:setParameter("Value", self.value)
+end
+vibratoKnob:changed()
+
+local vibratoRateKnob = pitchPanel:Knob("VibratoRate", 0.7, 0, 1)
+vibratoRateKnob.displayName="Rate"
+vibratoRateKnob.fillColour = knobColour
+vibratoRateKnob.outlineColour = pitchColour
+vibratoRateKnob.changed = function(self)
+  vibratoRate:setParameter("Value", self.value)
+  if self.value < 0.2 then
+    self.displayText = "Very slow"
+  elseif self.value < 0.5 then
+    self.displayText = "Slow"
+  elseif self.value < 0.75 then
+    self.displayText = "Medium"
+  elseif self.value < 0.85 then
+    self.displayText = "Fast"
+  else
+    self.displayText = "Very fast"
+  end
+end
+vibratoRateKnob:changed()
+
+--local vibratoModLabel = pitchPanel:Label("Vibrato Modulation")
+
+local wheelToVibratoKnob = pitchPanel:Knob("WheelToVibrato", 0, 0, 1)
+wheelToVibratoKnob.displayName="Modwheel"
+wheelToVibratoKnob.fillColour = knobColour
+wheelToVibratoKnob.outlineColour = pitchColour
+wheelToVibratoKnob.changed = function(self)
+  wheelToVibrato:setParameter("Value", self.value)
+  self.displayText = percent(self.value)
+end
+wheelToVibratoKnob:changed()
+
+local atToVibratoKnob = pitchPanel:Knob("AftertouchToVibrato", 0, 0, 1)
+atToVibratoKnob.displayName="Aftertouch"
+atToVibratoKnob.fillColour = knobColour
+atToVibratoKnob.outlineColour = pitchColour
+atToVibratoKnob.changed = function(self)
+  atToVibrato:setParameter("Value", self.value)
+  self.displayText = percent(self.value)
+end
+atToVibratoKnob:changed()
+
+--------------------------------------------------------------------------------
+-- Arp
+--------------------------------------------------------------------------------
+
+local arpeggiatorButton = effectsPanel:OnOffButton("Arp", false)
+arpeggiatorButton.fillColour = knobColour
+arpeggiatorButton.outlineColour = filterEfectsColour
+arpeggiatorButton.width = 75
+arpeggiatorButton.changed = function(self)
+  local value = -1
+  if (self.value == true) then
+    value = 1
+  end
+  arpeggiator:setParameter("Value", value)
+end
+arpeggiatorButton:changed()
+
+--------------------------------------------------------------------------------
+-- Make view
+--------------------------------------------------------------------------------
+
+local marginX = 5 -- left/right
+local marginYfirst = marginX -- top/bottom
+local marginY = 2 -- top/bottom
+local height = 54
+local width = 710
+
+osc1Panel.backgroundColour = "#33AAFECD"
+osc1Panel.x = marginX
+osc1Panel.y = marginYfirst
+osc1Panel.width = 245
+osc1Panel.height = height
+
+osc2Panel.backgroundColour = "#3300FECD"
+osc2Panel.x = osc1Panel.width + marginX + marginY
+osc2Panel.y = marginYfirst
+osc2Panel.width = 463
+osc2Panel.height = height
+
+mixerPanel.backgroundColour = "#3399AA00"
+mixerPanel.x = marginX
+mixerPanel.y = osc1Panel.y + height + marginY
+mixerPanel.width = width
+mixerPanel.height = height
+
+pitchPanel.backgroundColour = "#3399DD00"
+pitchPanel.x = marginX
+pitchPanel.y = mixerPanel.y + height + marginY
+pitchPanel.width = 475
+pitchPanel.height = height
+
+unisonPanel.backgroundColour = "#3399FECD"
+unisonPanel.x = pitchPanel.width + marginX + marginY
+unisonPanel.y = pitchPanel.y
+unisonPanel.width = 233
+unisonPanel.height = height
+
+filterPanel.backgroundColour = "#33AA00DD"
+filterPanel.x = marginX
+filterPanel.y = pitchPanel.y + height + marginY
+filterPanel.width = width
+filterPanel.height = height
+
+lfoPanel.backgroundColour = "#330000DD"
+lfoPanel.x = marginX
+lfoPanel.y = filterPanel.y + height + marginY
+lfoPanel.width = width
+lfoPanel.height = height
+
+ampEnvPanel.backgroundColour = "#444444"
+ampEnvPanel.x = marginX
+ampEnvPanel.y = lfoPanel.y + height + marginY
+ampEnvPanel.width = width
+ampEnvPanel.height = height
+
+filterEnvPanel.backgroundColour = "#333333"
+filterEnvPanel.x = marginX
+filterEnvPanel.y = ampEnvPanel.y + height + marginY
+filterEnvPanel.width = width
+filterEnvPanel.height = height
+
+effectsPanel.backgroundColour = "#3300AADD"
+effectsPanel.x = marginX
+effectsPanel.y = filterEnvPanel.y + height + marginY
+effectsPanel.width = width
+effectsPanel.height = height
+
+setSize(720, 460)
+
+makePerformanceView()
+]]></script>
+                <ScriptData/>
+            </ScriptProcessor>
+            <Arpeggiator Name="EventProcessor1" Bypass="1" Mode="2" TriggerMode="1" OctaveMode="1" Octave="1" NumStrike="1" RepeatBottomNote="1" RepeatTopNote="0" Resolution="22" StepLength="0.88881832" ArpVelocityBlend="0.20804687" GrooveAmount="0" Hold="0" NumSteps="1" Step0State="1" Step1State="1" Step2State="1" Step3State="1" Step4State="0" Step5State="1" Step6State="0" Step7State="1" Step8State="1" Step9State="1" Step10State="1" Step11State="1" Step12State="1" Step13State="1" Step14State="1" Step15State="1" Step16State="1" Step17State="1" Step18State="1" Step19State="1" Step20State="1" Step21State="1" Step22State="1" Step23State="1" Step24State="1" Step25State="1" Step26State="1" Step27State="1" Step28State="1" Step29State="1" Step30State="1" Step31State="1" Step32State="1" Step33State="1" Step34State="1" Step35State="1" Step36State="1" Step37State="1" Step38State="1" Step39State="1" Step40State="1" Step41State="1" Step42State="1" Step43State="1" Step44State="1" Step45State="1" Step46State="1" Step47State="1" Step48State="1" Step49State="1" Step50State="1" Step51State="1" Step52State="1" Step53State="1" Step54State="1" Step55State="1" Step56State="1" Step57State="1" Step58State="1" Step59State="1" Step60State="1" Step61State="1" Step62State="1" Step63State="1" Step64State="1" Step65State="1" Step66State="1" Step67State="1" Step68State="1" Step69State="1" Step70State="1" Step71State="1" Step72State="1" Step73State="1" Step74State="1" Step75State="1" Step76State="1" Step77State="1" Step78State="1" Step79State="1" Step80State="1" Step81State="1" Step82State="1" Step83State="1" Step84State="1" Step85State="1" Step86State="1" Step87State="1" Step88State="1" Step89State="1" Step90State="1" Step91State="1" Step92State="1" Step93State="1" Step94State="1" Step95State="1" Step96State="1" Step97State="1" Step98State="1" Step99State="1" Step100State="1" Step101State="1" Step102State="1" Step103State="1" Step104State="1" Step105State="1" Step106State="1" Step107State="1" Step108State="1" Step109State="1" Step110State="1" Step111State="1" Step112State="1" Step113State="1" Step114State="1" Step115State="1" Step116State="1" Step117State="1" Step118State="1" Step119State="1" Step120State="1" Step121State="1" Step122State="1" Step123State="1" Step124State="1" Step125State="1" Step126State="1" Step127State="1" Step0Size="1" Step1Size="1" Step2Size="1" Step3Size="1" Step4Size="1" Step5Size="1" Step6Size="1" Step7Size="1" Step8Size="1" Step9Size="1" Step10Size="1" Step11Size="1" Step12Size="1" Step13Size="1" Step14Size="1" Step15Size="1" Step16Size="1" Step17Size="1" Step18Size="1" Step19Size="1" Step20Size="1" Step21Size="1" Step22Size="1" Step23Size="1" Step24Size="1" Step25Size="1" Step26Size="1" Step27Size="1" Step28Size="1" Step29Size="1" Step30Size="1" Step31Size="1" Step32Size="1" Step33Size="1" Step34Size="1" Step35Size="1" Step36Size="1" Step37Size="1" Step38Size="1" Step39Size="1" Step40Size="1" Step41Size="1" Step42Size="1" Step43Size="1" Step44Size="1" Step45Size="1" Step46Size="1" Step47Size="1" Step48Size="1" Step49Size="1" Step50Size="1" Step51Size="1" Step52Size="1" Step53Size="1" Step54Size="1" Step55Size="1" Step56Size="1" Step57Size="1" Step58Size="1" Step59Size="1" Step60Size="1" Step61Size="1" Step62Size="1" Step63Size="1" Step64Size="1" Step65Size="1" Step66Size="1" Step67Size="1" Step68Size="1" Step69Size="1" Step70Size="1" Step71Size="1" Step72Size="1" Step73Size="1" Step74Size="1" Step75Size="1" Step76Size="1" Step77Size="1" Step78Size="1" Step79Size="1" Step80Size="1" Step81Size="1" Step82Size="1" Step83Size="1" Step84Size="1" Step85Size="1" Step86Size="1" Step87Size="1" Step88Size="1" Step89Size="1" Step90Size="1" Step91Size="1" Step92Size="1" Step93Size="1" Step94Size="1" Step95Size="1" Step96Size="1" Step97Size="1" Step98Size="1" Step99Size="1" Step100Size="1" Step101Size="1" Step102Size="1" Step103Size="1" Step104Size="1" Step105Size="1" Step106Size="1" Step107Size="1" Step108Size="1" Step109Size="1" Step110Size="1" Step111Size="1" Step112Size="1" Step113Size="1" Step114Size="1" Step115Size="1" Step116Size="1" Step117Size="1" Step118Size="1" Step119Size="1" Step120Size="1" Step121Size="1" Step122Size="1" Step123Size="1" Step124Size="1" Step125Size="1" Step126Size="1" Step127Size="1" Step0Level="1" Step1Level="1" Step2Level="1" Step3Level="1" Step4Level="1" Step5Level="0.61428601" Step6Level="1" Step7Level="0.78571397" Step8Level="1" Step9Level="1" Step10Level="1" Step11Level="1" Step12Level="1" Step13Level="1" Step14Level="1" Step15Level="1" Step16Level="1" Step17Level="1" Step18Level="1" Step19Level="1" Step20Level="1" Step21Level="1" Step22Level="1" Step23Level="1" Step24Level="1" Step25Level="1" Step26Level="1" Step27Level="1" Step28Level="1" Step29Level="1" Step30Level="1" Step31Level="1" Step32Level="1" Step33Level="1" Step34Level="1" Step35Level="1" Step36Level="1" Step37Level="1" Step38Level="1" Step39Level="1" Step40Level="1" Step41Level="1" Step42Level="1" Step43Level="1" Step44Level="1" Step45Level="1" Step46Level="1" Step47Level="1" Step48Level="1" Step49Level="1" Step50Level="1" Step51Level="1" Step52Level="1" Step53Level="1" Step54Level="1" Step55Level="1" Step56Level="1" Step57Level="1" Step58Level="1" Step59Level="1" Step60Level="1" Step61Level="1" Step62Level="1" Step63Level="1" Step64Level="1" Step65Level="1" Step66Level="1" Step67Level="1" Step68Level="1" Step69Level="1" Step70Level="1" Step71Level="1" Step72Level="1" Step73Level="1" Step74Level="1" Step75Level="1" Step76Level="1" Step77Level="1" Step78Level="1" Step79Level="1" Step80Level="1" Step81Level="1" Step82Level="1" Step83Level="1" Step84Level="1" Step85Level="1" Step86Level="1" Step87Level="1" Step88Level="1" Step89Level="1" Step90Level="1" Step91Level="1" Step92Level="1" Step93Level="1" Step94Level="1" Step95Level="1" Step96Level="1" Step97Level="1" Step98Level="1" Step99Level="1" Step100Level="1" Step101Level="1" Step102Level="1" Step103Level="1" Step104Level="1" Step105Level="1" Step106Level="1" Step107Level="1" Step108Level="1" Step109Level="1" Step110Level="1" Step111Level="1" Step112Level="1" Step113Level="1" Step114Level="1" Step115Level="1" Step116Level="1" Step117Level="1" Step118Level="1" Step119Level="1" Step120Level="1" Step121Level="1" Step122Level="1" Step123Level="1" Step124Level="1" Step125Level="1" Step126Level="1" Step127Level="1" Step0Offset="0" Step1Offset="0" Step2Offset="0" Step3Offset="0" Step4Offset="0" Step5Offset="0" Step6Offset="0" Step7Offset="0" Step8Offset="0" Step9Offset="0" Step10Offset="0" Step11Offset="0" Step12Offset="0" Step13Offset="0" Step14Offset="0" Step15Offset="0" Step16Offset="0" Step17Offset="0" Step18Offset="0" Step19Offset="0" Step20Offset="0" Step21Offset="0" Step22Offset="0" Step23Offset="0" Step24Offset="0" Step25Offset="0" Step26Offset="0" Step27Offset="0" Step28Offset="0" Step29Offset="0" Step30Offset="0" Step31Offset="0" Step32Offset="0" Step33Offset="0" Step34Offset="0" Step35Offset="0" Step36Offset="0" Step37Offset="0" Step38Offset="0" Step39Offset="0" Step40Offset="0" Step41Offset="0" Step42Offset="0" Step43Offset="0" Step44Offset="0" Step45Offset="0" Step46Offset="0" Step47Offset="0" Step48Offset="0" Step49Offset="0" Step50Offset="0" Step51Offset="0" Step52Offset="0" Step53Offset="0" Step54Offset="0" Step55Offset="0" Step56Offset="0" Step57Offset="0" Step58Offset="0" Step59Offset="0" Step60Offset="0" Step61Offset="0" Step62Offset="0" Step63Offset="0" Step64Offset="0" Step65Offset="0" Step66Offset="0" Step67Offset="0" Step68Offset="0" Step69Offset="0" Step70Offset="0" Step71Offset="0" Step72Offset="0" Step73Offset="0" Step74Offset="0" Step75Offset="0" Step76Offset="0" Step77Offset="0" Step78Offset="0" Step79Offset="0" Step80Offset="0" Step81Offset="0" Step82Offset="0" Step83Offset="0" Step84Offset="0" Step85Offset="0" Step86Offset="0" Step87Offset="0" Step88Offset="0" Step89Offset="0" Step90Offset="0" Step91Offset="0" Step92Offset="0" Step93Offset="0" Step94Offset="0" Step95Offset="0" Step96Offset="0" Step97Offset="0" Step98Offset="0" Step99Offset="0" Step100Offset="0" Step101Offset="0" Step102Offset="0" Step103Offset="0" Step104Offset="0" Step105Offset="0" Step106Offset="0" Step107Offset="0" Step108Offset="0" Step109Offset="0" Step110Offset="0" Step111Offset="0" Step112Offset="0" Step113Offset="0" Step114Offset="0" Step115Offset="0" Step116Offset="0" Step117Offset="0" Step118Offset="0" Step119Offset="0" Step120Offset="0" Step121Offset="0" Step122Offset="0" Step123Offset="0" Step124Offset="0" Step125Offset="0" Step126Offset="0" Step127Offset="0" Step0CC="0" Step1CC="0" Step2CC="0" Step3CC="0" Step4CC="0" Step5CC="0" Step6CC="0" Step7CC="0" Step8CC="0" Step9CC="0" Step10CC="0" Step11CC="0" Step12CC="0" Step13CC="0" Step14CC="0" Step15CC="0" Step16CC="0" Step17CC="0" Step18CC="0" Step19CC="0" Step20CC="0" Step21CC="0" Step22CC="0" Step23CC="0" Step24CC="0" Step25CC="0" Step26CC="0" Step27CC="0" Step28CC="0" Step29CC="0" Step30CC="0" Step31CC="0" Step32CC="0" Step33CC="0" Step34CC="0" Step35CC="0" Step36CC="0" Step37CC="0" Step38CC="0" Step39CC="0" Step40CC="0" Step41CC="0" Step42CC="0" Step43CC="0" Step44CC="0" Step45CC="0" Step46CC="0" Step47CC="0" Step48CC="0" Step49CC="0" Step50CC="0" Step51CC="0" Step52CC="0" Step53CC="0" Step54CC="0" Step55CC="0" Step56CC="0" Step57CC="0" Step58CC="0" Step59CC="0" Step60CC="0" Step61CC="0" Step62CC="0" Step63CC="0" Step64CC="0" Step65CC="0" Step66CC="0" Step67CC="0" Step68CC="0" Step69CC="0" Step70CC="0" Step71CC="0" Step72CC="0" Step73CC="0" Step74CC="0" Step75CC="0" Step76CC="0" Step77CC="0" Step78CC="0" Step79CC="0" Step80CC="0" Step81CC="0" Step82CC="0" Step83CC="0" Step84CC="0" Step85CC="0" Step86CC="0" Step87CC="0" Step88CC="0" Step89CC="0" Step90CC="0" Step91CC="0" Step92CC="0" Step93CC="0" Step94CC="0" Step95CC="0" Step96CC="0" Step97CC="0" Step98CC="0" Step99CC="0" Step100CC="0" Step101CC="0" Step102CC="0" Step103CC="0" Step104CC="0" Step105CC="0" Step106CC="0" Step107CC="0" Step108CC="0" Step109CC="0" Step110CC="0" Step111CC="0" Step112CC="0" Step113CC="0" Step114CC="0" Step115CC="0" Step116CC="0" Step117CC="0" Step118CC="0" Step119CC="0" Step120CC="0" Step121CC="0" Step122CC="0" Step123CC="0" Step124CC="0" Step125CC="0" Step126CC="0" Step127CC="0" StepCCId="-1" ArpeggiatorVersion="2">
+                <Connections>
+                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 16" Destination="Bypass" Mapper="" ConnectionMode="1" Bypass="0" Inverted="1" Offset="0" SignalConnectionVersion="1"/>
+                </Connections>
+                <Properties PresetPath="$Resource/resource/FactoryPresets/EventProcessor/Arpeggiator/Arp Basic/Basic UpDown.preset"/>
+            </Arpeggiator>
+        </EventProcessors>
+        <Inserts>
+            <SparkVerb Name="InsertFX1" Bypass="0" ModDepth="1.4" ModRate="1" Diffusion="0.60600001" DiffusionStart="4.6719999" Width="0.67199999" RoomSize="15.178488" DecayTime="0.801678" DecayLow="10" DecayHigh="0.1" FreqLow="10" FreqHigh="8730.3115" Shape="0" Mix="0" Quality="3" Mode="1" HiCut="1" LowCut="0" Rolloff="3741.363" DiffusionOnOff="1" PreDelay="0" MixMode="0" SparkVerbVersion="1">
+                <Connections>
+                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 15" Destination="Mix" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                </Connections>
+                <Properties PresetPath="$Resource/resource/FactoryPresets/FX/02 - Reverberation/04 - SparkVerb/02 - Plate/Classic Plate.preset"/>
+            </SparkVerb>
+            <Drive Name="InsertFX3" Bypass="0" DriveAmount="0" Mode="0" Oversampling="0">
+                <Connections>
+                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 23" Destination="DriveAmount" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                </Connections>
+            </Drive>
+            <DualDelay Name="InsertFX0" Bypass="0" SyncToHost="1" DelayTime="1.5" LowCut="20" HighCut="6955.9419" PeakFreq="1000" PeakGain="0" PeakQ="1" Feedback="0.48018751" Mix="0" Rotation="84.779999" InputWidth="1" OutputWidth="1" DelayRatio="0.32959688" FeedbackRatio="0" InputRotation="-0.300125" OutputRotation="-0.28812504" ModDepth="5.7362504" ModRate="0.45289761" ModChannelOffset="1" Interpolation="1" DualDelayVersion="1">
+                <Connections>
+                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 14" Destination="Mix" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                </Connections>
+                <Properties PresetPath="$Resource/resource/FactoryPresets/FX/01 - Delay/07 - Dual Delay/1 Stereo Delay/Sequencer Dots.preset"/>
+            </DualDelay>
+            <AnalogChorus Name="InsertFX2" Bypass="0" Speed="0.1" Width="0" Intensity="0" TransientEnhancement="0">
+                <Connections>
+                    <SignalConnection Name="SignalConnection 0" Ratio="0.65328664" Source="$Program/Macro 21" Destination="Speed" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 21" Destination="Width" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                    <SignalConnection Name="SignalConnection 0" Ratio="0.34999999" Source="$Program/Macro 21" Destination="Intensity" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                </Connections>
+                <Properties PresetPath="$Resource/resource/FactoryPresets/FX/04 - Modulation/05 - Analog Chorus/Nice and Slow.preset"/>
+            </AnalogChorus>
+            <Maximizer Name="InsertFX4" Bypass="1" Threshold="-6" Attack="0" Lookahead="2" Release="10" Ceiling="-0.10000038" Knee="0" ReleaseBlend="0.1" SlewRate="20">
+                <Connections>
+                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 35" Destination="Bypass" Mapper="" ConnectionMode="1" Bypass="0" Inverted="1" Offset="0" SignalConnectionVersion="1"/>
+                </Connections>
+            </Maximizer>
+        </Inserts>
+        <Layers>
+            <Layer Name="Layer 0" Bypass="0" BypassInsertFX="0" Gain="0.57547152" Pan="0" Mute="0" MidiMute="0" Solo="0" DisplayName="Osc 1" OutputName="" LowKey="0" HighKey="127" CustomPolyphony="0" PlayMode="0" PortamentoTime="0.029999999" PortamentoCurve="0" PortamentoMode="0" NumVoicesPerNote="1" VelocityCurve="0">
+                <Connections>
+                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 8" Destination="Gain" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                </Connections>
+                <Properties Color="ffbe88cc"/>
+                <ControlSignalSources/>
+                <BusRouters/>
+                <Keygroups>
+                    <Keygroup Name="Keygroup 0" Bypass="0" BypassInsertFX="0" Gain="1" Pan="0" DisplayName="Keygroup 1" OutputName="" ExclusiveGroup="0" LowKey="0" HighKey="127" LowVelocity="1" HighVelocity="127" LowKeyFade="0" HighKeyFade="0" LowVelocityFade="0" HighVelocityFade="0" FadeCurve="2" TriggerMode="0" TriggerSync="0" TriggerRule="0" LatchTrigger="0" FXPostGain="0">
+                        <Connections>
+                            <SignalConnection Name="AmpEnvMod" Ratio="1" Source="Amp. Env" Destination="Gain" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0"/>
+                        </Connections>
+                        <ControlSignalSources>
+                            <AnalogADSR Name="Amp. Env" DisplayName="Amp. Env" Bypass="0" AttackTime="0.001" DecayTime="0.050000001" KeyToDecay="0" KeyToAttack="0" VelToDecay="0" Punch="0" VelToAttack="0" DynamicRange="10" SustainLevel="1" ReleaseTime="0.0099999998" ManualTrigger="0" TriggerMode="0" InvertVelocity="0" AttackDecayMode="0">
+                                <Connections>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 17" Destination="AttackTime" Mapper="Mapper 4" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 18" Destination="DecayTime" Mapper="Mapper 4" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 19" Destination="SustainLevel" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 20" Destination="ReleaseTime" Mapper="Mapper 4" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                </Connections>
+                            </AnalogADSR>
+                            <AnalogADSR Name="Analog ADSR 1" DisplayName="Filter Env" Bypass="0" AttackTime="0.001" DecayTime="0.050000001" KeyToDecay="0" KeyToAttack="0" VelToDecay="0" Punch="0" VelToAttack="0" DynamicRange="10" SustainLevel="1" ReleaseTime="0.0099999998" ManualTrigger="0" TriggerMode="0" InvertVelocity="0" AttackDecayMode="0">
+                                <Connections>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 4" Destination="AttackTime" Mapper="Mapper 4" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 5" Destination="DecayTime" Mapper="Mapper 4" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 6" Destination="SustainLevel" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 7" Destination="ReleaseTime" Mapper="Mapper 4" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                </Connections>
+                            </AnalogADSR>
+                        </ControlSignalSources>
+                        <Inserts>
+                            <MoogFilter Name="InsertFX0" Bypass="0" Freq="20000" Q="0" KeyTracking="0">
+                                <Connections>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="0" Source="$Keygroup/Analog ADSR 1" Destination="Freq" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0">
+                                        <Connections>
+                                            <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 3" Destination="Ratio" Mapper="Mapper 1" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                        </Connections>
+                                    </SignalConnection>
+                                    <SignalConnection Name="SignalConnection 2" Ratio="0" Source="@MIDI CC 1" Destination="Freq" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0">
+                                        <Connections>
+                                            <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 22" Destination="Ratio" Mapper="Mapper 1" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                        </Connections>
+                                    </SignalConnection>
+                                    <SignalConnection Name="SignalConnection 3" Ratio="0" Source="@ChanAfterTouch" Destination="Freq" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0">
+                                        <Connections>
+                                            <SignalConnection Name="SignalConnection 1" Ratio="1" Source="$Program/Macro 24" Destination="Ratio" Mapper="Mapper 1" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                        </Connections>
+                                    </SignalConnection>
+                                    <SignalConnection Name="SignalConnection 4" Ratio="0" Source="$Program/LFO 2" Destination="Freq" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0">
+                                        <Connections>
+                                            <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 31" Destination="Ratio" Mapper="Mapper 1" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                        </Connections>
+                                    </SignalConnection>
+                                    <SignalConnection Name="SignalConnection 1" Ratio="1" Source="$Program/Macro 2" Destination="Freq" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 13" Destination="Q" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 30" Destination="KeyTracking" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                </Connections>
+                            </MoogFilter>
+                        </Inserts>
+                        <BusRouters/>
+                        <Oscillators>
+                            <WaveTableOscillator Name="Oscillator 2" Bypass="0" CoarseTune="0" FineTune="0" Gain="1" Pitch="0" NoteTracking="1" BaseNote="60" DisplayName="Oscillator 2" WavetablePath="$Tables/Analog/Basic Mini.wav" StartPhase="0" PhaseDistortionAmount="0.47999999" PhaseDistortionMode="0" Spread="0.1" DetuneMode="0" WaveIndex="0" WaveIndexSpread="0" StereoSpread="0.1" StereoSpreadMode="1" NumOscs="1" FadeMipMap="0" FadeWaveIndex="0" Stereo="1" PhaseSpread="1" EnableFM="0" FMDepth="0.1" FMRatio="0" FMRatioFine="0" FMRatioMode="1" FMFreq="0.1" FMFixedFreq="0" FMFreqMultiplier="3">
+                                <Connections>
+                                    <SignalConnection Name="PitchBendMod" Ratio="2" Source="@PitchBend" Destination="Pitch" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/LFO 1" Destination="Pitch" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0">
+                                        <Connections>
+                                            <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 25" Destination="Ratio" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0"/>
+                                        </Connections>
+                                    </SignalConnection>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/LFO 2" Destination="PhaseDistortionAmount" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0">
+                                        <Connections>
+                                            <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 27" Destination="Ratio" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0"/>
+                                        </Connections>
+                                    </SignalConnection>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 32" Destination="Spread" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 1" Destination="WaveIndex" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 34" Destination="NumOscs" Mapper="Mapper 3" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                </Connections>
+                            </WaveTableOscillator>
+                        </Oscillators>
+                    </Keygroup>
+                </Keygroups>
+            </Layer>
+            <Layer Name="Layer 1" Bypass="0" BypassInsertFX="0" Gain="0" Pan="0" Mute="0" MidiMute="0" Solo="0" DisplayName="Osc 2" OutputName="" LowKey="0" HighKey="127" CustomPolyphony="0" PlayMode="0" PortamentoTime="0.029999999" PortamentoCurve="0" PortamentoMode="0" NumVoicesPerNote="1" VelocityCurve="0">
+                <Connections>
+                    <SignalConnection Name="SignalConnection 1" Ratio="1" Source="$Program/Macro 10" Destination="Gain" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                </Connections>
+                <Properties Color="ffca7d6d"/>
+                <ControlSignalSources/>
+                <BusRouters/>
+                <Keygroups>
+                    <Keygroup Name="Keygroup 0" Bypass="0" BypassInsertFX="0" Gain="1" Pan="0" DisplayName="Keygroup 1" OutputName="" ExclusiveGroup="0" LowKey="0" HighKey="127" LowVelocity="1" HighVelocity="127" LowKeyFade="0" HighKeyFade="0" LowVelocityFade="0" HighVelocityFade="0" FadeCurve="2" TriggerMode="0" TriggerSync="0" TriggerRule="0" LatchTrigger="0" FXPostGain="0">
+                        <Connections>
+                            <SignalConnection Name="AmpEnvMod" Ratio="1" Source="Amp. Env" Destination="Gain" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0"/>
+                        </Connections>
+                        <ControlSignalSources>
+                            <AnalogADSR Name="Amp. Env" DisplayName="Amp. Env" Bypass="0" AttackTime="0.001" DecayTime="0.050000001" KeyToDecay="0" KeyToAttack="0" VelToDecay="0" Punch="0" VelToAttack="0" DynamicRange="10" SustainLevel="1" ReleaseTime="0.0099999998" ManualTrigger="0" TriggerMode="0" InvertVelocity="0" AttackDecayMode="0">
+                                <Connections>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 17" Destination="AttackTime" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 18" Destination="DecayTime" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 19" Destination="SustainLevel" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 20" Destination="ReleaseTime" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                </Connections>
+                            </AnalogADSR>
+                            <AnalogADSR Name="Analog ADSR 1" DisplayName="Filter Env" Bypass="0" AttackTime="0.001" DecayTime="0.050000001" KeyToDecay="0" KeyToAttack="0" VelToDecay="0" Punch="0" VelToAttack="0" DynamicRange="10" SustainLevel="1" ReleaseTime="0.0099999998" ManualTrigger="0" TriggerMode="0" InvertVelocity="0" AttackDecayMode="0">
+                                <Connections>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 4" Destination="AttackTime" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 5" Destination="DecayTime" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 6" Destination="SustainLevel" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 7" Destination="ReleaseTime" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                </Connections>
+                            </AnalogADSR>
+                        </ControlSignalSources>
+                        <Inserts>
+                            <MoogFilter Name="InsertFX0" Bypass="0" Freq="20000" Q="0" KeyTracking="0">
+                                <Connections>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="0" Source="$Keygroup/Analog ADSR 1" Destination="Freq" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0">
+                                        <Connections>
+                                            <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 3" Destination="Ratio" Mapper="Mapper 1" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                        </Connections>
+                                    </SignalConnection>
+                                    <SignalConnection Name="SignalConnection 2" Ratio="0" Source="@MIDI CC 1" Destination="Freq" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0">
+                                        <Connections>
+                                            <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 22" Destination="Ratio" Mapper="Mapper 1" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                        </Connections>
+                                    </SignalConnection>
+                                    <SignalConnection Name="SignalConnection 3" Ratio="0" Source="@ChanAfterTouch" Destination="Freq" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0">
+                                        <Connections>
+                                            <SignalConnection Name="SignalConnection 1" Ratio="1" Source="$Program/Macro 24" Destination="Ratio" Mapper="Mapper 1" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                        </Connections>
+                                    </SignalConnection>
+                                    <SignalConnection Name="SignalConnection 4" Ratio="0" Source="$Program/LFO 2" Destination="Freq" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0">
+                                        <Connections>
+                                            <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 31" Destination="Ratio" Mapper="Mapper 1" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                        </Connections>
+                                    </SignalConnection>
+                                    <SignalConnection Name="SignalConnection 1" Ratio="1" Source="$Program/Macro 2" Destination="Freq" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 13" Destination="Q" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 30" Destination="KeyTracking" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                </Connections>
+                            </MoogFilter>
+                        </Inserts>
+                        <BusRouters/>
+                        <Oscillators>
+                            <WaveTableOscillator Name="Oscillator" Bypass="0" CoarseTune="0" FineTune="0" Gain="1" Pitch="-24" NoteTracking="1" BaseNote="60" DisplayName="Oscillator 1" WavetablePath="$Tables/Analog/Basic Mini.wav" StartPhase="0.48999998" PhaseDistortionAmount="0.51999998" PhaseDistortionMode="0" Spread="0.1" DetuneMode="0" WaveIndex="0" WaveIndexSpread="0" StereoSpread="0.1" StereoSpreadMode="1" NumOscs="1" FadeMipMap="0" FadeWaveIndex="0" Stereo="1" PhaseSpread="1" EnableFM="0" FMDepth="0.1" FMRatio="0" FMRatioFine="0" FMRatioMode="1" FMFreq="0.1" FMFixedFreq="0" FMFreqMultiplier="3">
+                                <Connections>
+                                    <SignalConnection Name="PitchBendMod" Ratio="2" Source="@PitchBend" Destination="Pitch" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0"/>
+                                    <SignalConnection Name="SignalConnection 1" Ratio="1.0000007" Source="$Program/Macro 12" Destination="Pitch" Mapper="Mapper 0" ConnectionMode="0" Bypass="0" Inverted="0"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 11" Destination="Pitch" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0"/>
+                                    <SignalConnection Name="SignalConnection 2" Ratio="1" Source="$Program/LFO 1" Destination="Pitch" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0">
+                                        <Connections>
+                                            <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 25" Destination="Ratio" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0"/>
+                                        </Connections>
+                                    </SignalConnection>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/LFO 2" Destination="PhaseDistortionAmount" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0">
+                                        <Connections>
+                                            <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 28" Destination="Ratio" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0"/>
+                                        </Connections>
+                                    </SignalConnection>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 32" Destination="Spread" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                    <SignalConnection Name="SignalConnection 1" Ratio="1" Source="$Program/Macro 9" Destination="WaveIndex" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 34" Destination="NumOscs" Mapper="Mapper 3" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                </Connections>
+                            </WaveTableOscillator>
+                        </Oscillators>
+                    </Keygroup>
+                </Keygroups>
+            </Layer>
+            <Layer Name="Layer 2" Bypass="0" BypassInsertFX="0" Gain="0" Pan="0" Mute="0" MidiMute="0" Solo="0" DisplayName="Noise" OutputName="" LowKey="0" HighKey="127" CustomPolyphony="0" PlayMode="0" PortamentoTime="0.029999999" PortamentoCurve="0" PortamentoMode="0" NumVoicesPerNote="1" VelocityCurve="0">
+                <Connections>
+                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 36" Destination="Gain" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                </Connections>
+                <Properties Color="ffa398e8"/>
+                <ControlSignalSources/>
+                <BusRouters/>
+                <Keygroups>
+                    <Keygroup Name="Keygroup 0" Bypass="0" BypassInsertFX="0" Gain="1" Pan="0" DisplayName="Keygroup 1" OutputName="" ExclusiveGroup="0" LowKey="0" HighKey="127" LowVelocity="1" HighVelocity="127" LowKeyFade="0" HighKeyFade="0" LowVelocityFade="0" HighVelocityFade="0" FadeCurve="2" TriggerMode="0" TriggerSync="0" TriggerRule="0" LatchTrigger="0" FXPostGain="0">
+                        <Connections>
+                            <SignalConnection Name="AmpEnvMod" Ratio="1" Source="Amp. Env" Destination="Gain" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0"/>
+                        </Connections>
+                        <ControlSignalSources>
+                            <AnalogADSR Name="Amp. Env" DisplayName="Amp. Env" Bypass="0" AttackTime="0.001" DecayTime="0.050000001" KeyToDecay="0" KeyToAttack="0" VelToDecay="0" Punch="0" VelToAttack="0" DynamicRange="10" SustainLevel="1" ReleaseTime="0.0099999998" ManualTrigger="0" TriggerMode="0" InvertVelocity="0" AttackDecayMode="0">
+                                <Connections>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 17" Destination="AttackTime" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 18" Destination="DecayTime" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 19" Destination="SustainLevel" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 20" Destination="ReleaseTime" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                </Connections>
+                            </AnalogADSR>
+                            <AnalogADSR Name="Analog ADSR 1" DisplayName="Filter Env" Bypass="0" AttackTime="0.001" DecayTime="0.050000001" KeyToDecay="0" KeyToAttack="0" VelToDecay="0" Punch="0" VelToAttack="0" DynamicRange="10" SustainLevel="1" ReleaseTime="0.0099999998" ManualTrigger="0" TriggerMode="0" InvertVelocity="0" AttackDecayMode="0">
+                                <Connections>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 4" Destination="AttackTime" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 5" Destination="DecayTime" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 6" Destination="SustainLevel" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 7" Destination="ReleaseTime" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                </Connections>
+                            </AnalogADSR>
+                        </ControlSignalSources>
+                        <Inserts>
+                            <MoogFilter Name="InsertFX0" Bypass="0" Freq="20000" Q="0" KeyTracking="0">
+                                <Connections>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="0" Source="$Keygroup/Analog ADSR 1" Destination="Freq" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0">
+                                        <Connections>
+                                            <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 3" Destination="Ratio" Mapper="Mapper 1" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                        </Connections>
+                                    </SignalConnection>
+                                    <SignalConnection Name="SignalConnection 2" Ratio="0" Source="@MIDI CC 1" Destination="Freq" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0">
+                                        <Connections>
+                                            <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 22" Destination="Ratio" Mapper="Mapper 1" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                        </Connections>
+                                    </SignalConnection>
+                                    <SignalConnection Name="SignalConnection 3" Ratio="0" Source="@ChanAfterTouch" Destination="Freq" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0">
+                                        <Connections>
+                                            <SignalConnection Name="SignalConnection 1" Ratio="1" Source="$Program/Macro 24" Destination="Ratio" Mapper="Mapper 1" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                        </Connections>
+                                    </SignalConnection>
+                                    <SignalConnection Name="SignalConnection 4" Ratio="0" Source="$Program/LFO 2" Destination="Freq" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0">
+                                        <Connections>
+                                            <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 31" Destination="Ratio" Mapper="Mapper 1" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                        </Connections>
+                                    </SignalConnection>
+                                    <SignalConnection Name="SignalConnection 1" Ratio="1" Source="$Program/Macro 2" Destination="Freq" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 13" Destination="Q" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0"/>
+                                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Program/Macro 30" Destination="KeyTracking" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                                </Connections>
+                            </MoogFilter>
+                        </Inserts>
+                        <BusRouters/>
+                        <Oscillators>
+                            <NoiseOscillator Name="Oscillator" Bypass="0" Value="0" NoiseType="6" Stereo="0" CoarseTune="0" FineTune="0" Gain="1" Pitch="0.088500001" NoteTracking="1" BaseNote="60" DisplayName="Oscillator 1">
+                                <Connections>
+                                    <SignalConnection Name="PitchBendMod" Ratio="2" Source="@PitchBend" Destination="Pitch" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0"/>
+                                </Connections>
+                            </NoiseOscillator>
+                        </Oscillators>
+                    </Keygroup>
+                </Keygroups>
+            </Layer>
+        </Layers>
+    </Program>
+</UVI4>
