@@ -1,4 +1,4 @@
-# UVIScript
+# Synths for UVI Falcon
 
 This repo contains lua scripts for UVI Falcon.
 
