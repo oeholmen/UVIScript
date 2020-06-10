@@ -175,8 +175,8 @@ function onSave()
   table.insert(data, storedPatch)
   if #storedPatches > 0 then
     -- Update the initial patch
-    table.remove(storedPatches, 1)
-    table.insert(storedPatches, 1, storedPatch)
+    --table.remove(storedPatches, 1)
+    --table.insert(storedPatches, 1, storedPatch)
     table.insert(data, storedPatches)
   end
   print("Data stored: ", #data)
@@ -205,7 +205,7 @@ function populatePatchesMenu()
   for i=1,#storedPatches do
     local itemName = "Snapshot "..i
     if i == 1 then
-      itemName = itemName.." (stored)"
+      itemName = itemName.." (initial)"
     end
     patchesMenu:addItem(itemName)
   end
@@ -640,7 +640,7 @@ function createMixerPanel()
   arpeggiatorButton.size = {100,(height-15)}
   arpeggiatorButton.changed = function(self)
     local value = -1
-    if (self.value == true) then
+    if self.value == true then
       value = 1
     end
     arpeggiator:setParameter("Value", value)
@@ -705,7 +705,7 @@ function createEffectsPanel()
   maximizerButton.size = {100,(height-15)}
   maximizerButton.changed = function(self)
     local value = -1
-    if (self.value == true) then
+    if self.value == true then
       value = 1
     end
     maximizer:setParameter("Value", value)

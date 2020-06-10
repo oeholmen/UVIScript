@@ -491,11 +491,16 @@ pagePanel.y = marginY
 pagePanel.width = 713
 pagePanel.height = 30
 
-local pageAButton = pagePanel:Button("Synthesis")
-local pageBButton = pagePanel:Button("Filters")
-local pageCButton = pagePanel:Button("Modulation")
-local pageDButton = pagePanel:Button("Twequencer")
-local pageEButton = pagePanel:Button("Patchmaker")
+local pageAButton = pagePanel:OnOffButton("PageA", true)
+pageAButton.displayName = "Synthesis"
+local pageBButton = pagePanel:OnOffButton("PageB", false)
+pageBButton.displayName = "Filters"
+local pageCButton = pagePanel:OnOffButton("PageC", false)
+pageCButton.displayName = "Modulation"
+local pageDButton = pagePanel:OnOffButton("PageD", false)
+pageDButton.displayName = "Twequencer"
+local pageEButton = pagePanel:OnOffButton("PageE", false)
+pageEButton.displayName = "Patchmaker"
 
 mixerPanel.x = marginX
 mixerPanel.y = pagePanel.height + marginY * 2
@@ -671,22 +676,42 @@ function setPage(page)
 end
 
 pageAButton.changed = function(self)
+  pageBButton:setValue(false, false)
+  pageCButton:setValue(false, false)
+  pageDButton:setValue(false, false)
+  pageEButton:setValue(false, false)
   setPage(1)
 end
 
 pageBButton.changed = function(self)
+  pageAButton:setValue(false, false)
+  pageCButton:setValue(false, false)
+  pageDButton:setValue(false, false)
+  pageEButton:setValue(false, false)
   setPage(2)
 end
 
 pageCButton.changed = function(self)
+  pageAButton:setValue(false, false)
+  pageBButton:setValue(false, false)
+  pageDButton:setValue(false, false)
+  pageEButton:setValue(false, false)
   setPage(3)
 end
 
 pageDButton.changed = function(self)
+  pageAButton:setValue(false, false)
+  pageBButton:setValue(false, false)
+  pageCButton:setValue(false, false)
+  pageEButton:setValue(false, false)
   setPage(4)
 end
 
 pageEButton.changed = function(self)
+  pageAButton:setValue(false, false)
+  pageBButton:setValue(false, false)
+  pageCButton:setValue(false, false)
+  pageDButton:setValue(false, false)
   setPage(5)
 end
 
