@@ -314,17 +314,6 @@ function createLfoTargetPanel1()
   end
   osc1LfoToPhaseDistortionKnob:changed()
 
-  local lfoToWT1Knob = lfoTargetPanel1:Knob("Osc1LfoToWaveIndex", 0, -1, 1)
-  lfoToWT1Knob.displayName = "Osc 1 Wave"
-  lfoToWT1Knob.fillColour = knobColour
-  lfoToWT1Knob.outlineColour = lfoColour
-  lfoToWT1Knob.changed = function(self)
-    local value = (self.value + 1) * 0.5
-    lfoToWT1:setParameter("Value", value)
-    self.displayText = percent(self.value)
-  end
-  lfoToWT1Knob:changed()
-
   local lfoToPitchOsc1Knob = lfoTargetPanel1:Knob("LfoToPitchOsc1Knob", 0, 0, 48)
   lfoToPitchOsc1Knob.displayName = "Osc 1 Pitch"
   lfoToPitchOsc1Knob.mapper = Mapper.Quartic
@@ -338,6 +327,18 @@ function createLfoTargetPanel1()
   end
   lfoToPitchOsc1Knob:changed()
 
+  local lfoToWT1Knob = lfoTargetPanel1:Knob("Osc1LfoToWaveIndex", 0, -1, 1)
+  lfoToWT1Knob.displayName = "Osc 1 Wave"
+  lfoToWT1Knob.fillColour = knobColour
+  lfoToWT1Knob.outlineColour = lfoColour
+  lfoToWT1Knob.changed = function(self)
+    local value = (self.value + 1) * 0.5
+    lfoToWT1:setParameter("Value", value)
+    self.displayText = percent(self.value)
+  end
+  lfoToWT1Knob:changed()
+  table.insert(tweakables, {widget=lfoToWT1Knob,bipolar=25,default=25,category="modulation"})
+
   local lfoToWaveSpread1Knob = lfoTargetPanel1:Knob("LfoToWaveSpreadOsc1", 0, -1, 1)
   lfoToWaveSpread1Knob.displayName = "WaveSpread"
   lfoToWaveSpread1Knob.fillColour = knobColour
@@ -348,11 +349,10 @@ function createLfoTargetPanel1()
     self.displayText = percent(self.value)
   end
   lfoToWaveSpread1Knob:changed()
+  table.insert(tweakables, {widget=lfoToWaveSpread1Knob,bipolar=80,default=50,category="modulation"})
 
   table.insert(tweakables, {widget=lfoToPitchOsc1Knob,ceiling=0.1,probability=75,default=50,noDefaultTweak=true,zero=50,category="modulation"})
-  table.insert(tweakables, {widget=lfoToWaveSpread1Knob,bipolar=80,default=50,category="modulation"})
   table.insert(tweakables, {widget=osc1LfoToPhaseDistortionKnob,ceiling=0.25,probability=90,default=50,category="modulation"})
-  table.insert(tweakables, {widget=lfoToWT1Knob,bipolar=25,default=25,category="modulation"})
 
   return lfoTargetPanel1
 end
@@ -378,17 +378,6 @@ function createLfoTargetPanel2()
   end
   osc2LfoToPhaseDistortionKnob:changed()
 
-  local lfoToWT2Knob = lfoTargetPanel2:Knob("Osc2LfoToWaveIndex", 0, -1, 1)
-  lfoToWT2Knob.displayName = "Osc 2 Wave"
-  lfoToWT2Knob.fillColour = knobColour
-  lfoToWT2Knob.outlineColour = lfoColour
-  lfoToWT2Knob.changed = function(self)
-    local value = (self.value + 1) * 0.5
-    lfoToWT2:setParameter("Value", value)
-    self.displayText = percent(self.value)
-  end
-  lfoToWT2Knob:changed()
-
   local lfoToPitchOsc2Knob = lfoTargetPanel2:Knob("LfoToPitchOsc2Knob", 0, 0, 48)
   lfoToPitchOsc2Knob.displayName = "Osc 2 Pitch"
   lfoToPitchOsc2Knob.mapper = Mapper.Quartic
@@ -402,6 +391,18 @@ function createLfoTargetPanel2()
   end
   lfoToPitchOsc2Knob:changed()
 
+  local lfoToWT2Knob = lfoTargetPanel2:Knob("Osc2LfoToWaveIndex", 0, -1, 1)
+  lfoToWT2Knob.displayName = "Osc 2 Wave"
+  lfoToWT2Knob.fillColour = knobColour
+  lfoToWT2Knob.outlineColour = lfoColour
+  lfoToWT2Knob.changed = function(self)
+    local value = (self.value + 1) * 0.5
+    lfoToWT2:setParameter("Value", value)
+    self.displayText = percent(self.value)
+  end
+  lfoToWT2Knob:changed()
+  table.insert(tweakables, {widget=lfoToWT2Knob,bipolar=25,default=25,category="modulation"})
+
   local lfoToWaveSpread2Knob = lfoTargetPanel2:Knob("LfoToWaveSpreadOsc2", 0, -1, 1)
   lfoToWaveSpread2Knob.displayName = "WaveSpread"
   lfoToWaveSpread2Knob.fillColour = knobColour
@@ -412,11 +413,10 @@ function createLfoTargetPanel2()
     self.displayText = percent(self.value)
   end
   lfoToWaveSpread2Knob:changed()
+  table.insert(tweakables, {widget=lfoToWaveSpread2Knob,bipolar=80,default=50,category="modulation"})
 
   table.insert(tweakables, {widget=lfoToPitchOsc2Knob,ceiling=0.1,probability=75,default=80,noDefaultTweak=true,zero=30,category="modulation"})
-  table.insert(tweakables, {widget=lfoToWaveSpread2Knob,bipolar=80,default=50,category="modulation"})
   table.insert(tweakables, {widget=osc2LfoToPhaseDistortionKnob,ceiling=0.25,probability=90,default=50,category="modulation"})
-  table.insert(tweakables, {widget=lfoToWT2Knob,bipolar=25,default=25,category="modulation"})
 
   return lfoTargetPanel2
 end
