@@ -73,17 +73,14 @@ Envelope style is not available in Twequencer, as this is handled by the selecte
 
 Directly below the tweak source and envelope style there are five scope buttons. Each button represents a section of the synth. When a button is selected, that section will be included when creating the patch. If no buttons are selected, no changes are made. This is useful if you only wat to change parts of the sound. If you are happy with the mix, effects and modulation, you can deselect them, and changes will only be made to the synthesis and filter sections.
 
-#### Recall saved patch
+#### Actions menu
 
-This button will set the current editing state to the sound that was stored when you save the program last.
+Snapshots can be added, updated or removed using the actions menu.
 
-#### Initialize patch
+The actions menu has an option to set the current editing state to the sound that was stored when you save the program last (Recall saved patch).
 
-Will set current editing state to only default values.
+The actions menu has an option to set current editing state to only default values (Initialize patch).
 
-#### Managing snapshots
-
-Snapshots can be added, updated or removed using this menu. To clear all snapshots, use the red button. All will be lost!
 
 When you add the first snapshot, an initial snapshot containing the last saved state will be added automatically. So you first added snapshot will be called "Snapshot 2". The initial snapshot can be updated, but it cannot be removed, unless you remove all snapshots.
 
