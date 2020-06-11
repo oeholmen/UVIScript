@@ -2,14 +2,10 @@
 -- TweakSynth
 --------------------------------------------------------------------------------
 
---------------------------------------------------------------------------------
--- Common functions and variables for TweakSynth
---------------------------------------------------------------------------------
-
-tweakables = {}
-storedPatches = {}
-storedPatch = {}
-patchesMenu = nil -- Must be global so we can save patches from anywhere
+local tweakables = {}
+local storedPatches = {}
+local storedPatch = {}
+local patchesMenu = nil
 
 --------------------------------------------------------------------------------
 -- Synth engine elements
@@ -21,9 +17,9 @@ local osc2Keygroup = Program.layers[2].keygroups[1]
 local noiseKeygroup = Program.layers[3].keygroups[1]
 
 -- OSCILLATORS
-osc1 = osc1Keygroup.oscillators[1]
-osc2 = osc2Keygroup.oscillators[1]
-noiseOsc = noiseKeygroup.oscillators[1]
+local osc1 = osc1Keygroup.oscillators[1]
+local osc2 = osc2Keygroup.oscillators[1]
+local noiseOsc = noiseKeygroup.oscillators[1]
 
 -- MODULATORS
 local vibratoLfo = Program.modulations["LFO 1"] -- Vibrato
@@ -38,7 +34,7 @@ local filterEnv2 = osc2Keygroup.modulations["Analog ADSR 1"]
 local filterEnvNoise = noiseKeygroup.modulations["Analog ADSR 1"]
 
 -- MACROS
-macros = {
+local macros = {
   Program.modulations["Macro 1"],
   Program.modulations["Macro 2"],
   Program.modulations["Macro 3"],
@@ -190,22 +186,26 @@ local wavetableMacros = {
 --------------------------------------------------------------------------------
 
 local outlineColour = "#66FF0000"
-bgColor = "#1a000000"
-knobColour = "#99330000"
-osc1Colour = outlineColour
-osc2Colour = outlineColour
-unisonColour = outlineColour
-filterColour = outlineColour
-lfoColour = outlineColour
-filterEnvColour = outlineColour
-ampEnvColour = outlineColour
-filterEffectsColour = outlineColour
-vibratoColour = outlineColour
+local bgColor = "3f000000" --"#1a000000"
+local knobColour = "#99330000"
+local osc1Colour = outlineColour
+local osc2Colour = outlineColour
+local unisonColour = outlineColour
+local filterColour = outlineColour
+local lfoColour = outlineColour
+local filterEnvColour = outlineColour
+local ampEnvColour = outlineColour
+local filterEffectsColour = outlineColour
+local vibratoColour = outlineColour
+local menuBackgroundColour = "#9f000000"
+local menuTextColour = "#04c2bb"
+local menuArrowColour = "#008a85"
+local menuOutlineColour = bgColor --"#1fFFFFFF" -- transparent white
 
-marginX = 3 -- left/right
-marginY = 2 -- top/bottom
-height = 60
-width = 714
+local marginX = 3 -- left/right
+local marginY = 2 -- top/bottom
+local height = 60
+local width = 714
 
 --------------------------------------------------------------------------------
 -- STORE / RECALL
@@ -623,13 +623,18 @@ end
 -- Common Panels
 --------------------------------------------------------------------------------
 
---img = Image("resources/carbon.png")
---img = Image("resources/future.png")
---img = Image("resources/hexagons.png")
-img = Image("resources/metal.png")
---img = Image("resources/particles.png")
-img.pos = {0, 0}
-img.alpha = 0.25
+--local img = Image("resources/carbon.png")
+--local img = Image("resources/carbon2.png")
+--local img = Image("resources/hexagonmesh.png")
+--local img = Image("resources/carbonfiber.png")
+--local img = Image("resources/darkcarbon.png")
+--local img = Image("resources/future.png")
+--local img = Image("resources/hexagons.png")
+--local img = Image("resources/metal.png")
+--local img = Image("resources/tech.jpg")
+--local img = Image("resources/whitehexagons.png")
+local img = Image("./resources/particles.png")
+img.alpha = 0.2
 
 --------------------------------------------------------------------------------
 -- Mixer Panel
@@ -675,6 +680,10 @@ function createMixerPanel()
 
   local noiseTypes = {"Band", "S&H", "Static1", "Static2", "Violet", "Blue", "White", "Pink", "Brown", "Lorenz", "Rossler", "Crackle", "Logistic", "Dust", "Velvet"}
   local noiseTypeMenu = mixerPanel:Menu("NoiseTypeMenu", noiseTypes)
+  noiseTypeMenu.backgroundColour = menuBackgroundColour
+  noiseTypeMenu.textColour = menuTextColour
+  noiseTypeMenu.arrowColour = menuArrowColour
+  noiseTypeMenu.outlineColour = menuOutlineColour
   noiseTypeMenu.displayName = "Noise Type"
   noiseTypeMenu.selected = 7
   noiseTypeMenu.changed = function(self)
@@ -990,6 +999,10 @@ function createFilterEnvPanel()
 
   local activeFilterEnvOsc = 1
   local filterEnvMenu = filterEnvPanel:Menu("FilterEnvOsc", {"All", "Osc 1", "Osc 2", "Noise Osc"})
+  filterEnvMenu.backgroundColour = menuBackgroundColour
+  filterEnvMenu.textColour = menuTextColour
+  filterEnvMenu.arrowColour = menuArrowColour
+  filterEnvMenu.outlineColour = menuOutlineColour
   filterEnvMenu.displayName = "Filter Envelope"
 
   local filterAttackKnob = filterEnvPanel:Knob("FAttack", 0.001, 0, 10)
@@ -1164,6 +1177,10 @@ function createAmpEnvPanel()
   local activeAmpEnvOsc = 1
   local ampEnvMenu = ampEnvPanel:Menu("AmpEnvOsc", {"All", "Osc 1", "Osc 2", "Noise Osc"})
   ampEnvMenu.displayName = "Amp Envelope"
+  ampEnvMenu.backgroundColour = menuBackgroundColour
+  ampEnvMenu.textColour = menuTextColour
+  ampEnvMenu.arrowColour = menuArrowColour
+  ampEnvMenu.outlineColour = menuOutlineColour
 
   local ampAttackKnob = ampEnvPanel:Knob("Attack", 0.001, 0, 10)
   ampAttackKnob.fillColour = knobColour
@@ -1301,10 +1318,18 @@ function createLfoPanel()
   local activeLfoOsc = 1
 
   local lfoMenu = lfoPanel:Menu("LfoOsc", {"All", "Osc 1", "Osc 2", "Noise Osc"})
+  lfoMenu.backgroundColour = menuBackgroundColour
+  lfoMenu.textColour = menuTextColour
+  lfoMenu.arrowColour = menuArrowColour
+  lfoMenu.outlineColour = menuOutlineColour
   lfoMenu.displayName = "LFO"
 
   local waveFormTypes = {"Sinus", "Square", "Triangle", "Ramp Up", "Ramp Down", "Analog Square", "S&H", "Chaos Lorenz", "Chaos Rossler"}
   local waveFormTypeMenu = lfoPanel:Menu("WaveFormTypeMenu", waveFormTypes)
+  waveFormTypeMenu.backgroundColour = menuBackgroundColour
+  waveFormTypeMenu.textColour = menuTextColour
+  waveFormTypeMenu.arrowColour = menuArrowColour
+  waveFormTypeMenu.outlineColour = menuOutlineColour
   waveFormTypeMenu.displayName = "Waveform"
   waveFormTypeMenu.selected = 3
   waveFormTypeMenu.changed = function(self)
@@ -1710,6 +1735,10 @@ function createPatchMakerPanel()
   tweakLevelKnob.bounds = {10,10,width/2,height*3}
 
   patchesMenu = tweakPanel:Menu("PatchesMenu")
+  patchesMenu.backgroundColour = menuBackgroundColour
+  patchesMenu.textColour = menuTextColour
+  patchesMenu.arrowColour = menuArrowColour
+  patchesMenu.outlineColour = menuOutlineColour
   patchesMenu.x = 10
   patchesMenu.y = tweakLevelKnob.y + tweakLevelKnob.height + 20
   patchesMenu.displayName = "Stored snapshots"
@@ -1766,6 +1795,10 @@ function createPatchMakerPanel()
 
   local actions = {"Choose...", "Add to snapshots", "Update selected snapshot", "Recall saved patch", "Initialize patch", "--- DANGERZONE ---", "Remove selected", "Remove all snapshots"}
   local managePatchesMenu = tweakPanel:Menu("ManagePatchesMenu", actions)
+  managePatchesMenu.backgroundColour = menuBackgroundColour
+  managePatchesMenu.textColour = menuTextColour
+  managePatchesMenu.arrowColour = menuArrowColour
+  managePatchesMenu.outlineColour = menuOutlineColour
   managePatchesMenu.x = nextPatchButton.x + nextPatchButton.width + marginX
   managePatchesMenu.y = patchesMenu.y
   managePatchesMenu.displayName = "Actions"
@@ -1794,12 +1827,20 @@ function createPatchMakerPanel()
   tweakButton.bounds = {width/2,10,width/2-10,tweakLevelKnob.height}
 
   local tweakSourceMenu = tweakPanel:Menu("TweakSource", tweakSources)
+  tweakSourceMenu.backgroundColour = menuBackgroundColour
+  tweakSourceMenu.textColour = menuTextColour
+  tweakSourceMenu.arrowColour = menuArrowColour
+  tweakSourceMenu.outlineColour = menuOutlineColour
   tweakSourceMenu.displayName = "Tweak source"
   tweakSourceMenu.width = width/4-10
   tweakSourceMenu.x = width/2
   tweakSourceMenu.y = patchesMenu.y
 
   local envStyleMenu = tweakPanel:Menu("EnvStyle", {"Automatic", "Very short", "Short", "Medium short", "Medium", "Medium long", "Long", "Very long"})
+  envStyleMenu.backgroundColour = menuBackgroundColour
+  envStyleMenu.textColour = menuTextColour
+  envStyleMenu.arrowColour = menuArrowColour
+  envStyleMenu.outlineColour = menuOutlineColour
   envStyleMenu.displayName = "Envelope Style"
   envStyleMenu.width = tweakSourceMenu.width
   envStyleMenu.x = tweakSourceMenu.width + tweakSourceMenu.x + 10
@@ -1875,7 +1916,7 @@ function createPatchMakerPanel()
   end
 
   function setWidgetValue(index, widgetName, value)
-    if widgetName == tweakables[index].widget.name then
+    if tweakables[index] and widgetName == tweakables[index].widget.name then
       tweakables[index].widget.value = value
       print("Set widget value: ", widgetName, tweakables[index].widget.value, value)
     end
@@ -1953,6 +1994,10 @@ function createTwequencerPanel()
   tweqPanel.height = 380
 
   local sequencerPlayMenu = tweqPanel:Menu("SequencerPlay", {"Off", "Mono", "As played", "Random", "Chord"})
+  sequencerPlayMenu.backgroundColour = menuBackgroundColour
+  sequencerPlayMenu.textColour = menuTextColour
+  sequencerPlayMenu.arrowColour = menuArrowColour
+  sequencerPlayMenu.outlineColour = menuOutlineColour
   sequencerPlayMenu.displayName = "Play Mode"
   sequencerPlayMenu.width = 120
 
@@ -1966,10 +2011,10 @@ function createTwequencerPanel()
   tweakLevelKnob.width = sequencerPlayMenu.width
 
   local numStepsBox = tweqPanel:NumBox("Steps", 16, 2, 32, true)
-  numStepsBox.backgroundColour = "black"
-  numStepsBox.textColour = "cyan"
-  numStepsBox.arrowColour = "grey"
-  --numStepsBox.outlineColour = "#1fFFFFFF" -- transparent white
+  numStepsBox.backgroundColour = menuBackgroundColour
+  numStepsBox.textColour = menuTextColour
+  numStepsBox.arrowColour = menuArrowColour
+  numStepsBox.outlineColour = menuOutlineColour
 
   local seqPitchTable = tweqPanel:Table("Pitch", numStepsBox.value, 0, -12, 12, true)
   seqPitchTable.showPopupDisplay = true
@@ -1990,12 +2035,13 @@ function createTwequencerPanel()
   seqVelTable.x = seqPitchTable.x
   seqVelTable.y = seqPitchTable.y + seqPitchTable.height + marginY
 
-  local resolution = tweqPanel:Menu{"Resolution", getResolutionNames(), selected=15}
+  local resolution = tweqPanel:Menu("Resolution", getResolutionNames())
+  resolution.selected = 15
   resolution.x = seqPitchTable.x + seqPitchTable.width + 30
-  resolution.backgroundColour = "black"
-  resolution.textColour = "cyan"
-  resolution.arrowColour = "grey"
-  --resolution.outlineColour = "#1fFFFFFF" -- transparent white
+  resolution.backgroundColour = menuBackgroundColour
+  resolution.textColour = menuTextColour
+  resolution.arrowColour = menuArrowColour
+  resolution.outlineColour = menuOutlineColour
 
   local positionTable = tweqPanel:Table("Position", numStepsBox.value, 0, 0, 1, true)
   positionTable.enabled = false
@@ -2008,6 +2054,10 @@ function createTwequencerPanel()
   positionTable.y = seqVelTable.y + seqVelTable.height + 10
 
   local snapshotsMenu = tweqPanel:Menu("SnapshotsMenu")
+  snapshotsMenu.backgroundColour = menuBackgroundColour
+  snapshotsMenu.textColour = menuTextColour
+  snapshotsMenu.arrowColour = menuArrowColour
+  snapshotsMenu.outlineColour = menuOutlineColour
   snapshotsMenu.x = positionTable.x
   snapshotsMenu.y = positionTable.y + positionTable.height + 10
   snapshotsMenu.width = 235
@@ -2138,6 +2188,10 @@ function createTwequencerPanel()
   end
 
   local tweakSourceMenu = tweqPanel:Menu("SeqTweakSource", tweakSources)
+  tweakSourceMenu.backgroundColour = menuBackgroundColour
+  tweakSourceMenu.textColour = menuTextColour
+  tweakSourceMenu.arrowColour = menuArrowColour
+  tweakSourceMenu.outlineColour = menuOutlineColour
   tweakSourceMenu.displayName = "Tweak source"
   tweakSourceMenu.x = snapshotsMenu.x
   tweakSourceMenu.y = snapshotsMenu.y + snapshotsMenu.height + 10
@@ -2984,7 +3038,7 @@ local patchmakerPageButton = pagePanel:OnOffButton("PatchmakerPage", false)
 patchmakerPageButton.displayName = "Patchmaker"
 patchmakerPageButton.persistent = false
 
-mixerPanel.backgroundColour = "#3f000000"
+mixerPanel.backgroundColour = "#66000000"
 mixerPanel.x = marginX
 mixerPanel.y = pagePanel.height + marginY * 2
 mixerPanel.width = width
