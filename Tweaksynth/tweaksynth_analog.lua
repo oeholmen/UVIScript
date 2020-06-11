@@ -486,162 +486,168 @@ local vibratoPanel = createVibratoPanel()
 --------------------------------------------------------------------------------
 
 local pagePanel = Panel("PagePanel")
+pagePanel.backgroundColour = "#00000000"
 pagePanel.x = marginX
 pagePanel.y = marginY
 pagePanel.width = 713
 pagePanel.height = 30
 
-local pageAButton = pagePanel:OnOffButton("PageA", true)
-pageAButton.displayName = "Synthesis"
-local pageBButton = pagePanel:OnOffButton("PageB", false)
-pageBButton.displayName = "Filters"
-local pageCButton = pagePanel:OnOffButton("PageC", false)
-pageCButton.displayName = "Modulation"
-local pageDButton = pagePanel:OnOffButton("PageD", false)
-pageDButton.displayName = "Twequencer"
-local pageEButton = pagePanel:OnOffButton("PageE", false)
-pageEButton.displayName = "Patchmaker"
+local synthesisPageButton = pagePanel:OnOffButton("SynthesisPage", true)
+synthesisPageButton.displayName = "Synthesis"
+synthesisPageButton.persistent = false
+local filterPageButton = pagePanel:OnOffButton("FilterPage", false)
+filterPageButton.displayName = "Filters"
+filterPageButton.persistent = false
+local modulationPageButton = pagePanel:OnOffButton("ModulationPage", false)
+modulationPageButton.displayName = "Modulation"
+modulationPageButton.persistent = false
+local twequencerPageButton = pagePanel:OnOffButton("TwequencerPage", false)
+twequencerPageButton.displayName = "Twequencer"
+twequencerPageButton.persistent = false
+local patchmakerPageButton = pagePanel:OnOffButton("PatchmakerPage", false)
+patchmakerPageButton.displayName = "Patchmaker"
+patchmakerPageButton.persistent = false
 
+mixerPanel.backgroundColour = "#3f000000"
 mixerPanel.x = marginX
 mixerPanel.y = pagePanel.height + marginY * 2
 mixerPanel.width = width
 mixerPanel.height = height
 
 --------------------------------------------------------------------------------
--- Page A
+-- Set up pages
 --------------------------------------------------------------------------------
 
-function setupPageA()
-  osc1Panel.backgroundColour = "#33AAAA11"
+function setupSynthesisPage()
+  --osc1Panel.backgroundColour = "#33AAAA11"
+  osc1Panel.backgroundColour = bgColor
   osc1Panel.x = marginX
   osc1Panel.y = mixerPanel.y + height + marginY
   osc1Panel.width = width
   osc1Panel.height = height
 
-  osc2Panel.backgroundColour = "#44AAAA33"
+  --osc2Panel.backgroundColour = "#44AAAA33"
+  osc2Panel.backgroundColour = bgColor
   osc2Panel.x = marginX
   osc2Panel.y = osc1Panel.y + height + marginY
   osc2Panel.width = width
   osc2Panel.height = height
 
-  unisonPanel.backgroundColour = "#55AAAA44"
+  --unisonPanel.backgroundColour = "#55AAAA44"
+  unisonPanel.backgroundColour = bgColor
   unisonPanel.x = marginX
   unisonPanel.y = osc2Panel.y + height + marginY
   unisonPanel.width = width
   unisonPanel.height = height
 
-  vibratoPanel.backgroundColour = "#66AAAA66"
+  --vibratoPanel.backgroundColour = "#66AAAA66"
+  vibratoPanel.backgroundColour = bgColor
   vibratoPanel.x = marginX
   vibratoPanel.y = unisonPanel.y + height + marginY
   vibratoPanel.width = width
   vibratoPanel.height = height
 
-  ampEnvPanel.backgroundColour = "#77AAAA77"
+  --ampEnvPanel.backgroundColour = "#77AAAA77"
+  ampEnvPanel.backgroundColour = bgColor
   ampEnvPanel.x = marginX
   ampEnvPanel.y = vibratoPanel.y + height + marginY
   ampEnvPanel.width = width
   ampEnvPanel.height = height
 
-  effectsPanel.backgroundColour = "#88AAAA99"
+  --effectsPanel.backgroundColour = "#88AAAA99"
+  effectsPanel.backgroundColour = bgColor
   effectsPanel.x = marginX
   effectsPanel.y = ampEnvPanel.y + height + marginY
   effectsPanel.width = width
   effectsPanel.height = height
 end
 
-setupPageA()
-
---------------------------------------------------------------------------------
--- Page B
---------------------------------------------------------------------------------
-
-function setupPageB()
-  filterPanel.backgroundColour = "#33AA0011"
+function setupFilterPage()
+  --filterPanel.backgroundColour = "#33AA0011"
+  filterPanel.backgroundColour = bgColor
   filterPanel.x = marginX
   filterPanel.y = mixerPanel.y + height + marginY
   filterPanel.width = width
   filterPanel.height = height
 
-  hpFilterPanel.backgroundColour = "#44AA0022"
+  --hpFilterPanel.backgroundColour = "#44AA0022"
+  hpFilterPanel.backgroundColour = bgColor
   hpFilterPanel.x = marginX
   hpFilterPanel.y = filterPanel.y + height + marginY
   hpFilterPanel.width = width
   hpFilterPanel.height = height
 
-  filterEnvPanel.backgroundColour = "#55AA0033"
+  --filterEnvPanel.backgroundColour = "#55AA0033"
+  filterEnvPanel.backgroundColour = bgColor
   filterEnvPanel.x = marginX
   filterEnvPanel.y = hpFilterPanel.y + height + marginY
   filterEnvPanel.width = width
   filterEnvPanel.height = height
 
-  filterEnvTargetsPanel.backgroundColour = "#66AA0044"
+  --filterEnvTargetsPanel.backgroundColour = "#66AA0044"
+  filterEnvTargetsPanel.backgroundColour = bgColor
   filterEnvTargetsPanel.x = marginX
   filterEnvTargetsPanel.y = filterEnvPanel.y + height + marginY
   filterEnvTargetsPanel.width = width
   filterEnvTargetsPanel.height = height
 
-  filterEnvTargets1Panel.backgroundColour = "#66AA0066"
+  --filterEnvTargets1Panel.backgroundColour = "#66AA0066"
+  filterEnvTargets1Panel.backgroundColour = bgColor
   filterEnvTargets1Panel.x = marginX
   filterEnvTargets1Panel.y = filterEnvTargetsPanel.y + height
   filterEnvTargets1Panel.width = width
   filterEnvTargets1Panel.height = height
 
-  filterEnvTargets2Panel.backgroundColour = "#66AA0088"
+  --filterEnvTargets2Panel.backgroundColour = "#66AA0088"
+  filterEnvTargets2Panel.backgroundColour = bgColor
   filterEnvTargets2Panel.x = marginX
   filterEnvTargets2Panel.y = filterEnvTargets1Panel.y + height
   filterEnvTargets2Panel.width = width
   filterEnvTargets2Panel.height = height
 end
 
-setupPageB()
-
---------------------------------------------------------------------------------
--- Page C
---------------------------------------------------------------------------------
-
-function setupPageC()
-  lfoPanel.backgroundColour = "#33000022"
+function setupModulationPage()
+  --lfoPanel.backgroundColour = "#33000022"
+  lfoPanel.backgroundColour = bgColor
   lfoPanel.x = marginX
   lfoPanel.y = mixerPanel.y + height + marginY
   lfoPanel.width = width
   lfoPanel.height = height * 2
 
-  lfoTargetPanel.backgroundColour = "#44000033"
+  --lfoTargetPanel.backgroundColour = "#44000033"
+  lfoTargetPanel.backgroundColour = bgColor
   lfoTargetPanel.x = marginX
   lfoTargetPanel.y = lfoPanel.y + lfoPanel.height + marginY
   lfoTargetPanel.width = width
   lfoTargetPanel.height = height
 
-  lfoTargetPanel1.backgroundColour = "#44000055"
+  --lfoTargetPanel1.backgroundColour = "#44000055"
+  lfoTargetPanel1.backgroundColour = bgColor
   lfoTargetPanel1.x = marginX
   lfoTargetPanel1.y = lfoTargetPanel.y + height
   lfoTargetPanel1.width = width
   lfoTargetPanel1.height = height
 
-  lfoTargetPanel2.backgroundColour = "#44000077"
+  --lfoTargetPanel2.backgroundColour = "#44000077"
+  lfoTargetPanel2.backgroundColour = bgColor
   lfoTargetPanel2.x = marginX
   lfoTargetPanel2.y = lfoTargetPanel1.y + height
   lfoTargetPanel2.width = width
   lfoTargetPanel2.height = height
 
-  lfoTargetPanel3.backgroundColour = "#44000099"
+  --lfoTargetPanel3.backgroundColour = "#44000099"
+  lfoTargetPanel3.backgroundColour = bgColor
   lfoTargetPanel3.x = marginX
   lfoTargetPanel3.y = lfoTargetPanel2.y + height
   lfoTargetPanel3.width = width
   lfoTargetPanel3.height = height
 end
 
-setupPageC()
-
---------------------------------------------------------------------------------
--- Page D - Twequencer
---------------------------------------------------------------------------------
+setupSynthesisPage()
+setupFilterPage()
+setupModulationPage()
 
 local tweqPanel = createTwequencerPanel()
-
---------------------------------------------------------------------------------
--- Page E - Patch Maker
---------------------------------------------------------------------------------
 
 local tweakPanel = createPatchMakerPanel()
 
@@ -675,48 +681,48 @@ function setPage(page)
   tweakPanel.visible = page == 5
 end
 
-pageAButton.changed = function(self)
-  pageBButton:setValue(false, false)
-  pageCButton:setValue(false, false)
-  pageDButton:setValue(false, false)
-  pageEButton:setValue(false, false)
+synthesisPageButton.changed = function(self)
+  filterPageButton:setValue(false, false)
+  modulationPageButton:setValue(false, false)
+  twequencerPageButton:setValue(false, false)
+  patchmakerPageButton:setValue(false, false)
   setPage(1)
 end
 
-pageBButton.changed = function(self)
-  pageAButton:setValue(false, false)
-  pageCButton:setValue(false, false)
-  pageDButton:setValue(false, false)
-  pageEButton:setValue(false, false)
+filterPageButton.changed = function(self)
+  synthesisPageButton:setValue(false, false)
+  modulationPageButton:setValue(false, false)
+  twequencerPageButton:setValue(false, false)
+  patchmakerPageButton:setValue(false, false)
   setPage(2)
 end
 
-pageCButton.changed = function(self)
-  pageAButton:setValue(false, false)
-  pageBButton:setValue(false, false)
-  pageDButton:setValue(false, false)
-  pageEButton:setValue(false, false)
+modulationPageButton.changed = function(self)
+  synthesisPageButton:setValue(false, false)
+  filterPageButton:setValue(false, false)
+  twequencerPageButton:setValue(false, false)
+  patchmakerPageButton:setValue(false, false)
   setPage(3)
 end
 
-pageDButton.changed = function(self)
-  pageAButton:setValue(false, false)
-  pageBButton:setValue(false, false)
-  pageCButton:setValue(false, false)
-  pageEButton:setValue(false, false)
+twequencerPageButton.changed = function(self)
+  synthesisPageButton:setValue(false, false)
+  filterPageButton:setValue(false, false)
+  modulationPageButton:setValue(false, false)
+  patchmakerPageButton:setValue(false, false)
   setPage(4)
 end
 
-pageEButton.changed = function(self)
-  pageAButton:setValue(false, false)
-  pageBButton:setValue(false, false)
-  pageCButton:setValue(false, false)
-  pageDButton:setValue(false, false)
+patchmakerPageButton.changed = function(self)
+  synthesisPageButton:setValue(false, false)
+  filterPageButton:setValue(false, false)
+  modulationPageButton:setValue(false, false)
+  twequencerPageButton:setValue(false, false)
   setPage(5)
 end
 
 -- Set start page
-pageAButton.changed()
+synthesisPageButton.changed()
 
 setSize(720, 480)
 

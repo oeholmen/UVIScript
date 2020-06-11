@@ -10,79 +10,169 @@
         </Mappers>
         <Properties description="Tweak Synth Analog 1.0
 
-Created by: Øystein Holmen"/>
+Created by: Øystein Holmen
+
+Why Tweak Synth?
+
+Tweak Synth was created to spark new ideas, and to trigger creativity. We can all be stuck sometimes, finding our selves following the same patterns over and over again. Tweak Synth wants to help you create something new, and it wants to help you find the best version of the sound you are trying to create.
+
+Is Tweak Synth smart?
+
+No. It is not smart. But if you give it patches to work with, it can create some quite interesting, and sometimes good patches, inspired by you input. Or it can create entirely on its own.
+
+Two different flavors
+
+The tweak synth comes in two different flavors - one wavetable and one analog. They are mostly equal, but there are some differences in modulation options, and of course, the oscillators differ. But the tweaking algorithm is shared between both synths.
+
+Synth overview
+
+The synth is built in Falcon, using a standard analog signal flow. There are two main oscillators, and a noise oscillator. The synth is divided into five sections: Synthesis, Filter, Modulation, Twequencer and Patchmaker. Switching between sections is done using the buttons in the top panel. In addition to this there is a mixer section directly below the top panel. The mixer section is always visible, and also features an on/off button for the arpeggiator.
+
+Synthesis section
+
+The synthesis section contains the oscillators for editing waveform, pitch, stereo/unison, vibrato, amp envelope and some basic effects.
+
+Filter section
+
+The filter section contains two filters, one lowpass 24, and a highpass filter. The filter envelope has a few different targets, in addition to both filters. There are some variations here depending on whether the wavetable or analog version is used.
+
+Modulation section
+
+The modulation section contains an LFO that can be assigned to a number of different targets. It is possible to override filter modulation for the noise oscillator, if this should be treated separatly. By default, the settings for the LFO is shared by all oscillators, but it is possible to use different settings for each oscillator. This option can be selected directly to the left of the waveform select menu. If a widget has different settings for each oscillator, the widget will be locked when &quot;All&quot; oscillators are selected, to avoid unintended changes.
+
+Envelopes
+
+By default, the settings for the envelopes are shared by all oscillators, but it is possible to use different settings for each oscillator. This option can be selected directly to the left of the attack knob. If a widget has different settings for each oscillator, the widget will be locked when &quot;All&quot; oscillators are selected, to avoid unintended changes.
+
+Tweak Synth
+
+The last two sections is what makes Tweak Synth different. This is where you can create new presets from presets you made, or from scratch. The two sections, Twequencer and Patchmaker, uses the same alogithm to create new patches, but they differ in approach.
+
+Twequencer
+
+The Twequencer is a simple sequencer that tweaks your sound as you play. Select a play mode, set a tweak level (see description below) and start playing! You can hear the changes to your sound being made in real time, and they will be changed over the duration of the step. On slow resolutions, there are more parameters being changed for each step than on fast resolutions.
+
+As you play, the Twequencer will store a snapshot for each beat. If you hear something you like, just stop playing and select the snapshot from the step that sounded best. When you stop playing, the tweak level is set to 0 to avoid further changes. You can store a snapshot you like, and you will find it again in the Patchmaker. All stored snapshorts are saved with the UVI program, so you will get it back when you open it later.
+
+Envelopes will be tweaked according to the resolution you choose. If a fast resolution is selected, the envelopetimes will be shorter than if a slow resolution is selected. Short envelope times can occur for slow resolutions, but long envelope times will not occur for fast resolutions.
+
+Thee other options available will be described under &quot;Patchmaker&quot;.
+
+Patchmaker
+
+The patchmaker is where you create new patches instantly, with the click of a button. This is also where any snapshots you add are stored.
+
+Snapshots
+
+A snapshot contains the settings that were present in the current editing state when the snapshot was added. Snapshots can be added from manually created pathces as well as the ones created in twequencer and patchmaker. Most of the times you will want to do some manual changes to created patches, to make them sound the way you want, and then add them to you snapshots. Snapshots are stored with the program when it is saved. You can switch between snapshots using the menu, or the buttons. Remember that you current edit will be replaced with the settings from the selected snapshot, so remember to add or update the current edit to snaphots if you want to keep it.
+
+Tweak level
+
+When creating a new patch, the tweak level is you way of telling the synth how far from the original you are willing to change the sound. At tweak level 0 there will be virtually no changes made. As the tweak level rises, more changes will be introduced. At 100 the sound will be something completely new, and totally different than the original. This is an extreme setting, and will in most cases not produce any usable sounds. But it is fun to test! At sensible levels, usable sounds may be created. They will need a human touch, but can sound quite interesting right away. If you are not satisfied, just click the &quot;Tweak patch&quot; button again!
+
+Tweak source
+
+Selecting a tweak source will tell the synth where to get it&apos;s ideas from. If you have created some good snapshots, they can be used to create new sounds. The automatic option will use ideas from all the different sources. When &quot;Current edit&quot; is selected, remeber that the current edit will changed every time you create a new patch. So this can be a great way to introduce small changes for each iteration. Works well with the Twequencer, and at low tweak levels.
+
+Envelope style
+
+In the patchmaker you can select an envelope style. This is a way to control the sound being created. If you are looking for a pad type sound, create one of the long styles, and for snappier sounds, select one of the shorter versions. When set to automatic, the synth will make different envelopes every time.
+
+Envelope style is not available in Twequencer, as this is handled by the selected resolution.
+
+Scope
+
+Directly below the tweak source and envelope style there are five scope buttons. Each button represents a section of the synth. When a button is selected, that section will be included when creating the patch. If no buttons are selected, no changes are made. This is useful if you only wat to change parts of the sound. If you are happy with the mix, effects and modulation, you can deselect them, and changes will only be made to the synthesis and filter sections.
+
+Recall saved patch
+
+This button will set the current editing state to the sound that was stored when you save the program last.
+
+Initialize patch
+
+Will set current editing state to only default values.
+
+Managing snapshots
+
+Snapshots can be added, updated or removed using this menu. To clear all snapshots, use the red button. All will be lost!
+
+When you add the first snapshot, an initial snapshot containing the last saved state will be added automatically. So you first added snapshot will be called &quot;Snapshot 2&quot;. The initial snapshot can be updated, but it cannot be removed, unless you remove all snapshots.
+
+Conclusion
+
+That&apos;s it! Start creating, and hopefully you will discover some new sounds that you didn&apos;t know existed."/>
         <ControlSignalSources>
             <ConstantModulation Name="Macro 1" DisplayName="Osc 1 Shape" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="15" y="477218575"/>
+                <Properties customPosition="0" x="30" y="429496615"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 2" DisplayName="Filter Cutoff" Bypass="0" Bipolar="0" Style="0" Value="1">
-                <Properties customPosition="0" x="100" y="477218575"/>
+                <Properties customPosition="0" x="125" y="429496615"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 3" DisplayName="Env Amount" Bypass="0" Bipolar="0" Style="0" Value="0.5">
-                <Properties customPosition="0" x="185" y="477218575"/>
+                <Properties customPosition="0" x="220" y="429496615"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 4" DisplayName="LFO Freq Key Follow 2" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="270" y="477218575"/>
+                <Properties customPosition="0" x="315" y="429496615"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 5" DisplayName="LfoFreqKeyFollow3" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="355" y="477218575"/>
+                <Properties customPosition="0" x="410" y="429496615"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 6" DisplayName="LFO-&gt;Detune" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="440" y="477218575"/>
+                <Properties customPosition="0" x="505" y="429496615"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 7" DisplayName="LFO-&gt;WaveSpread1" Bypass="0" Bipolar="0" Style="0" Value="0.5">
-                <Properties customPosition="0" x="525" y="477218575"/>
+                <Properties customPosition="0" x="600" y="429496615"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 8" DisplayName="Osc 1 Mix" Bypass="0" Bipolar="0" Style="0" Value="0.75">
-                <Properties customPosition="0" x="610" y="477218575"/>
+                <Properties customPosition="0" x="30" y="858993425"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 9" DisplayName="Osc 2 Shape" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="60" y="954437225"/>
+                <Properties customPosition="0" x="125" y="858993425"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 10" DisplayName="Osc 2 Mix" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="145" y="954437225"/>
+                <Properties customPosition="0" x="220" y="858993425"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 11" DisplayName="Osc 2 Finetune" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="230" y="954437225"/>
+                <Properties customPosition="0" x="315" y="858993425"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 12" DisplayName="Osc 2 Pitch" Bypass="0" Bipolar="0" Style="0" Value="0.5">
-                <Properties customPosition="0" x="315" y="954437225"/>
+                <Properties customPosition="0" x="410" y="858993425"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 13" DisplayName="Filter Res" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="400" y="954437225"/>
+                <Properties customPosition="0" x="505" y="858993425"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 14" DisplayName="Delay" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="485" y="954437225"/>
+                <Properties customPosition="0" x="600" y="858993425"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 15" DisplayName="Reverb" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="570" y="954437225"/>
+                <Properties customPosition="0" x="30" y="1288490235"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 16" DisplayName="Arp on/off" Bypass="0" Bipolar="1" Style="1" Value="0">
-                <Properties customPosition="0" x="15" y="1431655875"/>
+                <Properties customPosition="0" x="125" y="1288490235"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 17" DisplayName="Lfo-&gt;WaveSpread2" Bypass="0" Bipolar="0" Style="0" Value="0.5">
-                <Properties customPosition="0" x="100" y="1431655875"/>
+                <Properties customPosition="0" x="220" y="1288490235"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 18" DisplayName="LFO-&gt;NoiseLpf" Bypass="0" Bipolar="0" Style="0" Value="0.5">
-                <Properties customPosition="0" x="185" y="1431655875"/>
+                <Properties customPosition="0" x="315" y="1288490235"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 19" DisplayName="LFO-&gt;NoiseHpf" Bypass="0" Bipolar="0" Style="0" Value="0.5">
-                <Properties customPosition="0" x="270" y="1431655875"/>
+                <Properties customPosition="0" x="410" y="1288490235"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 20" DisplayName="LFO-&gt;NoiseAmp" Bypass="0" Bipolar="0" Style="0" Value="0.5">
-                <Properties customPosition="0" x="355" y="1431655875"/>
+                <Properties customPosition="0" x="505" y="1288490235"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 21" DisplayName="Chorus" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="440" y="1431655875"/>
+                <Properties customPosition="0" x="600" y="1288490235"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 22" DisplayName="Wheel-&gt;Cutoff" Bypass="0" Bipolar="0" Style="0" Value="0.5">
-                <Properties customPosition="0" x="525" y="1431655875"/>
+                <Properties customPosition="0" x="30" y="1717987045"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 23" DisplayName="Drive" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="610" y="1431655875"/>
+                <Properties customPosition="0" x="125" y="1717987045"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 24" DisplayName="AT-&gt;Cutoff" Bypass="0" Bipolar="0" Style="0" Value="0.5">
-                <Properties customPosition="0" x="60" y="1908874525"/>
+                <Properties customPosition="0" x="220" y="1717987045"/>
             </ConstantModulation>
             <LFO Name="LFO 1" DisplayName="Vibrato" Bypass="0" SyncToHost="0" DelayTime="0" RiseTime="0" Freq="6.1157823" Depth="1" Phase="0" WaveFormType="2" Retrigger="1" Bipolar="1" Smooth="0">
                 <Connections>
@@ -102,116 +192,119 @@ Created by: Øystein Holmen"/>
                         </Connections>
                     </SignalConnection>
                 </Connections>
-                <Properties customPosition="0" x="145" y="1908874525"/>
+                <Properties customPosition="0" x="315" y="1717987045"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 26" DisplayName="AT-&gt;Vibrato" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="230" y="1908874525"/>
+                <Properties customPosition="0" x="410" y="1717987045"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 27" DisplayName="Osc1 LFO-&gt;PD" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="315" y="1908874525"/>
+                <Properties customPosition="0" x="505" y="1717987045"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 28" DisplayName="Osc2 LFO-&gt;PD" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="400" y="1908874525"/>
+                <Properties customPosition="0" x="600" y="1717987045"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 29" DisplayName="Wheel-&gt;Vibrato" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="485" y="1908874525"/>
+                <Properties customPosition="0" x="30" y="-2147483441"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 30" DisplayName="Key Tracking" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="570" y="1908874525"/>
+                <Properties customPosition="0" x="125" y="-2147483441"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 31" DisplayName="LFO-&gt;Cutoff" Bypass="0" Bipolar="0" Style="0" Value="0.5">
-                <Properties customPosition="0" x="15" y="-1908874121"/>
+                <Properties customPosition="0" x="220" y="-2147483441"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 32" DisplayName="Unison Detune" Bypass="0" Bipolar="0" Style="0" Value="0.1">
-                <Properties customPosition="0" x="100" y="-1908874121"/>
+                <Properties customPosition="0" x="315" y="-2147483441"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 33" DisplayName="Vibrato Rate" Bypass="0" Bipolar="0" Style="0" Value="0.69999999">
-                <Properties customPosition="0" x="185" y="-1908874121"/>
+                <Properties customPosition="0" x="410" y="-2147483441"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 34" DisplayName="RandomPhaseStart" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="270" y="-1908874121"/>
+                <Properties customPosition="0" x="505" y="-2147483441"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 35" DisplayName="Maximizer on/off" Bypass="0" Bipolar="1" Style="1" Value="0">
-                <Properties customPosition="0" x="355" y="-1908874121"/>
+                <Properties customPosition="0" x="600" y="-2147483441"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 36" DisplayName="Noise Mix" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="440" y="-1908874121"/>
+                <Properties customPosition="0" x="75" y="-1717986631"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 37" DisplayName="LFO-&gt;Amp" Bypass="0" Bipolar="0" Style="0" Value="0.5">
-                <Properties customPosition="0" x="525" y="-1908874121"/>
+                <Properties customPosition="0" x="170" y="-1717986631"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 38" DisplayName="LFO-&gt;Hardsync1" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="610" y="-1908874121"/>
+                <Properties customPosition="0" x="265" y="-1717986631"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 39" DisplayName="LFO-&gt;Hardsync2" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="60" y="-1431655471"/>
+                <Properties customPosition="0" x="360" y="-1717986631"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 40" DisplayName="FilterENV-&gt;Hardsync1" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="145" y="-1431655471"/>
+                <Properties customPosition="0" x="455" y="-1717986631"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 41" DisplayName="FilterENV-&gt;Hardsync2" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="230" y="-1431655471"/>
+                <Properties customPosition="0" x="550" y="-1717986631"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 42" DisplayName="LFO Freq Key Follow 1" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="315" y="-1431655471"/>
+                <Properties customPosition="0" x="30" y="-1288489821"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 43" DisplayName="Pan Spread" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="400" y="-1431655471"/>
+                <Properties customPosition="0" x="125" y="-1288489821"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 44" DisplayName="Stereo Spread" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="485" y="-1431655471"/>
+                <Properties customPosition="0" x="220" y="-1288489821"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 45" DisplayName="Osc 1 Pitch" Bypass="0" Bipolar="1" Style="0" Value="0.5">
-                <Properties customPosition="0" x="570" y="-1431655471"/>
+                <Properties customPosition="0" x="315" y="-1288489821"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 46" DisplayName="LFO-&gt;Pitch1" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="15" y="-954436821"/>
+                <Properties customPosition="0" x="410" y="-1288489821"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 47" DisplayName="LFO-&gt;Pitch2" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="100" y="-954436821"/>
+                <Properties customPosition="0" x="505" y="-1288489821"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 48" DisplayName="FEnv-&gt;Pitch1" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="185" y="-954436821"/>
+                <Properties customPosition="0" x="600" y="-1288489821"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 49" DisplayName="FEnv-&gt;Pitch2" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="270" y="-954436821"/>
+                <Properties customPosition="0" x="75" y="-858993011"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 50" DisplayName="HpfCutoff" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="355" y="-954436821"/>
+                <Properties customPosition="0" x="170" y="-858993011"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 51" DisplayName="HpfResonance" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="440" y="-954436821"/>
+                <Properties customPosition="0" x="265" y="-858993011"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 52" DisplayName="HpfKeyTracking" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="525" y="-954436821"/>
+                <Properties customPosition="0" x="360" y="-858993011"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 53" DisplayName="HpfEnvAmount" Bypass="0" Bipolar="0" Style="0" Value="0.5">
-                <Properties customPosition="0" x="610" y="-954436821"/>
+                <Properties customPosition="0" x="455" y="-858993011"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 54" DisplayName="Wheel-&gt;Lpf" Bypass="0" Bipolar="0" Style="0" Value="0.5">
-                <Properties customPosition="0" x="60" y="-477218171"/>
+                <Properties customPosition="0" x="550" y="-858993011"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 55" DisplayName="AT-&gt;Lpf" Bypass="0" Bipolar="0" Style="0" Value="0.5">
-                <Properties customPosition="0" x="145" y="-477218171"/>
+                <Properties customPosition="0" x="30" y="-429496201"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 56" DisplayName="LFO-&gt;HpfCutoff" Bypass="0" Bipolar="0" Style="0" Value="0.5">
-                <Properties customPosition="0" x="230" y="-477218171"/>
+                <Properties customPosition="0" x="125" y="-429496201"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 57" DisplayName="WaveSpread" Bypass="0" Bipolar="0" Style="0" Value="0.26367188">
-                <Properties customPosition="0" x="315" y="-477218171"/>
+                <Properties customPosition="0" x="220" y="-429496201"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 58" DisplayName="Aftertouch-&gt;Hardsync1" Bypass="0" Bipolar="0" Style="0" Value="0">
-                <Properties customPosition="0" x="400" y="-477218171"/>
+                <Properties customPosition="0" x="315" y="-429496201"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 59" DisplayName="Wheel-&gt;Wave2" Bypass="0" Bipolar="0" Style="0" Value="0.5">
-                <Properties customPosition="0" x="485" y="-477218171"/>
+                <Properties customPosition="0" x="410" y="-429496201"/>
             </ConstantModulation>
             <ConstantModulation Name="Macro 60" DisplayName="AT-&gt;Wave1" Bypass="0" Bipolar="0" Style="0" Value="0.5">
-                <Properties customPosition="0" x="570" y="-477218171"/>
+                <Properties customPosition="0" x="505" y="-429496201"/>
+            </ConstantModulation>
+            <ConstantModulation Name="Macro 61" DisplayName="Macro 61" Bypass="0" Bipolar="0" Style="0" Value="0">
+                <Properties customPosition="0" x="600" y="-429496201"/>
             </ConstantModulation>
         </ControlSignalSources>
         <EventProcessors>
-            <ScriptProcessor Name="EventProcessor0" Bypass="0" Osc1Wave="1" Osc1StartPhase="0" Osc1Pitch="0" HardsyncOsc1="0" AtToHarsyncosc1="0" Osc2Wave="1" Osc2StartPhase="0" Osc2Pitch="0" Osc2FinePitch="0" HardsyncOsc2="0" PanSpread="0" RandomPhaseStart="0" UnisonVoices="1" UnisonDetune="0.1" StereoSpread="0" Osc1Mix="0.75" Osc2Mix="0" NoiseMix="0" NoiseTypeMenu="7" Arp="0" Cutoff="1" Resonance="0" KeyTracking="0" WheelToCutoff="0" AftertouchToCutoff="0" HPCutoff="0" HPFResonance="0" HPFKeyTracking="0" WheelToHpfCutoff="0" AftertouchToHpfCutoff="0" LfoOsc="1" WaveFormTypeMenu="3" LfoFreq="4.5" Lfo2Sync="0" Lfo2Trigger="1" LfoFreqKeyFollow="0" LfoDelay="0" LfoRise="0" LfoSmooth="0" LfoBipolar="1" LfoToNoiseLpfCutoff="0" LfoToNoiseHpfCutoff="0" LfoToNoiseAmplitude="0" LfoToNoiseOverride="0" LfoToCutoff="0" LfoToHpfCutoff="0" LfoToAmplitude="0" LfoToDetune="0" LfoToOsc1PWM="0" LfoToHardsync1="0" LfoToPitchOsc1Knob="0" LfoToOsc2PWM="0" LfoToHardsync2="0" LfoToPitchOsc2Knob="0" AmpEnvOsc="1" Attack="0.001" Decay="0.050000001" Sustain="1" Release="0.0099999998" VelocityToAmpEnv="10" FilterEnvOsc="1" FAttack="0.001" FDecay="0.050000001" FSustain="1" FRelease="0.0099999998" VelocityToFilterEnv="10" EnvelopeAmt="0" HpfEnvelopeAmt="0" FilterEnvToHardsync1Knob="0" FilterEnvToPitchOsc1="0" FilterEnvToHardsync2Knob="0" FilterEnvToPitchOsc2="0" Reverb="0" Delay="0" Chorus="0" Drive="0" Maximizer="0" VibratoDepth="0" VibratoRate="0.69999999" LfoRiseTime="0" WheelToVibrato="0" AftertouchToVibrato="0" PageA="1" PageB="0" PageC="0" PageD="0" PageE="0" SequencerPlay="1" Steps="16" Resolution="15" Gate="0.80000001" SeqTweakSource="1" SeqSynthesis="1" SeqFilter="1" SeqModulation="1" SeqMixer="1" SeqEffects="1" TweakLevel="50" TweakSource="1" EnvStyle="1" Synthesis="1" Filter="1" Modulation="1" Mixer="1" Effects="1" PatchesMenu="1" ManagePatchesMenu="1" API_version="18">
+            <ScriptProcessor Name="EventProcessor0" Bypass="0" Osc1Wave="1" Osc1StartPhase="0" Osc1Pitch="0" HardsyncOsc1="0" AtToHarsyncosc1="0" Osc2Wave="1" Osc2StartPhase="0" Osc2Pitch="0" Osc2FinePitch="0" HardsyncOsc2="0" PanSpread="0" RandomPhaseStart="0" UnisonVoices="1" UnisonDetune="0.1" StereoSpread="0" Osc1Mix="0.75" Osc2Mix="0" NoiseMix="0" NoiseTypeMenu="7" Arp="0" Cutoff="1" Resonance="0" KeyTracking="0" WheelToCutoff="0" AftertouchToCutoff="0" HPCutoff="0" HPFResonance="0" HPFKeyTracking="0" WheelToHpfCutoff="0" AftertouchToHpfCutoff="0" LfoOsc="1" WaveFormTypeMenu="3" LfoFreq="4.5" Lfo2Sync="0" Lfo2Trigger="1" LfoFreqKeyFollow="0" LfoDelay="0" LfoRise="0" LfoSmooth="0" LfoBipolar="1" LfoToNoiseLpfCutoff="0" LfoToNoiseHpfCutoff="0" LfoToNoiseAmplitude="0" LfoToNoiseOverride="0" LfoToCutoff="0" LfoToHpfCutoff="0" LfoToAmplitude="0" LfoToDetune="0" LfoToOsc1PWM="0" LfoToHardsync1="0" LfoToPitchOsc1Knob="0" LfoToOsc2PWM="0" LfoToHardsync2="0" LfoToPitchOsc2Knob="0" AmpEnvOsc="1" Attack="0.001" Decay="0.050000001" Sustain="1" Release="0.0099999998" VelocityToAmpEnv="10" FilterEnvOsc="1" FAttack="0.001" FDecay="0.050000001" FSustain="1" FRelease="0.0099999998" VelocityToFilterEnv="10" EnvelopeAmt="0" HpfEnvelopeAmt="0" FilterEnvToHardsync1Knob="0" FilterEnvToPitchOsc1="0" FilterEnvToHardsync2Knob="0" FilterEnvToPitchOsc2="0" Reverb="0" Delay="0" Chorus="0" Drive="0" Maximizer="0" VibratoDepth="0" VibratoRate="0.69999999" LfoRiseTime="0" WheelToVibrato="0" AftertouchToVibrato="0" PatchmakerPage="0" SequencerPlay="1" Steps="16" Resolution="15" GateKnob="0.80000001" SeqTweakSource="1" SeqSynthesis="1" SeqFilter="1" SeqModulation="1" SeqMixer="1" SeqEffects="1" TweakLevel="50" PatchesMenu="1" ManagePatchesMenu="1" TweakSource="1" EnvStyle="1" Synthesis="1" Filter="1" Modulation="1" Mixer="1" Effects="1" API_version="18">
                 <Properties PresetPath="" ScriptPath="./tweaksynth_analog.lua"/>
                 <script><![CDATA[--------------------------------------------------------------------------------
 -- Tweakable Synth - Analog Oscillators
@@ -701,162 +794,168 @@ local vibratoPanel = createVibratoPanel()
 --------------------------------------------------------------------------------
 
 local pagePanel = Panel("PagePanel")
+pagePanel.backgroundColour = "#00000000"
 pagePanel.x = marginX
 pagePanel.y = marginY
 pagePanel.width = 713
 pagePanel.height = 30
 
-local pageAButton = pagePanel:OnOffButton("PageA", true)
-pageAButton.displayName = "Synthesis"
-local pageBButton = pagePanel:OnOffButton("PageB", false)
-pageBButton.displayName = "Filters"
-local pageCButton = pagePanel:OnOffButton("PageC", false)
-pageCButton.displayName = "Modulation"
-local pageDButton = pagePanel:OnOffButton("PageD", false)
-pageDButton.displayName = "Twequencer"
-local pageEButton = pagePanel:OnOffButton("PageE", false)
-pageEButton.displayName = "Patchmaker"
+local synthesisPageButton = pagePanel:OnOffButton("SynthesisPage", true)
+synthesisPageButton.displayName = "Synthesis"
+synthesisPageButton.persistent = false
+local filterPageButton = pagePanel:OnOffButton("FilterPage", false)
+filterPageButton.displayName = "Filters"
+filterPageButton.persistent = false
+local modulationPageButton = pagePanel:OnOffButton("ModulationPage", false)
+modulationPageButton.displayName = "Modulation"
+modulationPageButton.persistent = false
+local twequencerPageButton = pagePanel:OnOffButton("TwequencerPage", false)
+twequencerPageButton.displayName = "Twequencer"
+twequencerPageButton.persistent = false
+local patchmakerPageButton = pagePanel:OnOffButton("PatchmakerPage", false)
+patchmakerPageButton.displayName = "Patchmaker"
+twequencerPageButton.persistent = false
 
+mixerPanel.backgroundColour = "#3f000000"
 mixerPanel.x = marginX
 mixerPanel.y = pagePanel.height + marginY * 2
 mixerPanel.width = width
 mixerPanel.height = height
 
 --------------------------------------------------------------------------------
--- Page A
+-- Set up pages
 --------------------------------------------------------------------------------
 
-function setupPageA()
-  osc1Panel.backgroundColour = "#33AAAA11"
+function setupSynthesisPage()
+  --osc1Panel.backgroundColour = "#33AAAA11"
+  osc1Panel.backgroundColour = bgColor
   osc1Panel.x = marginX
   osc1Panel.y = mixerPanel.y + height + marginY
   osc1Panel.width = width
   osc1Panel.height = height
 
-  osc2Panel.backgroundColour = "#44AAAA33"
+  --osc2Panel.backgroundColour = "#44AAAA33"
+  osc2Panel.backgroundColour = bgColor
   osc2Panel.x = marginX
   osc2Panel.y = osc1Panel.y + height + marginY
   osc2Panel.width = width
   osc2Panel.height = height
 
-  unisonPanel.backgroundColour = "#55AAAA44"
+  --unisonPanel.backgroundColour = "#55AAAA44"
+  unisonPanel.backgroundColour = bgColor
   unisonPanel.x = marginX
   unisonPanel.y = osc2Panel.y + height + marginY
   unisonPanel.width = width
   unisonPanel.height = height
 
-  vibratoPanel.backgroundColour = "#66AAAA66"
+  --vibratoPanel.backgroundColour = "#66AAAA66"
+  vibratoPanel.backgroundColour = bgColor
   vibratoPanel.x = marginX
   vibratoPanel.y = unisonPanel.y + height + marginY
   vibratoPanel.width = width
   vibratoPanel.height = height
 
-  ampEnvPanel.backgroundColour = "#77AAAA77"
+  --ampEnvPanel.backgroundColour = "#77AAAA77"
+  ampEnvPanel.backgroundColour = bgColor
   ampEnvPanel.x = marginX
   ampEnvPanel.y = vibratoPanel.y + height + marginY
   ampEnvPanel.width = width
   ampEnvPanel.height = height
 
-  effectsPanel.backgroundColour = "#88AAAA99"
+  --effectsPanel.backgroundColour = "#88AAAA99"
+  effectsPanel.backgroundColour = bgColor
   effectsPanel.x = marginX
   effectsPanel.y = ampEnvPanel.y + height + marginY
   effectsPanel.width = width
   effectsPanel.height = height
 end
 
-setupPageA()
-
---------------------------------------------------------------------------------
--- Page B
---------------------------------------------------------------------------------
-
-function setupPageB()
-  filterPanel.backgroundColour = "#33AA0011"
+function setupFilterPage()
+  --filterPanel.backgroundColour = "#33AA0011"
+  filterPanel.backgroundColour = bgColor
   filterPanel.x = marginX
   filterPanel.y = mixerPanel.y + height + marginY
   filterPanel.width = width
   filterPanel.height = height
 
-  hpFilterPanel.backgroundColour = "#44AA0022"
+  --hpFilterPanel.backgroundColour = "#44AA0022"
+  hpFilterPanel.backgroundColour = bgColor
   hpFilterPanel.x = marginX
   hpFilterPanel.y = filterPanel.y + height + marginY
   hpFilterPanel.width = width
   hpFilterPanel.height = height
 
-  filterEnvPanel.backgroundColour = "#55AA0033"
+  --filterEnvPanel.backgroundColour = "#55AA0033"
+  filterEnvPanel.backgroundColour = bgColor
   filterEnvPanel.x = marginX
   filterEnvPanel.y = hpFilterPanel.y + height + marginY
   filterEnvPanel.width = width
   filterEnvPanel.height = height
 
-  filterEnvTargetsPanel.backgroundColour = "#66AA0044"
+  --filterEnvTargetsPanel.backgroundColour = "#66AA0044"
+  filterEnvTargetsPanel.backgroundColour = bgColor
   filterEnvTargetsPanel.x = marginX
   filterEnvTargetsPanel.y = filterEnvPanel.y + height + marginY
   filterEnvTargetsPanel.width = width
   filterEnvTargetsPanel.height = height
 
-  filterEnvTargets1Panel.backgroundColour = "#66AA0066"
+  --filterEnvTargets1Panel.backgroundColour = "#66AA0066"
+  filterEnvTargets1Panel.backgroundColour = bgColor
   filterEnvTargets1Panel.x = marginX
   filterEnvTargets1Panel.y = filterEnvTargetsPanel.y + height
   filterEnvTargets1Panel.width = width
   filterEnvTargets1Panel.height = height
 
-  filterEnvTargets2Panel.backgroundColour = "#66AA0088"
+  --filterEnvTargets2Panel.backgroundColour = "#66AA0088"
+  filterEnvTargets2Panel.backgroundColour = bgColor
   filterEnvTargets2Panel.x = marginX
   filterEnvTargets2Panel.y = filterEnvTargets1Panel.y + height
   filterEnvTargets2Panel.width = width
   filterEnvTargets2Panel.height = height
 end
 
-setupPageB()
-
---------------------------------------------------------------------------------
--- Page C
---------------------------------------------------------------------------------
-
-function setupPageC()
-  lfoPanel.backgroundColour = "#33000022"
+function setupModulationPage()
+  --lfoPanel.backgroundColour = "#33000022"
+  lfoPanel.backgroundColour = bgColor
   lfoPanel.x = marginX
   lfoPanel.y = mixerPanel.y + height + marginY
   lfoPanel.width = width
   lfoPanel.height = height * 2
 
-  lfoTargetPanel.backgroundColour = "#44000033"
+  --lfoTargetPanel.backgroundColour = "#44000033"
+  lfoTargetPanel.backgroundColour = bgColor
   lfoTargetPanel.x = marginX
   lfoTargetPanel.y = lfoPanel.y + lfoPanel.height + marginY
   lfoTargetPanel.width = width
   lfoTargetPanel.height = height
 
-  lfoTargetPanel1.backgroundColour = "#44000055"
+  --lfoTargetPanel1.backgroundColour = "#44000055"
+  lfoTargetPanel1.backgroundColour = bgColor
   lfoTargetPanel1.x = marginX
   lfoTargetPanel1.y = lfoTargetPanel.y + height
   lfoTargetPanel1.width = width
   lfoTargetPanel1.height = height
 
-  lfoTargetPanel2.backgroundColour = "#44000077"
+  --lfoTargetPanel2.backgroundColour = "#44000077"
+  lfoTargetPanel2.backgroundColour = bgColor
   lfoTargetPanel2.x = marginX
   lfoTargetPanel2.y = lfoTargetPanel1.y + height
   lfoTargetPanel2.width = width
   lfoTargetPanel2.height = height
 
-  lfoTargetPanel3.backgroundColour = "#44000099"
+  --lfoTargetPanel3.backgroundColour = "#44000099"
+  lfoTargetPanel3.backgroundColour = bgColor
   lfoTargetPanel3.x = marginX
   lfoTargetPanel3.y = lfoTargetPanel2.y + height
   lfoTargetPanel3.width = width
   lfoTargetPanel3.height = height
 end
 
-setupPageC()
-
---------------------------------------------------------------------------------
--- Page D - Twequencer
---------------------------------------------------------------------------------
+setupSynthesisPage()
+setupFilterPage()
+setupModulationPage()
 
 local tweqPanel = createTwequencerPanel()
-
---------------------------------------------------------------------------------
--- Page E - Patch Maker
---------------------------------------------------------------------------------
 
 local tweakPanel = createPatchMakerPanel()
 
@@ -890,48 +989,48 @@ function setPage(page)
   tweakPanel.visible = page == 5
 end
 
-pageAButton.changed = function(self)
-  pageBButton:setValue(false, false)
-  pageCButton:setValue(false, false)
-  pageDButton:setValue(false, false)
-  pageEButton:setValue(false, false)
+synthesisPageButton.changed = function(self)
+  filterPageButton:setValue(false, false)
+  modulationPageButton:setValue(false, false)
+  twequencerPageButton:setValue(false, false)
+  patchmakerPageButton:setValue(false, false)
   setPage(1)
 end
 
-pageBButton.changed = function(self)
-  pageAButton:setValue(false, false)
-  pageCButton:setValue(false, false)
-  pageDButton:setValue(false, false)
-  pageEButton:setValue(false, false)
+filterPageButton.changed = function(self)
+  synthesisPageButton:setValue(false, false)
+  modulationPageButton:setValue(false, false)
+  twequencerPageButton:setValue(false, false)
+  patchmakerPageButton:setValue(false, false)
   setPage(2)
 end
 
-pageCButton.changed = function(self)
-  pageAButton:setValue(false, false)
-  pageBButton:setValue(false, false)
-  pageDButton:setValue(false, false)
-  pageEButton:setValue(false, false)
+modulationPageButton.changed = function(self)
+  synthesisPageButton:setValue(false, false)
+  filterPageButton:setValue(false, false)
+  twequencerPageButton:setValue(false, false)
+  patchmakerPageButton:setValue(false, false)
   setPage(3)
 end
 
-pageDButton.changed = function(self)
-  pageAButton:setValue(false, false)
-  pageBButton:setValue(false, false)
-  pageCButton:setValue(false, false)
-  pageEButton:setValue(false, false)
+twequencerPageButton.changed = function(self)
+  synthesisPageButton:setValue(false, false)
+  filterPageButton:setValue(false, false)
+  modulationPageButton:setValue(false, false)
+  patchmakerPageButton:setValue(false, false)
   setPage(4)
 end
 
-pageEButton.changed = function(self)
-  pageAButton:setValue(false, false)
-  pageBButton:setValue(false, false)
-  pageCButton:setValue(false, false)
-  pageDButton:setValue(false, false)
+patchmakerPageButton.changed = function(self)
+  synthesisPageButton:setValue(false, false)
+  filterPageButton:setValue(false, false)
+  modulationPageButton:setValue(false, false)
+  twequencerPageButton:setValue(false, false)
   setPage(5)
 end
 
 -- Set start page
-pageAButton.changed()
+synthesisPageButton.changed()
 
 setSize(720, 480)
 

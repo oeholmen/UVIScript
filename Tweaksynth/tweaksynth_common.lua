@@ -146,21 +146,23 @@ local lfoToHpf = macros[56]
 -- Colours and margins
 --------------------------------------------------------------------------------
 
-knobColour = "#333355"
-osc1Colour = "orange"
-osc2Colour = "yellow"
-unisonColour = "magenta"
-filterColour = "green"
-lfoColour = "pink"
-filterEnvColour = "red"
-ampEnvColour = "teal"
-filterEffectsColour = "blue"
-vibratoColour = "lightblue"
+local outlineColour = "#66FF0000"
+bgColor = "#1a000000"
+knobColour = "#99330000"
+osc1Colour = outlineColour
+osc2Colour = outlineColour
+unisonColour = outlineColour
+filterColour = outlineColour
+lfoColour = outlineColour
+filterEnvColour = outlineColour
+ampEnvColour = outlineColour
+filterEffectsColour = outlineColour
+vibratoColour = outlineColour
 
 marginX = 3 -- left/right
 marginY = 2 -- top/bottom
 height = 60
-width = 713
+width = 714
 
 --------------------------------------------------------------------------------
 -- STORE / RECALL
@@ -580,6 +582,14 @@ end
 --------------------------------------------------------------------------------
 -- Common Panels
 --------------------------------------------------------------------------------
+
+--img = Image("resources/carbon.png")
+--img = Image("resources/future.png")
+--img = Image("resources/hexagons.png")
+img = Image("resources/metal.png")
+--img = Image("resources/particles.png")
+img.pos = {0, 0}
+img.alpha = 0.25
 
 --------------------------------------------------------------------------------
 -- Mixer Panel
@@ -1645,95 +1655,19 @@ end
 --------------------------------------------------------------------------------
 
 function createPatchMakerPanel()
+  --local bgColor = "#00000000"
   local tweakPanel = Panel("Tweaks")
-  tweakPanel.backgroundColour = "#33AA3399"
+  tweakPanel.backgroundColour = bgColor
   tweakPanel.x = marginX
   tweakPanel.y = height * 1.6
   tweakPanel.width = width
-  tweakPanel.height = height * 6
+  tweakPanel.height = 380
 
   local tweakLevelKnob = tweakPanel:Knob("TweakLevel", 50, 0, 100, true)
+  tweakLevelKnob.fillColour = knobColour
+  tweakLevelKnob.outlineColour = outlineColour
   tweakLevelKnob.displayName = "Tweak level"
-  tweakLevelKnob.bounds = {10,10,width/3,height*3}
-
-  local tweakSourceMenu = tweakPanel:Menu("TweakSource", tweakSources)
-  tweakSourceMenu.displayName = "Tweak source"
-  tweakSourceMenu.width = width/4-10
-  tweakSourceMenu.x = width/2
-  tweakSourceMenu.y = 10
-
-  local envStyleMenu = tweakPanel:Menu("EnvStyle", {"Automatic", "Very short", "Short", "Medium short", "Medium", "Medium long", "Long", "Very long"})
-  envStyleMenu.displayName = "Envelope Style"
-  envStyleMenu.width = tweakSourceMenu.width
-  envStyleMenu.x = tweakSourceMenu.width + tweakSourceMenu.x + 10
-  envStyleMenu.y = tweakSourceMenu.y
-
-  -- synthesis, modulation, filter, mixer, effects
-  local synthesisButton = tweakPanel:OnOffButton("Synthesis", true)
-  synthesisButton.fillColour = knobColour
-  synthesisButton.size = {76,35}
-  synthesisButton.x = width/2
-  synthesisButton.y = tweakSourceMenu.y + tweakSourceMenu.height + 10
-
-  local filterButton = tweakPanel:OnOffButton("Filter", true)
-  filterButton.fillColour = knobColour
-  filterButton.size = {60,35}
-  filterButton.x = synthesisButton.x + synthesisButton.width + marginX
-  filterButton.y = synthesisButton.y
-
-  local modulationButton = tweakPanel:OnOffButton("Modulation", true)
-  modulationButton.fillColour = knobColour
-  modulationButton.size = {76,35}
-  modulationButton.x = filterButton.x + filterButton.width + marginX
-  modulationButton.y = synthesisButton.y
-
-  local mixerButton = tweakPanel:OnOffButton("Mixer", true)
-  mixerButton.fillColour = knobColour
-  mixerButton.size = {60,35}
-  mixerButton.x = modulationButton.x + modulationButton.width + marginX
-  mixerButton.y = synthesisButton.y
-
-  local effectsButton = tweakPanel:OnOffButton("Effects", true)
-  effectsButton.fillColour = knobColour
-  effectsButton.size = {60,35}
-  effectsButton.x = mixerButton.x + mixerButton.width + marginX
-  effectsButton.y = synthesisButton.y
-
-  local tweakButton = tweakPanel:Button("Tweak")
-  tweakButton.displayName = "Tweak patch"
-  tweakButton.bounds = {width/2,synthesisButton.y+synthesisButton.height+10,width/2-10,height*2}
-  tweakButton.textColourOff = "white"
-  tweakButton.backgroundColourOff = "skyblue"
-  tweakButton.changed = function(self)
-    print("Start tweaking!")
-    for i,v in ipairs(tweakables) do
-      local skip = false
-      if v.category == "synthesis" and synthesisButton.value == false then
-        skip = true
-      elseif v.category == "modulation" and modulationButton.value == false then
-        skip = true
-      elseif v.category == "filter" and filterButton.value == false then
-        skip = true
-      elseif v.category == "mixer" and mixerButton.value == false then
-        skip = true
-      elseif v.category == "effects" and effectsButton.value == false then
-        skip = true
-      end
-      if skip == false then
-        tweakWidget(v, tweakLevelKnob.value, 0, tweakSourceMenu.value, envStyleMenu.value)
-      else
-        print("Skipping:", v.widget.name)
-      end
-    end
-    print("Tweaking complete!")
-  end
-
-  function setWidgetValue(index, widgetName, value)
-    if widgetName == tweakables[index].widget.name then
-      tweakables[index].widget.value = value
-      print("Set widget value: ", widgetName, tweakables[index].widget.value, value)
-    end
-  end
+  tweakLevelKnob.bounds = {10,10,width/2,height*3}
 
   patchesMenu = tweakPanel:Menu("PatchesMenu")
   patchesMenu.x = 10
@@ -1790,10 +1724,11 @@ function createPatchMakerPanel()
     patchesMenu:setValue(value)
   end
 
-  local managePatchesMenu = tweakPanel:Menu("ManagePatchesMenu", {"Manage...", "Add to snapshots", "Update selected", "Remove selected"})
+  local actions = {"Choose...", "Add to snapshots", "Update selected snapshot", "Recall saved patch", "Initialize patch", "--- DANGERZONE ---", "Remove selected", "Remove all snapshots"}
+  local managePatchesMenu = tweakPanel:Menu("ManagePatchesMenu", actions)
   managePatchesMenu.x = nextPatchButton.x + nextPatchButton.width + marginX
   managePatchesMenu.y = patchesMenu.y
-  managePatchesMenu.displayName = "Manage snapshots"
+  managePatchesMenu.displayName = "Actions"
   managePatchesMenu.changed = function(self)
     if self.value == 1 then
       return
@@ -1803,9 +1738,115 @@ function createPatchMakerPanel()
     elseif self.value == 3 then
       updateSelectedSnapshot()
     elseif self.value == 4 then
+      recallStoredPatch()
+    elseif self.value == 5 then
+      initPatch()
+    elseif self.value == 7 then
       removeSelectedSnapshot()
+    elseif self.value == 8 then
+      clearStoredPatches()
     end
     self:setValue(1)
+  end
+
+  local tweakButton = tweakPanel:Button("Tweak")
+  tweakButton.displayName = "Tweak patch"
+  tweakButton.bounds = {width/2,10,width/2-10,tweakLevelKnob.height}
+
+  local tweakSourceMenu = tweakPanel:Menu("TweakSource", tweakSources)
+  tweakSourceMenu.displayName = "Tweak source"
+  tweakSourceMenu.width = width/4-10
+  tweakSourceMenu.x = width/2
+  tweakSourceMenu.y = patchesMenu.y
+
+  local envStyleMenu = tweakPanel:Menu("EnvStyle", {"Automatic", "Very short", "Short", "Medium short", "Medium", "Medium long", "Long", "Very long"})
+  envStyleMenu.displayName = "Envelope Style"
+  envStyleMenu.width = tweakSourceMenu.width
+  envStyleMenu.x = tweakSourceMenu.width + tweakSourceMenu.x + 10
+  envStyleMenu.y = tweakSourceMenu.y
+
+  -- SCOPE BUTTONS - synthesis, modulation, filter, mixer, effects
+  local synthesisButton = tweakPanel:OnOffButton("Synthesis", true)
+  synthesisButton.fillColour = knobColour
+  synthesisButton.size = {76,35}
+  synthesisButton.x = width/2
+  synthesisButton.y = tweakSourceMenu.y + tweakSourceMenu.height + 10
+
+  local filterButton = tweakPanel:OnOffButton("Filter", true)
+  filterButton.fillColour = knobColour
+  filterButton.size = {60,35}
+  filterButton.x = synthesisButton.x + synthesisButton.width + marginX
+  filterButton.y = synthesisButton.y
+
+  local modulationButton = tweakPanel:OnOffButton("Modulation", true)
+  modulationButton.fillColour = knobColour
+  modulationButton.size = {76,35}
+  modulationButton.x = filterButton.x + filterButton.width + marginX
+  modulationButton.y = synthesisButton.y
+
+  local mixerButton = tweakPanel:OnOffButton("Mixer", true)
+  mixerButton.fillColour = knobColour
+  mixerButton.size = {60,35}
+  mixerButton.x = modulationButton.x + modulationButton.width + marginX
+  mixerButton.y = synthesisButton.y
+
+  local effectsButton = tweakPanel:OnOffButton("Effects", true)
+  effectsButton.fillColour = knobColour
+  effectsButton.size = {60,35}
+  effectsButton.x = mixerButton.x + mixerButton.width + marginX
+  effectsButton.y = synthesisButton.y
+
+  tweakButton.changed = function(self)
+    print("Start tweaking!")
+    for i,v in ipairs(tweakables) do
+      local skip = false
+      if v.category == "synthesis" and synthesisButton.value == false then
+        skip = true
+      elseif v.category == "modulation" and modulationButton.value == false then
+        skip = true
+      elseif v.category == "filter" and filterButton.value == false then
+        skip = true
+      elseif v.category == "mixer" and mixerButton.value == false then
+        skip = true
+      elseif v.category == "effects" and effectsButton.value == false then
+        skip = true
+      end
+      if skip == false then
+        tweakWidget(v, tweakLevelKnob.value, 0, tweakSourceMenu.value, envStyleMenu.value)
+      else
+        print("Skipping:", v.widget.name)
+      end
+    end
+    print("Tweaking complete!")
+  end
+  
+  function clearStoredPatches()
+    print("Clearing stored snapshots...")
+    storedPatches = {}
+    patchesMenu:clear()
+  end
+
+  function initPatch()
+    print("Setting default values...")
+    for i,v in ipairs(tweakables) do
+      v.widget.value = v.widget.default
+      print("Set default value for widget", v.widget.name, v.widget.value)
+    end
+  end
+
+  function setWidgetValue(index, widgetName, value)
+    if widgetName == tweakables[index].widget.name then
+      tweakables[index].widget.value = value
+      print("Set widget value: ", widgetName, tweakables[index].widget.value, value)
+    end
+  end
+
+  function recallStoredPatch()
+    print("Recalling stored patch...")
+    for i,v in ipairs(storedPatch) do
+      setWidgetValue(v.index, v.widget, v.value)
+      print("Set value for widget", v.widget.name, v.value)
+    end
   end
 
   function updateSelectedSnapshot()
@@ -1851,43 +1892,6 @@ function createPatchMakerPanel()
     patchesMenu:setValue(#storedPatches)
   end
 
-  local recallStoredPatchButton = tweakPanel:Button("RecallPatch")
-  recallStoredPatchButton.displayName = "Recall saved patch"
-  recallStoredPatchButton.bounds = {tweakButton.x,tweakButton.y+tweakButton.height+10,tweakButton.width,patchesMenu.height}
-  recallStoredPatchButton.textColourOff = "white"
-  recallStoredPatchButton.backgroundColourOff = "orange"
-  recallStoredPatchButton.changed = function(self)
-    print("Recalling stored patch...")
-    for i,v in ipairs(storedPatch) do
-      setWidgetValue(v.index, v.widget, v.value)
-      print("Set value for widget", v.widget.name, v.value)
-    end
-  end
-
-  local initPatchButton = tweakPanel:Button("InitPatch")
-  initPatchButton.displayName = "Initialize patch"
-  initPatchButton.bounds = {recallStoredPatchButton.x,recallStoredPatchButton.y+recallStoredPatchButton.height+10,recallStoredPatchButton.width,recallStoredPatchButton.height}
-  initPatchButton.textColourOff = "white"
-  initPatchButton.backgroundColourOff = "silver"
-  initPatchButton.changed = function(self)
-    print("Setting default values...")
-    for i,v in ipairs(tweakables) do
-      v.widget.value = v.widget.default
-      print("Set default value for widget", v.widget.name, v.widget.value)
-    end
-  end
-
-  local clearStoredPatchesButton = tweakPanel:Button("ClearStoredPatches")
-  clearStoredPatchesButton.displayName = "Remove all snapshots"
-  clearStoredPatchesButton.bounds = {patchesMenu.x,patchesMenu.y+patchesMenu.height+height,patchesMenu.width+managePatchesMenu.width,20}
-  clearStoredPatchesButton.backgroundColourOff = "red"
-  clearStoredPatchesButton.textColourOff = "white"
-  clearStoredPatchesButton.changed = function(self)
-    print("Clearing stored snapshots...")
-    storedPatches = {}
-    patchesMenu:clear()
-  end
-
   return tweakPanel
 end
 
@@ -1899,19 +1903,22 @@ function createTwequencerPanel()
   local arpId = 0
   local heldNotes = {}
   local snapshots = {}
+  --local bgColor = "#00000000"
   
   local tweqPanel = Panel("Sequencer")
-  tweqPanel.backgroundColour = "#33000099"
+  tweqPanel.backgroundColour = bgColor
   tweqPanel.x = marginX
   tweqPanel.y = height * 1.6
   tweqPanel.width = width
-  tweqPanel.height = height * 6
+  tweqPanel.height = 380
 
   local sequencerPlayMenu = tweqPanel:Menu("SequencerPlay", {"Off", "Mono", "As played", "Random", "Chord"})
   sequencerPlayMenu.displayName = "Play Mode"
   sequencerPlayMenu.width = 120
 
   local tweakLevelKnob = tweqPanel:Knob("SeqTweakLevel", 0, 0, 100, true)
+  tweakLevelKnob.fillColour = knobColour
+  tweakLevelKnob.outlineColour = outlineColour
   tweakLevelKnob.persistent = false
   tweakLevelKnob.displayName = "Tweak Level"
   tweakLevelKnob.x = sequencerPlayMenu.x
@@ -1922,16 +1929,24 @@ function createTwequencerPanel()
   numStepsBox.backgroundColour = "black"
   numStepsBox.textColour = "cyan"
   numStepsBox.arrowColour = "grey"
-  numStepsBox.outlineColour = "#1fFFFFFF" -- transparent white
+  --numStepsBox.outlineColour = "#1fFFFFFF" -- transparent white
 
   local seqPitchTable = tweqPanel:Table("Pitch", numStepsBox.value, 0, -12, 12, true)
   seqPitchTable.showPopupDisplay = true
+  seqPitchTable.showLabel = true
+  seqPitchTable.fillStyle = "gloss"
+  seqPitchTable.sliderColour = knobColour
   seqPitchTable.width = 400
+  seqPitchTable.height = 80
   seqPitchTable.x = sequencerPlayMenu.width * 1.2
 
   local seqVelTable = tweqPanel:Table("Velocity", numStepsBox.value, 100, 1, 127, true)
   seqVelTable.showPopupDisplay = true
+  seqVelTable.showLabel = true
+  seqVelTable.fillStyle = "gloss"
+  seqVelTable.sliderColour = knobColour
   seqVelTable.width = seqPitchTable.width
+  seqVelTable.height = seqPitchTable.height
   seqVelTable.x = seqPitchTable.x
   seqVelTable.y = seqPitchTable.y + seqPitchTable.height + marginY
 
@@ -1940,18 +1955,22 @@ function createTwequencerPanel()
   resolution.backgroundColour = "black"
   resolution.textColour = "cyan"
   resolution.arrowColour = "grey"
-  resolution.outlineColour = "#1fFFFFFF" -- transparent white
+  --resolution.outlineColour = "#1fFFFFFF" -- transparent white
 
   local positionTable = tweqPanel:Table("Position", numStepsBox.value, 0, 0, 1, true)
   positionTable.enabled = false
   positionTable.persistent = false
+  positionTable.fillStyle = "solid"
+  positionTable.sliderColour = outlineColour
   positionTable.width = seqPitchTable.width
+  positionTable.height = height / 2
   positionTable.x = seqPitchTable.x
-  positionTable.y = seqVelTable.y + seqVelTable.height + marginY
+  positionTable.y = seqVelTable.y + seqVelTable.height + 10
 
   local snapshotsMenu = tweqPanel:Menu("SnapshotsMenu")
   snapshotsMenu.x = positionTable.x
-  snapshotsMenu.y = positionTable.y + positionTable.height + marginY
+  snapshotsMenu.y = positionTable.y + positionTable.height + 10
+  snapshotsMenu.width = 235
   snapshotsMenu.enabled = false
   snapshotsMenu.displayName = "Snapshots"
   snapshotsMenu.persistent = false
@@ -2058,13 +2077,15 @@ function createTwequencerPanel()
   end
   numStepsBox:changed()
 
-  local gate = tweqPanel:Knob("Gate", 0.8, 0, 1)
-  gate.x = resolution.x
-  gate.y = numStepsBox.y + numStepsBox.height + 12
-  gate.changed = function(self)
+  local gateKnob = tweqPanel:Knob("GateKnob", 0.8, 0, 1)
+  gateKnob.fillColour = knobColour
+  gateKnob.outlineColour = outlineColour
+  gateKnob.x = resolution.x
+  gateKnob.y = numStepsBox.y + numStepsBox.height + 10
+  gateKnob.changed = function(self)
       self.displayText = percent(self.value)
   end
-  gate:changed() -- force update
+  gateKnob:changed() -- force update
 
   sequencerPlayMenu.changed = function (self)
     -- Stop sequencer if turned off
@@ -2079,7 +2100,7 @@ function createTwequencerPanel()
   local tweakSourceMenu = tweqPanel:Menu("SeqTweakSource", tweakSources)
   tweakSourceMenu.displayName = "Tweak source"
   tweakSourceMenu.x = snapshotsMenu.x
-  tweakSourceMenu.y = snapshotsMenu.y + height
+  tweakSourceMenu.y = snapshotsMenu.y + snapshotsMenu.height + 10
 
   -- synthesis, modulation, filter, mixer, effects
   local synthesisButton = tweqPanel:OnOffButton("SeqSynthesis", true)
@@ -2087,7 +2108,7 @@ function createTwequencerPanel()
   synthesisButton.fillColour = knobColour
   synthesisButton.size = {78,35}
   synthesisButton.x = tweakSourceMenu.x
-  synthesisButton.y = tweakSourceMenu.y + height
+  synthesisButton.y = tweakSourceMenu.y + tweakSourceMenu.height + 10
 
   local filterButton = tweqPanel:OnOffButton("SeqFilter", true)
   filterButton.displayName = "Filter"
@@ -2198,7 +2219,7 @@ function createTwequencerPanel()
       print("Number of steps:", numSteps)
       print("Current pos:", currentPosition)
       for i,note in ipairs(notes) do
-        playNote(note, vel, beat2ms(gate.value*p))
+        playNote(note, vel, beat2ms(gateKnob.value*p))
       end
 
       -- UPDATE POSITION TABLE AND INCREMENT POSITION
