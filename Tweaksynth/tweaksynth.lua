@@ -98,7 +98,7 @@ local macros = {
 }
 
 local isAnalog = osc1.type == "MinBlepGenerator"
-local isWavetable = osc1.type == "Wavetable"
+local isWavetable = osc1.type == "WaveTableOscillator"
 
 print("Starting Synth", osc1.type)
 
@@ -185,9 +185,17 @@ local wavetableMacros = {
 -- Colours and margins
 --------------------------------------------------------------------------------
 
-local outlineColour = "#66FF0000"
-local bgColor = "3f000000" --"#1a000000"
-local knobColour = "#99330000"
+-- BG #020031
+
+local buttonAlpha = 0.9
+local buttonBackgroundColourOff = "#ff084486"
+local buttonBackgroundColourOn = "#ff02ACFE"
+local buttonTextColourOff = "#ef02ACFE"
+local buttonTextColourOn = "#efFFFFFF"
+
+local outlineColour = "#FFB5FF"
+local bgColor = "1aFFFFFF"
+local knobColour = "#dd000061"
 local osc1Colour = outlineColour
 local osc2Colour = outlineColour
 local unisonColour = outlineColour
@@ -197,15 +205,42 @@ local filterEnvColour = outlineColour
 local ampEnvColour = outlineColour
 local filterEffectsColour = outlineColour
 local vibratoColour = outlineColour
-local menuBackgroundColour = "#9f000000"
-local menuTextColour = "#04c2bb"
-local menuArrowColour = "#008a85"
-local menuOutlineColour = bgColor --"#1fFFFFFF" -- transparent white
+local menuBackgroundColour = "#bf01011F"
+local menuTextColour = "#9f02ACFE"
+local menuArrowColour = "#9f09A3F4"
+local menuOutlineColour = bgColor
 
 local marginX = 3 -- left/right
-local marginY = 2 -- top/bottom
-local height = 62
+local marginY = 0 -- top/bottom
+local height = 64
 local width = 714
+
+--------------------------------------------------------------------------------
+-- Backgound image
+--------------------------------------------------------------------------------
+
+--local img = Image("resources/carbon.png")
+--local img = Image("resources/carbon2.png")
+--local img = Image("resources/hexagonmesh.png")
+--local img = Image("resources/carbonfiber.png")
+--local img = Image("resources/darkcarbon.png")
+--local img = Image("resources/future.png")
+--local img = Image("resources/hexagons.png")
+--local img = Image("resources/metal.png")
+--local img = Image("resources/tech.jpg")
+--local img = Image("resources/whitehexagons.png")
+--local img = Image("./resources/particles2.png")
+--local img = Image("./resources/bluesquares.png")
+--local img = Image("./resources/landscape.png")
+--local img = Image("./resources/futurewaves.png")
+--local img = Image("./resources/particles3.png")
+--local img = Image("./resources/particles.png")
+--local img = Image("./resources/pinkcurves.png")
+--local img = Image("./resources/polygon.png")
+--local img = Image("./resources/depth.png")
+--img.alpha = 0.5
+
+setBackground("./resources/depth.png")
 
 --------------------------------------------------------------------------------
 -- STORE / RECALL
@@ -643,23 +678,6 @@ function filterMapValue(value)
 end
 
 --------------------------------------------------------------------------------
--- Backgound image
---------------------------------------------------------------------------------
-
---local img = Image("resources/carbon.png")
---local img = Image("resources/carbon2.png")
---local img = Image("resources/hexagonmesh.png")
---local img = Image("resources/carbonfiber.png")
---local img = Image("resources/darkcarbon.png")
---local img = Image("resources/future.png")
---local img = Image("resources/hexagons.png")
---local img = Image("resources/metal.png")
---local img = Image("resources/tech.jpg")
---local img = Image("resources/whitehexagons.png")
-local img = Image("./resources/particles.png")
-img.alpha = 0.2
-
---------------------------------------------------------------------------------
 -- Osc 1
 --------------------------------------------------------------------------------
 
@@ -1030,8 +1048,11 @@ function createMixerPanel()
   table.insert(tweakables, {widget=noiseTypeMenu,min=#noiseTypes,category="synthesis"})
 
   local arpeggiatorButton = mixerPanel:OnOffButton("Arp", false)
-  arpeggiatorButton.fillColour = knobColour
-  arpeggiatorButton.outlineColour = filterEfectsColour
+  arpeggiatorButton.alpha = buttonAlpha
+  arpeggiatorButton.backgroundColourOff = buttonBackgroundColourOff
+  arpeggiatorButton.backgroundColourOn = buttonBackgroundColourOn
+  arpeggiatorButton.textColourOff = buttonTextColourOff
+  arpeggiatorButton.textColourOn = buttonTextColourOn
   arpeggiatorButton.size = {100,(height-15)}
   arpeggiatorButton.changed = function(self)
     local value = -1
@@ -1516,8 +1537,11 @@ function createLfoPanel()
 
   local lfo2SyncButton = lfoPanel:OnOffButton("Lfo2Sync", false)
   lfo2SyncButton.displayName = "Sync"
-  lfo2SyncButton.fillColour = knobColour
-  lfo2SyncButton.outlineColour = lfoColour
+  lfo2SyncButton.alpha = buttonAlpha
+  lfo2SyncButton.backgroundColourOff = buttonBackgroundColourOff
+  lfo2SyncButton.backgroundColourOn = buttonBackgroundColourOn
+  lfo2SyncButton.textColourOff = buttonTextColourOff
+  lfo2SyncButton.textColourOn = buttonTextColourOn
   lfo2SyncButton.width = 75
   lfo2SyncButton.changed = function(self)
     if activeLfoOsc == 1 or activeLfoOsc == 2 then
@@ -1570,8 +1594,11 @@ function createLfoPanel()
   table.insert(tweakables, {widget=lfoFreqKnob,factor=20,category="modulation"})
 
   local lfo2TriggerButton = lfoPanel:OnOffButton("Lfo2Trigger", true)
-  lfo2TriggerButton.fillColour = knobColour
-  lfo2TriggerButton.outlineColour = lfoColour
+  lfo2TriggerButton.alpha = buttonAlpha
+  lfo2TriggerButton.backgroundColourOff = buttonBackgroundColourOff
+  lfo2TriggerButton.backgroundColourOn = buttonBackgroundColourOn
+  lfo2TriggerButton.textColourOff = buttonTextColourOff
+  lfo2TriggerButton.textColourOn = buttonTextColourOn
   lfo2TriggerButton.width = 75
   lfo2TriggerButton.position = {lfo2SyncButton.x,25}
   lfo2TriggerButton.displayName = "Retrigger"
@@ -1679,8 +1706,11 @@ function createLfoPanel()
   table.insert(tweakables, {widget=lfoSmoothKnob,ceiling=0.3,default=50,zero=70,category="modulation"})
 
   local lfoBipolarButton = lfoPanel:OnOffButton("LfoBipolar", true)
-  lfoBipolarButton.fillColour = knobColour
-  lfoBipolarButton.outlineColour = lfoColour
+  lfoBipolarButton.alpha = buttonAlpha
+  lfoBipolarButton.backgroundColourOff = buttonBackgroundColourOff
+  lfoBipolarButton.backgroundColourOn = buttonBackgroundColourOn
+  lfoBipolarButton.textColourOff = buttonTextColourOff
+  lfoBipolarButton.textColourOn = buttonTextColourOn
   lfoBipolarButton.width = 75
   lfoBipolarButton.x = lfoSmoothKnob.x + lfoSmoothKnob.width + 15
   lfoBipolarButton.y = lfoSmoothKnob.y
@@ -2197,7 +2227,7 @@ function createEffectsPanel()
 
   local reverbKnob = effectsPanel:Knob("Reverb", 0, 0, 1)
   reverbKnob.x = 150
-  reverbKnob.y = 30
+  reverbKnob.y = 50
   reverbKnob.size = knobSize
   reverbKnob.mapper = Mapper.Quadratic
   reverbKnob.fillColour = knobColour
@@ -2224,7 +2254,7 @@ function createEffectsPanel()
   local chorusKnob = effectsPanel:Knob("Chorus", 0, 0, 1)
   chorusKnob.size = knobSize
   chorusKnob.x = reverbKnob.x
-  chorusKnob.y = delayKnob.y + delayKnob.height + height
+  chorusKnob.y = delayKnob.y + delayKnob.height + 20
   chorusKnob.mapper = Mapper.Linear
   chorusKnob.fillColour = knobColour
   chorusKnob.outlineColour = filterEffectsColour
@@ -2237,7 +2267,7 @@ function createEffectsPanel()
   local driveKnob = effectsPanel:Knob("Drive", 0, 0, 1)
   driveKnob.size = knobSize
   driveKnob.x = delayKnob.x
-  driveKnob.y = delayKnob.y + delayKnob.height + height
+  driveKnob.y = chorusKnob.y
   driveKnob.mapper = Mapper.Cubic
   driveKnob.fillColour = knobColour
   driveKnob.outlineColour = filterEffectsColour
@@ -2248,8 +2278,11 @@ function createEffectsPanel()
   table.insert(tweakables, {widget=driveKnob,ceiling=0.4,probability=90,absoluteLimit=0.6,default=50,category="effects"})
 
   local maximizerButton = effectsPanel:OnOffButton("Maximizer", false)
-  maximizerButton.fillColour = knobColour
-  maximizerButton.outlineColour = filterEffectsColour
+  maximizerButton.alpha = buttonAlpha
+  maximizerButton.backgroundColourOff = buttonBackgroundColourOff
+  maximizerButton.backgroundColourOn = buttonBackgroundColourOn
+  maximizerButton.textColourOff = buttonTextColourOff
+  maximizerButton.textColourOn = buttonTextColourOn
   maximizerButton.size = {100,(height-15)}
   maximizerButton.x = 600
   maximizerButton.y = height * 2
@@ -2352,13 +2385,12 @@ local vibratoPanel = createVibratoPanel()
 --------------------------------------------------------------------------------
 
 function createPatchMakerPanel()
-  --local bgColor = "#00000000"
   local tweakPanel = Panel("Tweaks")
   tweakPanel.backgroundColour = bgColor
   tweakPanel.x = marginX
-  tweakPanel.y = height * 1.6
+  tweakPanel.y = mixerPanel.y + mixerPanel.height + marginY
   tweakPanel.width = width
-  tweakPanel.height = 376
+  tweakPanel.height = 384
 
   local tweakLevelKnob = tweakPanel:Knob("TweakLevel", 50, 0, 100, true)
   tweakLevelKnob.fillColour = knobColour
@@ -2392,6 +2424,11 @@ function createPatchMakerPanel()
   end
 
   local prevPatchButton = tweakPanel:Button("PrevPatch")
+  prevPatchButton.alpha = buttonAlpha
+  prevPatchButton.backgroundColourOff = buttonBackgroundColourOff
+  prevPatchButton.backgroundColourOn = buttonBackgroundColourOn
+  prevPatchButton.textColourOff = buttonTextColourOff
+  prevPatchButton.textColourOn = buttonTextColourOn
   prevPatchButton.displayName = "<"
   prevPatchButton.x = patchesMenu.x + patchesMenu.width + marginX
   prevPatchButton.y = patchesMenu.y + 25
@@ -2409,6 +2446,11 @@ function createPatchMakerPanel()
   end
 
   local nextPatchButton = tweakPanel:Button("NextPatch")
+  nextPatchButton.alpha = buttonAlpha
+  nextPatchButton.backgroundColourOff = buttonBackgroundColourOff
+  nextPatchButton.backgroundColourOn = buttonBackgroundColourOn
+  nextPatchButton.textColourOff = buttonTextColourOff
+  nextPatchButton.textColourOn = buttonTextColourOn
   nextPatchButton.displayName = ">"
   nextPatchButton.x = prevPatchButton.x + prevPatchButton.width + marginX
   nextPatchButton.y = prevPatchButton.y
@@ -2455,6 +2497,11 @@ function createPatchMakerPanel()
   end
 
   local tweakButton = tweakPanel:Button("Tweak")
+  tweakButton.alpha = buttonAlpha
+  tweakButton.backgroundColourOff = buttonBackgroundColourOff
+  tweakButton.backgroundColourOn = buttonBackgroundColourOn
+  tweakButton.textColourOff = buttonTextColourOff
+  tweakButton.textColourOn = buttonTextColourOn
   tweakButton.displayName = "Tweak patch"
   tweakButton.bounds = {width/2,10,width/2-10,tweakLevelKnob.height}
 
@@ -2484,31 +2531,51 @@ function createPatchMakerPanel()
 
   -- SCOPE BUTTONS - synthesis, modulation, filter, mixer, effects
   local synthesisButton = tweakPanel:OnOffButton("Synthesis", true)
-  synthesisButton.fillColour = knobColour
+  synthesisButton.alpha = buttonAlpha
+  synthesisButton.backgroundColourOff = buttonBackgroundColourOff
+  synthesisButton.backgroundColourOn = buttonBackgroundColourOn
+  synthesisButton.textColourOff = buttonTextColourOff
+  synthesisButton.textColourOn = buttonTextColourOn
   synthesisButton.size = {76,35}
   synthesisButton.x = width/2
   synthesisButton.y = scopeLabel.y + scopeLabel.height + 10
 
   local filterButton = tweakPanel:OnOffButton("Filter", true)
-  filterButton.fillColour = knobColour
+  filterButton.alpha = buttonAlpha
+  filterButton.backgroundColourOff = buttonBackgroundColourOff
+  filterButton.backgroundColourOn = buttonBackgroundColourOn
+  filterButton.textColourOff = buttonTextColourOff
+  filterButton.textColourOn = buttonTextColourOn
   filterButton.size = {60,35}
   filterButton.x = synthesisButton.x + synthesisButton.width + marginX
   filterButton.y = synthesisButton.y
 
   local modulationButton = tweakPanel:OnOffButton("Modulation", true)
-  modulationButton.fillColour = knobColour
+  modulationButton.alpha = buttonAlpha
+  modulationButton.backgroundColourOff = buttonBackgroundColourOff
+  modulationButton.backgroundColourOn = buttonBackgroundColourOn
+  modulationButton.textColourOff = buttonTextColourOff
+  modulationButton.textColourOn = buttonTextColourOn
   modulationButton.size = {76,35}
   modulationButton.x = filterButton.x + filterButton.width + marginX
   modulationButton.y = synthesisButton.y
 
   local effectsButton = tweakPanel:OnOffButton("Effects", true)
-  effectsButton.fillColour = knobColour
+  effectsButton.alpha = buttonAlpha
+  effectsButton.backgroundColourOff = buttonBackgroundColourOff
+  effectsButton.backgroundColourOn = buttonBackgroundColourOn
+  effectsButton.textColourOff = buttonTextColourOff
+  effectsButton.textColourOn = buttonTextColourOn
   effectsButton.size = {60,35}
   effectsButton.x = modulationButton.x + modulationButton.width + marginX
   effectsButton.y = synthesisButton.y
 
   local mixerButton = tweakPanel:OnOffButton("Mixer", true)
-  mixerButton.fillColour = knobColour
+  mixerButton.alpha = buttonAlpha
+  mixerButton.backgroundColourOff = buttonBackgroundColourOff
+  mixerButton.backgroundColourOn = buttonBackgroundColourOn
+  mixerButton.textColourOff = buttonTextColourOff
+  mixerButton.textColourOn = buttonTextColourOn
   mixerButton.size = {60,35}
   mixerButton.x = effectsButton.x + effectsButton.width + marginX
   mixerButton.y = synthesisButton.y
@@ -2601,9 +2668,9 @@ function createTwequencerPanel()
   local tweqPanel = Panel("Sequencer")
   tweqPanel.backgroundColour = bgColor
   tweqPanel.x = marginX
-  tweqPanel.y = height * 1.6
+  tweqPanel.y = mixerPanel.y + mixerPanel.height + marginY
   tweqPanel.width = width
-  tweqPanel.height = 376
+  tweqPanel.height = 384
 
   local tweakLevelKnob = tweqPanel:Knob("SeqTweakLevel", 0, 0, 100, true)
   tweakLevelKnob.fillColour = knobColour
@@ -2642,7 +2709,7 @@ function createTwequencerPanel()
   seqPitchTable.showPopupDisplay = true
   seqPitchTable.showLabel = true
   seqPitchTable.fillStyle = "gloss"
-  seqPitchTable.sliderColour = knobColour
+  seqPitchTable.sliderColour = menuArrowColour
   seqPitchTable.width = 400
   seqPitchTable.height = 80
   seqPitchTable.x = sequencerPlayMenu.width * 1.2
@@ -2651,7 +2718,7 @@ function createTwequencerPanel()
   seqVelTable.showPopupDisplay = true
   seqVelTable.showLabel = true
   seqVelTable.fillStyle = "gloss"
-  seqVelTable.sliderColour = knobColour
+  seqVelTable.sliderColour = menuArrowColour
   seqVelTable.width = seqPitchTable.width
   seqVelTable.height = seqPitchTable.height
   seqVelTable.x = seqPitchTable.x
@@ -2668,7 +2735,7 @@ function createTwequencerPanel()
   local positionTable = tweqPanel:Table("Position", numStepsBox.value, 0, 0, 1, true)
   positionTable.enabled = false
   positionTable.persistent = false
-  positionTable.fillStyle = "solid"
+  positionTable.fillStyle = "gloss"
   positionTable.sliderColour = outlineColour
   positionTable.width = seqPitchTable.width
   positionTable.height = height / 2
@@ -2704,6 +2771,11 @@ function createTwequencerPanel()
   end
 
   local prevSnapshotButton = tweqPanel:Button("PrevSnapshot")
+  prevSnapshotButton.alpha = buttonAlpha
+  prevSnapshotButton.backgroundColourOff = buttonBackgroundColourOff
+  prevSnapshotButton.backgroundColourOn = buttonBackgroundColourOn
+  prevSnapshotButton.textColourOff = buttonTextColourOff
+  prevSnapshotButton.textColourOn = buttonTextColourOn
   prevSnapshotButton.displayName = "<"
   prevSnapshotButton.x = snapshotsMenu.x + snapshotsMenu.width + marginX
   prevSnapshotButton.y = snapshotsMenu.y + 25
@@ -2723,6 +2795,11 @@ function createTwequencerPanel()
   end
   
   local nextSnapshotButton = tweqPanel:Button("NextSnapshot")
+  nextSnapshotButton.alpha = buttonAlpha
+  nextSnapshotButton.backgroundColourOff = buttonBackgroundColourOff
+  nextSnapshotButton.backgroundColourOn = buttonBackgroundColourOn
+  nextSnapshotButton.textColourOff = buttonTextColourOff
+  nextSnapshotButton.textColourOn = buttonTextColourOn
   nextSnapshotButton.displayName = ">"
   nextSnapshotButton.x = prevSnapshotButton.x + prevSnapshotButton.width + marginX
   nextSnapshotButton.y = prevSnapshotButton.y
@@ -2835,6 +2912,11 @@ function createTwequencerPanel()
 
   -- synthesis, modulation, filter, mixer, effects
   local synthesisButton = tweqPanel:OnOffButton("SeqSynthesis", true)
+  synthesisButton.alpha = buttonAlpha
+  synthesisButton.backgroundColourOff = buttonBackgroundColourOff
+  synthesisButton.backgroundColourOn = buttonBackgroundColourOn
+  synthesisButton.textColourOff = buttonTextColourOff
+  synthesisButton.textColourOn = buttonTextColourOn
   synthesisButton.displayName = "Synthesis"
   synthesisButton.fillColour = knobColour
   synthesisButton.size = {78,35}
@@ -2842,6 +2924,11 @@ function createTwequencerPanel()
   synthesisButton.y = scopeLabel.y + scopeLabel.height + 10
 
   local filterButton = tweqPanel:OnOffButton("SeqFilter", true)
+  filterButton.alpha = buttonAlpha
+  filterButton.backgroundColourOff = buttonBackgroundColourOff
+  filterButton.backgroundColourOn = buttonBackgroundColourOn
+  filterButton.textColourOff = buttonTextColourOff
+  filterButton.textColourOn = buttonTextColourOn
   filterButton.displayName = "Filter"
   filterButton.fillColour = knobColour
   filterButton.size = {78,35}
@@ -2849,6 +2936,11 @@ function createTwequencerPanel()
   filterButton.y = synthesisButton.y
 
   local modulationButton = tweqPanel:OnOffButton("SeqModulation", true)
+  modulationButton.alpha = buttonAlpha
+  modulationButton.backgroundColourOff = buttonBackgroundColourOff
+  modulationButton.backgroundColourOn = buttonBackgroundColourOn
+  modulationButton.textColourOff = buttonTextColourOff
+  modulationButton.textColourOn = buttonTextColourOn
   modulationButton.displayName = "Modulation"
   modulationButton.fillColour = knobColour
   modulationButton.size = {78,35}
@@ -2856,6 +2948,11 @@ function createTwequencerPanel()
   modulationButton.y = synthesisButton.y
 
   local effectsButton = tweqPanel:OnOffButton("SeqEffects", true)
+  effectsButton.alpha = buttonAlpha
+  effectsButton.backgroundColourOff = buttonBackgroundColourOff
+  effectsButton.backgroundColourOn = buttonBackgroundColourOn
+  effectsButton.textColourOff = buttonTextColourOff
+  effectsButton.textColourOn = buttonTextColourOn
   effectsButton.displayName = "Effects"
   effectsButton.fillColour = knobColour
   effectsButton.size = {78,35}
@@ -2863,6 +2960,11 @@ function createTwequencerPanel()
   effectsButton.y = synthesisButton.y
 
   local mixerButton = tweqPanel:OnOffButton("SeqMixer", true)
+  mixerButton.alpha = buttonAlpha
+  mixerButton.backgroundColourOff = buttonBackgroundColourOff
+  mixerButton.backgroundColourOn = buttonBackgroundColourOn
+  mixerButton.textColourOff = buttonTextColourOff
+  mixerButton.textColourOn = buttonTextColourOn
   mixerButton.displayName = "Mixer"
   mixerButton.fillColour = knobColour
   mixerButton.size = {78,35}
@@ -3032,48 +3134,83 @@ end
 --------------------------------------------------------------------------------
 
 local pagePanel = Panel("PagePanel")
-pagePanel.backgroundColour = "#00000000"
-pagePanel.x = marginX
-pagePanel.y = marginY
-pagePanel.width = width
+pagePanel.backgroundColour = "#c1000000"
+pagePanel.x = 0
+pagePanel.y = 0
+pagePanel.width = 720
 pagePanel.height = 30
 
 local pageButtonWidth = width / 7
+local pageButtonAlpha = 1
+local pageButtonBackgroundColourOff = "#9f4A053B"
+local pageButtonBackgroundColourOn = "#cfC722AF"
+local pageButtonTextColourOff = "silver"
+local pageButtonTextColourOn = "white"
 
 local synthesisPageButton = pagePanel:OnOffButton("SynthesisPage", true)
+synthesisPageButton.alpha = pageButtonAlpha
+synthesisPageButton.backgroundColourOff = pageButtonBackgroundColourOff
+synthesisPageButton.backgroundColourOn = pageButtonBackgroundColourOn
+synthesisPageButton.textColourOff = pageButtonTextColourOff
+synthesisPageButton.textColourOn = pageButtonTextColourOn
 synthesisPageButton.displayName = "Synthesis"
 synthesisPageButton.persistent = false
 synthesisPageButton.width = pageButtonWidth
 
 local filterPageButton = pagePanel:OnOffButton("FilterPage", false)
+filterPageButton.alpha = pageButtonAlpha
+filterPageButton.backgroundColourOff = pageButtonBackgroundColourOff
+filterPageButton.backgroundColourOn = pageButtonBackgroundColourOn
+filterPageButton.textColourOff = pageButtonTextColourOff
+filterPageButton.textColourOn = pageButtonTextColourOn
 filterPageButton.displayName = "Filters"
 filterPageButton.persistent = false
 filterPageButton.width = pageButtonWidth
 
 local modulationPageButton = pagePanel:OnOffButton("ModulationPage", false)
+modulationPageButton.alpha = pageButtonAlpha
+modulationPageButton.backgroundColourOff = pageButtonBackgroundColourOff
+modulationPageButton.backgroundColourOn = pageButtonBackgroundColourOn
+modulationPageButton.textColourOff = pageButtonTextColourOff
+modulationPageButton.textColourOn = pageButtonTextColourOn
 modulationPageButton.displayName = "Modulation"
 modulationPageButton.persistent = false
 modulationPageButton.width = pageButtonWidth
 
 local effectsPageButton = pagePanel:OnOffButton("EffectsPage", false)
+effectsPageButton.alpha = pageButtonAlpha
+effectsPageButton.backgroundColourOff = pageButtonBackgroundColourOff
+effectsPageButton.backgroundColourOn = pageButtonBackgroundColourOn
+effectsPageButton.textColourOff = pageButtonTextColourOff
+effectsPageButton.textColourOn = pageButtonTextColourOn
 effectsPageButton.displayName = "Effects"
 effectsPageButton.persistent = false
 effectsPageButton.width = pageButtonWidth
 
 local twequencerPageButton = pagePanel:OnOffButton("TwequencerPage", false)
+twequencerPageButton.alpha = pageButtonAlpha
+twequencerPageButton.backgroundColourOff = pageButtonBackgroundColourOff
+twequencerPageButton.backgroundColourOn = pageButtonBackgroundColourOn
+twequencerPageButton.textColourOff = pageButtonTextColourOff
+twequencerPageButton.textColourOn = pageButtonTextColourOn
 twequencerPageButton.displayName = "Twequencer"
 twequencerPageButton.persistent = false
 twequencerPageButton.width = pageButtonWidth
 
 local patchmakerPageButton = pagePanel:OnOffButton("PatchmakerPage", false)
+patchmakerPageButton.alpha = pageButtonAlpha
+patchmakerPageButton.backgroundColourOff = pageButtonBackgroundColourOff
+patchmakerPageButton.backgroundColourOn = pageButtonBackgroundColourOn
+patchmakerPageButton.textColourOff = pageButtonTextColourOff
+patchmakerPageButton.textColourOn = pageButtonTextColourOn
 patchmakerPageButton.displayName = "Patchmaker"
 patchmakerPageButton.persistent = false
 patchmakerPageButton.width = pageButtonWidth
 
-mixerPanel.backgroundColour = "#66000000"
-mixerPanel.x = marginX
+mixerPanel.backgroundColour = "#91000000"
+mixerPanel.x = 0
 mixerPanel.y = pagePanel.height + marginY * 2
-mixerPanel.width = width
+mixerPanel.width = 720
 mixerPanel.height = height
 
 --------------------------------------------------------------------------------
@@ -3113,35 +3250,30 @@ function setupSynthesisPage()
 end
 
 function setupFilterPage()
-  --filterPanel.backgroundColour = "#33AA0011"
   filterPanel.backgroundColour = bgColor
   filterPanel.x = marginX
   filterPanel.y = mixerPanel.y + height + marginY
   filterPanel.width = width
   filterPanel.height = height
 
-  --hpFilterPanel.backgroundColour = "#44AA0022"
   hpFilterPanel.backgroundColour = bgColor
   hpFilterPanel.x = marginX
   hpFilterPanel.y = filterPanel.y + height + marginY
   hpFilterPanel.width = width
   hpFilterPanel.height = height
 
-  --filterEnvPanel.backgroundColour = "#55AA0033"
   filterEnvPanel.backgroundColour = bgColor
   filterEnvPanel.x = marginX
   filterEnvPanel.y = hpFilterPanel.y + height + marginY
   filterEnvPanel.width = width
   filterEnvPanel.height = height
 
-  --filterEnvTargetsPanel.backgroundColour = "#66AA0044"
   filterEnvTargetsPanel.backgroundColour = bgColor
   filterEnvTargetsPanel.x = marginX
   filterEnvTargetsPanel.y = filterEnvPanel.y + height + marginY
   filterEnvTargetsPanel.width = width
   filterEnvTargetsPanel.height = height
 
-  --filterEnvTargets1Panel.backgroundColour = "#66AA0066"
   filterEnvOscTargetsPanel.backgroundColour = bgColor
   filterEnvOscTargetsPanel.x = marginX
   filterEnvOscTargetsPanel.y = filterEnvTargetsPanel.y + height
@@ -3179,7 +3311,7 @@ function setupModulationPage()
   lfoTargetPanel2.x = marginX
   lfoTargetPanel2.y = lfoTargetPanel1.y + height
   lfoTargetPanel2.width = width
-  lfoTargetPanel2.height = height * 2 + marginX
+  lfoTargetPanel2.height = height * 2
 
   --[[ lfoTargetPanel3.backgroundColour = bgColor
   lfoTargetPanel3.x = marginX
@@ -3191,9 +3323,9 @@ end
 function setupEffectsPage()
   effectsPanel.backgroundColour = bgColor
   effectsPanel.x = marginX
-  effectsPanel.y = mixerPanel.y + height + marginY
+  effectsPanel.y = mixerPanel.y + mixerPanel.height + marginY
   effectsPanel.width = width
-  effectsPanel.height = 376
+  effectsPanel.height = 384
 end
 
 setupSynthesisPage()
