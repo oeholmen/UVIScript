@@ -194,7 +194,7 @@ local buttonTextColourOff = "#ef02ACFE"
 local buttonTextColourOn = "#efFFFFFF"
 
 local outlineColour = "#FFB5FF"
-local bgColor = "1aFFFFFF"
+local bgColor = "00000000"
 local knobColour = "#dd000061"
 local osc1Colour = outlineColour
 local osc2Colour = outlineColour
@@ -212,7 +212,7 @@ local menuOutlineColour = bgColor
 
 local marginX = 3 -- left/right
 local marginY = 0 -- top/bottom
-local height = 64
+local height = 66
 local width = 714
 
 --------------------------------------------------------------------------------
@@ -240,7 +240,7 @@ local width = 714
 --local img = Image("./resources/depth.png")
 --img.alpha = 0.5
 
-setBackground("./resources/depth.png")
+setBackground("./resources/bluesquares.png")
 
 --------------------------------------------------------------------------------
 -- STORE / RECALL
@@ -678,6 +678,17 @@ function filterMapValue(value)
 end
 
 --------------------------------------------------------------------------------
+-- Page Panel
+--------------------------------------------------------------------------------
+
+local pagePanel = Panel("PagePanel")
+pagePanel.backgroundColour = "#cf000000"
+pagePanel.x = 0
+pagePanel.y = 340
+pagePanel.width = 720
+pagePanel.height = 38
+
+--------------------------------------------------------------------------------
 -- Osc 1
 --------------------------------------------------------------------------------
 
@@ -997,10 +1008,18 @@ local unisonPanel = createUnisonPanel()
 function createMixerPanel()
   local mixerPanel = Panel("Mixer")
 
-  mixerPanel:Label("Mixer")
+  local knobSize = {122,70}
+
+  local mixerLabel = mixerPanel:Label("Mixer")
+  mixerLabel.y = 10
+  mixerLabel.x = 10
+  mixerLabel.width = 60
 
   local osc1MixKnob = mixerPanel:Knob("Osc1Mix", 0.75, 0, 1)
   osc1MixKnob.displayName = "Osc 1"
+  osc1MixKnob.x = mixerLabel.x + mixerLabel.width + 10
+  osc1MixKnob.y = mixerLabel.y
+  osc1MixKnob.size = knobSize
   osc1MixKnob.fillColour = knobColour
   osc1MixKnob.outlineColour = osc1Colour
   osc1MixKnob.changed = function(self)
@@ -1012,6 +1031,9 @@ function createMixerPanel()
 
   local osc2MixKnob = mixerPanel:Knob("Osc2Mix", 0, 0, 1)
   osc2MixKnob.displayName = "Osc 2"
+  osc2MixKnob.y = mixerLabel.y
+  osc2MixKnob.x = osc1MixKnob.x + osc1MixKnob.width + 20
+  osc2MixKnob.size = knobSize
   osc2MixKnob.fillColour = knobColour
   osc2MixKnob.outlineColour = osc2Colour
   osc2MixKnob.changed = function(self)
@@ -1023,6 +1045,9 @@ function createMixerPanel()
 
   local noiseMixKnob = mixerPanel:Knob("NoiseMix", 0, 0, 1)
   noiseMixKnob.displayName = "Noise"
+  noiseMixKnob.y = mixerLabel.y
+  noiseMixKnob.x = osc2MixKnob.x + osc2MixKnob.width + 20
+  noiseMixKnob.size = knobSize
   noiseMixKnob.fillColour = knobColour
   noiseMixKnob.outlineColour = osc2Colour
   noiseMixKnob.changed = function(self)
@@ -1034,6 +1059,8 @@ function createMixerPanel()
 
   local noiseTypes = {"Band", "S&H", "Static1", "Static2", "Violet", "Blue", "White", "Pink", "Brown", "Lorenz", "Rossler", "Crackle", "Logistic", "Dust", "Velvet"}
   local noiseTypeMenu = mixerPanel:Menu("NoiseTypeMenu", noiseTypes)
+  noiseTypeMenu.y = mixerLabel.y + 17
+  noiseTypeMenu.x = noiseMixKnob.x + noiseMixKnob.width + 20
   noiseTypeMenu.backgroundColour = menuBackgroundColour
   noiseTypeMenu.textColour = menuTextColour
   noiseTypeMenu.arrowColour = menuArrowColour
@@ -1048,12 +1075,15 @@ function createMixerPanel()
   table.insert(tweakables, {widget=noiseTypeMenu,min=#noiseTypes,category="synthesis"})
 
   local arpeggiatorButton = mixerPanel:OnOffButton("Arp", false)
+  arpeggiatorButton.y = noiseTypeMenu.y
+  arpeggiatorButton.x = noiseTypeMenu.x + noiseTypeMenu.width + 20
   arpeggiatorButton.alpha = buttonAlpha
   arpeggiatorButton.backgroundColourOff = buttonBackgroundColourOff
   arpeggiatorButton.backgroundColourOn = buttonBackgroundColourOn
   arpeggiatorButton.textColourOff = buttonTextColourOff
   arpeggiatorButton.textColourOn = buttonTextColourOn
-  arpeggiatorButton.size = {100,(height-15)}
+  arpeggiatorButton.width = 70
+  arpeggiatorButton.height = noiseTypeMenu.height
   arpeggiatorButton.changed = function(self)
     local value = -1
     if self.value == true then
@@ -2388,15 +2418,24 @@ function createPatchMakerPanel()
   local tweakPanel = Panel("Tweaks")
   tweakPanel.backgroundColour = bgColor
   tweakPanel.x = marginX
-  tweakPanel.y = mixerPanel.y + mixerPanel.height + marginY
+  tweakPanel.y = 10
   tweakPanel.width = width
-  tweakPanel.height = 384
+  tweakPanel.height = 320
 
   local tweakLevelKnob = tweakPanel:Knob("TweakLevel", 50, 0, 100, true)
   tweakLevelKnob.fillColour = knobColour
   tweakLevelKnob.outlineColour = outlineColour
   tweakLevelKnob.displayName = "Tweak level"
-  tweakLevelKnob.bounds = {10,10,width/2,height*3}
+  tweakLevelKnob.bounds = {70,10,300,150}
+
+  local tweakButton = tweakPanel:Button("Tweak")
+  tweakButton.alpha = buttonAlpha
+  tweakButton.backgroundColourOff = buttonBackgroundColourOff
+  tweakButton.backgroundColourOn = buttonBackgroundColourOn
+  tweakButton.textColourOff = buttonTextColourOff
+  tweakButton.textColourOn = buttonTextColourOn
+  tweakButton.displayName = "Tweak patch"
+  tweakButton.bounds = {width/2,10,345,tweakLevelKnob.height}
 
   patchesMenu = tweakPanel:Menu("PatchesMenu")
   patchesMenu.backgroundColour = menuBackgroundColour
@@ -2404,7 +2443,7 @@ function createPatchMakerPanel()
   patchesMenu.arrowColour = menuArrowColour
   patchesMenu.outlineColour = menuOutlineColour
   patchesMenu.x = 10
-  patchesMenu.y = tweakLevelKnob.y + tweakLevelKnob.height + 20
+  patchesMenu.y = 200
   patchesMenu.displayName = "Stored snapshots"
   patchesMenu.changed = function(self)
     local index = self.value
@@ -2495,15 +2534,6 @@ function createPatchMakerPanel()
     end
     self:setValue(1)
   end
-
-  local tweakButton = tweakPanel:Button("Tweak")
-  tweakButton.alpha = buttonAlpha
-  tweakButton.backgroundColourOff = buttonBackgroundColourOff
-  tweakButton.backgroundColourOn = buttonBackgroundColourOn
-  tweakButton.textColourOff = buttonTextColourOff
-  tweakButton.textColourOn = buttonTextColourOn
-  tweakButton.displayName = "Tweak patch"
-  tweakButton.bounds = {width/2,10,width/2-10,tweakLevelKnob.height}
 
   local tweakSourceMenu = tweakPanel:Menu("TweakSource", tweakSources)
   tweakSourceMenu.backgroundColour = menuBackgroundColour
@@ -2668,9 +2698,9 @@ function createTwequencerPanel()
   local tweqPanel = Panel("Sequencer")
   tweqPanel.backgroundColour = bgColor
   tweqPanel.x = marginX
-  tweqPanel.y = mixerPanel.y + mixerPanel.height + marginY
+  tweqPanel.y = 10
   tweqPanel.width = width
-  tweqPanel.height = 384
+  tweqPanel.height = 320
 
   local tweakLevelKnob = tweqPanel:Knob("SeqTweakLevel", 0, 0, 100, true)
   tweakLevelKnob.fillColour = knobColour
@@ -2678,6 +2708,7 @@ function createTwequencerPanel()
   tweakLevelKnob.persistent = false
   tweakLevelKnob.displayName = "Tweak Level"
   tweakLevelKnob.width = 120
+  tweakLevelKnob.y = 20
 
   local sequencerPlayMenu = tweqPanel:Menu("SequencerPlay", {"Off", "Mono", "As played", "Random", "Chord"})
   sequencerPlayMenu.backgroundColour = menuBackgroundColour
@@ -2711,8 +2742,9 @@ function createTwequencerPanel()
   seqPitchTable.fillStyle = "gloss"
   seqPitchTable.sliderColour = menuArrowColour
   seqPitchTable.width = 400
-  seqPitchTable.height = 80
+  seqPitchTable.height = 62
   seqPitchTable.x = sequencerPlayMenu.width * 1.2
+  seqPitchTable.y = 160
 
   local seqVelTable = tweqPanel:Table("Velocity", numStepsBox.value, 100, 1, 127, true)
   seqVelTable.showPopupDisplay = true
@@ -2722,11 +2754,23 @@ function createTwequencerPanel()
   seqVelTable.width = seqPitchTable.width
   seqVelTable.height = seqPitchTable.height
   seqVelTable.x = seqPitchTable.x
-  seqVelTable.y = seqPitchTable.y + seqPitchTable.height + marginY
+  seqVelTable.y = seqPitchTable.y + seqPitchTable.height + 10
+
+  local gateKnob = tweqPanel:Knob("GateKnob", 0.8, 0, 1)
+  gateKnob.displayName = "Gate"
+  gateKnob.fillColour = knobColour
+  gateKnob.outlineColour = outlineColour
+  gateKnob.x = seqPitchTable.x + seqPitchTable.width + 30
+  gateKnob.y = 20
+  gateKnob.changed = function(self)
+      self.displayText = percent(self.value)
+  end
+  gateKnob:changed() -- force update
 
   local resolution = tweqPanel:Menu("Resolution", getResolutionNames())
   resolution.selected = 15
-  resolution.x = seqPitchTable.x + seqPitchTable.width + 30
+  resolution.x = gateKnob.x
+  resolution.y = sequencerPlayMenu.y
   resolution.backgroundColour = menuBackgroundColour
   resolution.textColour = menuTextColour
   resolution.arrowColour = menuArrowColour
@@ -2738,17 +2782,17 @@ function createTwequencerPanel()
   positionTable.fillStyle = "gloss"
   positionTable.sliderColour = outlineColour
   positionTable.width = seqPitchTable.width
-  positionTable.height = height / 2
+  positionTable.height = 30
   positionTable.x = seqPitchTable.x
-  positionTable.y = seqVelTable.y + seqVelTable.height + 10
+  positionTable.y = 10
 
   local snapshotsMenu = tweqPanel:Menu("SnapshotsMenu")
   snapshotsMenu.backgroundColour = menuBackgroundColour
   snapshotsMenu.textColour = menuTextColour
   snapshotsMenu.arrowColour = menuArrowColour
   snapshotsMenu.outlineColour = menuOutlineColour
-  snapshotsMenu.x = positionTable.x
-  snapshotsMenu.y = positionTable.y + positionTable.height + 10
+  snapshotsMenu.x = sequencerPlayMenu.width * 1.2
+  snapshotsMenu.y = 100
   snapshotsMenu.width = 172
   snapshotsMenu.enabled = false
   snapshotsMenu.displayName = "Snapshots"
@@ -2877,7 +2921,7 @@ function createTwequencerPanel()
   end
 
   numStepsBox.x = resolution.x
-  numStepsBox.y = resolution.y + resolution.height + marginY
+  numStepsBox.y = resolution.y + resolution.height + 10
   numStepsBox.changed = function (self)
     seqPitchTable.length = self.value
     seqVelTable.length = self.value
@@ -2885,16 +2929,6 @@ function createTwequencerPanel()
     populateSnapshots()
   end
   numStepsBox:changed()
-
-  local gateKnob = tweqPanel:Knob("GateKnob", 0.8, 0, 1)
-  gateKnob.fillColour = knobColour
-  gateKnob.outlineColour = outlineColour
-  gateKnob.x = resolution.x
-  gateKnob.y = numStepsBox.y + numStepsBox.height + 10
-  gateKnob.changed = function(self)
-      self.displayText = percent(self.value)
-  end
-  gateKnob:changed() -- force update
 
   sequencerPlayMenu.changed = function (self)
     -- Stop sequencer if turned off
@@ -2906,9 +2940,9 @@ function createTwequencerPanel()
     end
   end
 
-  local scopeLabel = tweqPanel:Label("Tweak Scope")
-  scopeLabel.x = snapshotsMenu.x
-  scopeLabel.y = snapshotsMenu.y + snapshotsMenu.height + 10
+  --[[ local scopeLabel = tweqPanel:Label("Tweak Scope")
+  scopeLabel.x = positionTable.x
+  scopeLabel.y = positionTable.y + positionTable.height + 10 ]]
 
   -- synthesis, modulation, filter, mixer, effects
   local synthesisButton = tweqPanel:OnOffButton("SeqSynthesis", true)
@@ -2920,8 +2954,8 @@ function createTwequencerPanel()
   synthesisButton.displayName = "Synthesis"
   synthesisButton.fillColour = knobColour
   synthesisButton.size = {78,35}
-  synthesisButton.x = scopeLabel.x
-  synthesisButton.y = scopeLabel.y + scopeLabel.height + 10
+  synthesisButton.x = positionTable.x
+  synthesisButton.y = positionTable.y + positionTable.height + 10
 
   local filterButton = tweqPanel:OnOffButton("SeqFilter", true)
   filterButton.alpha = buttonAlpha
@@ -3133,14 +3167,7 @@ end
 -- Pages
 --------------------------------------------------------------------------------
 
-local pagePanel = Panel("PagePanel")
-pagePanel.backgroundColour = "#c1000000"
-pagePanel.x = 0
-pagePanel.y = 0
-pagePanel.width = 720
-pagePanel.height = 30
-
-local pageButtonWidth = width / 7
+local pageButtonSize = {111,27}
 local pageButtonAlpha = 1
 local pageButtonBackgroundColourOff = "#9f4A053B"
 local pageButtonBackgroundColourOn = "#cfC722AF"
@@ -3155,7 +3182,7 @@ synthesisPageButton.textColourOff = pageButtonTextColourOff
 synthesisPageButton.textColourOn = pageButtonTextColourOn
 synthesisPageButton.displayName = "Synthesis"
 synthesisPageButton.persistent = false
-synthesisPageButton.width = pageButtonWidth
+synthesisPageButton.size = pageButtonSize
 
 local filterPageButton = pagePanel:OnOffButton("FilterPage", false)
 filterPageButton.alpha = pageButtonAlpha
@@ -3165,7 +3192,7 @@ filterPageButton.textColourOff = pageButtonTextColourOff
 filterPageButton.textColourOn = pageButtonTextColourOn
 filterPageButton.displayName = "Filters"
 filterPageButton.persistent = false
-filterPageButton.width = pageButtonWidth
+filterPageButton.size = pageButtonSize
 
 local modulationPageButton = pagePanel:OnOffButton("ModulationPage", false)
 modulationPageButton.alpha = pageButtonAlpha
@@ -3175,7 +3202,7 @@ modulationPageButton.textColourOff = pageButtonTextColourOff
 modulationPageButton.textColourOn = pageButtonTextColourOn
 modulationPageButton.displayName = "Modulation"
 modulationPageButton.persistent = false
-modulationPageButton.width = pageButtonWidth
+modulationPageButton.size = pageButtonSize
 
 local effectsPageButton = pagePanel:OnOffButton("EffectsPage", false)
 effectsPageButton.alpha = pageButtonAlpha
@@ -3185,7 +3212,7 @@ effectsPageButton.textColourOff = pageButtonTextColourOff
 effectsPageButton.textColourOn = pageButtonTextColourOn
 effectsPageButton.displayName = "Effects"
 effectsPageButton.persistent = false
-effectsPageButton.width = pageButtonWidth
+effectsPageButton.size = pageButtonSize
 
 local twequencerPageButton = pagePanel:OnOffButton("TwequencerPage", false)
 twequencerPageButton.alpha = pageButtonAlpha
@@ -3195,7 +3222,7 @@ twequencerPageButton.textColourOff = pageButtonTextColourOff
 twequencerPageButton.textColourOn = pageButtonTextColourOn
 twequencerPageButton.displayName = "Twequencer"
 twequencerPageButton.persistent = false
-twequencerPageButton.width = pageButtonWidth
+twequencerPageButton.size = pageButtonSize
 
 local patchmakerPageButton = pagePanel:OnOffButton("PatchmakerPage", false)
 patchmakerPageButton.alpha = pageButtonAlpha
@@ -3205,13 +3232,13 @@ patchmakerPageButton.textColourOff = pageButtonTextColourOff
 patchmakerPageButton.textColourOn = pageButtonTextColourOn
 patchmakerPageButton.displayName = "Patchmaker"
 patchmakerPageButton.persistent = false
-patchmakerPageButton.width = pageButtonWidth
+patchmakerPageButton.size = pageButtonSize
 
 mixerPanel.backgroundColour = "#91000000"
 mixerPanel.x = 0
-mixerPanel.y = pagePanel.height + marginY * 2
+mixerPanel.y = 378
 mixerPanel.width = 720
-mixerPanel.height = height
+mixerPanel.height = 102
 
 --------------------------------------------------------------------------------
 -- Set up pages
@@ -3220,7 +3247,7 @@ mixerPanel.height = height
 function setupSynthesisPage()
   osc1Panel.backgroundColour = bgColor
   osc1Panel.x = marginX
-  osc1Panel.y = mixerPanel.y + height + marginY
+  osc1Panel.y = 10
   osc1Panel.width = width
   osc1Panel.height = height
 
@@ -3246,13 +3273,13 @@ function setupSynthesisPage()
   ampEnvPanel.x = marginX
   ampEnvPanel.y = vibratoPanel.y + height + marginY
   ampEnvPanel.width = width
-  ampEnvPanel.height = height * 2 - marginY
+  ampEnvPanel.height = height
 end
 
 function setupFilterPage()
   filterPanel.backgroundColour = bgColor
   filterPanel.x = marginX
-  filterPanel.y = mixerPanel.y + height + marginY
+  filterPanel.y = 10
   filterPanel.width = width
   filterPanel.height = height
 
@@ -3278,7 +3305,7 @@ function setupFilterPage()
   filterEnvOscTargetsPanel.x = marginX
   filterEnvOscTargetsPanel.y = filterEnvTargetsPanel.y + height
   filterEnvOscTargetsPanel.width = width
-  filterEnvOscTargetsPanel.height = height * 2
+  filterEnvOscTargetsPanel.height = height
 
   --filterEnvTargets2Panel.backgroundColour = "#66AA0088"
   --[[ filterEnvTargets2Panel.backgroundColour = bgColor
@@ -3291,7 +3318,7 @@ end
 function setupModulationPage()
   lfoPanel.backgroundColour = bgColor
   lfoPanel.x = marginX
-  lfoPanel.y = mixerPanel.y + height + marginY
+  lfoPanel.y = 10
   lfoPanel.width = width
   lfoPanel.height = height * 2
 
@@ -3311,7 +3338,7 @@ function setupModulationPage()
   lfoTargetPanel2.x = marginX
   lfoTargetPanel2.y = lfoTargetPanel1.y + height
   lfoTargetPanel2.width = width
-  lfoTargetPanel2.height = height * 2
+  lfoTargetPanel2.height = height
 
   --[[ lfoTargetPanel3.backgroundColour = bgColor
   lfoTargetPanel3.x = marginX
@@ -3323,9 +3350,9 @@ end
 function setupEffectsPage()
   effectsPanel.backgroundColour = bgColor
   effectsPanel.x = marginX
-  effectsPanel.y = mixerPanel.y + mixerPanel.height + marginY
+  effectsPanel.y = marginY
   effectsPanel.width = width
-  effectsPanel.height = 384
+  effectsPanel.height = 310
 end
 
 setupSynthesisPage()
