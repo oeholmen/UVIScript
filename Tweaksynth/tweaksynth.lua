@@ -190,7 +190,7 @@ local wavetableMacros = {
 local buttonAlpha = 0.9
 local buttonBackgroundColourOff = "#ff084486"
 local buttonBackgroundColourOn = "#ff02ACFE"
-local buttonTextColourOff = "#ef02ACFE"
+local buttonTextColourOff = "#ff22FFFF"
 local buttonTextColourOn = "#efFFFFFF"
 
 local outlineColour = "#FFB5FF"
