@@ -1523,8 +1523,6 @@ local filterEnvOscTargetsPanel = createFilterEnvOscTargetsPanel()
 -- LFO
 --------------------------------------------------------------------------------
 
-local lfoNoiseOscOverride = false
-
 function createLfoPanel()
   local lfoPanel = Panel("LFO")
 
@@ -1674,7 +1672,7 @@ function createLfoPanel()
   lfoDelayKnob.fillColour = knobColour
   lfoDelayKnob.outlineColour = lfoColour
   lfoDelayKnob.mapper = Mapper.Quartic
-  lfoDelayKnob.x = lfoMenu.width + 15
+  lfoDelayKnob.x = waveFormTypeMenu.x
   lfoDelayKnob.y = lfoMenu.height + 15
   lfoDelayKnob.changed = function(self)
     if activeLfoOsc == 1 or activeLfoOsc == 2 then
@@ -1696,7 +1694,7 @@ function createLfoPanel()
   lfoRiseKnob.fillColour = knobColour
   lfoRiseKnob.outlineColour = lfoColour
   lfoRiseKnob.mapper = Mapper.Quartic
-  lfoRiseKnob.x = lfoDelayKnob.x + lfoDelayKnob.width + 15
+  lfoRiseKnob.x = lfoFreqKnob.x
   lfoRiseKnob.y = lfoDelayKnob.y
   lfoRiseKnob.changed = function(self)
     if activeLfoOsc == 1 or activeLfoOsc == 2 then
@@ -1718,7 +1716,7 @@ function createLfoPanel()
   lfoSmoothKnob.fillColour = knobColour
   lfoSmoothKnob.outlineColour = lfoColour
   lfoSmoothKnob.mapper = Mapper.Quartic
-  lfoSmoothKnob.x = lfoRiseKnob.x + lfoRiseKnob.width + 15
+  lfoSmoothKnob.x = lfo2SyncButton.x
   lfoSmoothKnob.y = lfoRiseKnob.y
   lfoSmoothKnob.changed = function(self)
     if activeLfoOsc == 1 or activeLfoOsc == 2 then
@@ -1742,7 +1740,7 @@ function createLfoPanel()
   lfoBipolarButton.textColourOff = buttonTextColourOff
   lfoBipolarButton.textColourOn = buttonTextColourOn
   lfoBipolarButton.width = 75
-  lfoBipolarButton.x = lfoSmoothKnob.x + lfoSmoothKnob.width + 15
+  lfoBipolarButton.x = lfoFreqKeyFollowKnob.x
   lfoBipolarButton.y = lfoSmoothKnob.y
   lfoBipolarButton.displayName = "Bipolar"
   lfoBipolarButton.changed = function(self)
@@ -1814,78 +1812,23 @@ end
 local lfoPanel = createLfoPanel()
 
 --------------------------------------------------------------------------------
--- LFO Targets Noise Osc
---------------------------------------------------------------------------------
-
---[[ function createLfoTargetPanel3()
-  local lfoTargetPanel3 = Panel("LfoTargetPanel3")
-  lfoTargetPanel3:Label("Noise Osc")
-
-  local lfoToNoiseLpfCutoffKnob = lfoTargetPanel3:Knob("LfoToNoiseLpfCutoff", 0, -1, 1)
-  lfoToNoiseLpfCutoffKnob.displayName = "LP-Filter"
-  lfoToNoiseLpfCutoffKnob.fillColour = knobColour
-  lfoToNoiseLpfCutoffKnob.outlineColour = lfoColour
-  lfoToNoiseLpfCutoffKnob.changed = function(self)
-    local value = (self.value + 1) * 0.5
-    lfoToNoiseLpf:setParameter("Value", value)
-    self.displayText = percent(self.value)
-  end
-
-  local lfoToNoiseHpfCutoffKnob = lfoTargetPanel3:Knob("LfoToNoiseHpfCutoff", 0, -1, 1)
-  lfoToNoiseHpfCutoffKnob.displayName = "HP-Filter"
-  lfoToNoiseHpfCutoffKnob.fillColour = knobColour
-  lfoToNoiseHpfCutoffKnob.outlineColour = lfoColour
-  lfoToNoiseHpfCutoffKnob.changed = function(self)
-    local value = (self.value + 1) * 0.5
-    lfoToNoiseHpf:setParameter("Value", value)
-    self.displayText = percent(self.value)
-  end
-
-  local lfoToNoiseAmpKnob = lfoTargetPanel3:Knob("LfoToNoiseAmplitude", 0, -1, 1)
-  lfoToNoiseAmpKnob.displayName = "Amplitude"
-  lfoToNoiseAmpKnob.fillColour = knobColour
-  lfoToNoiseAmpKnob.outlineColour = lfoColour
-  lfoToNoiseAmpKnob.changed = function(self)
-    local value = (self.value + 1) * 0.5
-    lfoToNoiseAmp:setParameter("Value", value)
-    self.displayText = percent(self.value)
-  end
-
-  local lfoToNoiseOverrideButton = lfoTargetPanel3:OnOffButton("LfoToNoiseOverride", lfoNoiseOscOverride)
-  lfoToNoiseOverrideButton.displayName = "Override"
-  lfoToNoiseOverrideButton.changed = function (self)
-    lfoNoiseOscOverride = self.value
-    lfoToNoiseLpfCutoffKnob.enabled = lfoNoiseOscOverride
-    lfoToNoiseLpfCutoffKnob:changed()
-    lfoToNoiseHpfCutoffKnob.enabled = lfoNoiseOscOverride
-    lfoToNoiseHpfCutoffKnob:changed()
-    lfoToNoiseAmpKnob.enabled = lfoNoiseOscOverride
-    lfoToNoiseAmpKnob:changed()
-    if (lfoNoiseOscOverride == false) then
-      lfoToNoiseLpf:setParameter("Value", lfoToCutoff:getParameter("Value"))
-      lfoToNoiseHpf:setParameter("Value", lfoToHpf:getParameter("Value"))
-      lfoToNoiseAmp:setParameter("Value", lfoToAmp:getParameter("Value"))
-    end
-  end
-  lfoToNoiseOverrideButton:changed()
-
-  table.insert(tweakables, {widget=lfoToNoiseOverrideButton,func=getRandomBoolean,probability=25,category="modulation"})
-  table.insert(tweakables, {widget=lfoToNoiseAmpKnob,bipolar=25,category="modulation"})
-  table.insert(tweakables, {widget=lfoToNoiseHpfCutoffKnob,bipolar=25,category="modulation"})
-  table.insert(tweakables, {widget=lfoToNoiseLpfCutoffKnob,bipolar=25,category="modulation"})
-
-  return lfoTargetPanel3
-end
-
-local lfoTargetPanel3 = createLfoTargetPanel3() ]]
-
---------------------------------------------------------------------------------
 -- LFO Targets
 --------------------------------------------------------------------------------
 
 function createLfoTargetPanel()
+  local lfoNoiseOscOverride = false
+  local activeLfoTargetOsc = 1
   local lfoTargetPanel = Panel("LfoTargetPanel")
-  lfoTargetPanel:Label("LFO ->")
+  --lfoTargetPanel:Label("LFO ->")
+  
+  local lfoTargetOscMenu = lfoTargetPanel:Menu("LfoTargetOsc", {"All", "Noise Osc"})
+  lfoTargetOscMenu.backgroundColour = menuBackgroundColour
+  lfoTargetOscMenu.textColour = menuTextColour
+  lfoTargetOscMenu.arrowColour = menuArrowColour
+  lfoTargetOscMenu.outlineColour = menuOutlineColour
+  lfoTargetOscMenu.displayName = "LFO ->"
+
+  ------- OSC 1+2 ----------
 
   local lfoToCutoffKnob = lfoTargetPanel:Knob("LfoToCutoff", 0, -1, 1)
   lfoToCutoffKnob.displayName = "LP-Filter"
@@ -1943,6 +1886,99 @@ function createLfoTargetPanel()
   table.insert(tweakables, {widget=lfoToAmpKnob,bipolar=25,default=30,ceiling,category="modulation"})
   table.insert(tweakables, {widget=lfoToHpfCutoffKnob,bipolar=25,default=30,category="modulation"})
   table.insert(tweakables, {widget=lfoToCutoffKnob,bipolar=25,default=30,category="modulation"})
+
+  ------- NOISE OSC ----------
+
+  local lfoToNoiseLpfCutoffKnob = lfoTargetPanel:Knob("LfoToNoiseLpfCutoff", 0, -1, 1)
+  lfoToNoiseLpfCutoffKnob.displayName = "LP-Filter"
+  lfoToNoiseLpfCutoffKnob.x = lfoToCutoffKnob.x
+  lfoToNoiseLpfCutoffKnob.y = lfoToCutoffKnob.y
+  lfoToNoiseLpfCutoffKnob.fillColour = knobColour
+  lfoToNoiseLpfCutoffKnob.outlineColour = lfoColour
+  lfoToNoiseLpfCutoffKnob.changed = function(self)
+    local value = (self.value + 1) * 0.5
+    lfoToNoiseLpf:setParameter("Value", value)
+    self.displayText = percent(self.value)
+  end
+
+  local lfoToNoiseHpfCutoffKnob = lfoTargetPanel:Knob("LfoToNoiseHpfCutoff", 0, -1, 1)
+  lfoToNoiseHpfCutoffKnob.displayName = "HP-Filter"
+  lfoToNoiseHpfCutoffKnob.x = lfoToHpfCutoffKnob.x
+  lfoToNoiseHpfCutoffKnob.y = lfoToHpfCutoffKnob.y
+  lfoToNoiseHpfCutoffKnob.fillColour = knobColour
+  lfoToNoiseHpfCutoffKnob.outlineColour = lfoColour
+  lfoToNoiseHpfCutoffKnob.changed = function(self)
+    local value = (self.value + 1) * 0.5
+    lfoToNoiseHpf:setParameter("Value", value)
+    self.displayText = percent(self.value)
+  end
+
+  local lfoToNoiseAmpKnob = lfoTargetPanel:Knob("LfoToNoiseAmplitude", 0, -1, 1)
+  lfoToNoiseAmpKnob.displayName = "Amplitude"
+  lfoToNoiseAmpKnob.x = lfoToAmpKnob.x
+  lfoToNoiseAmpKnob.y = lfoToAmpKnob.y
+  lfoToNoiseAmpKnob.fillColour = knobColour
+  lfoToNoiseAmpKnob.outlineColour = lfoColour
+  lfoToNoiseAmpKnob.changed = function(self)
+    local value = (self.value + 1) * 0.5
+    lfoToNoiseAmp:setParameter("Value", value)
+    self.displayText = percent(self.value)
+  end
+
+  local lfoToNoiseOverrideButton = lfoTargetPanel:OnOffButton("LfoToNoiseOverride", lfoNoiseOscOverride)
+  lfoToNoiseOverrideButton.displayName = "Unlink"
+  lfoToNoiseOverrideButton.x = lfoToDetuneKnob.x
+  lfoToNoiseOverrideButton.y = lfoToDetuneKnob.y
+  lfoToNoiseOverrideButton.width = 75
+  lfoToNoiseOverrideButton.changed = function (self)
+    lfoNoiseOscOverride = self.value
+    lfoToNoiseLpfCutoffKnob.enabled = lfoNoiseOscOverride
+    lfoToNoiseLpfCutoffKnob:changed()
+    lfoToNoiseHpfCutoffKnob.enabled = lfoNoiseOscOverride
+    lfoToNoiseHpfCutoffKnob:changed()
+    lfoToNoiseAmpKnob.enabled = lfoNoiseOscOverride
+    lfoToNoiseAmpKnob:changed()
+    if lfoNoiseOscOverride == false then
+      lfoTargetOscMenu.items = {"All", "Noise Osc"}
+      lfoToNoiseLpf:setParameter("Value", lfoToCutoff:getParameter("Value"))
+      lfoToNoiseHpf:setParameter("Value", lfoToHpf:getParameter("Value"))
+      lfoToNoiseAmp:setParameter("Value", lfoToAmp:getParameter("Value"))
+    else
+      lfoTargetOscMenu.items = {"Osc 1+2", "Noise Osc"}
+    end
+  end
+  lfoToNoiseOverrideButton:changed()
+
+  table.insert(tweakables, {widget=lfoToNoiseOverrideButton,func=getRandomBoolean,probability=25,category="modulation"})
+  table.insert(tweakables, {widget=lfoToNoiseAmpKnob,bipolar=25,category="modulation"})
+  table.insert(tweakables, {widget=lfoToNoiseHpfCutoffKnob,bipolar=25,category="modulation"})
+  table.insert(tweakables, {widget=lfoToNoiseLpfCutoffKnob,bipolar=25,category="modulation"})
+
+  lfoTargetOscMenu.changed = function(self)
+    if self.value == 1 then
+      lfoToDetuneKnob.visible = true
+      lfoToAmpKnob.visible = true
+      lfoToHpfCutoffKnob.visible = true
+      lfoToCutoffKnob.visible = true
+
+      lfoToNoiseOverrideButton.visible = false
+      lfoToNoiseAmpKnob.visible = false
+      lfoToNoiseHpfCutoffKnob.visible = false
+      lfoToNoiseLpfCutoffKnob.visible = false
+    else
+      lfoToDetuneKnob.visible = false
+      lfoToAmpKnob.visible = false
+      lfoToHpfCutoffKnob.visible = false
+      lfoToCutoffKnob.visible = false
+
+      lfoToNoiseOverrideButton.visible = true
+      lfoToNoiseAmpKnob.visible = true
+      lfoToNoiseHpfCutoffKnob.visible = true
+      lfoToNoiseLpfCutoffKnob.visible = true
+    end
+  end
+
+  lfoTargetOscMenu:changed()
 
   return lfoTargetPanel
 end
@@ -3339,12 +3375,6 @@ function setupModulationPage()
   lfoTargetPanel2.y = lfoTargetPanel1.y + height
   lfoTargetPanel2.width = width
   lfoTargetPanel2.height = height
-
-  --[[ lfoTargetPanel3.backgroundColour = bgColor
-  lfoTargetPanel3.x = marginX
-  lfoTargetPanel3.y = lfoTargetPanel2.y + height
-  lfoTargetPanel3.width = width
-  lfoTargetPanel3.height = height ]]
 end
 
 function setupEffectsPage()
