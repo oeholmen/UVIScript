@@ -482,8 +482,8 @@ function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle)
   elseif envelopeStyle > 1 and (options.attack == true or options.release == true) then
     endValue = getEnvelopeTimeByStyle(options, envelopeStyle)
     print("getEnvelopeTimeByStyle:", endValue)
-  elseif (tweakSource > 1 and duration > 0) or getRandomBoolean(tweakLevel/2) == false or (type(options.default) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.default)) == true) then
-    -- If tweak level is low, there is a high probability of stored/default value being used
+  elseif (tweakSource > 1 and duration > 0) or (type(options.default) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.default)) == true) then
+    -- Get value from tweaksource or default
     endValue = getValueForTweaking(options, tweakLevel, tweakSource)
     print("getValueForTweaking:", endValue)
   else
@@ -1014,7 +1014,7 @@ function createMixerPanel()
     self.displayText = formatGainInDb(self.value)
   end
   osc2MixKnob:changed()
-  table.insert(tweakables, {widget=osc2MixKnob,floor=0.3,ceiling=0.75,probability=100,absoluteLimit=0.8,zero=10,noDefaultTweak=true,category="mixer"})
+  table.insert(tweakables, {widget=osc2MixKnob,floor=0.3,ceiling=0.75,probability=100,absoluteLimit=0.8,zero=10,default=5,category="mixer"})
 
   local noiseMixKnob = mixerPanel:Knob("NoiseMix", 0, 0, 1)
   noiseMixKnob.displayName = "Noise"
