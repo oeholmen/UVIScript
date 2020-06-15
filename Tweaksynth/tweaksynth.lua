@@ -216,33 +216,6 @@ local height = 66
 local width = 714
 
 --------------------------------------------------------------------------------
--- Backgound image
---------------------------------------------------------------------------------
-
---local img = Image("resources/carbon.png")
---local img = Image("resources/carbon2.png")
---local img = Image("resources/hexagonmesh.png")
---local img = Image("resources/carbonfiber.png")
---local img = Image("resources/darkcarbon.png")
---local img = Image("resources/future.png")
---local img = Image("resources/hexagons.png")
---local img = Image("resources/metal.png")
---local img = Image("resources/tech.jpg")
---local img = Image("resources/whitehexagons.png")
---local img = Image("./resources/particles2.png")
---local img = Image("./resources/bluesquares.png")
---local img = Image("./resources/landscape.png")
---local img = Image("./resources/futurewaves.png")
---local img = Image("./resources/particles3.png")
---local img = Image("./resources/particles.png")
---local img = Image("./resources/pinkcurves.png")
---local img = Image("./resources/polygon.png")
---local img = Image("./resources/depth.png")
---img.alpha = 0.5
-
-setBackground("./resources/bluesquares.png")
-
---------------------------------------------------------------------------------
 -- STORE / RECALL
 --------------------------------------------------------------------------------
 
@@ -1041,7 +1014,7 @@ function createMixerPanel()
     self.displayText = formatGainInDb(self.value)
   end
   osc2MixKnob:changed()
-  table.insert(tweakables, {widget=osc2MixKnob,floor=0.3,ceiling=0.75,probability=100,absoluteLimit=0.8,category="mixer"})
+  table.insert(tweakables, {widget=osc2MixKnob,floor=0.3,ceiling=0.75,probability=100,absoluteLimit=0.8,zero=10,noDefaultTweak=true,category="mixer"})
 
   local noiseMixKnob = mixerPanel:Knob("NoiseMix", 0, 0, 1)
   noiseMixKnob.displayName = "Noise"
@@ -1055,7 +1028,7 @@ function createMixerPanel()
     self.displayText = formatGainInDb(self.value)
   end
   noiseMixKnob:changed()
-  table.insert(tweakables, {widget=noiseMixKnob,floor=0.3,ceiling=0.75,probability=100,default=10,absoluteLimit=0.8,category="mixer"})
+  table.insert(tweakables, {widget=noiseMixKnob,floor=0.3,ceiling=0.75,probability=100,default=5,zero=10,absoluteLimit=0.8,category="mixer"})
 
   local noiseTypes = {"Band", "S&H", "Static1", "Static2", "Violet", "Blue", "White", "Pink", "Brown", "Lorenz", "Rossler", "Crackle", "Logistic", "Dust", "Velvet"}
   local noiseTypeMenu = mixerPanel:Menu("NoiseTypeMenu", noiseTypes)
@@ -3481,5 +3454,7 @@ end
 synthesisPageButton.changed()
 
 setSize(720, 480)
+
+setBackground("./resources/bluesquares.png")
 
 makePerformanceView()
