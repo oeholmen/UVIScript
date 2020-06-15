@@ -482,7 +482,7 @@ function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle)
   elseif envelopeStyle > 1 and (options.attack == true or options.release == true) then
     endValue = getEnvelopeTimeByStyle(options, envelopeStyle)
     print("getEnvelopeTimeByStyle:", endValue)
-  elseif (tweakSource > 1 and duration > 0) or (type(options.default) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.default)) == true) then
+  elseif (tweakSource > 1 and duration > 0) or getRandomBoolean(tweakLevel) == false or (type(options.default) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.default)) == true) then
     -- Get value from tweaksource or default
     endValue = getValueForTweaking(options, tweakLevel, tweakSource)
     print("getValueForTweaking:", endValue)
@@ -836,7 +836,7 @@ function createOsc2Panel()
     osc2Detune:setParameter("Value", self.value)
   end
   osc2DetuneKnob:changed()
-  table.insert(tweakables, {widget=osc2DetuneKnob,ceiling=0.25,probability=80,default=30,category="synthesis"})
+  table.insert(tweakables, {widget=osc2DetuneKnob,ceiling=0.25,probability=90,default=50,category="synthesis"})
 
   if isAnalog then
     local hardsyncKnob = osc2Panel:Knob("HardsyncOsc2", 0, 0, 36)
@@ -915,7 +915,7 @@ function createUnisonPanel()
     self.displayText = percent(self.value)
   end
   unisonDetuneKnob:changed()
-  table.insert(tweakables, {widget=unisonDetuneKnob,ceiling=0.3,probability=80,default=50,category="synthesis"})
+  table.insert(tweakables, {widget=unisonDetuneKnob,ceiling=0.3,probability=90,default=70,category="synthesis"})
 
   local stereoSpreadKnob = unisonPanel:Knob("StereoSpread", 0, 0, 1)
   stereoSpreadKnob.displayName = "Stereo Spread"
@@ -1484,7 +1484,7 @@ function createFilterEnvOscTargetsPanel()
     filterEnvToPitchOsc2:setParameter("Value", value)
   end
   filterEnvToPitchOsc2Knob:changed()
-  table.insert(tweakables, {widget=filterEnvToPitchOsc2Knob,ceiling=0.1,probability=70,default=70,noDefaultTweak=true,zero=20,category="filter"})
+  table.insert(tweakables, {widget=filterEnvToPitchOsc2Knob,ceiling=0.1,probability=90,default=75,noDefaultTweak=true,zero=30,category="filter"})
 
   return filterEnvOscTargetsPanel
 end
@@ -2026,7 +2026,7 @@ function createLfoTargetPanel1()
     lfoToPitchOsc1:setParameter("Value", value)
   end
   lfoToPitchOsc1Knob:changed()
-  table.insert(tweakables, {widget=lfoToPitchOsc1Knob,ceiling=0.1,probability=75,default=50,noDefaultTweak=true,zero=50,category="modulation"})
+  table.insert(tweakables, {widget=lfoToPitchOsc1Knob,ceiling=0.1,probability=75,default=75,noDefaultTweak=true,zero=50,category="modulation"})
 
   return lfoTargetPanel1
 end
@@ -2357,7 +2357,7 @@ function createVibratoPanel()
     vibratoAmount:setParameter("Value", self.value)
   end
   vibratoKnob:changed()
-  table.insert(tweakables, {widget=vibratoKnob,ceiling=0.5,probability=60,category="synthesis"})
+  table.insert(tweakables, {widget=vibratoKnob,ceiling=0.5,probability=70,zero=40,default=20,category="synthesis"})
 
   local vibratoRateKnob = vibratoPanel:Knob("VibratoRate", 0.7, 0, 1)
   vibratoRateKnob.displayName="Rate"
@@ -2438,6 +2438,7 @@ function createPatchMakerPanel()
   tweakLevelKnob.bounds = {70,10,300,150}
 
   local tweakButton = tweakPanel:Button("Tweak")
+  tweakButton.persistent = false
   tweakButton.alpha = buttonAlpha
   tweakButton.backgroundColourOff = buttonBackgroundColourOff
   tweakButton.backgroundColourOn = buttonBackgroundColourOn
@@ -2447,6 +2448,7 @@ function createPatchMakerPanel()
   tweakButton.bounds = {width/2,10,345,tweakLevelKnob.height}
 
   patchesMenu = tweakPanel:Menu("PatchesMenu")
+  patchesMenu.persistent = false
   patchesMenu.backgroundColour = menuBackgroundColour
   patchesMenu.textColour = menuTextColour
   patchesMenu.arrowColour = menuArrowColour
@@ -2473,6 +2475,7 @@ function createPatchMakerPanel()
 
   local prevPatchButton = tweakPanel:Button("PrevPatch")
   prevPatchButton.alpha = buttonAlpha
+  prevPatchButton.persistent = false
   prevPatchButton.backgroundColourOff = buttonBackgroundColourOff
   prevPatchButton.backgroundColourOn = buttonBackgroundColourOn
   prevPatchButton.textColourOff = buttonTextColourOff
@@ -2494,6 +2497,7 @@ function createPatchMakerPanel()
   end
 
   local nextPatchButton = tweakPanel:Button("NextPatch")
+  nextPatchButton.persistent = false
   nextPatchButton.alpha = buttonAlpha
   nextPatchButton.backgroundColourOff = buttonBackgroundColourOff
   nextPatchButton.backgroundColourOn = buttonBackgroundColourOn
@@ -2517,6 +2521,7 @@ function createPatchMakerPanel()
 
   local actions = {"Choose...", "Add to snapshots", "Update selected snapshot", "Recall saved patch", "Initialize patch", "--- DANGERZONE ---", "Remove selected", "Remove all snapshots"}
   local managePatchesMenu = tweakPanel:Menu("ManagePatchesMenu", actions)
+  managePatchesMenu.persistent = false
   managePatchesMenu.backgroundColour = menuBackgroundColour
   managePatchesMenu.textColour = menuTextColour
   managePatchesMenu.arrowColour = menuArrowColour
@@ -2906,6 +2911,7 @@ function createTwequencerPanel()
 
   local actions = {"Choose...", "Store selected snapshot", "Recall saved patch", "Initialize patch"}
   local manageSnapshotsMenu = tweqPanel:Menu("ManageSnapshotsMenu", actions)
+  manageSnapshotsMenu.persistent = false
   manageSnapshotsMenu.backgroundColour = menuBackgroundColour
   manageSnapshotsMenu.textColour = menuTextColour
   manageSnapshotsMenu.arrowColour = menuArrowColour
@@ -2913,7 +2919,6 @@ function createTwequencerPanel()
   manageSnapshotsMenu.x = nextSnapshotButton.x + nextSnapshotButton.width + marginX
   manageSnapshotsMenu.y = snapshotsMenu.y
   manageSnapshotsMenu.displayName = "Actions"
-  manageSnapshotsMenu.enabled = false
   manageSnapshotsMenu.width = snapshotsMenu.width
   manageSnapshotsMenu.changed = function(self)
     if self.value == 1 then
@@ -3109,7 +3114,6 @@ function createTwequencerPanel()
         snapshotsMenu.enabled = true
         prevSnapshotButton.enabled = true
         nextSnapshotButton.enabled = true
-        manageSnapshotsMenu.enabled = true
         snapshotsMenu:setValue(currentPosition, false)
         local snapshot = {}
         for i,v in ipairs(tweakables) do
