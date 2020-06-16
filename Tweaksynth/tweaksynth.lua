@@ -443,6 +443,11 @@ function getValueBetween(floor, ceiling, originalValue, options, maxRounds)
   -- Generate values until we hit the window
   local rounds = 0 -- Counter for rounds
   
+  -- Set options if not provided
+  if type(options) == "nil" then
+    options = {}
+  end
+
   -- Set max rounds if not provided
   if type(maxRounds) ~= "number" then
     maxRounds = 25
@@ -2692,6 +2697,7 @@ function createPatchMakerPanel()
       end
     end
 
+    print("--- Checking Mixer Settings ---")
     print("Osc1Mix:", Osc1Mix.value)
     print("Osc2Mix:", Osc2Mix.value)
 
@@ -2701,7 +2707,7 @@ function createPatchMakerPanel()
     elseif Osc1Mix.value < 0.6 and Osc2Mix.value < 0.6 then
       Osc1Mix.value = getValueBetween(0.6, 0.8, Osc1Mix.value)
       print("Osc1Mix adjusted to:", Osc1Mix.value)
-      Osc2Mix.value = getValueBetween(0.6, 0.8, Osc1Mix.value)
+      Osc2Mix.value = getValueBetween(0.6, 0.8, Osc2Mix.value)
       print("Osc2Mix adjusted to:", Osc2Mix.value)
     elseif Osc1Mix.value < 0.6 or Osc2Mix.value < 0.6 then
       if math.min(Osc1Mix.value, Osc2Mix.value) == Osc1Mix.value then
@@ -2747,6 +2753,7 @@ function createPatchMakerPanel()
       end
     end
 
+    print("--- Checking Filter Settings ---")
     print("Filter Cutoff:", Cutoff.value)
     print("Filter EnvelopeAmt:", EnvelopeAmt.value)
     print("Filter HpfCutoff:", HpfCutoff.value)
