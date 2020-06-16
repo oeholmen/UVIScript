@@ -6,28 +6,32 @@ Tweak Synth was created to spark new ideas, and to trigger creativity. We can al
 
 ## Is Tweak Synth smart?
 
-No. It is not smart. But if you give it patches to work with, it can create some quite interesting, and sometimes good patches, inspired by you input. Or it can create entirely on its own.
+No. It is not smart. But if you give it patches to work with, it can create some quite interesting, and sometimes good, patches, inspired by you input. Or it can create entirely on its own.
 
 ## Two different flavors
 
-The tweak synth comes in two different flavors - one wavetable and one analog. They are mostly equal, but there are some differences in modulation options, and of course, the oscillators differ. But the tweaking algorithm is shared between both synths.
+Tweak Synth comes in two different flavors - one wavetable and one analog. They are almost equal, but there are some differences in modulation options, and of course, the oscillators differ. But the tweaking algorithm is shared between both synths.
 
 ## Synth overview
 
-The synth is built in Falcon, using a standard analog signal flow. There are two main oscillators, and a noise oscillator.
-The synth is divided into five sections: Synthesis, Filter, Modulation, Twequencer and Patchmaker. Switching between sections is done using the buttons in the top panel. In addition to this there is a mixer section directly below the top panel. The mixer section is always visible, and also features an on/off button for the arpeggiator.
+Tweak Synth is built in Falcon, using a signal flow and parameters that are typical of classic analog synths. The synth have two oscillators, and a noise generator.
+The synth is divided into six sections: Synthesis, Filter, Modulation, Effects, Twequencer and Patchmaker. Switching between sections is done using the buttons above the mixer. The mixer section is always visible, and also features an on/off button for the Falcon arpeggiator.
 
 ### Synthesis section
 
-The synthesis section contains the oscillators for editing waveform, pitch, stereo/unison, vibrato, amp envelope and some basic effects.
+The synthesis section contains the oscillators for editing waveform, pitch, stereo/unison, vibrato and amplitude envelope.
 
 ### Filter section
 
-The filter section contains two filters, one lowpass 24, and a highpass filter. The filter envelope has a few different targets, in addition to both filters. There are some variations here depending on whether the wavetable or analog version is used.
+The filter section contains two filters, a lowpass 24, and a highpass filter. The filter envelope has a few different targets, in addition to both filters. There are some variations here depending on whether the wavetable or analog version is used.
 
 ### Modulation section
 
 The modulation section contains an LFO that can be assigned to a number of different targets. It is possible to override filter modulation for the noise oscillator, if this should be treated separatly. By default, the settings for the LFO is shared by all oscillators, but it is possible to use different settings for each oscillator. This option can be selected directly to the left of the waveform select menu. If a widget has different settings for each oscillator, the widget will be locked when "All" oscillators are selected, to avoid unintended changes.
+
+### Effects section
+
+Here you find a selection of useful effects for easy access. These are standard Falcon effects, so effects can easily be replaced, or edited in Falcon.
 
 ### Envelopes
 
