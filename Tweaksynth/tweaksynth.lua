@@ -445,7 +445,7 @@ function getValueBetween(floor, ceiling, originalValue, options, maxRounds)
   
   -- Set max rounds if not provided
   if type(maxRounds) ~= "number" then
-    maxRounds = 10
+    maxRounds = 25
   end
 
   print("getValueBetween floor, ceiling, startvalue, maxrounds:", floor, ceiling, originalValue, maxRounds)
@@ -2696,19 +2696,19 @@ function createPatchMakerPanel()
     print("Osc2Mix:", Osc2Mix.value)
 
     if Osc2Mix.value == 0 and Osc1Mix.value < 0.6 then
-      Osc1Mix.value = getValueBetween(0.65, 0.8, Osc1Mix.value, {}, 25)
+      Osc1Mix.value = getValueBetween(0.65, 0.8, Osc1Mix.value)
       print("Osc1Mix adjusted to:", Osc1Mix.value)
     elseif Osc1Mix.value < 0.6 and Osc2Mix.value < 0.6 then
-      Osc1Mix.value = getValueBetween(0.6, 0.8, Osc1Mix.value, {}, 25)
+      Osc1Mix.value = getValueBetween(0.6, 0.8, Osc1Mix.value)
       print("Osc1Mix adjusted to:", Osc1Mix.value)
-      Osc2Mix.value = getValueBetween(0.6, 0.8, Osc1Mix.value, {}, 25)
+      Osc2Mix.value = getValueBetween(0.6, 0.8, Osc1Mix.value)
       print("Osc2Mix adjusted to:", Osc2Mix.value)
     elseif Osc1Mix.value < 0.6 or Osc2Mix.value < 0.6 then
       if math.min(Osc1Mix.value, Osc2Mix.value) == Osc1Mix.value then
-        Osc1Mix.value = getValueBetween(0.6, 0.8, Osc1Mix.value, {}, 25)
+        Osc1Mix.value = getValueBetween(0.6, 0.8, Osc1Mix.value)
         print("Osc1Mix adjusted to:", Osc1Mix.value)
       else
-        Osc2Mix.value = getValueBetween(0.6, 0.8, Osc2Mix.value, {}, 25)
+        Osc2Mix.value = getValueBetween(0.6, 0.8, Osc2Mix.value)
         print("Osc2Mix adjusted to:", Osc2Mix.value)
       end
     else
@@ -2756,19 +2756,19 @@ function createPatchMakerPanel()
     -- Check lpf amt
     local envelopeAmtValue = EnvelopeAmt.value
     if Cutoff.value < 0.1 and envelopeAmtValue < 0.5 then
-      envelopeAmtValue = getValueBetween(0.8, 1.0, envelopeAmtValue, {}, 25)
+      envelopeAmtValue = getValueBetween(0.8, 1.0, envelopeAmtValue)
     end
     
     -- Check lpf and attack time
     local attackValue = FAttack.value
     if Cutoff.value < 0.05 and envelopeAmtValue > 0.75 and attackValue > 0.9 then
-      attackValue = getValueBetween(0.01, 0.9, attackValue, {}, 25)
+      attackValue = getValueBetween(0.01, 0.9, attackValue)
     end
 
     -- Check hpf amt
     local hpfEnvelopeAmtValue = HpfEnvelopeAmt.value
     if HpfCutoff.value > 0.65 and hpfEnvelopeAmtValue >= 0 then
-      hpfEnvelopeAmtValue = -(getValueBetween(0.1, 0.8, attackValue, {}, 25))
+      hpfEnvelopeAmtValue = -(getValueBetween(0.1, 0.8, attackValue))
     end
 
     if envelopeAmtValue ~= EnvelopeAmt.value then
@@ -3290,7 +3290,7 @@ function createTwequencerPanel()
   end
 
   function onNote(e)
-    print("Note:", e.note, "Velocity:", e.velocity)
+    --print("Note:", e.note, "Velocity:", e.velocity)
     if sequencerPlayMenu.value > 1 then
       table.insert(heldNotes, e)
       if #heldNotes == 1 then
