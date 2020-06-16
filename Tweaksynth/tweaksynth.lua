@@ -2723,6 +2723,8 @@ function createPatchMakerPanel()
     local HpfEnvelopeAmt
     local FAttack
     local found = 0
+    local changes = 0
+
     for i,v in ipairs(tweakables) do
       if v.widget.name == "Cutoff" then
         Cutoff = v.widget
@@ -2753,23 +2755,21 @@ function createPatchMakerPanel()
 
     -- Check lpf amt
     local envelopeAmtValue = EnvelopeAmt.value
-    if Cutoff.value < 0.1 and EnvelopeAmt.value < 0.5 then
+    if Cutoff.value < 0.1 and envelopeAmtValue < 0.5 then
       envelopeAmtValue = getValueBetween(0.8, 1.0, envelopeAmtValue, {}, 25)
     end
     
     -- Check lpf and attack time
     local attackValue = FAttack.value
-    if Cutoff.value < 0.05 and EnvelopeAmt.value > 0.75 and FAttack.value > 0.9 then
+    if Cutoff.value < 0.05 and envelopeAmtValue > 0.75 and attackValue > 0.9 then
       attackValue = getValueBetween(0.01, 0.9, attackValue, {}, 25)
     end
 
     -- Check hpf amt
     local hpfEnvelopeAmtValue = HpfEnvelopeAmt.value
-    if HpfCutoff.value > 0.75 and HpfEnvelopeAmt.value > 0 then
-      hpfEnvelopeAmtValue = -(hpfEnvelopeAmtValue)
+    if HpfCutoff.value > 0.65 and hpfEnvelopeAmtValue >= 0 then
+      hpfEnvelopeAmtValue = -(getValueBetween(0.1, 0.8, attackValue, {}, 25))
     end
-
-    local changes = 0
 
     if envelopeAmtValue ~= EnvelopeAmt.value then
       print("Adjusting lfp env amount to:", envelopeAmtValue)
