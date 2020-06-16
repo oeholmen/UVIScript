@@ -850,7 +850,7 @@ function createOsc2Panel()
     osc2Pitch:setParameter("Value", value)
   end
   osc2PitchKnob:changed()
-  table.insert(tweakables, {widget=osc2PitchKnob,min=-24,max=24,floor=-12,ceiling=12,probability=50,default=70,noDefaultTweak=true,zero=20,category="synthesis"})
+  table.insert(tweakables, {widget=osc2PitchKnob,min=-24,max=24,floor=-12,ceiling=12,probability=50,noDefaultTweak=true,zero=70,category="synthesis"})
 
   local osc2DetuneKnob = osc2Panel:Knob("Osc2FinePitch", 0, 0, 1)
   osc2DetuneKnob.displayName = "Fine Pitch"
@@ -1355,7 +1355,7 @@ function createFilterEnvPanel()
     end
   end
   filterVelocityKnob:changed()
-  table.insert(tweakables, {widget=filterVelocityKnob,min=40,category="filter"})
+  table.insert(tweakables, {widget=filterVelocityKnob,floor=5,ceiling=25,probability=80,min=40,default=70,category="filter"})
 
   function setFilterEnvKnob(knob, param)
     if activeFilterEnvOsc == 1 then
@@ -2238,7 +2238,7 @@ function createAmpEnvPanel()
     end
   end
   ampVelocityKnob:changed()
-  table.insert(tweakables, {widget=ampVelocityKnob,min=40,category="synthesis"})
+  table.insert(tweakables, {widget=ampVelocityKnob,min=40,floor=5,ceiling=25,probability=80,default=70,category="synthesis"})
 
   function setAmpEnvKnob(knob, param)
     if activeAmpEnvOsc == 1 then
@@ -2677,7 +2677,42 @@ function createPatchMakerPanel()
     if mixerButton.value == true then
       verifyMixerSettings()
     end
+    -- Verify pitch settings
+    if synthesisButton.value == true then -- TODO Apply tweaklevel?
+      verifyPitchSettings()
+    end
     print("Tweaking complete!")
+  end
+
+  function verifyPitchSettings()
+    local Osc2Pitch
+
+    for i,v in ipairs(tweakables) do
+      if v.widget.name == "Osc2Pitch" then
+        Osc2Pitch = v.widget
+        break
+      end
+    end
+
+    print("--- Checking Pitch Settings ---")
+    print("Osc2Pitch:", Osc2Pitch.value)
+
+    local osc2PitchValue = Osc2Pitch.value
+    local semitones = {-24,-12,-7,-5,0,5,7,12,19,24}
+
+    for i,semitone in ipairs(semitones) do
+      if osc2PitchValue <= semitone then
+        osc2PitchValue = semitone
+        break
+      end
+    end
+
+    if osc2PitchValue ~= Osc2Pitch.value then
+      Osc2Pitch.value = osc2PitchValue
+      print("Osc2Pitch adjusted to:", Osc2Pitch.value)
+    else
+      print("Pitch Settings OK")
+    end
   end
 
   function verifyMixerSettings()
