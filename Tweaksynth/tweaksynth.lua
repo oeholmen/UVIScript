@@ -436,6 +436,33 @@ function getEnvelopeTimeByStyle(options, style)
   return getRandom(min*100000, max*100000)/100000
 end
 
+function getValueBetween(floor, ceiling, originalValue, options, maxRounds)
+  -- Set startvalue
+  local value = originalValue
+  
+  -- Generate values until we hit the window
+  local rounds = 0 -- Counter for rounds
+  
+  -- Set max rounds if not provided
+  if type(maxRounds) ~= "number" then
+    maxRounds = 10
+  end
+
+  print("getValueBetween floor, ceiling, startvalue, maxrounds:", floor, ceiling, originalValue, maxRounds)
+  while rounds < maxRounds and (value < floor or value > ceiling) do
+    value = getRandom(options.min, options.max, options.factor)
+    rounds = rounds + 1 -- Increment rounds
+  end
+  
+  -- Return the new value if we hit the target
+  if value >= floor and value <= ceiling then
+    print("getValueBetween found value in rounds:", value, rounds)
+    return value
+  end
+
+  return originalValue
+end
+
 -- Tweak options:
   -- widget = the widget to tweak - the only non-optional parameter
   -- func = the function to execute for getting the value - default is getRandom
@@ -505,15 +532,7 @@ function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle)
         print("Value set to floor", floor)
       else
         print("Probability/floor/ceiling:", options.probability, floor, ceiling)
-        -- Generate values until we hit the window
-        local rounds = 0 -- Try ten times to get a value within the window
-        while endValue < floor or endValue > ceiling do
-          if rounds > 10 then
-            break
-          end
-          endValue = getRandom(options.min, options.max, options.factor)
-          rounds = rounds + 1 -- Increment rounds
-        end
+        endValue = getValueBetween(floor, ceiling, endValue, options)
       end
     end
     if type(options.bipolar) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.bipolar)) == true then
@@ -1000,7 +1019,7 @@ function createMixerPanel()
     self.displayText = formatGainInDb(self.value)
   end
   osc1MixKnob:changed()
-  table.insert(tweakables, {widget=osc1MixKnob,floor=0.3,ceiling=0.75,probability=100,absoluteLimit=0.8,default=50,category="mixer"})
+  table.insert(tweakables, {widget=osc1MixKnob,floor=0.5,ceiling=0.75,probability=100,absoluteLimit=0.8,default=50,category="mixer"})
 
   local osc2MixKnob = mixerPanel:Knob("Osc2Mix", 0, 0, 1)
   osc2MixKnob.displayName = "Osc 2"
@@ -1014,7 +1033,7 @@ function createMixerPanel()
     self.displayText = formatGainInDb(self.value)
   end
   osc2MixKnob:changed()
-  table.insert(tweakables, {widget=osc2MixKnob,floor=0.3,ceiling=0.75,probability=100,absoluteLimit=0.8,zero=10,default=5,category="mixer"})
+  table.insert(tweakables, {widget=osc2MixKnob,floor=0.5,ceiling=0.75,probability=100,absoluteLimit=0.8,zero=10,default=5,category="mixer"})
 
   local noiseMixKnob = mixerPanel:Knob("NoiseMix", 0, 0, 1)
   noiseMixKnob.displayName = "Noise"
@@ -1154,7 +1173,7 @@ function createHpFilterPanel()
 
   hpFilterPanel:Label("High-pass Filter")
 
-  local hpfCutoffKnob = hpFilterPanel:Knob("HPCutoff", 0, 0, 1)
+  local hpfCutoffKnob = hpFilterPanel:Knob("HpfCutoff", 0, 0, 1)
   hpfCutoffKnob.displayName = "Cutoff"
   hpfCutoffKnob.fillColour = knobColour
   hpfCutoffKnob.outlineColour = filterColour
@@ -1170,7 +1189,7 @@ function createHpFilterPanel()
   hpfCutoffKnob:changed()
   table.insert(tweakables, {widget=hpfCutoffKnob,ceiling=0.5,probability=60,zero=60,category="filter"})
 
-  local hpfResonanceKnob = hpFilterPanel:Knob("HPFResonance", 0, 0, 1)
+  local hpfResonanceKnob = hpFilterPanel:Knob("HpfResonance", 0, 0, 1)
   hpfResonanceKnob.displayName = "Resonance"
   hpfResonanceKnob.fillColour = knobColour
   hpfResonanceKnob.outlineColour = filterColour
@@ -1181,7 +1200,7 @@ function createHpFilterPanel()
   hpfResonanceKnob:changed()
   table.insert(tweakables, {widget=hpfResonanceKnob,ceiling=0.5,probability=75,absoluteLimit=0.8,default=50,category="filter"})
 
-  local hpfKeyTrackingKnob = hpFilterPanel:Knob("HPFKeyTracking", 0, 0, 1)
+  local hpfKeyTrackingKnob = hpFilterPanel:Knob("HpfKeyTracking", 0, 0, 1)
   hpfKeyTrackingKnob.displayName = "Key Track"
   hpfKeyTrackingKnob.fillColour = knobColour
   hpfKeyTrackingKnob.outlineColour = filterColour
@@ -1399,7 +1418,7 @@ function createFilterEnvTargetsPanel()
     self.displayText = percent(self.value)
   end
   hpfEnvAmtKnob:changed()
-  table.insert(tweakables, {widget=hpfEnvAmtKnob,bipolar=25,category="filter"})
+  table.insert(tweakables, {widget=hpfEnvAmtKnob,absoluteLimit=0.85,bipolar=25,category="filter"})
 
   return filterEnvTargetsPanel
 end
@@ -2645,7 +2664,134 @@ function createPatchMakerPanel()
         print("Skipping:", v.widget.name)
       end
     end
+    -- Verify filter settings
+    if filterButton.value == true then
+      verifyFilterSettings()
+    end
+    -- Verify mixer settings
+    if mixerButton.value == true then
+      verifyMixerSettings()
+    end
     print("Tweaking complete!")
+  end
+
+  function verifyMixerSettings()
+    local Osc1Mix
+    local Osc2Mix
+    local found = 0
+    for i,v in ipairs(tweakables) do
+      if v.widget.name == "Osc1Mix" then
+        Osc1Mix = v.widget
+        found = found + 1
+      elseif v.widget.name == "Osc2Mix" then
+        Osc2Mix = v.widget
+        found = found + 1
+      end
+      if found == 2 then
+        break
+      end
+    end
+
+    print("Osc1Mix:", Osc1Mix.value)
+    print("Osc2Mix:", Osc2Mix.value)
+
+    if Osc2Mix.value == 0 and Osc1Mix.value < 0.6 then
+      Osc1Mix.value = getValueBetween(0.65, 0.8, Osc1Mix.value, {}, 25)
+      print("Osc1Mix adjusted to:", Osc1Mix.value)
+    elseif Osc1Mix.value < 0.6 and Osc2Mix.value < 0.6 then
+      Osc1Mix.value = getValueBetween(0.6, 0.8, Osc1Mix.value, {}, 25)
+      print("Osc1Mix adjusted to:", Osc1Mix.value)
+      Osc2Mix.value = getValueBetween(0.6, 0.8, Osc1Mix.value, {}, 25)
+      print("Osc2Mix adjusted to:", Osc2Mix.value)
+    elseif Osc1Mix.value < 0.6 or Osc2Mix.value < 0.6 then
+      if math.min(Osc1Mix.value, Osc2Mix.value) == Osc1Mix.value then
+        Osc1Mix.value = getValueBetween(0.6, 0.8, Osc1Mix.value, {}, 25)
+        print("Osc1Mix adjusted to:", Osc1Mix.value)
+      else
+        Osc2Mix.value = getValueBetween(0.6, 0.8, Osc2Mix.value, {}, 25)
+        print("Osc2Mix adjusted to:", Osc2Mix.value)
+      end
+    else
+      print("Mixer Settings OK")
+    end
+  end
+  
+  function verifyFilterSettings()
+    local Cutoff
+    local HpfCutoff
+    local EnvelopeAmt
+    local HpfEnvelopeAmt
+    local FAttack
+    local found = 0
+    for i,v in ipairs(tweakables) do
+      if v.widget.name == "Cutoff" then
+        Cutoff = v.widget
+        found = found + 1
+      elseif v.widget.name == "HpfCutoff" then
+        HpfCutoff = v.widget
+        found = found + 1
+      elseif v.widget.name == "EnvelopeAmt" then
+        EnvelopeAmt = v.widget
+        found = found + 1
+      elseif v.widget.name == "HpfEnvelopeAmt" then
+        HpfEnvelopeAmt = v.widget
+        found = found + 1
+      elseif v.widget.name == "FAttack" then
+        FAttack = v.widget
+        found = found + 1
+      end
+      if found == 5 then
+        break
+      end
+    end
+
+    print("Filter Cutoff:", Cutoff.value)
+    print("Filter EnvelopeAmt:", EnvelopeAmt.value)
+    print("Filter HpfCutoff:", HpfCutoff.value)
+    print("Filter HpfEnvelopeAmt:", HpfEnvelopeAmt.value)
+    print("Filter FAttack:", FAttack.value)
+
+    -- Check lpf amt
+    local envelopeAmtValue = EnvelopeAmt.value
+    if Cutoff.value < 0.1 and EnvelopeAmt.value < 0.5 then
+      envelopeAmtValue = getValueBetween(0.8, 1.0, envelopeAmtValue, {}, 25)
+    end
+    
+    -- Check lpf and attack time
+    local attackValue = FAttack.value
+    if Cutoff.value < 0.05 and EnvelopeAmt.value > 0.75 and FAttack.value > 0.9 then
+      attackValue = getValueBetween(0.01, 0.9, attackValue, {}, 25)
+    end
+
+    -- Check hpf amt
+    local hpfEnvelopeAmtValue = HpfEnvelopeAmt.value
+    if HpfCutoff.value > 0.75 and HpfEnvelopeAmt.value > 0 then
+      hpfEnvelopeAmtValue = -(hpfEnvelopeAmtValue)
+    end
+
+    local changes = 0
+
+    if envelopeAmtValue ~= EnvelopeAmt.value then
+      print("Adjusting lfp env amount to:", envelopeAmtValue)
+      EnvelopeAmt.value = envelopeAmtValue
+      changes = changes + 1
+    end
+
+    if attackValue ~= FAttack.value then
+      print("Adjusting filter attack to:", attackValue)
+      FAttack.value = attackValue
+      changes = changes + 1
+    end
+
+    if hpfEnvelopeAmtValue ~= HpfEnvelopeAmt.value then
+      print("Adjusting lpf env amt to:", hpfEnvelopeAmtValue)
+      HpfEnvelopeAmt.value = hpfEnvelopeAmtValue
+      changes = changes + 1
+    end
+
+    if changes == 0 then
+      print("Filter Settings OK")
+    end
   end
   
   function clearStoredPatches()
