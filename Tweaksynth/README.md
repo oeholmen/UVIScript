@@ -8,6 +8,10 @@ Tweak Synth was created to spark new ideas, and to trigger creativity. We can al
 
 No. It is not smart. But if you give it patches to work with, it can create some quite interesting, and sometimes good, patches, inspired by you input. Or it can create entirely on its own.
 
+## So is it just a bunch of random settings?
+
+No. But it uses randomization combined with rules that are set for each parameter to get sensible values. Since it is programmed to be experimental, sometimes it misses the mark. In a future version it might be possible to adjust these rules.
+
 ## Two different flavors
 
 Tweak Synth comes in two different flavors - one wavetable and one analog. They are almost equal, but there are some differences in modulation options, and of course, the oscillators differ. But the tweaking algorithm is shared between both synths.

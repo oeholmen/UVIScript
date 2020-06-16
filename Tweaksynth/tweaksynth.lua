@@ -752,7 +752,7 @@ function createOsc1Panel()
       osc1:setParameter("HardSyncShift", self.value)
     end
     hardsyncKnob:changed()
-    table.insert(tweakables, {widget=hardsyncKnob,min=36,zero=50,default=50,noDefaultTweak=true,category="synthesis"})
+    table.insert(tweakables, {widget=hardsyncKnob,ceiling=12,probability=80,min=36,zero=50,default=50,noDefaultTweak=true,category="synthesis"})
 
     local atToHardsycKnob = osc1Panel:Knob("AtToHarsyncosc1", 0, 0, 1)
     atToHardsycKnob.displayName = "AT->Sync"
@@ -872,7 +872,7 @@ function createOsc2Panel()
       osc2:setParameter("HardSyncShift", self.value)
     end
     hardsyncKnob:changed()
-    table.insert(tweakables, {widget=hardsyncKnob,min=36,zero=75,default=50,noDefaultTweak=true,category="synthesis"})
+    table.insert(tweakables, {widget=hardsyncKnob,ceiling=12,probability=80,min=36,zero=75,default=50,noDefaultTweak=true,category="synthesis"})
   else
     local wheelToWaveKnob = osc2Panel:Knob("WheelToWave2", 0, -1, 1)
     wheelToWaveKnob.displayName = "Wheel->Wave"
@@ -2678,13 +2678,13 @@ function createPatchMakerPanel()
       verifyMixerSettings()
     end
     -- Verify pitch settings
-    if synthesisButton.value == true then -- TODO Apply tweaklevel?
-      verifyPitchSettings()
+    if synthesisButton.value == true then
+      verifyPitchSettings(tweakLevelKnob.value)
     end
     print("Tweaking complete!")
   end
 
-  function verifyPitchSettings()
+  function verifyPitchSettings(tweakLevel)
     local Osc2Pitch
 
     for i,v in ipairs(tweakables) do
@@ -2695,15 +2695,32 @@ function createPatchMakerPanel()
     end
 
     print("--- Checking Pitch Settings ---")
+    print("TweakLevel:", tweakLevel)
     print("Osc2Pitch:", Osc2Pitch.value)
 
     local osc2PitchValue = Osc2Pitch.value
-    local semitones = {-24,-12,-7,-5,0,5,7,12,19,24}
+    local semitones = {-24,-12,0,7,12,19,24}
+
+    if tweakLevel > 90 then
+      semitones = {-24,-12,-7,-5,0,3,4,5,7,12,15,16,19,24}
+    elseif tweakLevel > 75 then
+      semitones = {-24,-12,-7,-5,0,5,7,12,19,24}
+    elseif tweakLevel > 50 then
+      semitones = {-24,-12,-5,0,7,12,19,24}
+    end
 
     for i,semitone in ipairs(semitones) do
-      if osc2PitchValue <= semitone then
-        osc2PitchValue = semitone
-        break
+      if i > 1 then
+        if osc2PitchValue <= semitone then
+          local downDiff = osc2PitchValue - semitones[i-1]
+          local upDiff = semitone - osc2PitchValue
+          if math.min(downDiff, upDiff) == downDiff then
+            osc2PitchValue = semitones[i-1]
+          else
+            osc2PitchValue = semitone
+          end
+          break
+        end
       end
     end
 
