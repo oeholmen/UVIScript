@@ -4,14 +4,6 @@
 
 Tweak Synth was created to spark new ideas, and to trigger creativity. We can all be stuck sometimes, finding our selves following the same patterns over and over again. Tweak Synth wants to help you create something new, and it wants to help you find the best version of the sound you are trying to create.
 
-## Is Tweak Synth smart?
-
-No. It is not smart. But if you give it patches to work with, it can create some quite interesting, and sometimes good, patches, inspired by you input. Or it can create entirely on its own.
-
-## So is it just a bunch of random settings?
-
-No. But it uses randomization combined with rules that are set for each parameter to get sensible values. Since it is programmed to be experimental, sometimes it misses the mark. In a future version it might be possible to adjust these rules.
-
 ## Two different flavors
 
 Tweak Synth comes in two different flavors - one wavetable and one analog. They are almost equal, but there are some differences in modulation options, and of course, the oscillators differ. But the tweaking algorithm is shared between both synths.
@@ -89,8 +81,15 @@ The actions menu has an option to set the current editing state to the sound tha
 
 The actions menu has an option to set current editing state to only default values (Initialize patch).
 
-
 When you add the first snapshot, an initial snapshot containing the last saved state will be added automatically. So you first added snapshot will be called "Snapshot 2". The initial snapshot can be updated, but it cannot be removed, unless you remove all snapshots.
+
+## Is Tweak Synth smart?
+
+No. It is not smart. But if you give it patches to work with, it can create some quite interesting, and sometimes good, patches, inspired by you input. Or it can create entirely on its own.
+
+## How does Tweak Synth work?
+
+Tweak Synth creates patches by combining randomization with rules that are set for each parameter to get sensible values. Since it is programmed to be experimental, sometimes it misses the mark. In a future version it might be possible to adjust these rules, but for the time being, they are hard coded into the synth.
 
 ## Conclusion
 

@@ -482,6 +482,7 @@ end
   -- default = the probability that the default/stored value is used (affected by tweak level)
   -- min = min value
   -- max = max value
+  -- valueFilter = a table of allowed values. Incoming values are adjusted to the closest value of the valuefilter.
   -- absoluteLimit = the highest allowed limit - used mainly for safety resons to avoid extreme levels
   -- category = the category the widget belongs to (synthesis, modulation, filter, mixer, effects)
 --
@@ -496,7 +497,7 @@ function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle)
   if type(envelopeStyle) ~= "number" then
     envelopeStyle = 1
   end
-  print("Tweaking widget:", options.widget.name)
+  print("******************** Tweaking:", options.widget.name, "********************")
   print("Tweak level:", tweakLevel)
   local startValue = options.widget.value
   local endValue = startValue
@@ -547,6 +548,10 @@ function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle)
       end
     end
   end
+  if type(options.valueFilter) == "table" then
+    print("Applying valueFilter to:", endValue)
+    endValue = applyValueFilter(options.valueFilter, endValue)
+  end
   if type(options.absoluteLimit) == "number" and type(endValue) == "number" and endValue > options.absoluteLimit then
     print("End value limited by absoluteLimit", options.absoluteLimit)
     endValue = options.absoluteLimit
@@ -586,6 +591,33 @@ function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle)
     end
   end
   options.widget.value = endValue
+end
+
+function applyValueFilter(valueFilter, startValue)
+  local endValue = startValue
+
+  for i,v in ipairs(valueFilter) do
+    if i > 1 then
+      if endValue <= v then
+        local downDiff = endValue - valueFilter[i-1]
+        local upDiff = v - endValue
+        if math.min(downDiff, upDiff) == downDiff then
+          endValue = valueFilter[i-1]
+        else
+          endValue = v
+        end
+        break
+      end
+    end
+  end
+
+  if endValue ~= startValue then
+    print("Value adjusted by valueFilter to:", endValue)
+  else
+    print("No adjustments were made by the valueFilter")
+  end
+
+  return endValue
 end
 
 function getDotted(value)
@@ -850,7 +882,7 @@ function createOsc2Panel()
     osc2Pitch:setParameter("Value", value)
   end
   osc2PitchKnob:changed()
-  table.insert(tweakables, {widget=osc2PitchKnob,min=-24,max=24,floor=-12,ceiling=12,probability=50,noDefaultTweak=true,zero=70,category="synthesis"})
+  table.insert(tweakables, {widget=osc2PitchKnob,min=-24,max=24,valueFilter={-24,-12,-5,0,7,12,19,24},floor=-12,ceiling=12,probability=75,default=50,zero=50,category="synthesis"})
 
   local osc2DetuneKnob = osc2Panel:Knob("Osc2FinePitch", 0, 0, 1)
   osc2DetuneKnob.displayName = "Fine Pitch"
@@ -860,7 +892,7 @@ function createOsc2Panel()
     osc2Detune:setParameter("Value", self.value)
   end
   osc2DetuneKnob:changed()
-  table.insert(tweakables, {widget=osc2DetuneKnob,ceiling=0.25,probability=90,default=50,category="synthesis"})
+  table.insert(tweakables, {widget=osc2DetuneKnob,ceiling=0.25,probability=90,default=50,defaultTweakRange=0.15,zero=25,absoluteLimit=0.4,category="synthesis"})
 
   if isAnalog then
     local hardsyncKnob = osc2Panel:Knob("HardsyncOsc2", 0, 0, 36)
@@ -939,7 +971,7 @@ function createUnisonPanel()
     self.displayText = percent(self.value)
   end
   unisonDetuneKnob:changed()
-  table.insert(tweakables, {widget=unisonDetuneKnob,ceiling=0.3,probability=90,default=70,category="synthesis"})
+  table.insert(tweakables, {widget=unisonDetuneKnob,ceiling=0.3,probability=90,default=80,tweakRange=0.2,category="synthesis"})
 
   local stereoSpreadKnob = unisonPanel:Knob("StereoSpread", 0, 0, 1)
   stereoSpreadKnob.displayName = "Stereo Spread"
@@ -1337,7 +1369,7 @@ function createFilterEnvPanel()
     self.displayText = formatTimeInSeconds(self.value)
   end
   filterReleaseKnob:changed()
-  table.insert(tweakables, {widget=filterReleaseKnob,release=true,factor=5,floor=0.01,ceiling=0.8,probability=70,default=35,defaultTweakRange=5,category="filter"})
+  table.insert(tweakables, {widget=filterReleaseKnob,release=true,factor=3,floor=0.01,ceiling=0.8,probability=70,default=35,defaultTweakRange=2,category="filter"})
 
   local filterVelocityKnob = filterEnvPanel:Knob("VelocityToFilterEnv", 10, 0, 40)
   filterVelocityKnob.displayName="Velocity"
@@ -1468,7 +1500,7 @@ function createFilterEnvOscTargetsPanel()
     filterEnvToPitchOsc1:setParameter("Value", value)
   end
   filterEnvToPitchOsc1Knob:changed()
-  table.insert(tweakables, {widget=filterEnvToPitchOsc1Knob,ceiling=0.1,probability=70,default=80,noDefaultTweak=true,zero=30,category="filter"})
+  table.insert(tweakables, {widget=filterEnvToPitchOsc1Knob,ceiling=0.1,probability=90,default=80,noDefaultTweak=true,zero=30,category="filter"})
 
   filterEnvOscTargetsPanel:Label("Filter Env -> Osc 2 ->")
 
@@ -1508,7 +1540,7 @@ function createFilterEnvOscTargetsPanel()
     filterEnvToPitchOsc2:setParameter("Value", value)
   end
   filterEnvToPitchOsc2Knob:changed()
-  table.insert(tweakables, {widget=filterEnvToPitchOsc2Knob,ceiling=0.1,probability=90,default=75,noDefaultTweak=true,zero=30,category="filter"})
+  table.insert(tweakables, {widget=filterEnvToPitchOsc2Knob,ceiling=0.1,probability=85,default=75,noDefaultTweak=true,zero=25,category="filter"})
 
   return filterEnvOscTargetsPanel
 end
@@ -2220,7 +2252,7 @@ function createAmpEnvPanel()
     self.displayText = formatTimeInSeconds(self.value)
   end
   ampReleaseKnob:changed()
-  table.insert(tweakables, {widget=ampReleaseKnob,release=true,factor=5,floor=0.01,ceiling=0.8,probability=80,default=50,defaultTweakRange=1,category="synthesis"})
+  table.insert(tweakables, {widget=ampReleaseKnob,release=true,factor=2,floor=0.01,ceiling=0.8,probability=80,default=50,defaultTweakRange=1,category="synthesis"})
 
   local ampVelocityKnob = ampEnvPanel:Knob("VelocityToAmpEnv", 10, 0, 40)
   ampVelocityKnob.displayName="Velocity"
@@ -2677,58 +2709,47 @@ function createPatchMakerPanel()
     if mixerButton.value == true then
       verifyMixerSettings()
     end
-    -- Verify pitch settings
+    -- Verify unison settings
     if synthesisButton.value == true then
-      verifyPitchSettings(tweakLevelKnob.value)
+      verifyUnisonSettings()
     end
     print("Tweaking complete!")
   end
 
-  function verifyPitchSettings(tweakLevel)
-    local Osc2Pitch
-
+  function verifyUnisonSettings()
+    local UnisonVoices
+    local UnisonDetune
+    local found = 0
     for i,v in ipairs(tweakables) do
-      if v.widget.name == "Osc2Pitch" then
-        Osc2Pitch = v.widget
+      if v.widget.name == "UnisonVoices" then
+        UnisonVoices = v.widget
+        found = found + 1
+      elseif v.widget.name == "UnisonDetune" then
+        UnisonDetune = v.widget
+        found = found + 1
+      end
+      if found == 2 then
         break
       end
     end
 
-    print("--- Checking Pitch Settings ---")
-    print("TweakLevel:", tweakLevel)
-    print("Osc2Pitch:", Osc2Pitch.value)
+    local factor = UnisonVoices.value * 0.1
 
-    local osc2PitchValue = Osc2Pitch.value
-    local semitones = {-24,-12,0,7,12,19,24}
+    print("--- Checking Unison Settings ---")
+    print("UnisonVoices:", UnisonVoices.value)
+    print("UnisonDetune:", UnisonDetune.value)
+    print("Factor:", factor)
 
-    if tweakLevel > 90 then
-      semitones = {-24,-12,-7,-5,0,3,4,5,7,12,15,16,19,24}
-    elseif tweakLevel > 75 then
-      semitones = {-24,-12,-7,-5,0,5,7,12,19,24}
-    elseif tweakLevel > 50 then
-      semitones = {-24,-12,-5,0,7,12,19,24}
-    end
-
-    for i,semitone in ipairs(semitones) do
-      if i > 1 then
-        if osc2PitchValue <= semitone then
-          local downDiff = osc2PitchValue - semitones[i-1]
-          local upDiff = semitone - osc2PitchValue
-          if math.min(downDiff, upDiff) == downDiff then
-            osc2PitchValue = semitones[i-1]
-          else
-            osc2PitchValue = semitone
-          end
-          break
-        end
-      end
-    end
-
-    if osc2PitchValue ~= Osc2Pitch.value then
-      Osc2Pitch.value = osc2PitchValue
-      print("Osc2Pitch adjusted to:", Osc2Pitch.value)
+    if UnisonVoices.value == 1 then
+      UnisonDetune.value = UnisonDetune.default
+      print("Unison off - detune set to default value:", UnisonDetune.value)
+    elseif UnisonDetune.value > factor then
+      local floor = UnisonDetune.default
+      local ceiling = UnisonDetune.default + factor
+      UnisonDetune.value = getValueBetween(floor, ceiling, UnisonDetune.value)
+      print("UnisonDetune adjusted to:", UnisonDetune.value)
     else
-      print("Pitch Settings OK")
+      print("Unison Settings OK")
     end
   end
 
@@ -2812,9 +2833,15 @@ function createPatchMakerPanel()
     print("Filter HpfEnvelopeAmt:", HpfEnvelopeAmt.value)
     print("Filter FAttack:", FAttack.value)
 
+    -- Check lpf cutoff freq
+    local cutoffValue = Cutoff.value
+    if cutoffValue == 1 and EnvelopeAmt.value > 0.3 then
+      cutoffValue = getValueBetween(0.4, 0.8, cutoffValue)
+    end
+    
     -- Check lpf amt
     local envelopeAmtValue = EnvelopeAmt.value
-    if Cutoff.value < 0.1 and envelopeAmtValue < 0.5 then
+    if Cutoff.value < 0.25 and envelopeAmtValue < 0.5 then
       envelopeAmtValue = getValueBetween(0.8, 1.0, envelopeAmtValue)
     end
     
@@ -2830,6 +2857,12 @@ function createPatchMakerPanel()
       hpfEnvelopeAmtValue = -(getValueBetween(0.1, 0.8, attackValue))
     end
 
+    if cutoffValue ~= Cutoff.value then
+      print("Adjusting lfp cutoff to:", cutoffValue)
+      Cutoff.value = cutoffValue
+      changes = changes + 1
+    end
+
     if envelopeAmtValue ~= EnvelopeAmt.value then
       print("Adjusting lfp env amount to:", envelopeAmtValue)
       EnvelopeAmt.value = envelopeAmtValue
@@ -2837,13 +2870,13 @@ function createPatchMakerPanel()
     end
 
     if attackValue ~= FAttack.value then
-      print("Adjusting filter attack to:", attackValue)
+      print("Adjusting filter env attack to:", attackValue)
       FAttack.value = attackValue
       changes = changes + 1
     end
 
     if hpfEnvelopeAmtValue ~= HpfEnvelopeAmt.value then
-      print("Adjusting lpf env amt to:", hpfEnvelopeAmtValue)
+      print("Adjusting hpf env amt to:", hpfEnvelopeAmtValue)
       HpfEnvelopeAmt.value = hpfEnvelopeAmtValue
       changes = changes + 1
     end
