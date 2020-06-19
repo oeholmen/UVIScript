@@ -41,6 +41,8 @@ The last two sections is what makes Tweak Synth different. This is where you can
 
 The Twequencer is a simple sequencer that tweaks your sound as you play. Set a tweak level (see description below), select a play mode, and start playing! You can hear the changes to your sound being made for each round. A round consist of the number of steps that are set. By default 8 steps are selected, but if you set it to 2, the sound will change for every second step.
 
+**Note: When you start playing the twequencer and the tweak level is above 0, the current settings will be changed. Remeber to store it in the patchmaker, if you want to keep it!**
+
 As you play, the Twequencer will store a snapshot for each round. If you hear something you like, just stop playing and select the snapshot from the round that sounded best. When you stop playing, the tweak level is set to 0 to avoid further changes. You can store a snapshot you like, and you will find it again in the Patchmaker. All stored snapshots are saved with the UVI program, so you will get it back when you open it later.
 
 Envelopes will be tweaked according to the resolution you choose. If a fast resolution is selected, the envelopetimes will be shorter than if a slow resolution is selected. Short envelope times can occur for slow resolutions, but long envelope times will not occur for fast resolutions.
@@ -83,11 +85,13 @@ The actions menu has an option to set current editing state to only default valu
 
 When you add the first snapshot, an initial snapshot containing the last saved state will be added automatically. So you first added snapshot will be called "Snapshot 2". The initial snapshot can be updated, but it cannot be removed, unless you remove all snapshots.
 
-## Is Tweak Synth smart?
+## Hmmm?
+
+### Is Tweak Synth smart?
 
 No. It is not smart. But if you give it patches to work with, it can create some quite interesting, and sometimes good, patches, inspired by you input. Or it can create entirely on its own.
 
-## How does Tweak Synth work?
+### How does Tweak Synth work?
 
 Tweak Synth creates patches by combining randomization with rules that are set for each parameter to get sensible values. Since it is programmed to be experimental, sometimes it misses the mark. In a future version it might be possible to adjust these rules, but for the time being, they are hard coded into the synth.
 
