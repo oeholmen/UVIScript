@@ -487,9 +487,12 @@ end
   -- category = the category the widget belongs to (synthesis, modulation, filter, mixer, effects)
 --
 -- Example: table.insert(tweakables, {widget=driveKnob,floor=0,ceiling=0.5,probability=90,zero=50})
-function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle)
+function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle, useDuration)
   if type(tweakLevel) ~= "number" then
     tweakLevel = 50
+  end
+  if type(duration) ~= "number" then
+    duration = 0
   end
   if type(tweakSource) ~= "number" then
     tweakSource = 1
@@ -497,11 +500,16 @@ function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle)
   if type(envelopeStyle) ~= "number" then
     envelopeStyle = 1
   end
+  if type(useDuration) ~= "boolean" then
+    useDuration = false
+  end
   print("******************** Tweaking:", options.widget.name, "********************")
   print("Tweak level:", tweakLevel)
   local startValue = options.widget.value
   local endValue = startValue
   print("Start value:", startValue)
+  print("Tweak source:", tweakSource)
+  print("Envelope style:", envelopeStyle)
   if type(options.func) == "function" then
     endValue = options.func(options.probability)
     print("From func:", endValue, options.probability)
@@ -510,12 +518,17 @@ function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle)
     endValue = 0
     print("Zero:", options.zero)
   elseif duration > 0 and (options.attack == true or options.release == true) then
-    endValue = getEnvelopeTimeForDuration(options, duration)
-    print("getEnvelopeTimeForDuration:", endValue)
+    if envelopeStyle > 1 then
+      endValue = getEnvelopeTimeByStyle(options, envelopeStyle)
+      print("getEnvelopeTimeByStyle:", endValue)
+    else
+      endValue = getEnvelopeTimeForDuration(options, duration)
+      print("getEnvelopeTimeForDuration:", endValue)
+    end
   elseif envelopeStyle > 1 and (options.attack == true or options.release == true) then
     endValue = getEnvelopeTimeByStyle(options, envelopeStyle)
     print("getEnvelopeTimeByStyle:", endValue)
-  elseif (tweakSource > 1 and duration > 0) or getRandomBoolean(tweakLevel) == false or (type(options.default) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.default)) == true) then
+  elseif getRandomBoolean(tweakLevel) == false or (type(options.default) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.default)) == true) then
     -- Get value from tweaksource or default
     endValue = getValueForTweaking(options, tweakLevel, tweakSource)
     print("getValueForTweaking:", endValue)
@@ -556,10 +569,9 @@ function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle)
     print("End value limited by absoluteLimit", options.absoluteLimit)
     endValue = options.absoluteLimit
   end
-  -- If called without duration, type is not number, or value is unchanged, the value is updated, and function returns
-  if duration == 0 or type(duration) ~= "number" or startValue == endValue or type(endValue) ~= "number" then
+  if duration == 0 or useDuration == false then
     options.widget.value = endValue
-    print("No duration, not number or unchanged value:", endValue)
+    print("Tweak endValue:", endValue)
     return
   end
   local durationInMilliseconds = beat2ms(duration) * 0.9
@@ -591,6 +603,177 @@ function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle)
     end
   end
   options.widget.value = endValue
+  print("Tweak endValue/duration:", endValue, duration)
+end
+
+function verifyUnisonSettings()
+  local UnisonVoices
+  local UnisonDetune
+  local found = 0
+  for i,v in ipairs(tweakables) do
+    if v.widget.name == "UnisonVoices" then
+      UnisonVoices = v.widget
+      found = found + 1
+    elseif v.widget.name == "UnisonDetune" then
+      UnisonDetune = v.widget
+      found = found + 1
+    end
+    if found == 2 then
+      break
+    end
+  end
+
+  local factor = UnisonVoices.value * 0.1
+
+  print("--- Checking Unison Settings ---")
+  print("UnisonVoices:", UnisonVoices.value)
+  print("UnisonDetune:", UnisonDetune.value)
+  print("Factor:", factor)
+
+  if UnisonVoices.value == 1 then
+    UnisonDetune.value = UnisonDetune.default
+    print("Unison off - detune set to default value:", UnisonDetune.value)
+  elseif UnisonDetune.value > factor then
+    local floor = UnisonDetune.default
+    local ceiling = UnisonDetune.default + factor
+    UnisonDetune.value = getValueBetween(floor, ceiling, UnisonDetune.value)
+    print("UnisonDetune adjusted to:", UnisonDetune.value)
+  else
+    print("Unison Settings OK")
+  end
+end
+
+function verifyMixerSettings()
+  local Osc1Mix
+  local Osc2Mix
+  local found = 0
+  for i,v in ipairs(tweakables) do
+    if v.widget.name == "Osc1Mix" then
+      Osc1Mix = v.widget
+      found = found + 1
+    elseif v.widget.name == "Osc2Mix" then
+      Osc2Mix = v.widget
+      found = found + 1
+    end
+    if found == 2 then
+      break
+    end
+  end
+
+  print("--- Checking Mixer Settings ---")
+  print("Osc1Mix:", Osc1Mix.value)
+  print("Osc2Mix:", Osc2Mix.value)
+
+  if Osc2Mix.value == 0 and Osc1Mix.value < 0.6 then
+    Osc1Mix.value = getValueBetween(0.65, 0.8, Osc1Mix.value)
+    print("Osc1Mix adjusted to:", Osc1Mix.value)
+  elseif Osc1Mix.value < 0.6 and Osc2Mix.value < 0.6 then
+    Osc1Mix.value = getValueBetween(0.6, 0.8, Osc1Mix.value)
+    print("Osc1Mix adjusted to:", Osc1Mix.value)
+    Osc2Mix.value = getValueBetween(0.6, 0.8, Osc2Mix.value)
+    print("Osc2Mix adjusted to:", Osc2Mix.value)
+  elseif Osc1Mix.value < 0.6 or Osc2Mix.value < 0.6 then
+    if math.min(Osc1Mix.value, Osc2Mix.value) == Osc1Mix.value then
+      Osc1Mix.value = getValueBetween(0.6, 0.8, Osc1Mix.value)
+      print("Osc1Mix adjusted to:", Osc1Mix.value)
+    else
+      Osc2Mix.value = getValueBetween(0.6, 0.8, Osc2Mix.value)
+      print("Osc2Mix adjusted to:", Osc2Mix.value)
+    end
+  else
+    print("Mixer Settings OK")
+  end
+end
+
+function verifyFilterSettings()
+  local Cutoff
+  local HpfCutoff
+  local EnvelopeAmt
+  local HpfEnvelopeAmt
+  local FAttack
+  local found = 0
+  local changes = 0
+
+  for i,v in ipairs(tweakables) do
+    if v.widget.name == "Cutoff" then
+      Cutoff = v.widget
+      found = found + 1
+    elseif v.widget.name == "HpfCutoff" then
+      HpfCutoff = v.widget
+      found = found + 1
+    elseif v.widget.name == "EnvelopeAmt" then
+      EnvelopeAmt = v.widget
+      found = found + 1
+    elseif v.widget.name == "HpfEnvelopeAmt" then
+      HpfEnvelopeAmt = v.widget
+      found = found + 1
+    elseif v.widget.name == "FAttack" then
+      FAttack = v.widget
+      found = found + 1
+    end
+    if found == 5 then
+      break
+    end
+  end
+
+  print("--- Checking Filter Settings ---")
+  print("Filter Cutoff:", Cutoff.value)
+  print("Filter EnvelopeAmt:", EnvelopeAmt.value)
+  print("Filter HpfCutoff:", HpfCutoff.value)
+  print("Filter HpfEnvelopeAmt:", HpfEnvelopeAmt.value)
+  print("Filter FAttack:", FAttack.value)
+
+  -- Check lpf cutoff freq
+  local cutoffValue = Cutoff.value
+  if cutoffValue == 1 and EnvelopeAmt.value > 0.3 then
+    cutoffValue = getValueBetween(0.4, 0.8, cutoffValue)
+  end
+  
+  -- Check lpf amt
+  local envelopeAmtValue = EnvelopeAmt.value
+  if Cutoff.value < 0.25 and envelopeAmtValue < 0.5 then
+    envelopeAmtValue = getValueBetween(0.8, 1.0, envelopeAmtValue)
+  end
+  
+  -- Check lpf and attack time
+  local attackValue = FAttack.value
+  if Cutoff.value < 0.05 and envelopeAmtValue > 0.75 and attackValue > 0.9 then
+    attackValue = getValueBetween(0.01, 0.9, attackValue)
+  end
+
+  -- Check hpf amt
+  local hpfEnvelopeAmtValue = HpfEnvelopeAmt.value
+  if HpfCutoff.value > 0.65 and hpfEnvelopeAmtValue >= 0 then
+    hpfEnvelopeAmtValue = -(getValueBetween(0.1, 0.8, attackValue))
+  end
+
+  if cutoffValue ~= Cutoff.value then
+    print("Adjusting lfp cutoff to:", cutoffValue)
+    Cutoff.value = cutoffValue
+    changes = changes + 1
+  end
+
+  if envelopeAmtValue ~= EnvelopeAmt.value then
+    print("Adjusting lfp env amount to:", envelopeAmtValue)
+    EnvelopeAmt.value = envelopeAmtValue
+    changes = changes + 1
+  end
+
+  if attackValue ~= FAttack.value then
+    print("Adjusting filter env attack to:", attackValue)
+    FAttack.value = attackValue
+    changes = changes + 1
+  end
+
+  if hpfEnvelopeAmtValue ~= HpfEnvelopeAmt.value then
+    print("Adjusting hpf env amt to:", hpfEnvelopeAmtValue)
+    HpfEnvelopeAmt.value = hpfEnvelopeAmtValue
+    changes = changes + 1
+  end
+
+  if changes == 0 then
+    print("Filter Settings OK")
+  end
 end
 
 function applyValueFilter(valueFilter, startValue)
@@ -795,7 +978,7 @@ function createOsc1Panel()
       self.displayText = percent(self.value)
     end
     atToHardsycKnob:changed()
-    table.insert(tweakables, {widget=atToHardsycKnob,zero=25,default=25,category="synthesis"})
+    table.insert(tweakables, {widget=atToHardsycKnob,zero=25,default=25,excludeWithDuration=true,category="synthesis"})
   else
     local aftertouchToWaveKnob = osc1Panel:Knob("AftertouchToWave1", 0, -1, 1)
     aftertouchToWaveKnob.displayName = "AT->Wave"
@@ -2716,176 +2899,6 @@ function createPatchMakerPanel()
     print("Tweaking complete!")
   end
 
-  function verifyUnisonSettings()
-    local UnisonVoices
-    local UnisonDetune
-    local found = 0
-    for i,v in ipairs(tweakables) do
-      if v.widget.name == "UnisonVoices" then
-        UnisonVoices = v.widget
-        found = found + 1
-      elseif v.widget.name == "UnisonDetune" then
-        UnisonDetune = v.widget
-        found = found + 1
-      end
-      if found == 2 then
-        break
-      end
-    end
-
-    local factor = UnisonVoices.value * 0.1
-
-    print("--- Checking Unison Settings ---")
-    print("UnisonVoices:", UnisonVoices.value)
-    print("UnisonDetune:", UnisonDetune.value)
-    print("Factor:", factor)
-
-    if UnisonVoices.value == 1 then
-      UnisonDetune.value = UnisonDetune.default
-      print("Unison off - detune set to default value:", UnisonDetune.value)
-    elseif UnisonDetune.value > factor then
-      local floor = UnisonDetune.default
-      local ceiling = UnisonDetune.default + factor
-      UnisonDetune.value = getValueBetween(floor, ceiling, UnisonDetune.value)
-      print("UnisonDetune adjusted to:", UnisonDetune.value)
-    else
-      print("Unison Settings OK")
-    end
-  end
-
-  function verifyMixerSettings()
-    local Osc1Mix
-    local Osc2Mix
-    local found = 0
-    for i,v in ipairs(tweakables) do
-      if v.widget.name == "Osc1Mix" then
-        Osc1Mix = v.widget
-        found = found + 1
-      elseif v.widget.name == "Osc2Mix" then
-        Osc2Mix = v.widget
-        found = found + 1
-      end
-      if found == 2 then
-        break
-      end
-    end
-
-    print("--- Checking Mixer Settings ---")
-    print("Osc1Mix:", Osc1Mix.value)
-    print("Osc2Mix:", Osc2Mix.value)
-
-    if Osc2Mix.value == 0 and Osc1Mix.value < 0.6 then
-      Osc1Mix.value = getValueBetween(0.65, 0.8, Osc1Mix.value)
-      print("Osc1Mix adjusted to:", Osc1Mix.value)
-    elseif Osc1Mix.value < 0.6 and Osc2Mix.value < 0.6 then
-      Osc1Mix.value = getValueBetween(0.6, 0.8, Osc1Mix.value)
-      print("Osc1Mix adjusted to:", Osc1Mix.value)
-      Osc2Mix.value = getValueBetween(0.6, 0.8, Osc2Mix.value)
-      print("Osc2Mix adjusted to:", Osc2Mix.value)
-    elseif Osc1Mix.value < 0.6 or Osc2Mix.value < 0.6 then
-      if math.min(Osc1Mix.value, Osc2Mix.value) == Osc1Mix.value then
-        Osc1Mix.value = getValueBetween(0.6, 0.8, Osc1Mix.value)
-        print("Osc1Mix adjusted to:", Osc1Mix.value)
-      else
-        Osc2Mix.value = getValueBetween(0.6, 0.8, Osc2Mix.value)
-        print("Osc2Mix adjusted to:", Osc2Mix.value)
-      end
-    else
-      print("Mixer Settings OK")
-    end
-  end
-  
-  function verifyFilterSettings()
-    local Cutoff
-    local HpfCutoff
-    local EnvelopeAmt
-    local HpfEnvelopeAmt
-    local FAttack
-    local found = 0
-    local changes = 0
-
-    for i,v in ipairs(tweakables) do
-      if v.widget.name == "Cutoff" then
-        Cutoff = v.widget
-        found = found + 1
-      elseif v.widget.name == "HpfCutoff" then
-        HpfCutoff = v.widget
-        found = found + 1
-      elseif v.widget.name == "EnvelopeAmt" then
-        EnvelopeAmt = v.widget
-        found = found + 1
-      elseif v.widget.name == "HpfEnvelopeAmt" then
-        HpfEnvelopeAmt = v.widget
-        found = found + 1
-      elseif v.widget.name == "FAttack" then
-        FAttack = v.widget
-        found = found + 1
-      end
-      if found == 5 then
-        break
-      end
-    end
-
-    print("--- Checking Filter Settings ---")
-    print("Filter Cutoff:", Cutoff.value)
-    print("Filter EnvelopeAmt:", EnvelopeAmt.value)
-    print("Filter HpfCutoff:", HpfCutoff.value)
-    print("Filter HpfEnvelopeAmt:", HpfEnvelopeAmt.value)
-    print("Filter FAttack:", FAttack.value)
-
-    -- Check lpf cutoff freq
-    local cutoffValue = Cutoff.value
-    if cutoffValue == 1 and EnvelopeAmt.value > 0.3 then
-      cutoffValue = getValueBetween(0.4, 0.8, cutoffValue)
-    end
-    
-    -- Check lpf amt
-    local envelopeAmtValue = EnvelopeAmt.value
-    if Cutoff.value < 0.25 and envelopeAmtValue < 0.5 then
-      envelopeAmtValue = getValueBetween(0.8, 1.0, envelopeAmtValue)
-    end
-    
-    -- Check lpf and attack time
-    local attackValue = FAttack.value
-    if Cutoff.value < 0.05 and envelopeAmtValue > 0.75 and attackValue > 0.9 then
-      attackValue = getValueBetween(0.01, 0.9, attackValue)
-    end
-
-    -- Check hpf amt
-    local hpfEnvelopeAmtValue = HpfEnvelopeAmt.value
-    if HpfCutoff.value > 0.65 and hpfEnvelopeAmtValue >= 0 then
-      hpfEnvelopeAmtValue = -(getValueBetween(0.1, 0.8, attackValue))
-    end
-
-    if cutoffValue ~= Cutoff.value then
-      print("Adjusting lfp cutoff to:", cutoffValue)
-      Cutoff.value = cutoffValue
-      changes = changes + 1
-    end
-
-    if envelopeAmtValue ~= EnvelopeAmt.value then
-      print("Adjusting lfp env amount to:", envelopeAmtValue)
-      EnvelopeAmt.value = envelopeAmtValue
-      changes = changes + 1
-    end
-
-    if attackValue ~= FAttack.value then
-      print("Adjusting filter env attack to:", attackValue)
-      FAttack.value = attackValue
-      changes = changes + 1
-    end
-
-    if hpfEnvelopeAmtValue ~= HpfEnvelopeAmt.value then
-      print("Adjusting hpf env amt to:", hpfEnvelopeAmtValue)
-      HpfEnvelopeAmt.value = hpfEnvelopeAmtValue
-      changes = changes + 1
-    end
-
-    if changes == 0 then
-      print("Filter Settings OK")
-    end
-  end
-  
   function clearStoredPatches()
     print("Clearing stored snapshots...")
     storedPatches = {}
@@ -2946,6 +2959,8 @@ function createTwequencerPanel()
   local arpId = 0
   local heldNotes = {}
   local snapshots = {}
+  local snapshotPosition = 1
+  local maxSnapshots = 100
   
   local tweqPanel = Panel("Sequencer")
   tweqPanel.backgroundColour = bgColor
@@ -2982,7 +2997,17 @@ function createTwequencerPanel()
   tweakSourceMenu.y = sequencerPlayMenu.y + sequencerPlayMenu.height + 10
   tweakSourceMenu.width = sequencerPlayMenu.width
 
-  local numStepsBox = tweqPanel:NumBox("Steps", 16, 2, 32, true)
+  local envStyleMenu = tweqPanel:Menu("SeqEnvStyle", {"Automatic", "Very short", "Short", "Medium short", "Medium", "Medium long", "Long", "Very long"})
+  envStyleMenu.backgroundColour = menuBackgroundColour
+  envStyleMenu.textColour = menuTextColour
+  envStyleMenu.arrowColour = menuArrowColour
+  envStyleMenu.outlineColour = menuOutlineColour
+  envStyleMenu.displayName = "Envelope Style"
+  envStyleMenu.x = tweakSourceMenu.x
+  envStyleMenu.y = tweakSourceMenu.y + tweakSourceMenu.height + 10
+  envStyleMenu.width = tweakSourceMenu.width
+
+  local numStepsBox = tweqPanel:NumBox("Steps", 8, 2, 32, true)
   numStepsBox.backgroundColour = menuBackgroundColour
   numStepsBox.textColour = menuTextColour
   numStepsBox.arrowColour = menuArrowColour
@@ -3138,16 +3163,13 @@ function createTwequencerPanel()
     print("Tweaks stored from snapshot at index:", index)
   end
 
-  function populateSnapshots()
+  function clearSnapshots()
     snapshots = {}
     snapshotsMenu:clear()
-    for i = 1, numStepsBox.value do
-      snapshotsMenu:addItem("Step "..i)
-      table.insert(snapshots, {})
-    end
+    snapshotPosition = 1
   end
 
-  local actions = {"Choose...", "Store selected snapshot", "Recall saved patch", "Initialize patch"}
+  local actions = {"Choose...", "Store selected snapshot", "Recall saved patch", "Initialize patch", "Clear rounds"}
   local manageSnapshotsMenu = tweqPanel:Menu("ManageSnapshotsMenu", actions)
   manageSnapshotsMenu.persistent = false
   manageSnapshotsMenu.backgroundColour = menuBackgroundColour
@@ -3168,6 +3190,8 @@ function createTwequencerPanel()
       recallStoredPatch()
     elseif self.value == 4 then
       initPatch()
+    elseif self.value == 5 then
+      clearSnapshots()
     end
     self:setValue(1)
   end
@@ -3178,7 +3202,7 @@ function createTwequencerPanel()
     seqPitchTable.length = self.value
     seqVelTable.length = self.value
     positionTable.length = self.value
-    populateSnapshots()
+    --populateSnapshots()
   end
   numStepsBox:changed()
 
@@ -3221,7 +3245,7 @@ function createTwequencerPanel()
   filterButton.x = synthesisButton.x + synthesisButton.width + marginX
   filterButton.y = synthesisButton.y
 
-  local modulationButton = tweqPanel:OnOffButton("SeqModulation", true)
+  local modulationButton = tweqPanel:OnOffButton("SeqModulation", false)
   modulationButton.alpha = buttonAlpha
   modulationButton.backgroundColourOff = buttonBackgroundColourOff
   modulationButton.backgroundColourOn = buttonBackgroundColourOn
@@ -3307,8 +3331,6 @@ function createTwequencerPanel()
     local tweakablesIndex = 0
     -- START ARP LOOP
     while arpId_ == arpId do
-      print("Position index:", index)
-      
       -- GET NOTES FOR ARP
       local notes = {}
       local pitchAdjustment = seqPitchTable:getValue(index+1)
@@ -3330,13 +3352,64 @@ function createTwequencerPanel()
         end
       end
 
-      -- PLAY NOTE(S)
+      -- SET VALUES
       local p = getResolution(resolution.value)
       local vel = seqVelTable:getValue(index+1)
       local numSteps = numStepsBox.value
       local currentPosition = (index % numSteps) + 1
-      print("Number of steps:", numSteps)
       print("Current pos:", currentPosition)
+      print("Snapshot pos:", snapshotPosition)
+
+      -- CHECK FOR TWEAKLEVEL
+      if tweakLevelKnob.value > 0 then
+        -- START TWEAKING
+        if currentPosition == 1 then
+          local tweakablesForTwequencer = getTweakablesForTwequencer()
+          if #tweakablesForTwequencer > 0 then
+            print("Tweaking at level", tweakLevelKnob.value)
+            -- Update snapshots menu
+            snapshotsMenu.enabled = true
+            prevSnapshotButton.enabled = true
+            nextSnapshotButton.enabled = true
+            snapshotsMenu:setValue(snapshotPosition, false)
+            -- Tweak
+            for i,v in ipairs(tweakablesForTwequencer) do
+              tweakWidget(v, tweakLevelKnob.value, p, tweakSourceMenu.value, envStyleMenu.value)
+            end
+            -- Verify filter settings
+            if filterButton.value == true then
+              verifyFilterSettings()
+            end
+            -- Verify mixer settings
+            if mixerButton.value == true then
+              verifyMixerSettings()
+            end
+            -- Verify unison settings
+            if synthesisButton.value == true then
+              verifyUnisonSettings()
+            end
+            -- STORE ROUND TWEAKS AT SNAPSHOT POSITION
+            local snapshot = {}
+            for i,v in ipairs(tweakables) do
+              table.insert(snapshot, {widget=v.widget,value=v.widget.value})
+            end
+            table.remove(snapshots, snapshotPosition)
+            table.insert(snapshots, snapshotPosition, snapshot)
+            print("Updated snapshot at index:", snapshotPosition)
+            if #snapshotsMenu.items < snapshotPosition then
+              snapshotsMenu:addItem("Round "..snapshotPosition)
+            else
+              snapshotsMenu:setItem(snapshotPosition, "Round "..snapshotPosition)
+            end
+            snapshotPosition = snapshotPosition + 1 -- increment snapshot position
+            if snapshotPosition > maxSnapshots then
+              snapshotPosition = 1
+            end
+          end
+        end
+      end
+
+      -- PLAY NOTE(S)
       for i,note in ipairs(notes) do
         playNote(note, vel, beat2ms(gateKnob.value*p))
       end
@@ -3345,36 +3418,6 @@ function createTwequencerPanel()
       positionTable:setValue((index - 1 + numSteps) % numSteps + 1, 0)
       positionTable:setValue(currentPosition, 1)
       index = (index + 1) % numSteps -- increment position
-
-      -- CHECK FOR TWEAKLEVEL
-      if tweakLevelKnob.value > 0 then
-        -- STORE SNAPSHOT AT CURRENT POS
-        snapshotsMenu.enabled = true
-        prevSnapshotButton.enabled = true
-        nextSnapshotButton.enabled = true
-        snapshotsMenu:setValue(currentPosition, false)
-        local snapshot = {}
-        for i,v in ipairs(tweakables) do
-          table.insert(snapshot, {widget=v.widget,value=v.widget.value})
-        end
-        table.remove(snapshots, currentPosition)
-        table.insert(snapshots, currentPosition, snapshot)
-        print("Updated snapshot at index:", currentPosition)
-
-        -- START TWEAKING
-        print("Tweaklevel", tweakLevelKnob.value)
-        local tweakablesForTwequencer = getTweakablesForTwequencer()
-        if #tweakablesForTwequencer > 0 then
-          for i = 1, getSpawnsFromResolution(resolution.value), 1 do
-            tweakablesIndex = tweakablesIndex + 1 -- Increment
-            if tweakablesIndex > #tweakablesForTwequencer then
-              tweakablesIndex = math.random(#tweakablesForTwequencer) -- start over from random index
-            end
-            spawn(tweakWidget, tweakablesForTwequencer[tweakablesIndex], tweakLevelKnob.value, p)
-            print("Spawn tweakWidget i/tweakablesIndex:", i, tweakablesIndex)
-          end
-        end
-      end
 
       -- WAIT FOR NEXT BEAT
       waitBeat(p)
@@ -3557,13 +3600,6 @@ function setupFilterPage()
   filterEnvOscTargetsPanel.y = filterEnvTargetsPanel.y + height
   filterEnvOscTargetsPanel.width = width
   filterEnvOscTargetsPanel.height = height
-
-  --filterEnvTargets2Panel.backgroundColour = "#66AA0088"
-  --[[ filterEnvTargets2Panel.backgroundColour = bgColor
-  filterEnvTargets2Panel.x = marginX
-  filterEnvTargets2Panel.y = filterEnvTargets1Panel.y + height
-  filterEnvTargets2Panel.width = width
-  filterEnvTargets2Panel.height = height ]]
 end
 
 function setupModulationPage()

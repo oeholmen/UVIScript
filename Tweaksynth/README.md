@@ -39,13 +39,13 @@ The last two sections is what makes Tweak Synth different. This is where you can
 
 ### Twequencer
 
-The Twequencer is a simple sequencer that tweaks your sound as you play. Select a play mode, set a tweak level (see description below) and start playing! You can hear the changes to your sound being made in real time, and they will be changed over the duration of the step. On slow resolutions, there are more parameters being changed for each step than on fast resolutions.
+The Twequencer is a simple sequencer that tweaks your sound as you play. Set a tweak level (see description below), select a play mode, and start playing! You can hear the changes to your sound being made for each round. A round consist of the number of steps that are set. By default 8 steps are selected, but if you set it to 2, the sound will change for every second step.
 
-As you play, the Twequencer will store a snapshot for each beat. If you hear something you like, just stop playing and select the snapshot from the step that sounded best. When you stop playing, the tweak level is set to 0 to avoid further changes. You can store a snapshot you like, and you will find it again in the Patchmaker. All stored snapshorts are saved with the UVI program, so you will get it back when you open it later.
+As you play, the Twequencer will store a snapshot for each round. If you hear something you like, just stop playing and select the snapshot from the round that sounded best. When you stop playing, the tweak level is set to 0 to avoid further changes. You can store a snapshot you like, and you will find it again in the Patchmaker. All stored snapshots are saved with the UVI program, so you will get it back when you open it later.
 
 Envelopes will be tweaked according to the resolution you choose. If a fast resolution is selected, the envelopetimes will be shorter than if a slow resolution is selected. Short envelope times can occur for slow resolutions, but long envelope times will not occur for fast resolutions.
 
-Thee other options available will be described under "Patchmaker".
+The other options available will be described under "Patchmaker".
 
 ### Patchmaker
 
