@@ -3425,7 +3425,6 @@ function createTwequencerPanel()
   end
 
   function onNote(e)
-    --print("Note:", e.note, "Velocity:", e.velocity)
     if sequencerPlayMenu.value > 1 then
       table.insert(heldNotes, e)
       if #heldNotes == 1 then
@@ -3437,21 +3436,18 @@ function createTwequencerPanel()
   end
 
   function onRelease(e)
-    if sequencerPlayMenu.value > 1 then
-      for i,v in ipairs(heldNotes) do
-        if v.note == e.note then
-          table.remove(heldNotes, i)
-          if #heldNotes == 0 then
-            clearPosition()
-            resetTweakLevel()
-            arpId = arpId + 1
-          end
-          break
+    for i,v in ipairs(heldNotes) do
+      if v.note == e.note then
+        table.remove(heldNotes, i)
+        if #heldNotes == 0 then
+          clearPosition()
+          resetTweakLevel()
+          arpId = arpId + 1
         end
+        break
       end
-    else
-      postEvent(e)
     end
+    postEvent(e)
   end
 
   return tweqPanel
