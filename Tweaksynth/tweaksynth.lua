@@ -98,6 +98,7 @@ local macros = {
 }
 
 local isAnalog = osc1.type == "MinBlepGenerator"
+local isAnalogStack = osc1.type == "MinBlepGeneratorStack"
 local isWavetable = osc1.type == "WaveTableOscillator"
 
 print("Starting Synth", osc1.type)
@@ -814,6 +815,7 @@ end
 local tweakSources = {"Automatic", "Saved patch", "Stored snapshots", "Current edit", "Default value"}
 local resolutions =     { 32,   24,   16,  12,    8,     6,         4,      3,       2, getTriplet(4), getDotted(1), 1, getTriplet(2), getDotted(0.5), 0.5, getTriplet(1), getDotted(0.25), 0.25,  getTriplet(0.5), getDotted(0.125), 0.125}
 local resolutionNames = {"8x", "6x", "4x", "3x", "2x", "1/1 dot", "1/1", "1/2 dot", "1/2", "1/2 tri", "1/4 dot",   "1/4", "1/4 tri",   "1/8 dot",     "1/8", "1/8 tri",    "1/16 dot",      "1/16", "1/16 tri",     "1/32 dot",      "1/32"}
+local waveforms = {"Saw", "Square", "Triangle", "Sine", "Noise", "Pulse"}
 
 function getResolution(i)
   return resolutions[i]
@@ -909,20 +911,35 @@ function createOsc1Panel()
 
   osc1Panel:Label("Osc 1")
 
+  local waveSpreadOsc1Knob
+
+  local osc1ShapeKnob
   if isAnalog then
-    local osc1ShapeKnob = osc1Panel:Knob("Osc1Wave", 1, 1, 6, true)
+    osc1ShapeKnob = osc1Panel:Knob("Osc1Wave", 1, 1, 6, true)
     osc1ShapeKnob.displayName = "Waveform"
     osc1ShapeKnob.fillColour = knobColour
     osc1ShapeKnob.outlineColour = osc1Colour
     osc1ShapeKnob.changed = function(self)
       osc1:setParameter("Waveform", self.value)
-      local waveforms = {"Saw", "Square", "Triangle", "Sine", "Noise", "Pulse"}
       self.displayText = waveforms[self.value]
     end
     osc1ShapeKnob:changed()
     table.insert(tweakables, {widget=osc1ShapeKnob,min=6,default=10,noDefaultTweak=true,category="synthesis"})
-  else
-    local osc1ShapeKnob = osc1Panel:Knob("Osc1Wave", 0, 0, 1)
+  elseif isAnalogStack then
+    osc1ShapeKnob = osc1Panel:Knob("Osc1Wave", 1, 1, 6, true)
+    osc1ShapeKnob.displayName = "Waveform"
+    osc1ShapeKnob.fillColour = knobColour
+    osc1ShapeKnob.outlineColour = osc1Colour
+    osc1ShapeKnob.changed = function(self)
+      for i=1,8 do
+        osc1:setParameter("Waveform"..i, self.value)
+      end
+      self.displayText = waveforms[self.value]
+      waveSpreadOsc1Knob:changed()
+    end
+    table.insert(tweakables, {widget=osc1ShapeKnob,min=6,default=10,noDefaultTweak=true,category="synthesis"})
+  elseif isWavetable then
+    osc1ShapeKnob = osc1Panel:Knob("Osc1Wave", 0, 0, 1)
     osc1ShapeKnob.displayName = "Wave"
     osc1ShapeKnob.fillColour = knobColour
     osc1ShapeKnob.outlineColour = osc1Colour
@@ -939,7 +956,13 @@ function createOsc1Panel()
   osc1PhaseKnob.fillColour = knobColour
   osc1PhaseKnob.outlineColour = osc1Colour
   osc1PhaseKnob.changed = function(self)
-    osc1:setParameter("StartPhase", self.value)
+    if isAnalogStack then
+      for i=1,8 do
+        osc1:setParameter("StartPhase"..i, self.value)
+      end
+    else
+      osc1:setParameter("StartPhase", self.value)
+    end
     self.displayText = percent(self.value)
   end
   osc1PhaseKnob:changed()
@@ -979,7 +1002,44 @@ function createOsc1Panel()
     end
     atToHardsycKnob:changed()
     table.insert(tweakables, {widget=atToHardsycKnob,zero=25,default=25,excludeWithDuration=true,category="synthesis"})
-  else
+  elseif isAnalogStack then
+    waveSpreadOsc1Knob = osc1Panel:Knob("WaveSpreadOsc1", 0, 0, 1)
+    waveSpreadOsc1Knob.displayName = "Wavespread"
+    waveSpreadOsc1Knob.fillColour = knobColour
+    waveSpreadOsc1Knob.outlineColour = filterColour
+    waveSpreadOsc1Knob.changed = function(self)
+      local waveform = osc1ShapeKnob.value
+      for i=2,8 do
+        if getRandomBoolean(self.value*100) then
+          waveform = waveform + 1
+          if waveform > 4 then
+            waveform = 1
+          end
+          osc1:setParameter("Waveform"..i, waveform)
+          print("Set waveform:", i, waveform)
+        else
+          osc1:setParameter("Waveform"..i, osc1ShapeKnob.value)
+        end
+      end
+      self.displayText = percent(self.value)
+    end
+    osc1ShapeKnob:changed()
+    table.insert(tweakables, {widget=waveSpreadOsc1Knob,zero=25,default=25,category="synthesis"})
+
+    local hardsyncKnob = osc1Panel:Knob("HardsyncOsc1", 0, 0, 48)
+    hardsyncKnob.displayName = "Hardsync"
+    hardsyncKnob.mapper = Mapper.Quadratic
+    hardsyncKnob.fillColour = knobColour
+    hardsyncKnob.outlineColour = osc1Colour
+    hardsyncKnob.changed = function(self)
+      for i=2,8 do
+        osc1:setParameter("SyncMode"..i, (self.value > 0))
+        osc1:setParameter("Pitch"..i, self.value)
+      end
+    end
+    hardsyncKnob:changed()
+    table.insert(tweakables, {widget=hardsyncKnob,ceiling=12,probability=80,min=48,zero=50,default=50,noDefaultTweak=true,category="synthesis"})
+  elseif isWavetable then
     local aftertouchToWaveKnob = osc1Panel:Knob("AftertouchToWave1", 0, -1, 1)
     aftertouchToWaveKnob.displayName = "AT->Wave"
     aftertouchToWaveKnob.fillColour = knobColour
@@ -1019,20 +1079,35 @@ function createOsc2Panel()
 
   osc2Panel:Label("Osc 2")
 
+  local waveSpreadOsc2Knob
+
+  local osc2ShapeKnob
   if isAnalog then
-    local osc2ShapeKnob = osc2Panel:Knob("Osc2Wave", 1, 1, 6, true)
+    osc2ShapeKnob = osc2Panel:Knob("Osc2Wave", 1, 1, 6, true)
     osc2ShapeKnob.displayName = "Waveform"
     osc2ShapeKnob.fillColour = knobColour
     osc2ShapeKnob.outlineColour = osc2Colour
     osc2ShapeKnob.changed = function(self)
       osc2:setParameter("Waveform", self.value)
-      local waveforms = {"Saw", "Square", "Triangle", "Sine", "Noise", "Pulse"}
       self.displayText = waveforms[self.value]
     end
     osc2ShapeKnob:changed()
     table.insert(tweakables, {widget=osc2ShapeKnob,min=6,default=10,noDefaultTweak=true,category="synthesis"})
-  else
-    local osc2ShapeKnob = osc2Panel:Knob("Osc2Wave", 0, 0, 1)
+  elseif isAnalogStack then
+    osc2ShapeKnob = osc2Panel:Knob("Osc2Wave", 1, 1, 6, true)
+    osc2ShapeKnob.displayName = "Waveform"
+    osc2ShapeKnob.fillColour = knobColour
+    osc2ShapeKnob.outlineColour = osc1Colour
+    osc2ShapeKnob.changed = function(self)
+      for i=1,8 do
+        osc2:setParameter("Waveform"..i, self.value)
+      end
+      self.displayText = waveforms[self.value]
+      waveSpreadOsc2Knob:changed()
+    end
+    table.insert(tweakables, {widget=osc2ShapeKnob,min=6,default=10,noDefaultTweak=true,category="synthesis"})
+  elseif isWavetable then
+    osc2ShapeKnob = osc2Panel:Knob("Osc2Wave", 0, 0, 1)
     osc2ShapeKnob.displayName = "Wave"
     osc2ShapeKnob.fillColour = knobColour
     osc2ShapeKnob.outlineColour = osc2Colour
@@ -1049,7 +1124,13 @@ function createOsc2Panel()
   osc2PhaseKnob.fillColour = knobColour
   osc2PhaseKnob.outlineColour = osc2Colour
   osc2PhaseKnob.changed = function(self)
-    osc2:setParameter("StartPhase", self.value)
+    if isAnalogStack then
+      for i=1,8 do
+        osc2:setParameter("StartPhase"..i, self.value)
+      end
+    else
+      osc2:setParameter("StartPhase", self.value)
+    end
     self.displayText = percent(self.value)
   end
   osc2PhaseKnob:changed()
@@ -1067,15 +1148,17 @@ function createOsc2Panel()
   osc2PitchKnob:changed()
   table.insert(tweakables, {widget=osc2PitchKnob,min=-24,max=24,valueFilter={-24,-12,-5,0,7,12,19,24},floor=-12,ceiling=12,probability=75,default=50,zero=50,category="synthesis"})
 
-  local osc2DetuneKnob = osc2Panel:Knob("Osc2FinePitch", 0, 0, 1)
-  osc2DetuneKnob.displayName = "Fine Pitch"
-  osc2DetuneKnob.fillColour = knobColour
-  osc2DetuneKnob.outlineColour = osc2Colour
-  osc2DetuneKnob.changed = function(self)
-    osc2Detune:setParameter("Value", self.value)
+  if isAnalog or isWavetable then
+    local osc2DetuneKnob = osc2Panel:Knob("Osc2FinePitch", 0, 0, 1)
+    osc2DetuneKnob.displayName = "Fine Pitch"
+    osc2DetuneKnob.fillColour = knobColour
+    osc2DetuneKnob.outlineColour = osc2Colour
+    osc2DetuneKnob.changed = function(self)
+      osc2Detune:setParameter("Value", self.value)
+    end
+    osc2DetuneKnob:changed()
+    table.insert(tweakables, {widget=osc2DetuneKnob,ceiling=0.25,probability=90,default=50,defaultTweakRange=0.15,zero=25,absoluteLimit=0.4,category="synthesis"})
   end
-  osc2DetuneKnob:changed()
-  table.insert(tweakables, {widget=osc2DetuneKnob,ceiling=0.25,probability=90,default=50,defaultTweakRange=0.15,zero=25,absoluteLimit=0.4,category="synthesis"})
 
   if isAnalog then
     local hardsyncKnob = osc2Panel:Knob("HardsyncOsc2", 0, 0, 36)
@@ -1088,7 +1171,43 @@ function createOsc2Panel()
     end
     hardsyncKnob:changed()
     table.insert(tweakables, {widget=hardsyncKnob,ceiling=12,probability=80,min=36,zero=75,default=50,noDefaultTweak=true,category="synthesis"})
-  else
+  elseif isAnalogStack then
+    waveSpreadOsc2Knob = osc2Panel:Knob("WaveSpreadOsc2", 0, 0, 1)
+    waveSpreadOsc2Knob.displayName = "Wavespread"
+    waveSpreadOsc2Knob.fillColour = knobColour
+    waveSpreadOsc2Knob.outlineColour = filterColour
+    waveSpreadOsc2Knob.changed = function(self)
+      local waveform = osc2ShapeKnob.value
+      for i=2,8 do
+        if getRandomBoolean(self.value*100) then
+          waveform = waveform + 1
+          if waveform > 4 then
+            waveform = 1
+          end
+          osc2:setParameter("Waveform"..i, waveform)
+        else
+          osc2:setParameter("Waveform"..i, osc2ShapeKnob.value)
+        end
+      end
+      self.displayText = percent(self.value)
+    end
+    osc2ShapeKnob:changed()
+    table.insert(tweakables, {widget=waveSpreadOsc2Knob,zero=25,default=25,category="synthesis"})
+
+    local hardsyncKnob = osc2Panel:Knob("HardsyncOsc2", 0, 0, 48)
+    hardsyncKnob.displayName = "Hardsync"
+    hardsyncKnob.mapper = Mapper.Quadratic
+    hardsyncKnob.fillColour = knobColour
+    hardsyncKnob.outlineColour = osc1Colour
+    hardsyncKnob.changed = function(self)
+      for i=2,8 do
+        osc2:setParameter("SyncMode"..i, (self.value > 0))
+        osc2:setParameter("Pitch"..i, self.value)
+      end
+    end
+    hardsyncKnob:changed()
+    table.insert(tweakables, {widget=hardsyncKnob,ceiling=12,probability=80,min=48,zero=50,default=50,noDefaultTweak=true,category="synthesis"})
+  elseif isWavetable then
     local wheelToWaveKnob = osc2Panel:Knob("WheelToWave2", 0, -1, 1)
     wheelToWaveKnob.displayName = "Wheel->Wave"
     wheelToWaveKnob.fillColour = knobColour
@@ -1114,7 +1233,11 @@ local osc2Panel = createOsc2Panel()
 function createUnisonPanel()
   local unisonPanel = Panel("UnisonPanel")
 
-  unisonPanel:Label("Stereo/Unison")
+  if isAnalogStack then
+    unisonPanel:Label("Stack")
+  else
+    unisonPanel:Label("Stereo/Unison")
+  end
 
   local panSpreadKnob = unisonPanel:Knob("PanSpread", 0, 0, 1)
   panSpreadKnob.displayName = "Pan Spread"
@@ -1127,21 +1250,36 @@ function createUnisonPanel()
   panSpreadKnob:changed()
   table.insert(tweakables, {widget=panSpreadKnob,ceiling=0.6,probability=70,default=30,category="synthesis"})
 
-  if isAnalog then
+  if isAnalog or isAnalogStack then
     local randomPhaseStartKnob = unisonPanel:Knob("RandomPhaseStart", 0, 0, 1)
     randomPhaseStartKnob.displayName = "Rand Phase"
     randomPhaseStartKnob.fillColour = knobColour
     randomPhaseStartKnob.outlineColour = unisonColour
     randomPhaseStartKnob.changed = function(self)
-      analogMacros["randomPhaseStart"]:setParameter("Value", self.value)
+      if isAnalogStack then
+        for i=1,8 do
+          osc1:setParameter("StartPhase"..i, (getRandom()*self.value))
+          osc2:setParameter("StartPhase"..i, (getRandom()*self.value))
+        end
+      else
+        analogMacros["randomPhaseStart"]:setParameter("Value", self.value)
+      end
       self.displayText = percent(self.value)
     end
     randomPhaseStartKnob:changed()
     table.insert(tweakables, {widget=randomPhaseStartKnob,ceiling=0.3,probability=70,default=30,zero=30,category="synthesis"})
   end
 
-  local unisonVoicesKnob = unisonPanel:Knob("UnisonVoices", 1, 1, 8, true)
-  unisonVoicesKnob.displayName = "Unison"
+  local defaultVoices = 1
+  if isAnalogStack then
+    defaultVoices = 2
+  end
+  local unisonVoicesKnob = unisonPanel:Knob("UnisonVoices", defaultVoices, 1, 8, true)
+  if isAnalogStack then
+    unisonVoicesKnob.displayName = "Oscillators"
+  else
+    unisonVoicesKnob.displayName = "Unison"
+  end
   unisonVoicesKnob.fillColour = knobColour
   unisonVoicesKnob.outlineColour = unisonColour
 
@@ -1150,7 +1288,30 @@ function createUnisonPanel()
   unisonDetuneKnob.fillColour = knobColour
   unisonDetuneKnob.outlineColour = unisonColour
   unisonDetuneKnob.changed = function(self)
-    unisonDetune:setParameter("Value", self.value)
+    if isAnalogStack then
+      local voices = unisonVoicesKnob.value
+      print("Voices:", voices)
+      local detunePerVoice = self.value / voices -- 0.15 / voices
+      local currentDetune = detunePerVoice
+      for i=1,voices do
+        local detuneValue1 = currentDetune * 100
+        local detuneValue2 = currentDetune * 100
+        if i%2 == 0 then
+          detuneValue1 = -(detuneValue1)
+          detuneValue2 = detuneValue2
+        else
+          detuneValue1 = detuneValue1
+          detuneValue2 = -(detuneValue2)
+        end
+        print("Detune value osc1:", i, detuneValue1)
+        print("Detune value osc2:", i, detuneValue2)
+        osc1:setParameter("FineTune"..i, detuneValue1)
+        osc2:setParameter("FineTune"..i, detuneValue2)
+        currentDetune = currentDetune + detunePerVoice
+      end
+    else
+      unisonDetune:setParameter("Value", self.value)
+    end
     self.displayText = percent(self.value)
   end
   unisonDetuneKnob:changed()
@@ -1161,7 +1322,30 @@ function createUnisonPanel()
   stereoSpreadKnob.fillColour = knobColour
   stereoSpreadKnob.outlineColour = unisonColour
   stereoSpreadKnob.changed = function(self)
-    stereoSpread:setParameter("Value", self.value)
+    if isAnalogStack then
+      local voices = unisonVoicesKnob.value
+      print("Voices:", voices)
+      local spreadPerVoice = self.value / voices -- 0.15 / voices
+      local currentSpread = spreadPerVoice
+      for i=1,voices do
+        local spreadValue1 = currentSpread
+        local spreadValue2 = currentSpread
+        if i%2 == 0 then
+          spreadValue1 = -(spreadValue1)
+          spreadValue2 = spreadValue2
+        else
+          spreadValue1 = spreadValue1
+          spreadValue2 = -(spreadValue2)
+        end
+        print("Spread value osc1:", i, spreadValue1)
+        print("Spread value osc2:", i, spreadValue2)
+        osc1:setParameter("Pan"..i, spreadValue1)
+        osc2:setParameter("Pan"..i, spreadValue2)
+        currentSpread = currentSpread + spreadPerVoice
+      end
+    else
+      stereoSpread:setParameter("Value", self.value)
+    end
     self.displayText = percent(self.value)
   end
   stereoSpreadKnob:changed()
@@ -1182,31 +1366,40 @@ function createUnisonPanel()
   end
 
   unisonVoicesKnob.changed = function(self)
-    local factor = 1 / 8
-    local value = factor * self.value
     local unisonActive = false
     if isAnalog then
       osc1:setParameter("NumOscillators", self.value)
       osc2:setParameter("NumOscillators", self.value)
-    else
+    elseif isAnalogStack then
+      for i=1,8 do
+        osc1:setParameter("Bypass"..i, (self.value<i))
+        osc2:setParameter("Bypass"..i, (self.value<i))
+        osc1:setParameter("Gain"..i, 1 - ((self.value/10) / 2))
+        osc2:setParameter("Gain"..i, 1 - ((self.value/10) / 2))
+      end
+      unisonDetuneKnob:changed()
+      stereoSpreadKnob:changed()
+    elseif isWavetable then
+      local factor = 1 / 8
+      local value = factor * self.value
       wavetableMacros["unisonVoices"]:setParameter("Value", value)
     end
-    if self.value == 1 then
+    if self.value == 1 and isAnalogStack ~= true then
       self.displayText = "Off"
       unisonActive = false
     else
       self.displayText = tostring(self.value)
       unisonActive = true
     end
-    unisonDetuneKnob.enabled = unisonActive
-    stereoSpreadKnob.enabled = unisonActive
+    unisonDetuneKnob.enabled = unisonActive or isAnalogStack
+    stereoSpreadKnob.enabled = unisonActive or isAnalogStack
     if waveSpreadKnob then
       waveSpreadKnob.enabled = unisonActive
     end
     noiseOsc:setParameter("Stereo", unisonActive)
   end
   unisonVoicesKnob:changed()
-  table.insert(tweakables, {widget=unisonVoicesKnob,min=8,default=25,excludeWithDuration=true,category="synthesis"})
+  table.insert(tweakables, {widget=unisonVoicesKnob,min=8,default=25,category="synthesis"}) -- ,excludeWithDuration=true
 
   return unisonPanel
 end
@@ -1658,7 +1851,7 @@ function createFilterEnvOscTargetsPanel()
     end
     filterEnvToHardsync1Knob:changed()
     table.insert(tweakables, {widget=filterEnvToHardsync1Knob,zero=25,default=50,category="filter"})
-  else
+  elseif isWavetable then
     local filterEnvToWT1Knob = filterEnvOscTargetsPanel:Knob("Osc1FilterEnvToIndex", 0, -1, 1)
     filterEnvToWT1Knob.displayName = "Waveindex"
     filterEnvToWT1Knob.fillColour = knobColour
@@ -1698,7 +1891,7 @@ function createFilterEnvOscTargetsPanel()
     end
     filterEnvToHardsync2Knob:changed()
     table.insert(tweakables, {widget=filterEnvToHardsync2Knob,zero=25,default=50,category="filter"})
-  else
+  elseif isWavetable then
     local filterEnvToWT2Knob = filterEnvOscTargetsPanel:Knob("Osc2FilterEnvToIndex", 0, -1, 1)
     filterEnvToWT2Knob.displayName = "Waveindex"
     filterEnvToWT2Knob.fillColour = knobColour
@@ -2228,7 +2421,7 @@ function createLfoTargetPanel1()
     end
     lfoToHardsync1Knob:changed()
     table.insert(tweakables, {widget=lfoToHardsync1Knob,zero=50,default=50,noDefaultTweak=true,category="modulation"})
-  else
+  elseif isWavetable then
     local lfoToWT1Knob = lfoTargetPanel1:Knob("Osc1LfoToWaveIndex", 0, -1, 1)
     lfoToWT1Knob.displayName = "Waveindex"
     lfoToWT1Knob.fillColour = knobColour
@@ -2303,7 +2496,7 @@ function createLfoTargetPanel2()
     end
     lfoToHardsync2Knob:changed()
     table.insert(tweakables, {widget=lfoToHardsync2Knob,zero=50,default=50,noDefaultTweak=true,category="modulation"})
-  else
+  elseif isWavetable then
     local lfoToWT2Knob = lfoTargetPanel2:Knob("Osc2LfoToWaveIndex", 0, -1, 1)
     lfoToWT2Knob.displayName = "Waveindex"
     lfoToWT2Knob.fillColour = knobColour
