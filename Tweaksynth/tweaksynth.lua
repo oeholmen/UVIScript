@@ -12,10 +12,15 @@ local isStarting = true
 -- Synth engine elements
 --------------------------------------------------------------------------------
 
+-- LAYERS
+local osc1Layer = Program.layers[1]
+local osc2Layer = Program.layers[2]
+local noiseLayer = Program.layers[3]
+
 -- KEYGROUPS
-local osc1Keygroup = Program.layers[1].keygroups[1]
-local osc2Keygroup = Program.layers[2].keygroups[1]
-local noiseKeygroup = Program.layers[3].keygroups[1]
+local osc1Keygroup = osc1Layer.keygroups[1]
+local osc2Keygroup = osc2Layer.keygroups[1]
+local noiseKeygroup = noiseLayer.keygroups[1]
 
 -- OSCILLATORS
 local osc1 = osc1Keygroup.oscillators[1]
@@ -952,7 +957,11 @@ pagePanel.height = 38
 function createOsc1Panel()
   local osc1Panel = Panel("Osc1Panel")
 
-  osc1Panel:Label("Osc 1")
+  if isAnalogStack then
+    osc1Panel:Label("Stack 1")
+  else
+    osc1Panel:Label("Osc 1")
+  end
 
   local waveSpreadOsc1Knob
 
@@ -1120,7 +1129,11 @@ local osc1Panel = createOsc1Panel()
 function createOsc2Panel()
   local osc2Panel = Panel("Osc2Panel")
 
-  osc2Panel:Label("Osc 2")
+  if isAnalogStack then
+    osc2Panel:Label("Stack 2")
+  else
+    osc2Panel:Label("Osc 2")
+  end
 
   local waveSpreadOsc2Knob
 
@@ -1276,11 +1289,7 @@ local osc2Panel = createOsc2Panel()
 function createUnisonPanel()
   local unisonPanel = Panel("UnisonPanel")
 
-  if isAnalogStack then
-    unisonPanel:Label("Stack")
-  else
-    unisonPanel:Label("Stereo/Unison")
-  end
+  unisonPanel:Label("Stereo/Unison")
 
   local panSpreadKnob = unisonPanel:Knob("PanSpread", 0, 0, 1)
   panSpreadKnob.displayName = "Pan Spread"
@@ -1456,16 +1465,17 @@ local unisonPanel = createUnisonPanel()
 function createMixerPanel()
   local mixerPanel = Panel("Mixer")
 
-  local knobSize = {122,70}
+  local knobSize = {100,40}
+  local marginRight = 20
 
   local mixerLabel = mixerPanel:Label("Mixer")
-  mixerLabel.y = 10
+  mixerLabel.y = 5
   mixerLabel.x = 10
-  mixerLabel.width = 60
+  mixerLabel.width = 70
 
   local osc1MixKnob = mixerPanel:Knob("Osc1Mix", 0.75, 0, 1)
   osc1MixKnob.displayName = "Osc 1"
-  osc1MixKnob.x = mixerLabel.x + mixerLabel.width + 10
+  osc1MixKnob.x = mixerLabel.x + mixerLabel.width + marginRight
   osc1MixKnob.y = mixerLabel.y
   osc1MixKnob.size = knobSize
   osc1MixKnob.fillColour = knobColour
@@ -1480,7 +1490,7 @@ function createMixerPanel()
   local osc2MixKnob = mixerPanel:Knob("Osc2Mix", 0, 0, 1)
   osc2MixKnob.displayName = "Osc 2"
   osc2MixKnob.y = mixerLabel.y
-  osc2MixKnob.x = osc1MixKnob.x + osc1MixKnob.width + 20
+  osc2MixKnob.x = osc1MixKnob.x + osc1MixKnob.width + marginRight
   osc2MixKnob.size = knobSize
   osc2MixKnob.fillColour = knobColour
   osc2MixKnob.outlineColour = osc2Colour
@@ -1494,7 +1504,7 @@ function createMixerPanel()
   local noiseMixKnob = mixerPanel:Knob("NoiseMix", 0, 0, 1)
   noiseMixKnob.displayName = "Noise"
   noiseMixKnob.y = mixerLabel.y
-  noiseMixKnob.x = osc2MixKnob.x + osc2MixKnob.width + 20
+  noiseMixKnob.x = osc2MixKnob.x + osc2MixKnob.width + marginRight
   noiseMixKnob.size = knobSize
   noiseMixKnob.fillColour = knobColour
   noiseMixKnob.outlineColour = osc2Colour
@@ -1507,8 +1517,8 @@ function createMixerPanel()
 
   local noiseTypes = {"Band", "S&H", "Static1", "Static2", "Violet", "Blue", "White", "Pink", "Brown", "Lorenz", "Rossler", "Crackle", "Logistic", "Dust", "Velvet"}
   local noiseTypeMenu = mixerPanel:Menu("NoiseTypeMenu", noiseTypes)
-  noiseTypeMenu.y = mixerLabel.y + 17
-  noiseTypeMenu.x = noiseMixKnob.x + noiseMixKnob.width + 20
+  noiseTypeMenu.y = 2
+  noiseTypeMenu.x = noiseMixKnob.x + noiseMixKnob.width + marginRight
   noiseTypeMenu.backgroundColour = menuBackgroundColour
   noiseTypeMenu.textColour = menuTextColour
   noiseTypeMenu.arrowColour = menuArrowColour
@@ -1523,14 +1533,14 @@ function createMixerPanel()
   table.insert(tweakables, {widget=noiseTypeMenu,min=#noiseTypes,category="synthesis"})
 
   local arpeggiatorButton = mixerPanel:OnOffButton("Arp", false)
-  arpeggiatorButton.y = noiseTypeMenu.y
-  arpeggiatorButton.x = noiseTypeMenu.x + noiseTypeMenu.width + 20
+  arpeggiatorButton.y = mixerLabel.y
+  arpeggiatorButton.x = 620
   arpeggiatorButton.alpha = buttonAlpha
   arpeggiatorButton.backgroundColourOff = buttonBackgroundColourOff
   arpeggiatorButton.backgroundColourOn = buttonBackgroundColourOn
   arpeggiatorButton.textColourOff = buttonTextColourOff
   arpeggiatorButton.textColourOn = buttonTextColourOn
-  arpeggiatorButton.width = 70
+  arpeggiatorButton.width = 80
   arpeggiatorButton.height = noiseTypeMenu.height
   arpeggiatorButton.changed = function(self)
     local value = -1
@@ -1540,6 +1550,43 @@ function createMixerPanel()
     arpeggiator:setParameter("Value", value)
   end
   arpeggiatorButton:changed()
+
+  local playModes = {"Poly", "Poly Portamento", "Mono Retrigger", "Mono Portamento", "Mono Portamento Slide"}
+  local playModeMenu = mixerPanel:Menu("PlayModeMenu", playModes)
+  playModeMenu.y = 50
+  playModeMenu.x = osc1MixKnob.x
+  playModeMenu.width = 150
+  playModeMenu.backgroundColour = menuBackgroundColour
+  playModeMenu.textColour = menuTextColour
+  playModeMenu.arrowColour = menuArrowColour
+  playModeMenu.outlineColour = menuOutlineColour
+  playModeMenu.displayName = "Play Mode"
+  playModeMenu.selected = 1
+  playModeMenu.changed = function(self)
+    local value = self.value - 1
+    osc1Layer:setParameter("PlayMode", value)
+    osc2Layer:setParameter("PlayMode", value)
+    noiseLayer:setParameter("PlayMode", value)
+  end
+  playModeMenu:changed()
+  table.insert(tweakables, {widget=playModeMenu,min=#playModes,default=75,noDefaultTweak=true,category="synthesis"})
+
+  local portamentoTimeKnob = mixerPanel:Knob("PortamentoTime", 0.03, 0, 10)
+  portamentoTimeKnob.displayName = "Glide Time"
+  portamentoTimeKnob.y = playModeMenu.y
+  portamentoTimeKnob.x = playModeMenu.x + playModeMenu.width + marginRight
+  portamentoTimeKnob.size = knobSize
+  portamentoTimeKnob.fillColour = knobColour
+  portamentoTimeKnob.outlineColour = osc2Colour
+  portamentoTimeKnob.mapper = Mapper.Quartic
+  portamentoTimeKnob.changed = function(self)
+    osc1Layer:setParameter("PortamentoTime", self.value)
+    osc2Layer:setParameter("PortamentoTime", self.value)
+    noiseLayer:setParameter("PortamentoTime", self.value)
+    self.displayText = formatTimeInSeconds(self.value)
+  end
+  portamentoTimeKnob:changed()
+  table.insert(tweakables, {widget=portamentoTimeKnob,floor=0.03,ceiling=0.15,probability=95,default=50,noDefaultTweak=true,category="synthesis"})
 
   return mixerPanel
 end
