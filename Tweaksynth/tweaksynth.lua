@@ -6,6 +6,7 @@ local tweakables = {}
 local storedPatches = {}
 local storedPatch = {}
 local patchesMenu = nil
+local isStarting = true
 
 --------------------------------------------------------------------------------
 -- Synth engine elements
@@ -777,6 +778,48 @@ function verifyFilterSettings()
   end
 end
 
+function verifyHardsyncSettings()
+  if isStarting == true or isAnalogStack == false then
+    return
+  end
+  local HardsyncOsc1
+  local HardsyncOsc2
+  local FilterEnvToHardsync1
+  local FilterEnvToHardsync2
+  local LfoToHardsync1
+  local LfoToHardsync2
+  local found = 0
+  for i,v in ipairs(tweakables) do
+    if v.widget.name == "HardsyncOsc1" then
+      HardsyncOsc1 = v.widget.value
+      found = found + 1
+    elseif v.widget.name == "HardsyncOsc2" then
+      HardsyncOsc2 = v.widget.value
+      found = found + 1
+    elseif v.widget.name == "FilterEnvToHardsync1" then
+      FilterEnvToHardsync1 = v.widget.value
+      found = found + 1
+    elseif v.widget.name == "FilterEnvToHardsync2" then
+      FilterEnvToHardsync2 = v.widget.value
+      found = found + 1
+    elseif v.widget.name == "LfoToHardsync1" then
+      LfoToHardsync1 = v.widget.value
+      found = found + 1
+    elseif v.widget.name == "LfoToHardsync2" then
+      LfoToHardsync2 = v.widget.value
+      found = found + 1
+    end
+    if found == 6 then
+      break
+    end
+  end
+
+  for i=2,8 do
+    osc1:setParameter("SyncMode"..i, math.max(HardsyncOsc1, FilterEnvToHardsync1, LfoToHardsync1) > 0)
+    osc2:setParameter("SyncMode"..i, math.max(HardsyncOsc2, FilterEnvToHardsync2, LfoToHardsync2) > 0)
+  end
+end
+
 function applyValueFilter(valueFilter, startValue)
   local endValue = startValue
 
@@ -1033,9 +1076,9 @@ function createOsc1Panel()
     hardsyncKnob.outlineColour = osc1Colour
     hardsyncKnob.changed = function(self)
       for i=2,8 do
-        osc1:setParameter("SyncMode"..i, (self.value > 0))
         osc1:setParameter("Pitch"..i, self.value)
       end
+      verifyHardsyncSettings()
     end
     hardsyncKnob:changed()
     table.insert(tweakables, {widget=hardsyncKnob,ceiling=12,probability=80,min=48,zero=50,default=50,noDefaultTweak=true,category="synthesis"})
@@ -1201,9 +1244,9 @@ function createOsc2Panel()
     hardsyncKnob.outlineColour = osc1Colour
     hardsyncKnob.changed = function(self)
       for i=2,8 do
-        osc2:setParameter("SyncMode"..i, (self.value > 0))
         osc2:setParameter("Pitch"..i, self.value)
       end
+      verifyHardsyncSettings()
     end
     hardsyncKnob:changed()
     table.insert(tweakables, {widget=hardsyncKnob,ceiling=12,probability=80,min=48,zero=50,default=50,noDefaultTweak=true,category="synthesis"})
@@ -1274,7 +1317,7 @@ function createUnisonPanel()
   if isAnalogStack then
     defaultVoices = 2
   end
-  local unisonVoicesKnob = unisonPanel:Knob("UnisonVoices", defaultVoices, 1, 8, true)
+  local unisonVoicesKnob = unisonPanel:Knob("UnisonVoices", defaultVoices, defaultVoices, 8, true)
   if isAnalogStack then
     unisonVoicesKnob.displayName = "Oscillators"
   else
@@ -1399,7 +1442,7 @@ function createUnisonPanel()
     noiseOsc:setParameter("Stereo", unisonActive)
   end
   unisonVoicesKnob:changed()
-  table.insert(tweakables, {widget=unisonVoicesKnob,min=8,default=25,category="synthesis"}) -- ,excludeWithDuration=true
+  table.insert(tweakables, {widget=unisonVoicesKnob,min=defaultVoices,max=8,default=25,category="synthesis"}) -- ,excludeWithDuration=true
 
   return unisonPanel
 end
@@ -1840,13 +1883,14 @@ function createFilterEnvOscTargetsPanel()
   local filterEnvOscTargetsPanel = Panel("FilterEnvOscTargets")
   filterEnvOscTargetsPanel:Label("Filter Env -> Osc 1 ->")
 
-  if isAnalog then
-    local filterEnvToHardsync1Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToHardsync1Knob", 0, 0, 1)
+  if isAnalog or isAnalogStack then
+    local filterEnvToHardsync1Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToHardsync1", 0, 0, 1)
     filterEnvToHardsync1Knob.displayName = "Hardsync"
     filterEnvToHardsync1Knob.fillColour = knobColour
     filterEnvToHardsync1Knob.outlineColour = filterEnvColour
     filterEnvToHardsync1Knob.changed = function(self)
       analogMacros["filterEnvToHardsync1"]:setParameter("Value", self.value)
+      verifyHardsyncSettings()
       self.displayText = percent(self.value)
     end
     filterEnvToHardsync1Knob:changed()
@@ -1880,13 +1924,14 @@ function createFilterEnvOscTargetsPanel()
 
   filterEnvOscTargetsPanel:Label("Filter Env -> Osc 2 ->")
 
-  if isAnalog then
-    local filterEnvToHardsync2Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToHardsync2Knob", 0, 0, 1)
+  if isAnalog or isAnalogStack then
+    local filterEnvToHardsync2Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToHardsync2", 0, 0, 1)
     filterEnvToHardsync2Knob.displayName = "Hardsync"
     filterEnvToHardsync2Knob.fillColour = knobColour
     filterEnvToHardsync2Knob.outlineColour = filterEnvColour
     filterEnvToHardsync2Knob.changed = function(self)
       analogMacros["filterEnvToHardsync2"]:setParameter("Value", self.value)
+      verifyHardsyncSettings()
       self.displayText = percent(self.value)
     end
     filterEnvToHardsync2Knob:changed()
@@ -2410,13 +2455,14 @@ function createLfoTargetPanel1()
   osc1LfoToPWMKnob:changed()
   table.insert(tweakables, {widget=osc1LfoToPWMKnob,ceiling=0.25,probability=90,default=50,category="modulation"})
 
-  if isAnalog then
+  if isAnalog or isAnalogStack then
     local lfoToHardsync1Knob = lfoTargetPanel1:Knob("LfoToHardsync1", 0, 0, 1)
     lfoToHardsync1Knob.displayName = "Hardsync"
     lfoToHardsync1Knob.fillColour = knobColour
     lfoToHardsync1Knob.outlineColour = lfoColour
     lfoToHardsync1Knob.changed = function(self)
       analogMacros["lfoToHardsync1"]:setParameter("Value", self.value)
+      verifyHardsyncSettings()
       self.displayText = percent(self.value)
     end
     lfoToHardsync1Knob:changed()
@@ -2485,13 +2531,14 @@ function createLfoTargetPanel2()
   osc2LfoToPWMKnob:changed()
   table.insert(tweakables, {widget=osc2LfoToPWMKnob,ceiling=0.25,probability=90,default=50,category="modulation"})
 
-  if isAnalog then
+  if isAnalog or isAnalogStack then
     local lfoToHardsync2Knob = lfoTargetPanel2:Knob("LfoToHardsync2", 0, 0, 1)
     lfoToHardsync2Knob.displayName = "Hardsync"
     lfoToHardsync2Knob.fillColour = knobColour
     lfoToHardsync2Knob.outlineColour = lfoColour
     lfoToHardsync2Knob.changed = function(self)
       analogMacros["lfoToHardsync2"]:setParameter("Value", self.value)
+      verifyHardsyncSettings()
       self.displayText = percent(self.value)
     end
     lfoToHardsync2Knob:changed()
@@ -3916,6 +3963,8 @@ patchmakerPageButton.changed = function(self)
   twequencerPageButton:setValue(false, false)
   setPage(5)
 end
+
+isStarting = false -- Startup complete!
 
 -- Set start page
 synthesisPageButton.changed()
