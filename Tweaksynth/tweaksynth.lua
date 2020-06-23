@@ -620,11 +620,13 @@ function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle, 
 end
 
 function verifyUnisonSettings()
-  if isAnalog3Osc then
-    return
-  end
   local UnisonVoices = getWidget("UnisonVoices")
   local UnisonDetune = getWidget("UnisonDetune")
+
+  if type(UnisonVoices) == "nil" or type(UnisonDetune) == "nil" then
+    return
+  end
+
   local factor = UnisonVoices.value * 0.1
 
   print("--- Checking Unison Settings ---")
@@ -2587,6 +2589,7 @@ function createLfoTargetPanel()
     self.displayText = percent(self.value)
   end
   lfoToCutoffKnob:changed()
+  table.insert(tweakables, {widget=lfoToCutoffKnob,bipolar=25,default=30,category="modulation"})
 
   local lfoToHpfCutoffKnob = lfoTargetPanel:Knob("LfoToHpfCutoff", 0, -1, 1)
   lfoToHpfCutoffKnob.displayName = "HP-Filter"
@@ -2601,6 +2604,7 @@ function createLfoTargetPanel()
     self.displayText = percent(self.value)
   end
   lfoToHpfCutoffKnob:changed()
+  table.insert(tweakables, {widget=lfoToHpfCutoffKnob,bipolar=25,default=30,category="modulation"})
 
   local lfoToAmpKnob = lfoTargetPanel:Knob("LfoToAmplitude", 0, -1, 1)
   lfoToAmpKnob.displayName = "Amplitude"
@@ -2615,21 +2619,20 @@ function createLfoTargetPanel()
     self.displayText = percent(self.value)
   end
   lfoToAmpKnob:changed()
-
-  local lfoToDetuneKnob = lfoTargetPanel:Knob("LfoToDetune", 0, 0, 1)
-  lfoToDetuneKnob.displayName = "Detune"
-  lfoToDetuneKnob.fillColour = knobColour
-  lfoToDetuneKnob.outlineColour = lfoColour
-  lfoToDetuneKnob.changed = function(self)
-    lfoToDetune:setParameter("Value", self.value)
-    self.displayText = percent(self.value)
-  end
-  lfoToDetuneKnob:changed()
-
-  table.insert(tweakables, {widget=lfoToDetuneKnob,default=25,ceiling=0.25,probability=30,category="modulation"})
   table.insert(tweakables, {widget=lfoToAmpKnob,bipolar=25,default=30,ceiling,category="modulation"})
-  table.insert(tweakables, {widget=lfoToHpfCutoffKnob,bipolar=25,default=30,category="modulation"})
-  table.insert(tweakables, {widget=lfoToCutoffKnob,bipolar=25,default=30,category="modulation"})
+
+  if lfoTargetOscMenu then
+    local lfoToDetuneKnob = lfoTargetPanel:Knob("LfoToDetune", 0, 0, 1)
+    lfoToDetuneKnob.displayName = "Detune"
+    lfoToDetuneKnob.fillColour = knobColour
+    lfoToDetuneKnob.outlineColour = lfoColour
+    lfoToDetuneKnob.changed = function(self)
+      lfoToDetune:setParameter("Value", self.value)
+      self.displayText = percent(self.value)
+    end
+    lfoToDetuneKnob:changed()
+    table.insert(tweakables, {widget=lfoToDetuneKnob,default=25,ceiling=0.25,probability=30,category="modulation"})
+  end
 
   ------- NOISE OSC ----------
 
