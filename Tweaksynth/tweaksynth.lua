@@ -167,16 +167,16 @@ local lfoToHpf = macros[56]
 -- Name analog macros
 local analogMacros = {
   osc3LfoToPWM = macros[7],
-  osc3Pitch = macros[17],
+  subOscMix = macros[17],
   randomPhaseStart = macros[34],
   lfoToHardsync1 = macros[38],
   lfoToHardsync2 = macros[39],
   filterEnvToHardsync1 = macros[40],
   filterEnvToHardsync2 = macros[41],
-  osc1Oct = macros[57],
+  lfoToPitchOsc3 = macros[57],
   atToHardsync1 = macros[58],
-  osc2Oct = macros[59],
-  osc3Oct = macros[60]
+  filterEnvToPitchOsc3 = macros[59],
+  osc3Oct = macros[60] --
 }
 
 -- Name wavetable macros
@@ -1109,6 +1109,12 @@ function createAnalog3OscPanel(oscPanel, oscillatorNumber)
   oscOctKnob.outlineColour = osc1Colour
   oscOctKnob.changed = function(self)
     osc1:setParameter("Octave"..oscillatorNumber, self.value)
+    if oscillatorNumber == 1 then
+      local factor = 1 / 4
+      local value = (self.value * factor) + 0.5
+      osc2Pitch:setParameter("Value", value)
+      print("Setting sub oct:", value)
+    end
   end
   oscOctKnob:changed()
   table.insert(tweakables, {widget=oscOctKnob,min=-2,max=2,default=80,noDefaultTweak=true,zero=25,category="synthesis"})
@@ -1117,8 +1123,17 @@ function createAnalog3OscPanel(oscPanel, oscillatorNumber)
   oscPitchKnob.displayName = "Pitch"
   oscPitchKnob.fillColour = knobColour
   oscPitchKnob.outlineColour = osc1Colour
+  if oscillatorNumber > 1 then
+    oscPitchKnob.mapper = Mapper.Quartic
+  end
   oscPitchKnob.changed = function(self)
     osc1:setParameter("Pitch"..oscillatorNumber, self.value)
+    if oscillatorNumber == 1 then
+      local factor = 1 / 48
+      local value = (self.value * factor) + 0.5
+      osc2Pitch:setParameter("Value", value)
+      print("Setting sub pitch:", value)
+    end
   end
   oscPitchKnob:changed()
   if oscillatorNumber > 1 then
@@ -1140,6 +1155,17 @@ function createAnalog3OscPanel(oscPanel, oscillatorNumber)
     end
     syncButton:changed()
     table.insert(tweakables, {widget=syncButton,func=getRandomBoolean,probability=20,category="synthesis"})
+  else
+    local panSpreadKnob = oscPanel:Knob("PanSpread", 0, 0, 1)
+    panSpreadKnob.displayName = "Pan Spread"
+    panSpreadKnob.fillColour = knobColour
+    panSpreadKnob.outlineColour = unisonColour
+    panSpreadKnob.changed = function(self)
+      panSpread:setParameter("Value", self.value)
+      self.displayText = percent(self.value)
+    end
+    panSpreadKnob:changed()
+    table.insert(tweakables, {widget=panSpreadKnob,ceiling=0.6,probability=70,default=30,category="synthesis"})
   end
 end
 
@@ -1197,8 +1223,8 @@ function createOsc1Panel()
     osc1PitchKnob.fillColour = knobColour
     osc1PitchKnob.outlineColour = osc1Colour
     osc1PitchKnob.changed = function(self)
-      local factor = 1 / 4;
-      local value = (self.value * factor) + 0.5;
+      local factor = 1 / 4
+      local value = (self.value * factor) + 0.5
       osc1Pitch:setParameter("Value", value)
     end
     osc1PitchKnob:changed()
@@ -1312,8 +1338,8 @@ function createOsc2Panel()
     osc2PitchKnob.fillColour = knobColour
     osc2PitchKnob.outlineColour = osc2Colour
     osc2PitchKnob.changed = function(self)
-      local factor = 1 / 48;
-      local value = (self.value * factor) + 0.5;
+      local factor = 1 / 48
+      local value = (self.value * factor) + 0.5
       osc2Pitch:setParameter("Value", value)
     end
     osc2PitchKnob:changed()
@@ -1599,6 +1625,20 @@ function createMixerPanel()
     end
     osc3MixKnob:changed()
     table.insert(tweakables, {widget=osc3MixKnob,floor=0.5,ceiling=0.75,probability=100,absoluteLimit=0.8,zero=10,default=5,category="mixer"})
+
+    local subOscMixKnob = mixerPanel:Knob("SubOscMix", 0, 0, 1)
+    subOscMixKnob.displayName = "Sub"
+    subOscMixKnob.y = mixerLabel.y
+    subOscMixKnob.x = osc3MixKnob.x + osc3MixKnob.width + marginRight
+    subOscMixKnob.size = knobSize
+    subOscMixKnob.fillColour = knobColour
+    subOscMixKnob.outlineColour = osc2Colour
+    subOscMixKnob.changed = function(self)
+      analogMacros["subOscMix"]:setParameter("Value", self.value)
+      self.displayText = formatGainInDb(self.value)
+    end
+    subOscMixKnob:changed()
+    table.insert(tweakables, {widget=subOscMixKnob,floor=0.4,ceiling=0.75,probability=100,absoluteLimit=0.8,zero=10,default=5,category="mixer"})
   else
     local noiseMixKnob = mixerPanel:Knob("NoiseMix", 0, 0, 1)
     noiseMixKnob.displayName = "Noise"
@@ -1687,6 +1727,39 @@ function createMixerPanel()
   end
   portamentoTimeKnob:changed()
   table.insert(tweakables, {widget=portamentoTimeKnob,floor=0.03,ceiling=0.15,probability=95,default=50,noDefaultTweak=true,category="synthesis"})
+
+  if isAnalog3Osc then
+    local noiseMixKnob = mixerPanel:Knob("NoiseMix", 0, 0, 1)
+    noiseMixKnob.displayName = "Noise"
+    noiseMixKnob.y = playModeMenu.y
+    noiseMixKnob.x = portamentoTimeKnob.x + portamentoTimeKnob.width + marginRight
+    noiseMixKnob.size = knobSize
+    noiseMixKnob.fillColour = knobColour
+    noiseMixKnob.outlineColour = osc2Colour
+    noiseMixKnob.changed = function(self)
+      noiseMix:setParameter("Value", self.value)
+      self.displayText = formatGainInDb(self.value)
+    end
+    noiseMixKnob:changed()
+    table.insert(tweakables, {widget=noiseMixKnob,floor=0.3,ceiling=0.75,probability=100,default=5,zero=10,absoluteLimit=0.8,category="mixer"})
+
+    local noiseTypes = {"Band", "S&H", "Static1", "Static2", "Violet", "Blue", "White", "Pink", "Brown", "Lorenz", "Rossler", "Crackle", "Logistic", "Dust", "Velvet"}
+    local noiseTypeMenu = mixerPanel:Menu("NoiseTypeMenu", noiseTypes)
+    noiseTypeMenu.y = playModeMenu.y
+    noiseTypeMenu.x = noiseMixKnob.x + noiseMixKnob.width + marginRight
+    noiseTypeMenu.backgroundColour = menuBackgroundColour
+    noiseTypeMenu.textColour = menuTextColour
+    noiseTypeMenu.arrowColour = menuArrowColour
+    noiseTypeMenu.outlineColour = menuOutlineColour
+    noiseTypeMenu.displayName = "Noise Type"
+    noiseTypeMenu.selected = 7
+    noiseTypeMenu.changed = function(self)
+      local value = self.value - 1
+      noiseOsc:setParameter("NoiseType", value)
+    end
+    noiseTypeMenu:changed()
+    table.insert(tweakables, {widget=noiseTypeMenu,min=#noiseTypes,category="synthesis"})
+  end
 
   return mixerPanel
 end
@@ -1851,12 +1924,17 @@ function createFilterEnvPanel()
   local filterEnvPanel = Panel("FilterEnv")
 
   local activeFilterEnvOsc = 1
-  local filterEnvMenu = filterEnvPanel:Menu("FilterEnvOsc", {"All", "Osc 1", "Osc 2", "Noise Osc"})
-  filterEnvMenu.backgroundColour = menuBackgroundColour
-  filterEnvMenu.textColour = menuTextColour
-  filterEnvMenu.arrowColour = menuArrowColour
-  filterEnvMenu.outlineColour = menuOutlineColour
-  filterEnvMenu.displayName = "Filter Envelope"
+  local filterEnvMenu
+  if isAnalog3Osc == true then
+    filterEnvPanel:Label("Filter Envelope")
+  else
+    filterEnvMenu = filterEnvPanel:Menu("FilterEnvOsc", {"All", "Osc 1", "Osc 2", "Noise Osc"})
+    filterEnvMenu.backgroundColour = menuBackgroundColour
+    filterEnvMenu.textColour = menuTextColour
+    filterEnvMenu.arrowColour = menuArrowColour
+    filterEnvMenu.outlineColour = menuOutlineColour
+    filterEnvMenu.displayName = "Filter Envelope"
+end
 
   local filterAttackKnob = filterEnvPanel:Knob("FAttack", 0.001, 0, 10)
   filterAttackKnob.displayName="Attack"
@@ -1973,17 +2051,19 @@ function createFilterEnvPanel()
     knob.enabled = true
   end
 
-  filterEnvMenu.changed = function(self)
-    -- STORE ACTIVE OSCILLATOR
-    activeFilterEnvOsc = self.value
-    -- SET KNOB VALUES
-    setFilterEnvKnob(filterAttackKnob, "AttackTime")
-    setFilterEnvKnob(filterDecayKnob, "DecayTime")
-    setFilterEnvKnob(filterSustainKnob, "SustainLevel")
-    setFilterEnvKnob(filterReleaseKnob, "ReleaseTime")
-    setFilterEnvKnob(filterVelocityKnob, "DynamicRange")
+  if filterEnvMenu then
+    filterEnvMenu.changed = function(self)
+      -- STORE ACTIVE OSCILLATOR
+      activeFilterEnvOsc = self.value
+      -- SET KNOB VALUES
+      setFilterEnvKnob(filterAttackKnob, "AttackTime")
+      setFilterEnvKnob(filterDecayKnob, "DecayTime")
+      setFilterEnvKnob(filterSustainKnob, "SustainLevel")
+      setFilterEnvKnob(filterReleaseKnob, "ReleaseTime")
+      setFilterEnvKnob(filterVelocityKnob, "DynamicRange")
+    end
+    filterEnvMenu:changed()
   end
-  filterEnvMenu:changed()
 
   return filterEnvPanel
 end
@@ -2028,96 +2108,142 @@ end
 
 function createFilterEnvOscTargetsPanel()
   local filterEnvOscTargetsPanel = Panel("FilterEnvOscTargets")
-  filterEnvOscTargetsPanel:Label("Filter Env -> Osc 1 ->")
 
-  if isAnalog or isAnalogStack then
-    local filterEnvToHardsync1Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToHardsync1", 0, 0, 1)
-    if isAnalog then
-      filterEnvToHardsync1Knob.displayName = "Hardsync"
-    else
-      filterEnvToHardsync1Knob.displayName = "Pitch"
-    end
-    filterEnvToHardsync1Knob.fillColour = knobColour
-    filterEnvToHardsync1Knob.outlineColour = filterEnvColour
-    filterEnvToHardsync1Knob.changed = function(self)
-      analogMacros["filterEnvToHardsync1"]:setParameter("Value", self.value)
-      self.displayText = percent(self.value)
-    end
-    filterEnvToHardsync1Knob:changed()
-    table.insert(tweakables, {widget=filterEnvToHardsync1Knob,zero=50,default=70,noDefaultTweak=true,category="filter"})
-  elseif isWavetable then
-    local filterEnvToWT1Knob = filterEnvOscTargetsPanel:Knob("Osc1FilterEnvToIndex", 0, -1, 1)
-    filterEnvToWT1Knob.displayName = "Waveindex"
-    filterEnvToWT1Knob.fillColour = knobColour
-    filterEnvToWT1Knob.outlineColour = lfoColour
-    filterEnvToWT1Knob.changed = function(self)
-      local value = (self.value + 1) * 0.5
-      wavetableMacros["filterEnvToWT1"]:setParameter("Value", value)
-      self.displayText = percent(self.value)
-    end
-    filterEnvToWT1Knob:changed()
-    table.insert(tweakables, {widget=filterEnvToWT1Knob,bipolar=25,category="filter"})  
-  end
+  if isAnalog3Osc then
+    filterEnvOscTargetsPanel:Label("Filter Env -> Osc Pitch")
 
-  if isAnalog or isWavetable then
     local filterEnvToPitchOsc1Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToPitchOsc1", 0, 0, 48)
-    filterEnvToPitchOsc1Knob.displayName = "Pitch"
+    filterEnvToPitchOsc1Knob.displayName = "Pitch 1"
     filterEnvToPitchOsc1Knob.mapper = Mapper.Quartic
     filterEnvToPitchOsc1Knob.fillColour = knobColour
     filterEnvToPitchOsc1Knob.outlineColour = filterEnvColour
     filterEnvToPitchOsc1Knob.changed = function(self)
-      local factor = 1 / 48;
+      local factor = 1 / 48
       local value = self.value * factor
       filterEnvToPitchOsc1:setParameter("Value", value)
     end
     filterEnvToPitchOsc1Knob:changed()
     table.insert(tweakables, {widget=filterEnvToPitchOsc1Knob,ceiling=0.1,probability=90,default=80,noDefaultTweak=true,zero=30,category="filter"})
-  end
 
-  filterEnvOscTargetsPanel:Label("Filter Env -> Osc 2 ->")
-
-  if isAnalog or isAnalogStack then
-    local filterEnvToHardsync2Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToHardsync2", 0, 0, 1)
-    if isAnalog then
-      filterEnvToHardsync2Knob.displayName = "Hardsync"
-    else
-      filterEnvToHardsync2Knob.displayName = "Pitch"
-    end
-    filterEnvToHardsync2Knob.fillColour = knobColour
-    filterEnvToHardsync2Knob.outlineColour = filterEnvColour
-    filterEnvToHardsync2Knob.changed = function(self)
-      analogMacros["filterEnvToHardsync2"]:setParameter("Value", self.value)
-      self.displayText = percent(self.value)
-    end
-    filterEnvToHardsync2Knob:changed()
-    table.insert(tweakables, {widget=filterEnvToHardsync2Knob,zero=50,default=70,noDefaultTweak=true,category="filter"})
-  elseif isWavetable then
-    local filterEnvToWT2Knob = filterEnvOscTargetsPanel:Knob("Osc2FilterEnvToIndex", 0, -1, 1)
-    filterEnvToWT2Knob.displayName = "Waveindex"
-    filterEnvToWT2Knob.fillColour = knobColour
-    filterEnvToWT2Knob.outlineColour = lfoColour
-    filterEnvToWT2Knob.changed = function(self)
-      local value = (self.value + 1) * 0.5
-      wavetableMacros["filterEnvToWT2"]:setParameter("Value", value)
-      self.displayText = percent(self.value)
-    end
-    filterEnvToWT2Knob:changed()
-    table.insert(tweakables, {widget=filterEnvToWT2Knob,bipolar=25,category="filter"})  
-  end
-
-  if isAnalog or isWavetable then
+    -- TODO Adjust if hardsync enabled
     local filterEnvToPitchOsc2Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToPitchOsc2", 0, 0, 48)
-    filterEnvToPitchOsc2Knob.displayName = "Pitch"
+    filterEnvToPitchOsc2Knob.displayName = "Pitch 2"
     filterEnvToPitchOsc2Knob.mapper = Mapper.Quartic
     filterEnvToPitchOsc2Knob.fillColour = knobColour
     filterEnvToPitchOsc2Knob.outlineColour = filterEnvColour
     filterEnvToPitchOsc2Knob.changed = function(self)
-      local factor = 1 / 48;
+      local factor = 1 / 48
       local value = self.value * factor
       filterEnvToPitchOsc2:setParameter("Value", value)
     end
     filterEnvToPitchOsc2Knob:changed()
     table.insert(tweakables, {widget=filterEnvToPitchOsc2Knob,ceiling=0.1,probability=85,default=75,noDefaultTweak=true,zero=25,category="filter"})
+
+    -- TODO Adjust if hardsync enabled
+    local filterEnvToPitchOsc3Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToPitchOsc3", 0, 0, 48)
+    filterEnvToPitchOsc3Knob.displayName = "Pitch 3"
+    filterEnvToPitchOsc3Knob.mapper = Mapper.Quartic
+    filterEnvToPitchOsc3Knob.fillColour = knobColour
+    filterEnvToPitchOsc3Knob.outlineColour = filterEnvColour
+    filterEnvToPitchOsc3Knob.changed = function(self)
+      local factor = 1 / 48
+      local value = self.value * factor
+      analogMacros["filterEnvToPitchOsc3"]:setParameter("Value", value)
+    end
+    filterEnvToPitchOsc3Knob:changed()
+    table.insert(tweakables, {widget=filterEnvToPitchOsc3Knob,ceiling=0.1,probability=85,default=75,noDefaultTweak=true,zero=25,category="filter"})
+  else
+    filterEnvOscTargetsPanel:Label("Filter Env -> Osc 1 ->")
+
+    if isAnalog or isAnalogStack then
+      local filterEnvToHardsync1Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToHardsync1", 0, 0, 1)
+      if isAnalog then
+        filterEnvToHardsync1Knob.displayName = "Hardsync"
+      else
+        filterEnvToHardsync1Knob.displayName = "Pitch"
+      end
+      filterEnvToHardsync1Knob.fillColour = knobColour
+      filterEnvToHardsync1Knob.outlineColour = filterEnvColour
+      filterEnvToHardsync1Knob.changed = function(self)
+        analogMacros["filterEnvToHardsync1"]:setParameter("Value", self.value)
+        self.displayText = percent(self.value)
+      end
+      filterEnvToHardsync1Knob:changed()
+      table.insert(tweakables, {widget=filterEnvToHardsync1Knob,zero=50,default=70,noDefaultTweak=true,category="filter"})
+    elseif isWavetable then
+      local filterEnvToWT1Knob = filterEnvOscTargetsPanel:Knob("Osc1FilterEnvToIndex", 0, -1, 1)
+      filterEnvToWT1Knob.displayName = "Waveindex"
+      filterEnvToWT1Knob.fillColour = knobColour
+      filterEnvToWT1Knob.outlineColour = lfoColour
+      filterEnvToWT1Knob.changed = function(self)
+        local value = (self.value + 1) * 0.5
+        wavetableMacros["filterEnvToWT1"]:setParameter("Value", value)
+        self.displayText = percent(self.value)
+      end
+      filterEnvToWT1Knob:changed()
+      table.insert(tweakables, {widget=filterEnvToWT1Knob,bipolar=25,category="filter"})  
+    end
+
+    if isAnalog or isWavetable then
+      local filterEnvToPitchOsc1Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToPitchOsc1", 0, 0, 48)
+      filterEnvToPitchOsc1Knob.displayName = "Pitch"
+      filterEnvToPitchOsc1Knob.mapper = Mapper.Quartic
+      filterEnvToPitchOsc1Knob.fillColour = knobColour
+      filterEnvToPitchOsc1Knob.outlineColour = filterEnvColour
+      filterEnvToPitchOsc1Knob.changed = function(self)
+        local factor = 1 / 48
+        local value = self.value * factor
+        filterEnvToPitchOsc1:setParameter("Value", value)
+      end
+      filterEnvToPitchOsc1Knob:changed()
+      table.insert(tweakables, {widget=filterEnvToPitchOsc1Knob,ceiling=0.1,probability=90,default=80,noDefaultTweak=true,zero=30,category="filter"})
+    end
+
+    filterEnvOscTargetsPanel:Label("Filter Env -> Osc 2 ->")
+
+    if isAnalog or isAnalogStack then
+      local filterEnvToHardsync2Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToHardsync2", 0, 0, 1)
+      if isAnalog then
+        filterEnvToHardsync2Knob.displayName = "Hardsync"
+      else
+        filterEnvToHardsync2Knob.displayName = "Pitch"
+      end
+      filterEnvToHardsync2Knob.fillColour = knobColour
+      filterEnvToHardsync2Knob.outlineColour = filterEnvColour
+      filterEnvToHardsync2Knob.changed = function(self)
+        analogMacros["filterEnvToHardsync2"]:setParameter("Value", self.value)
+        self.displayText = percent(self.value)
+      end
+      filterEnvToHardsync2Knob:changed()
+      table.insert(tweakables, {widget=filterEnvToHardsync2Knob,zero=50,default=70,noDefaultTweak=true,category="filter"})
+    elseif isWavetable then
+      local filterEnvToWT2Knob = filterEnvOscTargetsPanel:Knob("Osc2FilterEnvToIndex", 0, -1, 1)
+      filterEnvToWT2Knob.displayName = "Waveindex"
+      filterEnvToWT2Knob.fillColour = knobColour
+      filterEnvToWT2Knob.outlineColour = lfoColour
+      filterEnvToWT2Knob.changed = function(self)
+        local value = (self.value + 1) * 0.5
+        wavetableMacros["filterEnvToWT2"]:setParameter("Value", value)
+        self.displayText = percent(self.value)
+      end
+      filterEnvToWT2Knob:changed()
+      table.insert(tweakables, {widget=filterEnvToWT2Knob,bipolar=25,category="filter"})  
+    end
+
+    if isAnalog or isWavetable then
+      local filterEnvToPitchOsc2Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToPitchOsc2", 0, 0, 48)
+      filterEnvToPitchOsc2Knob.displayName = "Pitch"
+      filterEnvToPitchOsc2Knob.mapper = Mapper.Quartic
+      filterEnvToPitchOsc2Knob.fillColour = knobColour
+      filterEnvToPitchOsc2Knob.outlineColour = filterEnvColour
+      filterEnvToPitchOsc2Knob.changed = function(self)
+        local factor = 1 / 48
+        local value = self.value * factor
+        filterEnvToPitchOsc2:setParameter("Value", value)
+      end
+      filterEnvToPitchOsc2Knob:changed()
+      table.insert(tweakables, {widget=filterEnvToPitchOsc2Knob,ceiling=0.1,probability=85,default=75,noDefaultTweak=true,zero=25,category="filter"})
+    end
   end
 
   return filterEnvOscTargetsPanel
@@ -2135,12 +2261,17 @@ function createLfoPanel()
 
   local activeLfoOsc = 1
 
-  local lfoMenu = lfoPanel:Menu("LfoOsc", {"All", "Osc 1", "Osc 2", "Noise Osc"})
-  lfoMenu.backgroundColour = menuBackgroundColour
-  lfoMenu.textColour = menuTextColour
-  lfoMenu.arrowColour = menuArrowColour
-  lfoMenu.outlineColour = menuOutlineColour
-  lfoMenu.displayName = "LFO"
+  local lfoMenu
+  if isAnalog3Osc == true then
+    lfoPanel:Label("LFO")
+  else
+    lfoMenu = lfoPanel:Menu("LfoOsc", {"All", "Osc 1", "Osc 2", "Noise Osc"})
+    lfoMenu.backgroundColour = menuBackgroundColour
+    lfoMenu.textColour = menuTextColour
+    lfoMenu.arrowColour = menuArrowColour
+    lfoMenu.outlineColour = menuOutlineColour
+    lfoMenu.displayName = "LFO"
+  end
 
   local waveFormTypes = {"Sinus", "Square", "Triangle", "Ramp Up", "Ramp Down", "Analog Square", "S&H", "Chaos Lorenz", "Chaos Rossler"}
   local waveFormTypeMenu = lfoPanel:Menu("WaveFormTypeMenu", waveFormTypes)
@@ -2280,7 +2411,7 @@ function createLfoPanel()
   lfoDelayKnob.outlineColour = lfoColour
   lfoDelayKnob.mapper = Mapper.Quartic
   lfoDelayKnob.x = waveFormTypeMenu.x
-  lfoDelayKnob.y = lfoMenu.height + 15
+  lfoDelayKnob.y = 70
   lfoDelayKnob.changed = function(self)
     if activeLfoOsc == 1 or activeLfoOsc == 2 then
       lfo1:setParameter("DelayTime", self.value)
@@ -2395,23 +2526,25 @@ function createLfoPanel()
     widget.enabled = true
   end
 
-  lfoMenu.changed = function(self)
-    -- STORE THE ACTIVE OSCILLATOR
-    activeLfoOsc = self.value -- 1 = all oscillators
-    --print("LFO - Active oscillator changed:", activeLfoOsc, self.selectedText)
-    -- SET LFO WIDGET VALUES PER OSCILLATOR
-    local params = {lfo1, lfo2, lfo3}
-    setLfoWidgetValue(waveFormTypeMenu, "WaveFormType", params)
-    setLfoWidgetValue(lfoDelayKnob, "DelayTime", params)
-    setLfoWidgetValue(lfoRiseKnob, "RiseTime", params)
-    setLfoWidgetValue(lfo2SyncButton, "SyncToHost", params)
-    setLfoWidgetValue(lfo2TriggerButton, "Retrigger", params)
-    setLfoWidgetValue(lfoFreqKnob, "Freq", params)
-    setLfoWidgetValue(lfoBipolarButton, "Bipolar", params)
-    setLfoWidgetValue(lfoSmoothKnob, "Smooth", params)
-    setLfoWidgetValue(lfoFreqKeyFollowKnob, "Value", {lfoFreqKeyFollow1, lfoFreqKeyFollow2, lfoFreqKeyFollow3})
+  if lfoMenu then
+    lfoMenu.changed = function(self)
+      -- STORE THE ACTIVE OSCILLATOR
+      activeLfoOsc = self.value -- 1 = all oscillators
+      --print("LFO - Active oscillator changed:", activeLfoOsc, self.selectedText)
+      -- SET LFO WIDGET VALUES PER OSCILLATOR
+      local params = {lfo1, lfo2, lfo3}
+      setLfoWidgetValue(waveFormTypeMenu, "WaveFormType", params)
+      setLfoWidgetValue(lfoDelayKnob, "DelayTime", params)
+      setLfoWidgetValue(lfoRiseKnob, "RiseTime", params)
+      setLfoWidgetValue(lfo2SyncButton, "SyncToHost", params)
+      setLfoWidgetValue(lfo2TriggerButton, "Retrigger", params)
+      setLfoWidgetValue(lfoFreqKnob, "Freq", params)
+      setLfoWidgetValue(lfoBipolarButton, "Bipolar", params)
+      setLfoWidgetValue(lfoSmoothKnob, "Smooth", params)
+      setLfoWidgetValue(lfoFreqKeyFollowKnob, "Value", {lfoFreqKeyFollow1, lfoFreqKeyFollow2, lfoFreqKeyFollow3})
+    end
+    lfoMenu:changed()
   end
-  lfoMenu:changed()
 
   return lfoPanel
 end
@@ -2427,12 +2560,17 @@ function createLfoTargetPanel()
   local activeLfoTargetOsc = 1
   local lfoTargetPanel = Panel("LfoTargetPanel")
   
-  local lfoTargetOscMenu = lfoTargetPanel:Menu("LfoTargetOsc", {"All", "Noise Osc"})
-  lfoTargetOscMenu.backgroundColour = menuBackgroundColour
-  lfoTargetOscMenu.textColour = menuTextColour
-  lfoTargetOscMenu.arrowColour = menuArrowColour
-  lfoTargetOscMenu.outlineColour = menuOutlineColour
-  lfoTargetOscMenu.displayName = "LFO ->"
+  local lfoTargetOscMenu
+  if isAnalog3Osc == true then
+    lfoTargetPanel:Label("LFO ->")
+  else
+    lfoTargetOscMenu = lfoTargetPanel:Menu("LfoTargetOsc", {"All", "Noise Osc"})
+    lfoTargetOscMenu.backgroundColour = menuBackgroundColour
+    lfoTargetOscMenu.textColour = menuTextColour
+    lfoTargetOscMenu.arrowColour = menuArrowColour
+    lfoTargetOscMenu.outlineColour = menuOutlineColour
+    lfoTargetOscMenu.displayName = "LFO ->"
+  end
 
   ------- OSC 1+2 ----------
 
@@ -2495,96 +2633,98 @@ function createLfoTargetPanel()
 
   ------- NOISE OSC ----------
 
-  local lfoToNoiseLpfCutoffKnob = lfoTargetPanel:Knob("LfoToNoiseLpfCutoff", 0, -1, 1)
-  lfoToNoiseLpfCutoffKnob.displayName = "LP-Filter"
-  lfoToNoiseLpfCutoffKnob.x = lfoToCutoffKnob.x
-  lfoToNoiseLpfCutoffKnob.y = lfoToCutoffKnob.y
-  lfoToNoiseLpfCutoffKnob.fillColour = knobColour
-  lfoToNoiseLpfCutoffKnob.outlineColour = lfoColour
-  lfoToNoiseLpfCutoffKnob.changed = function(self)
-    local value = (self.value + 1) * 0.5
-    lfoToNoiseLpf:setParameter("Value", value)
-    self.displayText = percent(self.value)
-  end
-
-  local lfoToNoiseHpfCutoffKnob = lfoTargetPanel:Knob("LfoToNoiseHpfCutoff", 0, -1, 1)
-  lfoToNoiseHpfCutoffKnob.displayName = "HP-Filter"
-  lfoToNoiseHpfCutoffKnob.x = lfoToHpfCutoffKnob.x
-  lfoToNoiseHpfCutoffKnob.y = lfoToHpfCutoffKnob.y
-  lfoToNoiseHpfCutoffKnob.fillColour = knobColour
-  lfoToNoiseHpfCutoffKnob.outlineColour = lfoColour
-  lfoToNoiseHpfCutoffKnob.changed = function(self)
-    local value = (self.value + 1) * 0.5
-    lfoToNoiseHpf:setParameter("Value", value)
-    self.displayText = percent(self.value)
-  end
-
-  local lfoToNoiseAmpKnob = lfoTargetPanel:Knob("LfoToNoiseAmplitude", 0, -1, 1)
-  lfoToNoiseAmpKnob.displayName = "Amplitude"
-  lfoToNoiseAmpKnob.x = lfoToAmpKnob.x
-  lfoToNoiseAmpKnob.y = lfoToAmpKnob.y
-  lfoToNoiseAmpKnob.fillColour = knobColour
-  lfoToNoiseAmpKnob.outlineColour = lfoColour
-  lfoToNoiseAmpKnob.changed = function(self)
-    local value = (self.value + 1) * 0.5
-    lfoToNoiseAmp:setParameter("Value", value)
-    self.displayText = percent(self.value)
-  end
-
-  local lfoToNoiseOverrideButton = lfoTargetPanel:OnOffButton("LfoToNoiseOverride", lfoNoiseOscOverride)
-  lfoToNoiseOverrideButton.displayName = "Unlink"
-  lfoToNoiseOverrideButton.x = lfoToDetuneKnob.x
-  lfoToNoiseOverrideButton.y = lfoToDetuneKnob.y
-  lfoToNoiseOverrideButton.width = 75
-  lfoToNoiseOverrideButton.changed = function (self)
-    lfoNoiseOscOverride = self.value
-    lfoToNoiseLpfCutoffKnob.enabled = lfoNoiseOscOverride
-    lfoToNoiseLpfCutoffKnob:changed()
-    lfoToNoiseHpfCutoffKnob.enabled = lfoNoiseOscOverride
-    lfoToNoiseHpfCutoffKnob:changed()
-    lfoToNoiseAmpKnob.enabled = lfoNoiseOscOverride
-    lfoToNoiseAmpKnob:changed()
-    if lfoNoiseOscOverride == false then
-      lfoTargetOscMenu.items = {"All", "Noise Osc"}
-      lfoToNoiseLpf:setParameter("Value", lfoToCutoff:getParameter("Value"))
-      lfoToNoiseHpf:setParameter("Value", lfoToHpf:getParameter("Value"))
-      lfoToNoiseAmp:setParameter("Value", lfoToAmp:getParameter("Value"))
-    else
-      lfoTargetOscMenu.items = {"Osc 1+2", "Noise Osc"}
+  if lfoTargetOscMenu then
+    local lfoToNoiseLpfCutoffKnob = lfoTargetPanel:Knob("LfoToNoiseLpfCutoff", 0, -1, 1)
+    lfoToNoiseLpfCutoffKnob.displayName = "LP-Filter"
+    lfoToNoiseLpfCutoffKnob.x = lfoToCutoffKnob.x
+    lfoToNoiseLpfCutoffKnob.y = lfoToCutoffKnob.y
+    lfoToNoiseLpfCutoffKnob.fillColour = knobColour
+    lfoToNoiseLpfCutoffKnob.outlineColour = lfoColour
+    lfoToNoiseLpfCutoffKnob.changed = function(self)
+      local value = (self.value + 1) * 0.5
+      lfoToNoiseLpf:setParameter("Value", value)
+      self.displayText = percent(self.value)
     end
-  end
-  lfoToNoiseOverrideButton:changed()
 
-  table.insert(tweakables, {widget=lfoToNoiseOverrideButton,func=getRandomBoolean,probability=25,category="modulation"})
-  table.insert(tweakables, {widget=lfoToNoiseAmpKnob,bipolar=25,category="modulation"})
-  table.insert(tweakables, {widget=lfoToNoiseHpfCutoffKnob,bipolar=25,category="modulation"})
-  table.insert(tweakables, {widget=lfoToNoiseLpfCutoffKnob,bipolar=25,category="modulation"})
-
-  lfoTargetOscMenu.changed = function(self)
-    if self.value == 1 then
-      lfoToDetuneKnob.visible = true
-      lfoToAmpKnob.visible = true
-      lfoToHpfCutoffKnob.visible = true
-      lfoToCutoffKnob.visible = true
-
-      lfoToNoiseOverrideButton.visible = false
-      lfoToNoiseAmpKnob.visible = false
-      lfoToNoiseHpfCutoffKnob.visible = false
-      lfoToNoiseLpfCutoffKnob.visible = false
-    else
-      lfoToDetuneKnob.visible = false
-      lfoToAmpKnob.visible = false
-      lfoToHpfCutoffKnob.visible = false
-      lfoToCutoffKnob.visible = false
-
-      lfoToNoiseOverrideButton.visible = true
-      lfoToNoiseAmpKnob.visible = true
-      lfoToNoiseHpfCutoffKnob.visible = true
-      lfoToNoiseLpfCutoffKnob.visible = true
+    local lfoToNoiseHpfCutoffKnob = lfoTargetPanel:Knob("LfoToNoiseHpfCutoff", 0, -1, 1)
+    lfoToNoiseHpfCutoffKnob.displayName = "HP-Filter"
+    lfoToNoiseHpfCutoffKnob.x = lfoToHpfCutoffKnob.x
+    lfoToNoiseHpfCutoffKnob.y = lfoToHpfCutoffKnob.y
+    lfoToNoiseHpfCutoffKnob.fillColour = knobColour
+    lfoToNoiseHpfCutoffKnob.outlineColour = lfoColour
+    lfoToNoiseHpfCutoffKnob.changed = function(self)
+      local value = (self.value + 1) * 0.5
+      lfoToNoiseHpf:setParameter("Value", value)
+      self.displayText = percent(self.value)
     end
-  end
 
-  lfoTargetOscMenu:changed()
+    local lfoToNoiseAmpKnob = lfoTargetPanel:Knob("LfoToNoiseAmplitude", 0, -1, 1)
+    lfoToNoiseAmpKnob.displayName = "Amplitude"
+    lfoToNoiseAmpKnob.x = lfoToAmpKnob.x
+    lfoToNoiseAmpKnob.y = lfoToAmpKnob.y
+    lfoToNoiseAmpKnob.fillColour = knobColour
+    lfoToNoiseAmpKnob.outlineColour = lfoColour
+    lfoToNoiseAmpKnob.changed = function(self)
+      local value = (self.value + 1) * 0.5
+      lfoToNoiseAmp:setParameter("Value", value)
+      self.displayText = percent(self.value)
+    end
+
+    local lfoToNoiseOverrideButton = lfoTargetPanel:OnOffButton("LfoToNoiseOverride", lfoNoiseOscOverride)
+    lfoToNoiseOverrideButton.displayName = "Unlink"
+    lfoToNoiseOverrideButton.x = lfoToDetuneKnob.x
+    lfoToNoiseOverrideButton.y = lfoToDetuneKnob.y
+    lfoToNoiseOverrideButton.width = 75
+    lfoToNoiseOverrideButton.changed = function (self)
+      lfoNoiseOscOverride = self.value
+      lfoToNoiseLpfCutoffKnob.enabled = lfoNoiseOscOverride
+      lfoToNoiseLpfCutoffKnob:changed()
+      lfoToNoiseHpfCutoffKnob.enabled = lfoNoiseOscOverride
+      lfoToNoiseHpfCutoffKnob:changed()
+      lfoToNoiseAmpKnob.enabled = lfoNoiseOscOverride
+      lfoToNoiseAmpKnob:changed()
+      if lfoNoiseOscOverride == false then
+        lfoTargetOscMenu.items = {"All", "Noise Osc"}
+        lfoToNoiseLpf:setParameter("Value", lfoToCutoff:getParameter("Value"))
+        lfoToNoiseHpf:setParameter("Value", lfoToHpf:getParameter("Value"))
+        lfoToNoiseAmp:setParameter("Value", lfoToAmp:getParameter("Value"))
+      else
+        lfoTargetOscMenu.items = {"Osc 1+2", "Noise Osc"}
+      end
+    end
+    lfoToNoiseOverrideButton:changed()
+
+    table.insert(tweakables, {widget=lfoToNoiseOverrideButton,func=getRandomBoolean,probability=25,category="modulation"})
+    table.insert(tweakables, {widget=lfoToNoiseAmpKnob,bipolar=25,category="modulation"})
+    table.insert(tweakables, {widget=lfoToNoiseHpfCutoffKnob,bipolar=25,category="modulation"})
+    table.insert(tweakables, {widget=lfoToNoiseLpfCutoffKnob,bipolar=25,category="modulation"})
+
+    lfoTargetOscMenu.changed = function(self)
+      if self.value == 1 then
+        lfoToDetuneKnob.visible = true
+        lfoToAmpKnob.visible = true
+        lfoToHpfCutoffKnob.visible = true
+        lfoToCutoffKnob.visible = true
+
+        lfoToNoiseOverrideButton.visible = false
+        lfoToNoiseAmpKnob.visible = false
+        lfoToNoiseHpfCutoffKnob.visible = false
+        lfoToNoiseLpfCutoffKnob.visible = false
+      else
+        lfoToDetuneKnob.visible = false
+        lfoToAmpKnob.visible = false
+        lfoToHpfCutoffKnob.visible = false
+        lfoToCutoffKnob.visible = false
+
+        lfoToNoiseOverrideButton.visible = true
+        lfoToNoiseAmpKnob.visible = true
+        lfoToNoiseHpfCutoffKnob.visible = true
+        lfoToNoiseLpfCutoffKnob.visible = true
+      end
+    end
+
+    lfoTargetOscMenu:changed()
+  end
 
   return lfoTargetPanel
 end
@@ -2597,74 +2737,115 @@ local lfoTargetPanel = createLfoTargetPanel()
 
 function createLfoTargetPanel1()
   local lfoTargetPanel1 = Panel("LfoTargetPanel1")
-  lfoTargetPanel1:Label("LFO -> Osc 1 ->")
 
-  local osc1LfoToPWMKnob = lfoTargetPanel1:Knob("LfoToOsc1PWM", 0, 0, 0.5)
-  osc1LfoToPWMKnob.displayName = "PWM"
-  osc1LfoToPWMKnob.mapper = Mapper.Quartic
-  osc1LfoToPWMKnob.fillColour = knobColour
-  osc1LfoToPWMKnob.outlineColour = lfoColour
-  osc1LfoToPWMKnob.changed = function(self)
-    osc1LfoToPWM:setParameter("Value", self.value)
-    self.displayText = percent(self.value)
-  end
-  osc1LfoToPWMKnob:changed()
-  table.insert(tweakables, {widget=osc1LfoToPWMKnob,ceiling=0.25,probability=90,default=50,category="modulation"})
+  if isAnalog3Osc then
+    lfoTargetPanel1:Label("LFO -> Osc PWM")
 
-  if isAnalog or isAnalogStack then
-    local lfoToHardsync1Knob = lfoTargetPanel1:Knob("LfoToHardsync1", 0, 0, 1)
-    if isAnalog then
-      lfoToHardsync1Knob.displayName = "Hardsync"
-    else
-      lfoToHardsync1Knob.displayName = "Pitch"
-    end
-    lfoToHardsync1Knob.fillColour = knobColour
-    lfoToHardsync1Knob.outlineColour = lfoColour
-    lfoToHardsync1Knob.changed = function(self)
-      analogMacros["lfoToHardsync1"]:setParameter("Value", self.value)
+    local osc1LfoToPWMKnob = lfoTargetPanel1:Knob("LfoToOsc1PWM", 0, 0, 0.5)
+    osc1LfoToPWMKnob.displayName = "PWM 1"
+    osc1LfoToPWMKnob.mapper = Mapper.Quartic
+    osc1LfoToPWMKnob.fillColour = knobColour
+    osc1LfoToPWMKnob.outlineColour = lfoColour
+    osc1LfoToPWMKnob.changed = function(self)
+      osc1LfoToPWM:setParameter("Value", self.value)
       self.displayText = percent(self.value)
     end
-    lfoToHardsync1Knob:changed()
-    table.insert(tweakables, {widget=lfoToHardsync1Knob,zero=50,default=70,noDefaultTweak=true,category="modulation"})
-  elseif isWavetable then
-    local lfoToWT1Knob = lfoTargetPanel1:Knob("Osc1LfoToWaveIndex", 0, -1, 1)
-    lfoToWT1Knob.displayName = "Waveindex"
-    lfoToWT1Knob.fillColour = knobColour
-    lfoToWT1Knob.outlineColour = lfoColour
-    lfoToWT1Knob.changed = function(self)
-      local value = (self.value + 1) * 0.5
-      wavetableMacros["lfoToWT1"]:setParameter("Value", value)
+    osc1LfoToPWMKnob:changed()
+    table.insert(tweakables, {widget=osc1LfoToPWMKnob,ceiling=0.25,probability=90,default=50,category="modulation"})
+
+    local osc2LfoToPWMKnob = lfoTargetPanel1:Knob("LfoToOsc2PWM", 0, 0, 0.5)
+    osc2LfoToPWMKnob.displayName = "PWM 2"
+    osc2LfoToPWMKnob.mapper = Mapper.Quartic
+    osc2LfoToPWMKnob.fillColour = knobColour
+    osc2LfoToPWMKnob.outlineColour = lfoColour
+    osc2LfoToPWMKnob.changed = function(self)
+      osc2LfoToPWM:setParameter("Value", self.value)
       self.displayText = percent(self.value)
     end
-    lfoToWT1Knob:changed()
-    table.insert(tweakables, {widget=lfoToWT1Knob,bipolar=25,default=25,category="modulation"})
+    osc2LfoToPWMKnob:changed()
+    table.insert(tweakables, {widget=osc2LfoToPWMKnob,ceiling=0.25,probability=90,default=50,category="modulation"})
 
-    local lfoToWaveSpread1Knob = lfoTargetPanel1:Knob("LfoToWaveSpreadOsc1", 0, -1, 1)
-    lfoToWaveSpread1Knob.displayName = "WaveSpread"
-    lfoToWaveSpread1Knob.fillColour = knobColour
-    lfoToWaveSpread1Knob.outlineColour = lfoColour
-    lfoToWaveSpread1Knob.changed = function(self)
-      local value = (self.value + 1) * 0.5
-      wavetableMacros["lfoToWaveSpread1"]:setParameter("Value", value)
+    local osc3LfoToPWMKnob = lfoTargetPanel1:Knob("LfoToOsc3PWM", 0, 0, 0.5)
+    osc3LfoToPWMKnob.displayName = "PWM 3"
+    osc3LfoToPWMKnob.mapper = Mapper.Quartic
+    osc3LfoToPWMKnob.fillColour = knobColour
+    osc3LfoToPWMKnob.outlineColour = lfoColour
+    osc3LfoToPWMKnob.changed = function(self)
+      analogMacros["osc3LfoToPWM"]:setParameter("Value", self.value)
       self.displayText = percent(self.value)
     end
-    lfoToWaveSpread1Knob:changed()
-    table.insert(tweakables, {widget=lfoToWaveSpread1Knob,bipolar=80,default=50,category="modulation"})
-  end
+    osc3LfoToPWMKnob:changed()
+    table.insert(tweakables, {widget=osc3LfoToPWMKnob,ceiling=0.25,probability=90,default=50,category="modulation"})
+  else
+    lfoTargetPanel1:Label("LFO -> Osc 1 ->")
 
-  if isAnalog or isWavetable then
-    local lfoToPitchOsc1Knob = lfoTargetPanel1:Knob("LfoToPitchOsc1Knob", 0, 0, 48)
-    lfoToPitchOsc1Knob.displayName = "Pitch"
-    lfoToPitchOsc1Knob.mapper = Mapper.Quartic
-    lfoToPitchOsc1Knob.fillColour = knobColour
-    lfoToPitchOsc1Knob.outlineColour = lfoColour
-    lfoToPitchOsc1Knob.changed = function(self)
-      local factor = 1 / 48;
-      local value = (self.value * factor)
-      lfoToPitchOsc1:setParameter("Value", value)
+    local osc1LfoToPWMKnob = lfoTargetPanel1:Knob("LfoToOsc1PWM", 0, 0, 0.5)
+    osc1LfoToPWMKnob.displayName = "PWM"
+    osc1LfoToPWMKnob.mapper = Mapper.Quartic
+    osc1LfoToPWMKnob.fillColour = knobColour
+    osc1LfoToPWMKnob.outlineColour = lfoColour
+    osc1LfoToPWMKnob.changed = function(self)
+      osc1LfoToPWM:setParameter("Value", self.value)
+      self.displayText = percent(self.value)
     end
-    lfoToPitchOsc1Knob:changed()
-    table.insert(tweakables, {widget=lfoToPitchOsc1Knob,ceiling=0.1,probability=75,default=75,noDefaultTweak=true,zero=50,category="modulation"})
+    osc1LfoToPWMKnob:changed()
+    table.insert(tweakables, {widget=osc1LfoToPWMKnob,ceiling=0.25,probability=90,default=50,category="modulation"})
+
+    if isAnalog or isAnalogStack then
+      local lfoToHardsync1Knob = lfoTargetPanel1:Knob("LfoToHardsync1", 0, 0, 1)
+      if isAnalog then
+        lfoToHardsync1Knob.displayName = "Hardsync"
+      else
+        lfoToHardsync1Knob.displayName = "Pitch"
+      end
+      lfoToHardsync1Knob.fillColour = knobColour
+      lfoToHardsync1Knob.outlineColour = lfoColour
+      lfoToHardsync1Knob.changed = function(self)
+        analogMacros["lfoToHardsync1"]:setParameter("Value", self.value)
+        self.displayText = percent(self.value)
+      end
+      lfoToHardsync1Knob:changed()
+      table.insert(tweakables, {widget=lfoToHardsync1Knob,zero=50,default=70,noDefaultTweak=true,category="modulation"})
+    elseif isWavetable then
+      local lfoToWT1Knob = lfoTargetPanel1:Knob("Osc1LfoToWaveIndex", 0, -1, 1)
+      lfoToWT1Knob.displayName = "Waveindex"
+      lfoToWT1Knob.fillColour = knobColour
+      lfoToWT1Knob.outlineColour = lfoColour
+      lfoToWT1Knob.changed = function(self)
+        local value = (self.value + 1) * 0.5
+        wavetableMacros["lfoToWT1"]:setParameter("Value", value)
+        self.displayText = percent(self.value)
+      end
+      lfoToWT1Knob:changed()
+      table.insert(tweakables, {widget=lfoToWT1Knob,bipolar=25,default=25,category="modulation"})
+
+      local lfoToWaveSpread1Knob = lfoTargetPanel1:Knob("LfoToWaveSpreadOsc1", 0, -1, 1)
+      lfoToWaveSpread1Knob.displayName = "WaveSpread"
+      lfoToWaveSpread1Knob.fillColour = knobColour
+      lfoToWaveSpread1Knob.outlineColour = lfoColour
+      lfoToWaveSpread1Knob.changed = function(self)
+        local value = (self.value + 1) * 0.5
+        wavetableMacros["lfoToWaveSpread1"]:setParameter("Value", value)
+        self.displayText = percent(self.value)
+      end
+      lfoToWaveSpread1Knob:changed()
+      table.insert(tweakables, {widget=lfoToWaveSpread1Knob,bipolar=80,default=50,category="modulation"})
+    end
+
+    if isAnalog or isWavetable then
+      local lfoToPitchOsc1Knob = lfoTargetPanel1:Knob("LfoToPitchOsc1Knob", 0, 0, 48)
+      lfoToPitchOsc1Knob.displayName = "Pitch"
+      lfoToPitchOsc1Knob.mapper = Mapper.Quartic
+      lfoToPitchOsc1Knob.fillColour = knobColour
+      lfoToPitchOsc1Knob.outlineColour = lfoColour
+      lfoToPitchOsc1Knob.changed = function(self)
+        local factor = 1 / 48
+        local value = (self.value * factor)
+        lfoToPitchOsc1:setParameter("Value", value)
+      end
+      lfoToPitchOsc1Knob:changed()
+      table.insert(tweakables, {widget=lfoToPitchOsc1Knob,ceiling=0.1,probability=75,default=75,noDefaultTweak=true,zero=50,category="modulation"})
+    end
   end
 
   return lfoTargetPanel1
@@ -2678,74 +2859,120 @@ local lfoTargetPanel1 = createLfoTargetPanel1()
 
 function createLfoTargetPanel2()
   local lfoTargetPanel2 = Panel("LfoTargetPanel2")
-  lfoTargetPanel2:Label("LFO -> Osc 2 ->")
 
-  local osc2LfoToPWMKnob = lfoTargetPanel2:Knob("LfoToOsc2PWM", 0, 0, 0.5)
-  osc2LfoToPWMKnob.displayName = "PWM"
-  osc2LfoToPWMKnob.mapper = Mapper.Quartic
-  osc2LfoToPWMKnob.fillColour = knobColour
-  osc2LfoToPWMKnob.outlineColour = lfoColour
-  osc2LfoToPWMKnob.changed = function(self)
-    osc2LfoToPWM:setParameter("Value", self.value)
-    self.displayText = percent(self.value)
-  end
-  osc2LfoToPWMKnob:changed()
-  table.insert(tweakables, {widget=osc2LfoToPWMKnob,ceiling=0.25,probability=90,default=50,category="modulation"})
+  if isAnalog3Osc then
+    lfoTargetPanel2:Label("LFO -> Osc Pitch")
 
-  if isAnalog or isAnalogStack then
-    local lfoToHardsync2Knob = lfoTargetPanel2:Knob("LfoToHardsync2", 0, 0, 1)
-    if isAnalog then
-      lfoToHardsync2Knob.displayName = "Hardsync"
-    else
-      lfoToHardsync2Knob.displayName = "Pitch"
+    local lfoToPitchOsc1Knob = lfoTargetPanel2:Knob("LfoToPitchOsc1Knob", 0, 0, 48)
+    lfoToPitchOsc1Knob.displayName = "Pitch 1"
+    lfoToPitchOsc1Knob.mapper = Mapper.Quartic
+    lfoToPitchOsc1Knob.fillColour = knobColour
+    lfoToPitchOsc1Knob.outlineColour = lfoColour
+    lfoToPitchOsc1Knob.changed = function(self)
+      local factor = 1 / 48
+      local value = (self.value * factor)
+      lfoToPitchOsc1:setParameter("Value", value)
     end
-    lfoToHardsync2Knob.fillColour = knobColour
-    lfoToHardsync2Knob.outlineColour = lfoColour
-    lfoToHardsync2Knob.changed = function(self)
-      analogMacros["lfoToHardsync2"]:setParameter("Value", self.value)
-      self.displayText = percent(self.value)
-    end
-    lfoToHardsync2Knob:changed()
-    table.insert(tweakables, {widget=lfoToHardsync2Knob,zero=50,default=70,noDefaultTweak=true,category="modulation"})
-  elseif isWavetable then
-    local lfoToWT2Knob = lfoTargetPanel2:Knob("Osc2LfoToWaveIndex", 0, -1, 1)
-    lfoToWT2Knob.displayName = "Waveindex"
-    lfoToWT2Knob.fillColour = knobColour
-    lfoToWT2Knob.outlineColour = lfoColour
-    lfoToWT2Knob.changed = function(self)
-      local value = (self.value + 1) * 0.5
-      wavetableMacros["lfoToWT2"]:setParameter("Value", value)
-      self.displayText = percent(self.value)
-    end
-    lfoToWT2Knob:changed()
-    table.insert(tweakables, {widget=lfoToWT2Knob,bipolar=25,default=25,category="modulation"})
+    lfoToPitchOsc1Knob:changed()
+    table.insert(tweakables, {widget=lfoToPitchOsc1Knob,ceiling=0.1,probability=80,default=80,noDefaultTweak=true,zero=50,category="modulation"})
 
-    local lfoToWaveSpread2Knob = lfoTargetPanel2:Knob("LfoToWaveSpreadOsc2", 0, -1, 1)
-    lfoToWaveSpread2Knob.displayName = "WaveSpread"
-    lfoToWaveSpread2Knob.fillColour = knobColour
-    lfoToWaveSpread2Knob.outlineColour = lfoColour
-    lfoToWaveSpread2Knob.changed = function(self)
-      local value = (self.value + 1) * 0.5
-      wavetableMacros["lfoToWaveSpread2"]:setParameter("Value", value)
-      self.displayText = percent(self.value)
-    end
-    lfoToWaveSpread2Knob:changed()
-    table.insert(tweakables, {widget=lfoToWaveSpread2Knob,bipolar=80,default=50,category="modulation"})
-  end
-
-  if isAnalog or isWavetable then
+    -- TODO Validate pitch modulation - if hard sync is enabled, ceiling can be higher
     local lfoToPitchOsc2Knob = lfoTargetPanel2:Knob("LfoToPitchOsc2Knob", 0, 0, 48)
-    lfoToPitchOsc2Knob.displayName = "Pitch"
+    lfoToPitchOsc2Knob.displayName = "Pitch 2"
     lfoToPitchOsc2Knob.mapper = Mapper.Quartic
     lfoToPitchOsc2Knob.fillColour = knobColour
     lfoToPitchOsc2Knob.outlineColour = lfoColour
     lfoToPitchOsc2Knob.changed = function(self)
-      local factor = 1 / 48;
+      local factor = 1 / 48
       local value = (self.value * factor)
       lfoToPitchOsc2:setParameter("Value", value)
     end
     lfoToPitchOsc2Knob:changed()
     table.insert(tweakables, {widget=lfoToPitchOsc2Knob,ceiling=0.1,probability=75,default=80,noDefaultTweak=true,zero=30,category="modulation"})
+
+    -- TODO Validate pitch modulation - if hard sync is enabled, ceiling can be higher
+    local lfoToPitchOsc3Knob = lfoTargetPanel2:Knob("LfoToPitchOsc3Knob", 0, 0, 48)
+    lfoToPitchOsc3Knob.displayName = "Pitch 3"
+    lfoToPitchOsc3Knob.mapper = Mapper.Quartic
+    lfoToPitchOsc3Knob.fillColour = knobColour
+    lfoToPitchOsc3Knob.outlineColour = lfoColour
+    lfoToPitchOsc3Knob.changed = function(self)
+      local factor = 1 / 48
+      local value = (self.value * factor)
+      lfoToPitchOsc2:setParameter("Value", value)
+    end
+    lfoToPitchOsc3Knob:changed()
+    table.insert(tweakables, {widget=lfoToPitchOsc3Knob,ceiling=0.1,probability=75,default=80,noDefaultTweak=true,zero=30,category="modulation"})
+  else
+    lfoTargetPanel2:Label("LFO -> Osc 2 ->")
+
+    local osc2LfoToPWMKnob = lfoTargetPanel2:Knob("LfoToOsc2PWM", 0, 0, 0.5)
+    osc2LfoToPWMKnob.displayName = "PWM"
+    osc2LfoToPWMKnob.mapper = Mapper.Quartic
+    osc2LfoToPWMKnob.fillColour = knobColour
+    osc2LfoToPWMKnob.outlineColour = lfoColour
+    osc2LfoToPWMKnob.changed = function(self)
+      osc2LfoToPWM:setParameter("Value", self.value)
+      self.displayText = percent(self.value)
+    end
+    osc2LfoToPWMKnob:changed()
+    table.insert(tweakables, {widget=osc2LfoToPWMKnob,ceiling=0.25,probability=90,default=50,category="modulation"})
+
+    if isAnalog or isAnalogStack then
+      local lfoToHardsync2Knob = lfoTargetPanel2:Knob("LfoToHardsync2", 0, 0, 1)
+      if isAnalog then
+        lfoToHardsync2Knob.displayName = "Hardsync"
+      else
+        lfoToHardsync2Knob.displayName = "Pitch"
+      end
+      lfoToHardsync2Knob.fillColour = knobColour
+      lfoToHardsync2Knob.outlineColour = lfoColour
+      lfoToHardsync2Knob.changed = function(self)
+        analogMacros["lfoToHardsync2"]:setParameter("Value", self.value)
+        self.displayText = percent(self.value)
+      end
+      lfoToHardsync2Knob:changed()
+      table.insert(tweakables, {widget=lfoToHardsync2Knob,zero=50,default=70,noDefaultTweak=true,category="modulation"})
+    elseif isWavetable then
+      local lfoToWT2Knob = lfoTargetPanel2:Knob("Osc2LfoToWaveIndex", 0, -1, 1)
+      lfoToWT2Knob.displayName = "Waveindex"
+      lfoToWT2Knob.fillColour = knobColour
+      lfoToWT2Knob.outlineColour = lfoColour
+      lfoToWT2Knob.changed = function(self)
+        local value = (self.value + 1) * 0.5
+        wavetableMacros["lfoToWT2"]:setParameter("Value", value)
+        self.displayText = percent(self.value)
+      end
+      lfoToWT2Knob:changed()
+      table.insert(tweakables, {widget=lfoToWT2Knob,bipolar=25,default=25,category="modulation"})
+
+      local lfoToWaveSpread2Knob = lfoTargetPanel2:Knob("LfoToWaveSpreadOsc2", 0, -1, 1)
+      lfoToWaveSpread2Knob.displayName = "WaveSpread"
+      lfoToWaveSpread2Knob.fillColour = knobColour
+      lfoToWaveSpread2Knob.outlineColour = lfoColour
+      lfoToWaveSpread2Knob.changed = function(self)
+        local value = (self.value + 1) * 0.5
+        wavetableMacros["lfoToWaveSpread2"]:setParameter("Value", value)
+        self.displayText = percent(self.value)
+      end
+      lfoToWaveSpread2Knob:changed()
+      table.insert(tweakables, {widget=lfoToWaveSpread2Knob,bipolar=80,default=50,category="modulation"})
+    end
+
+    if isAnalog or isWavetable then
+      local lfoToPitchOsc2Knob = lfoTargetPanel2:Knob("LfoToPitchOsc2Knob", 0, 0, 48)
+      lfoToPitchOsc2Knob.displayName = "Pitch"
+      lfoToPitchOsc2Knob.mapper = Mapper.Quartic
+      lfoToPitchOsc2Knob.fillColour = knobColour
+      lfoToPitchOsc2Knob.outlineColour = lfoColour
+      lfoToPitchOsc2Knob.changed = function(self)
+        local factor = 1 / 48
+        local value = (self.value * factor)
+        lfoToPitchOsc2:setParameter("Value", value)
+      end
+      lfoToPitchOsc2Knob:changed()
+      table.insert(tweakables, {widget=lfoToPitchOsc2Knob,ceiling=0.1,probability=75,default=80,noDefaultTweak=true,zero=30,category="modulation"})
+    end
   end
 
   return lfoTargetPanel2
@@ -2761,12 +2988,17 @@ function createAmpEnvPanel()
   local ampEnvPanel = Panel("ampEnv1")
 
   local activeAmpEnvOsc = 1
-  local ampEnvMenu = ampEnvPanel:Menu("AmpEnvOsc", {"All", "Osc 1", "Osc 2", "Noise Osc"})
-  ampEnvMenu.displayName = "Amp Envelope"
-  ampEnvMenu.backgroundColour = menuBackgroundColour
-  ampEnvMenu.textColour = menuTextColour
-  ampEnvMenu.arrowColour = menuArrowColour
-  ampEnvMenu.outlineColour = menuOutlineColour
+  local ampEnvMenu
+  if isAnalog3Osc == true then
+    ampEnvPanel:Label("Amp Envelope")
+  else
+    ampEnvMenu = ampEnvPanel:Menu("AmpEnvOsc", {"All", "Osc 1", "Osc 2", "Noise Osc"})
+    ampEnvMenu.displayName = "Amp Envelope"
+    ampEnvMenu.backgroundColour = menuBackgroundColour
+    ampEnvMenu.textColour = menuTextColour
+    ampEnvMenu.arrowColour = menuArrowColour
+    ampEnvMenu.outlineColour = menuOutlineColour
+  end
 
   local ampAttackKnob = ampEnvPanel:Knob("Attack", 0.001, 0, 10)
   ampAttackKnob.fillColour = knobColour
@@ -2879,17 +3111,19 @@ function createAmpEnvPanel()
     knob.enabled = true
   end
 
-  ampEnvMenu.changed = function(self)
-    -- STORE ACTIVE OSCILLATOR
-    activeAmpEnvOsc = self.value
-    -- SET KNOB VALUES
-    setAmpEnvKnob(ampAttackKnob, "AttackTime")
-    setAmpEnvKnob(ampDecayKnob, "DecayTime")
-    setAmpEnvKnob(ampSustainKnob, "SustainLevel")
-    setAmpEnvKnob(ampReleaseKnob, "ReleaseTime")
-    setAmpEnvKnob(ampVelocityKnob, "DynamicRange")
+  if ampEnvMenu then
+    ampEnvMenu.changed = function(self)
+      -- STORE ACTIVE OSCILLATOR
+      activeAmpEnvOsc = self.value
+      -- SET KNOB VALUES
+      setAmpEnvKnob(ampAttackKnob, "AttackTime")
+      setAmpEnvKnob(ampDecayKnob, "DecayTime")
+      setAmpEnvKnob(ampSustainKnob, "SustainLevel")
+      setAmpEnvKnob(ampReleaseKnob, "ReleaseTime")
+      setAmpEnvKnob(ampVelocityKnob, "DynamicRange")
+    end
+    ampEnvMenu:changed()
   end
-  ampEnvMenu:changed()
 
   return ampEnvPanel
 end
