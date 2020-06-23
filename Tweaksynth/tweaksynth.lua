@@ -198,8 +198,6 @@ local wavetableMacros = {
 -- Colours and margins
 --------------------------------------------------------------------------------
 
--- BG #020031
-
 local buttonAlpha = 0.9
 local buttonBackgroundColourOff = "#ff084486"
 local buttonBackgroundColourOn = "#ff02ACFE"
@@ -896,7 +894,8 @@ pagePanel.height = 38
 
 function createStackOscPanel(oscPanel, oscillatorNumber)
   local activeStackOsc = 0
-  local tweakStackOscs = true -- Activate to tweak stack oscillators individually
+  local maxOscillators = 4
+  local tweakStackOscs = false -- Activate to tweak stack oscillators individually
   local oscShapeKnob = {}
   local oscPhaseKnob = {}
   local oscOctKnob = {}
@@ -923,13 +922,11 @@ function createStackOscPanel(oscPanel, oscillatorNumber)
     local hasWaveOverrides = false
     local hasPhaseOverrides = false
     local hasPitchOverrides = false
-    local hasSyncOverrides = false
     local wave = oscShapeKnob[1].value
     local phase = oscPhaseKnob[1].value
     local pitch = oscPitchKnob[1].value
-    local sync = oscSyncButton[1].value
     numOscillatorsKnob.visible = activeStackOsc == 0
-    for i=1,#oscShapeKnob do
+    for i=1,(maxOscillators+1) do
       oscShapeKnob[i].visible = i == self.value
       oscPhaseKnob[i].visible = i == self.value
       oscOctKnob[i].visible = i == self.value
@@ -941,20 +938,16 @@ function createStackOscPanel(oscPanel, oscillatorNumber)
       if oscPhaseKnob[i].value ~= phase then
         hasPhaseOverrides = true
       end
-      if i ~= 2 and oscPitchKnob[i].value ~= pitch then
+      if oscPitchKnob[i].value ~= pitch then
         hasPitchOverrides = true
-      end
-      if i ~= 2 and oscSyncButton[i].value ~= sync then
-        hasSyncOverrides = true
       end
     end
     oscShapeKnob[1].enabled = hasWaveOverrides == false
     oscPhaseKnob[1].enabled = hasPhaseOverrides == false
     oscPitchKnob[1].enabled = hasPitchOverrides == false
-    oscSyncButton[1].enabled = hasSyncOverrides == false
   end
 
-  for stackIndex=0,8 do
+  for stackIndex=0,maxOscillators do
     local stackShapeKnob = oscPanel:Knob("Osc"..oscillatorNumber.."Wave"..stackIndex, 1, 1, 6, true)
     stackShapeKnob.displayName = "Waveform"
     stackShapeKnob.x = stackOscMenu.x + stackOscMenu.width + 10
@@ -963,10 +956,11 @@ function createStackOscPanel(oscPanel, oscillatorNumber)
     stackShapeKnob.outlineColour = osc1Colour
     stackShapeKnob.changed = function(self)
         if activeStackOsc == 0 then
-          for i=1,8 do
-            osc:setParameter("Waveform"..i, self.value)
-            oscShapeKnob[i+1]:setValue(self.value, false)
+          for i=1,maxOscillators do
+            activeStackOsc = i
+            oscShapeKnob[i+1]:setValue(self.value)
           end
+          activeStackOsc = 0
         else
           osc:setParameter("Waveform"..stackIndex, self.value)
         end
@@ -985,10 +979,11 @@ function createStackOscPanel(oscPanel, oscillatorNumber)
     stackPhaseKnob.outlineColour = osc1Colour
     stackPhaseKnob.changed = function(self)
       if activeStackOsc == 0 then
-        for i=1,8 do
-          osc:setParameter("StartPhase"..i, self.value)
-          oscPhaseKnob[i+1]:setValue(self.value, false)
+        for i=1,maxOscillators do
+          activeStackOsc = i
+          oscPhaseKnob[i+1]:setValue(self.value)
         end
+        activeStackOsc = 0
       else
         osc:setParameter("StartPhase"..stackIndex, self.value)
       end
@@ -1007,10 +1002,11 @@ function createStackOscPanel(oscPanel, oscillatorNumber)
     stackOctKnob.outlineColour = osc1Colour
     stackOctKnob.changed = function(self)
       if activeStackOsc == 0 then
-        for i=1,8 do
-          osc:setParameter("Octave"..i, self.value)
-          oscOctKnob[i+1]:setValue(self.value, false)
+        for i=1,maxOscillators do
+          activeStackOsc = i
+          oscOctKnob[i+1]:setValue(self.value)
         end
+        activeStackOsc = 0
       else
         osc:setParameter("Octave"..stackIndex, self.value)
       end
@@ -1020,25 +1016,26 @@ function createStackOscPanel(oscPanel, oscillatorNumber)
     end
     table.insert(oscOctKnob, stackOctKnob)
 
-    local stackPitchKnob = oscPanel:Knob("PitchStack"..oscillatorNumber.."Osc"..stackIndex, 0, 0, 48)
+    local stackPitchKnob = oscPanel:Knob("PitchStack"..oscillatorNumber.."Osc"..stackIndex, 0, -48, 48)
     stackPitchKnob.displayName = "Pitch"
     stackPitchKnob.x = stackOctKnob.x + stackOctKnob.width + 10
     stackPitchKnob.y = stackOctKnob.y
-    stackPitchKnob.mapper = Mapper.Quadratic
+    stackPitchKnob.mapper = Mapper.Quartic
     stackPitchKnob.fillColour = knobColour
     stackPitchKnob.outlineColour = osc1Colour
     stackPitchKnob.changed = function(self)
       if activeStackOsc == 0 then
-        for i=1,8 do
-          osc:setParameter("Pitch"..i, self.value)
-          oscPitchKnob[i+1]:setValue(self.value, false)
+        for i=1,maxOscillators do
+          activeStackOsc = i
+          oscPitchKnob[i+1]:setValue(self.value)
         end
+        activeStackOsc = 0
       else
         osc:setParameter("Pitch"..stackIndex, self.value)
       end
     end
     if tweakStackOscs == true or stackIndex == 0 then
-      table.insert(tweakables, {widget=stackPitchKnob,ceiling=12,probability=80,min=48,zero=50,default=50,noDefaultTweak=true,valueFilter={0,3,4,5,7,12,19,24,36,48},category="synthesis"})
+      table.insert(tweakables, {widget=stackPitchKnob,min=-24,max=24,valueFilter={-24,-12,-5,0,7,12,19,24},floor=-12,ceiling=12,probability=75,default=50,zero=50,category="synthesis"})
     end
     table.insert(oscPitchKnob, stackPitchKnob)
 
@@ -1064,7 +1061,7 @@ function createStackOscPanel(oscPanel, oscillatorNumber)
     table.insert(oscSyncButton, stackSyncButton)
   end
 
-  numOscillatorsKnob = oscPanel:Knob("NumOscillators"..oscillatorNumber, 1, 1, 4, true)
+  numOscillatorsKnob = oscPanel:Knob("NumOscillators"..oscillatorNumber, 1, 1, maxOscillators, true)
   numOscillatorsKnob.displayName = "Oscillators"
   numOscillatorsKnob.x = oscPitchKnob[1].x + oscPitchKnob[1].width + 10
   numOscillatorsKnob.y = oscPitchKnob[1].y
@@ -1134,12 +1131,16 @@ function createStackOscPanel(oscPanel, oscillatorNumber)
     if oscillators == 1 then
       osc:setParameter("StartPhase1", 0)
     else
-      local spreadPerOscillator = 0.5 / oscillators
+      local spreadPerOscillator = 0.25 / oscillators
       local currentSpread = spreadPerOscillator
+      local recallActive = activeStackOsc
       for i=1,oscillators do
-        osc:setParameter("StartPhase"..i, currentSpread)
+        print("currentSpread:", currentSpread, i)
+        activeStackOsc = i
+        oscPhaseKnob[i+1]:setValue(currentSpread)
         currentSpread = currentSpread + spreadPerOscillator
       end
+      activeStackOsc = recallActive
     end
 
     stackOscMenu:clear()
@@ -1150,9 +1151,10 @@ function createStackOscPanel(oscPanel, oscillatorNumber)
     stackOscMenu.enabled = oscillators > 1
   end
   numOscillatorsKnob:changed()
-  table.insert(tweakables, {widget=numOscillatorsKnob,ceiling=3,probability=50,min=8,default=25,category="synthesis"})
+  table.insert(tweakables, {widget=numOscillatorsKnob,min=maxOscillators,default=25,category="synthesis"})
 
-  for i=1,#oscShapeKnob do
+  for i=1,(maxOscillators+1) do
+    activeStackOsc = i-1
     oscShapeKnob[i]:changed()
     oscPhaseKnob[i]:changed()
     oscOctKnob[i]:changed()
