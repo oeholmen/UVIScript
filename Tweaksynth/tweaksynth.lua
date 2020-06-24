@@ -108,6 +108,13 @@ local isAnalog3Osc = osc1.type == "MinBlepGeneratorStack" and osc2.type == "MinB
 local isAnalogStack = osc1.type == "MinBlepGeneratorStack" and osc2.type == "MinBlepGeneratorStack"
 local isWavetable = osc1.type == "WaveTableOscillator" and osc2.type == "WaveTableOscillator"
 
+-- SET POLYPHONY
+local polyphony = 32
+if isAnalog or isWavetable then
+  polyphony = 16
+end
+Program:setParameter("Polyphony", polyphony)
+
 print("Starting Synth", osc1.type)
 
 --------------------------------------------------------------------------------
@@ -892,6 +899,78 @@ pagePanel.y = 340
 pagePanel.width = 720
 pagePanel.height = 38
 
+
+local pageButtonSize = {111,27}
+local pageButtonAlpha = 1
+local pageButtonBackgroundColourOff = "#9f4A053B"
+local pageButtonBackgroundColourOn = "#cfC722AF"
+local pageButtonTextColourOff = "silver"
+local pageButtonTextColourOn = "white"
+
+local patchmakerPageButton = pagePanel:OnOffButton("PatchmakerPage", true)
+patchmakerPageButton.alpha = pageButtonAlpha
+patchmakerPageButton.backgroundColourOff = pageButtonBackgroundColourOff
+patchmakerPageButton.backgroundColourOn = pageButtonBackgroundColourOn
+patchmakerPageButton.textColourOff = pageButtonTextColourOff
+patchmakerPageButton.textColourOn = pageButtonTextColourOn
+patchmakerPageButton.displayName = "Patchmaker"
+patchmakerPageButton.persistent = false
+patchmakerPageButton.size = pageButtonSize
+
+local twequencerPageButton = pagePanel:OnOffButton("TwequencerPage", false)
+twequencerPageButton.alpha = pageButtonAlpha
+twequencerPageButton.backgroundColourOff = pageButtonBackgroundColourOff
+twequencerPageButton.backgroundColourOn = pageButtonBackgroundColourOn
+twequencerPageButton.textColourOff = pageButtonTextColourOff
+twequencerPageButton.textColourOn = pageButtonTextColourOn
+twequencerPageButton.displayName = "Twequencer"
+twequencerPageButton.persistent = false
+twequencerPageButton.size = pageButtonSize
+
+local synthesisPageButton = pagePanel:OnOffButton("SynthesisPage", false)
+synthesisPageButton.alpha = pageButtonAlpha
+synthesisPageButton.backgroundColourOff = pageButtonBackgroundColourOff
+synthesisPageButton.backgroundColourOn = pageButtonBackgroundColourOn
+synthesisPageButton.textColourOff = pageButtonTextColourOff
+synthesisPageButton.textColourOn = pageButtonTextColourOn
+synthesisPageButton.displayName = "Synthesis"
+synthesisPageButton.persistent = false
+synthesisPageButton.size = pageButtonSize
+
+local filterPageButton = pagePanel:OnOffButton("FilterPage", false)
+filterPageButton.alpha = pageButtonAlpha
+filterPageButton.backgroundColourOff = pageButtonBackgroundColourOff
+filterPageButton.backgroundColourOn = pageButtonBackgroundColourOn
+filterPageButton.textColourOff = pageButtonTextColourOff
+filterPageButton.textColourOn = pageButtonTextColourOn
+filterPageButton.displayName = "Filters"
+filterPageButton.persistent = false
+filterPageButton.size = pageButtonSize
+
+local modulationPageButton = pagePanel:OnOffButton("ModulationPage", false)
+modulationPageButton.alpha = pageButtonAlpha
+modulationPageButton.backgroundColourOff = pageButtonBackgroundColourOff
+modulationPageButton.backgroundColourOn = pageButtonBackgroundColourOn
+modulationPageButton.textColourOff = pageButtonTextColourOff
+modulationPageButton.textColourOn = pageButtonTextColourOn
+modulationPageButton.displayName = "Modulation"
+modulationPageButton.persistent = false
+modulationPageButton.size = pageButtonSize
+
+local effectsPageButton = pagePanel:OnOffButton("EffectsPage", false)
+effectsPageButton.alpha = pageButtonAlpha
+effectsPageButton.backgroundColourOff = pageButtonBackgroundColourOff
+effectsPageButton.backgroundColourOn = pageButtonBackgroundColourOn
+effectsPageButton.textColourOff = pageButtonTextColourOff
+effectsPageButton.textColourOn = pageButtonTextColourOn
+effectsPageButton.displayName = "Effects"
+effectsPageButton.persistent = false
+effectsPageButton.size = pageButtonSize
+
+--------------------------------------------------------------------------------
+-- Osc Panel Functions
+--------------------------------------------------------------------------------
+
 function createStackOscPanel(oscPanel, oscillatorNumber)
   local maxOscillators = 4
   local tweakStackOscs = false -- Activate to tweak stack oscillators individually
@@ -1168,8 +1247,55 @@ function createStackOscPanel(oscPanel, oscillatorNumber)
   stackOscMenu:changed()
 end
 
+local analog3OscSoloButtons = {}
 function createAnalog3OscPanel(oscPanel, oscillatorNumber)
-  oscPanel:Label("Osc "..oscillatorNumber)
+  local oscLabel = oscPanel:Label("Osc "..oscillatorNumber)
+
+  local muteOscButton = oscPanel:OnOffButton("MuteOsc"..oscillatorNumber, false)
+  muteOscButton.x = oscLabel.x
+  muteOscButton.y = oscLabel.y + oscLabel.height + 5
+  muteOscButton.tooltip = "Mute Osc "..oscillatorNumber
+  muteOscButton.displayName = "Mute"
+  muteOscButton.width = 40
+  muteOscButton.alpha = buttonAlpha
+  muteOscButton.backgroundColourOff = buttonBackgroundColourOff
+  muteOscButton.backgroundColourOn = buttonBackgroundColourOn
+  muteOscButton.textColourOff = buttonTextColourOff
+  muteOscButton.textColourOn = buttonTextColourOn
+  muteOscButton.changed = function(self)
+    osc1:setParameter("Bypass"..oscillatorNumber, self.value)
+  end
+  muteOscButton:changed()
+
+  local soloOscButton = oscPanel:OnOffButton("SoloOsc"..oscillatorNumber, false)
+  soloOscButton.x = muteOscButton.x + muteOscButton.width + 5
+  soloOscButton.y = muteOscButton.y
+  soloOscButton.tooltip = "Solo Osc "..oscillatorNumber
+  soloOscButton.displayName = "Solo"
+  soloOscButton.width = 40
+  soloOscButton.alpha = buttonAlpha
+  soloOscButton.backgroundColourOff = buttonBackgroundColourOff
+  soloOscButton.backgroundColourOn = buttonBackgroundColourOn
+  soloOscButton.textColourOff = buttonTextColourOff
+  soloOscButton.textColourOn = buttonTextColourOn
+  soloOscButton.changed = function(self)
+    local hasSoloedOscs = false
+    for i=1,3 do
+      local bypass = true
+      if analog3OscSoloButtons[i].value == true then
+        bypass = false
+        hasSoloedOscs = true
+      end
+      osc1:setParameter("Bypass"..i, bypass)
+    end
+    -- If no soloed oscillators remain, all bypasses must be cleared
+    if hasSoloedOscs == false then
+      for i=1,3 do
+        osc1:setParameter("Bypass"..i, false)
+      end
+    end
+  end
+  table.insert(analog3OscSoloButtons, soloOscButton)
 
   local oscShapeKnob = oscPanel:Knob("Osc"..oscillatorNumber.."Wave", 1, 1, 6, true)
   oscShapeKnob.displayName = "Waveform"
@@ -1491,6 +1617,12 @@ end
 
 function createMixerPanel()
   local mixerPanel = Panel("Mixer")
+  mixerPanel.backgroundColour = "#91000000"
+  mixerPanel.x = 0
+  mixerPanel.y = 378
+  mixerPanel.width = 720
+  mixerPanel.height = 102
+
 
   local knobSize = {100,40}
   local marginRight = 10
@@ -1956,7 +2088,7 @@ function createFilterEnvPanel()
     filterEnvMenu.arrowColour = menuArrowColour
     filterEnvMenu.outlineColour = menuOutlineColour
     filterEnvMenu.displayName = "Filter Envelope"
-end
+  end
 
   local filterAttackKnob = filterEnvPanel:Knob("FAttack", 0.001, 0, 10)
   filterAttackKnob.displayName="Attack"
@@ -2174,7 +2306,7 @@ function createFilterEnvOscTargetsPanel()
     end
     filterEnvToPitchOsc3Knob:changed()
     table.insert(tweakables, {widget=filterEnvToPitchOsc3Knob,ceiling=0.1,probability=85,default=75,noDefaultTweak=true,zero=25,category="filter"})
-  else
+  elseif isAnalog or isWavetable then
     filterEnvOscTargetsPanel:Label("Filter Env -> Osc 1 ->")
 
     if isAnalog then
@@ -2206,30 +2338,24 @@ function createFilterEnvOscTargetsPanel()
       table.insert(tweakables, {widget=filterEnvToWT1Knob,bipolar=25,category="filter"})  
     end
 
-    if isAnalog or isWavetable then
-      local filterEnvToPitchOsc1Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToPitchOsc1", 0, 0, 48)
-      filterEnvToPitchOsc1Knob.displayName = "Pitch"
-      filterEnvToPitchOsc1Knob.mapper = Mapper.Quartic
-      filterEnvToPitchOsc1Knob.fillColour = knobColour
-      filterEnvToPitchOsc1Knob.outlineColour = filterEnvColour
-      filterEnvToPitchOsc1Knob.changed = function(self)
-        local factor = 1 / 48
-        local value = self.value * factor
-        filterEnvToPitchOsc1:setParameter("Value", value)
-      end
-      filterEnvToPitchOsc1Knob:changed()
-      table.insert(tweakables, {widget=filterEnvToPitchOsc1Knob,ceiling=0.1,probability=90,default=80,noDefaultTweak=true,zero=30,category="filter"})
+    local filterEnvToPitchOsc1Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToPitchOsc1", 0, 0, 48)
+    filterEnvToPitchOsc1Knob.displayName = "Pitch"
+    filterEnvToPitchOsc1Knob.mapper = Mapper.Quartic
+    filterEnvToPitchOsc1Knob.fillColour = knobColour
+    filterEnvToPitchOsc1Knob.outlineColour = filterEnvColour
+    filterEnvToPitchOsc1Knob.changed = function(self)
+      local factor = 1 / 48
+      local value = self.value * factor
+      filterEnvToPitchOsc1:setParameter("Value", value)
     end
+    filterEnvToPitchOsc1Knob:changed()
+    table.insert(tweakables, {widget=filterEnvToPitchOsc1Knob,ceiling=0.1,probability=90,default=80,noDefaultTweak=true,zero=30,category="filter"})
 
     filterEnvOscTargetsPanel:Label("Filter Env -> Osc 2 ->")
 
     if isAnalog then
       local filterEnvToHardsync2Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToHardsync2", 0, 0, 1)
-      if isAnalog then
-        filterEnvToHardsync2Knob.displayName = "Hardsync"
-      else
-        filterEnvToHardsync2Knob.displayName = "Pitch"
-      end
+      filterEnvToHardsync2Knob.displayName = "Hardsync"
       filterEnvToHardsync2Knob.fillColour = knobColour
       filterEnvToHardsync2Knob.outlineColour = filterEnvColour
       filterEnvToHardsync2Knob.changed = function(self)
@@ -2252,20 +2378,18 @@ function createFilterEnvOscTargetsPanel()
       table.insert(tweakables, {widget=filterEnvToWT2Knob,bipolar=25,category="filter"})  
     end
 
-    if isAnalog or isWavetable then
-      local filterEnvToPitchOsc2Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToPitchOsc2", 0, 0, 48)
-      filterEnvToPitchOsc2Knob.displayName = "Pitch"
-      filterEnvToPitchOsc2Knob.mapper = Mapper.Quartic
-      filterEnvToPitchOsc2Knob.fillColour = knobColour
-      filterEnvToPitchOsc2Knob.outlineColour = filterEnvColour
-      filterEnvToPitchOsc2Knob.changed = function(self)
-        local factor = 1 / 48
-        local value = self.value * factor
-        filterEnvToPitchOsc2:setParameter("Value", value)
-      end
-      filterEnvToPitchOsc2Knob:changed()
-      table.insert(tweakables, {widget=filterEnvToPitchOsc2Knob,ceiling=0.1,probability=85,default=75,noDefaultTweak=true,zero=25,category="filter"})
+    local filterEnvToPitchOsc2Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToPitchOsc2", 0, 0, 48)
+    filterEnvToPitchOsc2Knob.displayName = "Pitch"
+    filterEnvToPitchOsc2Knob.mapper = Mapper.Quartic
+    filterEnvToPitchOsc2Knob.fillColour = knobColour
+    filterEnvToPitchOsc2Knob.outlineColour = filterEnvColour
+    filterEnvToPitchOsc2Knob.changed = function(self)
+      local factor = 1 / 48
+      local value = self.value * factor
+      filterEnvToPitchOsc2:setParameter("Value", value)
     end
+    filterEnvToPitchOsc2Knob:changed()
+    table.insert(tweakables, {widget=filterEnvToPitchOsc2Knob,ceiling=0.1,probability=85,default=75,noDefaultTweak=true,zero=25,category="filter"})
   end
 
   return filterEnvOscTargetsPanel
@@ -3163,6 +3287,28 @@ function createEffectsPanel()
   local effectsLabel = effectsPanel:Label("Effects")
   effectsLabel.x = 10
   effectsLabel.y = 10
+
+  local bypassFxButton = effectsPanel:OnOffButton("BypassEffects", false)
+  bypassFxButton.width = 60
+  bypassFxButton.x = 640
+  bypassFxButton.y = effectsLabel.y
+  bypassFxButton.tooltip = "Bypass all effects"
+  bypassFxButton.displayName = "Bypass"
+  bypassFxButton.alpha = buttonAlpha
+  bypassFxButton.backgroundColourOff = buttonBackgroundColourOff
+  bypassFxButton.backgroundColourOn = buttonBackgroundColourOn
+  bypassFxButton.textColourOff = buttonTextColourOff
+  bypassFxButton.textColourOn = buttonTextColourOn
+  bypassFxButton.changed = function(self)
+    Program:setParameter("BypassInsertFX", self.value)
+    if self.value then
+      effectsPageButton.displayName = "Effects (Bypassed)"
+    else
+      effectsPageButton.displayName = "Effects"
+    end
+    print("BypassInsertFX:", self.value)
+  end
+  bypassFxButton:changed()
 
   local reverbKnob = effectsPanel:Knob("Reverb", 0, 0, 1)
   reverbKnob.x = 150
@@ -4113,83 +4259,6 @@ function createTwequencerPanel()
 
   return tweqPanel
 end
-
---------------------------------------------------------------------------------
--- Pages
---------------------------------------------------------------------------------
-
-local pageButtonSize = {111,27}
-local pageButtonAlpha = 1
-local pageButtonBackgroundColourOff = "#9f4A053B"
-local pageButtonBackgroundColourOn = "#cfC722AF"
-local pageButtonTextColourOff = "silver"
-local pageButtonTextColourOn = "white"
-
-local patchmakerPageButton = pagePanel:OnOffButton("PatchmakerPage", true)
-patchmakerPageButton.alpha = pageButtonAlpha
-patchmakerPageButton.backgroundColourOff = pageButtonBackgroundColourOff
-patchmakerPageButton.backgroundColourOn = pageButtonBackgroundColourOn
-patchmakerPageButton.textColourOff = pageButtonTextColourOff
-patchmakerPageButton.textColourOn = pageButtonTextColourOn
-patchmakerPageButton.displayName = "Patchmaker"
-patchmakerPageButton.persistent = false
-patchmakerPageButton.size = pageButtonSize
-
-local twequencerPageButton = pagePanel:OnOffButton("TwequencerPage", false)
-twequencerPageButton.alpha = pageButtonAlpha
-twequencerPageButton.backgroundColourOff = pageButtonBackgroundColourOff
-twequencerPageButton.backgroundColourOn = pageButtonBackgroundColourOn
-twequencerPageButton.textColourOff = pageButtonTextColourOff
-twequencerPageButton.textColourOn = pageButtonTextColourOn
-twequencerPageButton.displayName = "Twequencer"
-twequencerPageButton.persistent = false
-twequencerPageButton.size = pageButtonSize
-
-local synthesisPageButton = pagePanel:OnOffButton("SynthesisPage", false)
-synthesisPageButton.alpha = pageButtonAlpha
-synthesisPageButton.backgroundColourOff = pageButtonBackgroundColourOff
-synthesisPageButton.backgroundColourOn = pageButtonBackgroundColourOn
-synthesisPageButton.textColourOff = pageButtonTextColourOff
-synthesisPageButton.textColourOn = pageButtonTextColourOn
-synthesisPageButton.displayName = "Synthesis"
-synthesisPageButton.persistent = false
-synthesisPageButton.size = pageButtonSize
-
-local filterPageButton = pagePanel:OnOffButton("FilterPage", false)
-filterPageButton.alpha = pageButtonAlpha
-filterPageButton.backgroundColourOff = pageButtonBackgroundColourOff
-filterPageButton.backgroundColourOn = pageButtonBackgroundColourOn
-filterPageButton.textColourOff = pageButtonTextColourOff
-filterPageButton.textColourOn = pageButtonTextColourOn
-filterPageButton.displayName = "Filters"
-filterPageButton.persistent = false
-filterPageButton.size = pageButtonSize
-
-local modulationPageButton = pagePanel:OnOffButton("ModulationPage", false)
-modulationPageButton.alpha = pageButtonAlpha
-modulationPageButton.backgroundColourOff = pageButtonBackgroundColourOff
-modulationPageButton.backgroundColourOn = pageButtonBackgroundColourOn
-modulationPageButton.textColourOff = pageButtonTextColourOff
-modulationPageButton.textColourOn = pageButtonTextColourOn
-modulationPageButton.displayName = "Modulation"
-modulationPageButton.persistent = false
-modulationPageButton.size = pageButtonSize
-
-local effectsPageButton = pagePanel:OnOffButton("EffectsPage", false)
-effectsPageButton.alpha = pageButtonAlpha
-effectsPageButton.backgroundColourOff = pageButtonBackgroundColourOff
-effectsPageButton.backgroundColourOn = pageButtonBackgroundColourOn
-effectsPageButton.textColourOff = pageButtonTextColourOff
-effectsPageButton.textColourOn = pageButtonTextColourOn
-effectsPageButton.displayName = "Effects"
-effectsPageButton.persistent = false
-effectsPageButton.size = pageButtonSize
-
-mixerPanel.backgroundColour = "#91000000"
-mixerPanel.x = 0
-mixerPanel.y = 378
-mixerPanel.width = 720
-mixerPanel.height = 102
 
 --------------------------------------------------------------------------------
 -- Set up pages
