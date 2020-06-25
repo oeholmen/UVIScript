@@ -110,7 +110,7 @@ local isAnalogStack = osc1.type == "MinBlepGeneratorStack" and osc2.type == "Min
 local isWavetable = osc1.type == "WaveTableOscillator" and osc2.type == "WaveTableOscillator"
 local isAdditive = osc1.type == "Additive" and osc2.type == "Additive"
 
--- SET SOME DEFAULT PARAMETER VALUES
+-- SET SOME PARAMETER VALUES (OVERRIDE FALCON DEFAULT VALUES)
 local polyphony = 16
 Program:setParameter("Polyphony", polyphony)
 
@@ -119,6 +119,8 @@ if isAdditive then
   osc2:setParameter("CombFreq", 0.5)
   osc1:setParameter("FilterType", 3)
   osc2:setParameter("FilterType", 3)
+  osc1:setParameter("SafeBass", true)
+  osc2:setParameter("SafeBass", true)
 end
 
 print("Starting TweakSynth!")
@@ -1393,6 +1395,16 @@ function createOsc1Panel()
       end
       wheelToWaveKnob:changed()
       table.insert(tweakables, {widget=wheelToWaveKnob,bipolar=25,excludeWithDuration=true,category="synthesis"})
+    elseif isAdditive then
+      local harmShiftKnob = osc1Panel:Knob("HarmShift1", 0, 0, 48)
+      harmShiftKnob.displayName = "Harm. Shift"
+      harmShiftKnob.fillColour = knobColour
+      harmShiftKnob.outlineColour = filterColour
+      harmShiftKnob.changed = function(self)
+        osc1:setParameter("HarmShift", self.value)
+      end
+      harmShiftKnob:changed()
+      table.insert(tweakables, {widget=harmShiftKnob,ceiling=12,probability=60,default=80,zero=20,category="synthesis"})
     end
   end
 
