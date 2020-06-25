@@ -4,14 +4,14 @@
 
 Tweak Synth was created to spark new ideas, and to trigger creativity. We can all be stuck sometimes, finding our selves following the same patterns over and over again. Tweak Synth wants to help you create something new, and it wants to help you find the best version of the sound you are trying to create.
 
-## Two different flavors
+## Different flavors
 
-Tweak Synth comes in two different flavors - one wavetable and one analog. They are almost equal, but there are some differences in modulation options, and of course, the oscillators differ. But the tweaking algorithm is shared between both synths.
+Tweak Synth comes in different flavors - wavetable, two analog and additive. They are all similar, but there are different modulation options, and of course, the oscillators differ. But the tweaking algorithm is shared between all synths.
 
 ## Synth overview
 
-Tweak Synth is built in Falcon, using a signal flow and parameters that are typical of classic analog synths. The synth have two oscillators, and a noise generator.
-The synth is divided into six sections: Synthesis, Filter, Modulation, Effects, Twequencer and Patchmaker. Switching between sections is done using the buttons above the mixer. The mixer section is always visible, and also features an on/off button for the Falcon arpeggiator.
+Tweak Synth is built in UVI Falcon, using a signal flow and parameters that are typical of classic analog synths. The synths have two oscillators, and a noise generator, except the 3 Osc Analog, that has three oscillators and a sub oscillator.
+The synth is divided into six sections: Patchmaker, Twequencer, Synthesis, Filter, Modulation, Effects. Switching between sections is done using the buttons above the mixer. The mixer section is always visible, and also features an on/off button for the Falcon arpeggiator.
 
 ### Synthesis section
 
@@ -27,27 +27,15 @@ The modulation section contains an LFO that can be assigned to a number of diffe
 
 ### Effects section
 
-Here you find a selection of useful effects for easy access. These are standard Falcon effects, so effects can easily be replaced, or edited in Falcon.
+Here you find a selection of useful effects for easy access. These are standard Falcon effects, so effects can easily be added, replaced, or edited in Falcon.
 
 ### Envelopes
 
-By default, the settings for the envelopes are shared by all oscillators, but it is possible to use different settings for each oscillator. This option can be selected directly to the left of the attack knob. If a widget has different settings for each oscillator, the widget will be locked when "All" oscillators are selected, to avoid unintended changes.
+By default, the settings for the envelopes are shared by all oscillators, but it is possible to use different settings for each oscillator. This option can be selected directly to the left of the attack knob. If a widget has different settings for each oscillator, the widget will be locked when "All" oscillators are selected, to avoid unintended changes. The 3 Osc Analog cannot have different envelopes per oscillator.
 
 ## Tweak Synth
 
-The last two sections is what makes Tweak Synth different. This is where you can create new presets from presets you made your self, or from scratch. The two sections, Twequencer and Patchmaker, use the same alogithms to create new patches, but they differ in approach.
-
-### Twequencer
-
-The Twequencer is a simple sequencer that tweaks your sound as you play. Set a tweak level (see description below), select a play mode, and start playing! You can hear the changes to your sound being made for each round. A round consist of the number of steps that are set. By default 8 steps are selected, but if you set it to 2, the sound will change for every second step.
-
-**Note: When you start playing the twequencer and the tweak level is above 0, the current settings will be changed. Remeber to store it in the patchmaker, if you want to keep it! If tweak level is 0 no changes are made, but the sequencer still runs, if a play mode is selected.**
-
-As you play, the Twequencer will store a snapshot for each round. If you hear something you like, just stop playing and select the snapshot from the round that sounded best. When you stop playing, the tweak level is set to 0 to avoid further changes. The last 100 rounds are remembered, but they are not stored with the program. You can store a snapshot you like from the "Actions" menu, and you will find it again in the Patchmaker. All stored snapshots are saved with the UVI program, so you will get it back when you open it later.
-
-Envelopes will be tweaked according to the envelope style you choose. When automatic is selected, a fast resolution will give shorter envelope times than if a slow resolution is selected. Short envelope times can occur for slow resolutions, but long envelope times will not occur for fast resolutions. If one of the other envelope styles are selected, that will control the envelope times.
-
-The other options available will be described under "Patchmaker".
+The two sections that makes Tweak Synth different is Patchmaker and Twequencer. This is where you can create new presets from presets you made yourself, or from scratch. The two sections use the same alogithms to create new patches, but they differ in approach.
 
 ### Patchmaker
 
@@ -82,6 +70,16 @@ The actions menu has an option to set the current editing state to the sound tha
 The actions menu has an option to set current editing state to only default values (Initialize patch).
 
 When you add the first snapshot, an initial snapshot containing the last saved state will be added automatically. So you first added snapshot will be called "Snapshot 2". The initial snapshot can be updated, but it cannot be removed, unless you remove all snapshots.
+
+### Twequencer
+
+The Twequencer is a simple sequencer that tweaks your sound as you play. Set a tweak level (see description below), select a play mode, and start playing! You can hear the changes to your sound being made for each round. A round consist of the number of steps that are set. By default 8 steps are selected, but if you set it to 2, the sound will change for every second step.
+
+**Note: When you start playing the twequencer and the tweak level is above 0, the current settings will be changed. Remeber to store it in the patchmaker, if you want to keep it! If tweak level is 0 no changes are made, but the sequencer still runs, if a play mode is selected.**
+
+As you play, the Twequencer will store a snapshot for each round. If you hear something you like, just stop playing and select the snapshot from the round that sounded best. When you stop playing, the tweak level is set to 0 to avoid further changes. The last 100 rounds are remembered, but they are not stored with the program. You can store a snapshot you like from the "Actions" menu, and you will find it again in the Patchmaker. All stored snapshots are saved with the UVI program, so you will get it back when you open it later.
+
+Envelopes will be tweaked according to the envelope style you choose. When automatic is selected, a fast resolution will give shorter envelope times than if a slow resolution is selected. Short envelope times can occur for slow resolutions, but long envelope times will not occur for fast resolutions. If one of the other envelope styles are selected, that will control the envelope times.
 
 ## Hmmm?
 
