@@ -121,7 +121,9 @@ if isAdditive then
   osc2:setParameter("FilterType", 3)
 end
 
-print("Starting Synth", osc1.type)
+print("Starting TweakSynth!")
+print("Oscillator 1:", osc1.type)
+print("Oscillator 2:", osc2.type)
 
 --------------------------------------------------------------------------------
 -- Name common macros
