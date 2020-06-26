@@ -561,6 +561,9 @@ function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle, 
     -- Set to zero if probability hits
     endValue = 0
     print("Zero:", options.zero)
+  elseif envelopeStyle > 1 and (options.attack == true or options.release == true) then
+    endValue = getEnvelopeTimeByStyle(options, envelopeStyle)
+    print("getEnvelopeTimeByStyle:", endValue)
   elseif duration > 0 and (options.attack == true or options.release == true) then
     if envelopeStyle > 1 then
       endValue = getEnvelopeTimeByStyle(options, envelopeStyle)
@@ -569,9 +572,6 @@ function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle, 
       endValue = getEnvelopeTimeForDuration(options, duration)
       print("getEnvelopeTimeForDuration:", endValue)
     end
-  elseif envelopeStyle > 1 and (options.attack == true or options.release == true) then
-    endValue = getEnvelopeTimeByStyle(options, envelopeStyle)
-    print("getEnvelopeTimeByStyle:", endValue)
   elseif getRandomBoolean(tweakLevel) == false or (type(options.default) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.default)) == true) then
     -- Get value from tweaksource or default
     endValue = getValueForTweaking(options, tweakLevel, tweakSource)
@@ -1293,7 +1293,7 @@ function createOsc1Panel()
         osc1Shape:setParameter("Value", value)
       end
       osc1PartialsKnob:changed()
-      table.insert(tweakables, {widget=osc1PartialsKnob,min=256,floor=8,ceiling=128,probability=70,category="synthesis"})
+      table.insert(tweakables, {widget=osc1PartialsKnob,min=256,floor=2,ceiling=64,probability=70,category="synthesis"})
 
       local osc1EvenOddKnob = osc1Panel:Knob("Osc1EvenOdd", 0, -1, 1)
       osc1EvenOddKnob.displayName = "Even/Odd"
@@ -1463,7 +1463,7 @@ function createOsc2Panel()
         osc2Shape:setParameter("Value", value)
       end
       osc2PartialsKnob:changed()
-      table.insert(tweakables, {widget=osc2PartialsKnob,min=256,floor=8,ceiling=128,probability=70,category="synthesis"})
+      table.insert(tweakables, {widget=osc2PartialsKnob,min=256,floor=2,ceiling=64,probability=70,category="synthesis"})
 
       local osc2EvenOddKnob = osc2Panel:Knob("Osc2EvenOdd", 0, -1, 1)
       osc2EvenOddKnob.displayName = "Even/Odd"
@@ -3262,7 +3262,7 @@ function createAmpEnvPanel()
     self.displayText = formatTimeInSeconds(self.value)
   end
   ampReleaseKnob:changed()
-  table.insert(tweakables, {widget=ampReleaseKnob,release=true,factor=2,floor=0.01,ceiling=0.8,probability=80,default=50,defaultTweakRange=1,category="synthesis"})
+  table.insert(tweakables, {widget=ampReleaseKnob,release=true,factor=2,floor=0.01,ceiling=0.5,probability=90,default=70,defaultTweakRange=1,category="synthesis"})
 
   local ampVelocityKnob = ampEnvPanel:Knob("VelocityToAmpEnv", 10, 0, 40)
   ampVelocityKnob.displayName="Velocity"
