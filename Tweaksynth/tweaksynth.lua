@@ -682,6 +682,7 @@ function verifyMixerSettings()
   local Osc1Mix = getWidget("Osc1Mix")
   local Osc2Mix = getWidget("Osc2Mix")
   local Osc3Mix = getWidget("Osc3Mix")
+  local SubOscMix = getWidget("SubOscMix")
 
   print("--- Checking Mixer Settings ---")
   print("Osc1Mix:", Osc1Mix.value)
@@ -693,6 +694,18 @@ function verifyMixerSettings()
     if Osc3Mix.value > 0 and Osc3Mix.value < 0.6 then
       Osc3Mix.value = getValueBetween(0.65, 0.8, Osc3Mix.value)
       print("Osc3Mix adjusted to:", Osc3Mix.value)
+    end
+  end
+
+  if SubOscMix then
+    print("SubOscMix:", SubOscMix.value)
+
+    if SubOscMix.value > 0.2 and SubOscMix.value < 0.7 then
+      SubOscMix.value = getValueBetween(0.7, 0.9, SubOscMix.value)
+      print("SubOscMix adjusted to:", SubOscMix.value)
+    elseif SubOscMix.value < 0.2 then
+      SubOscMix.value = 0
+      print("SubOscMix adjusted to:", SubOscMix.value)
     end
   end
 
@@ -1592,14 +1605,21 @@ function createMixerPanel()
   mixerPanel.width = 720
   mixerPanel.height = 102
 
-
-  local knobSize = {100,40}
-  local marginRight = 10
-
   local mixerLabel = mixerPanel:Label("Mixer")
   mixerLabel.y = 5
   mixerLabel.x = 10
-  mixerLabel.width = 70
+  mixerLabel.width = 70 -- Overrides below
+
+  local knobSize = {100,40} -- Overrides below
+  local marginRight = 10 -- Overrides below
+
+  if isAnalog3Osc then
+    mixerLabel.width = 60
+    marginRight = 1
+    knobSize = {96,40}
+  elseif isAdditive then
+    knobSize = {110,40}
+  end
 
   local osc1MixKnob = mixerPanel:Knob("Osc1Mix", 0.75, 0, 1)
   osc1MixKnob.displayName = "Osc 1"
@@ -1629,7 +1649,7 @@ function createMixerPanel()
   osc2MixKnob:changed()
   table.insert(tweakables, {widget=osc2MixKnob,floor=0.5,ceiling=0.75,probability=100,absoluteLimit=0.8,zero=10,default=5,category="mixer"})
 
-  local subOscMixKnob
+  local subOscWaveformKnob
   if isAnalog3Osc then
     local osc3MixKnob = mixerPanel:Knob("Osc3Mix", 0, 0, 1)
     osc3MixKnob.displayName = "Osc 3"
@@ -1645,7 +1665,7 @@ function createMixerPanel()
     osc3MixKnob:changed()
     table.insert(tweakables, {widget=osc3MixKnob,floor=0.5,ceiling=0.75,probability=100,absoluteLimit=0.8,zero=25,default=10,noDefaultTweak=true,category="mixer"})
 
-    subOscMixKnob = mixerPanel:Knob("SubOscMix", 0, 0, 1)
+    local subOscMixKnob = mixerPanel:Knob("SubOscMix", 0, 0, 1)
     subOscMixKnob.displayName = "Sub"
     subOscMixKnob.y = mixerLabel.y
     subOscMixKnob.x = osc3MixKnob.x + osc3MixKnob.width + marginRight
@@ -1658,6 +1678,20 @@ function createMixerPanel()
     end
     subOscMixKnob:changed()
     table.insert(tweakables, {widget=subOscMixKnob,floor=0.4,ceiling=0.75,probability=100,absoluteLimit=0.8,zero=10,default=5,category="mixer"})
+
+    subOscWaveformKnob = mixerPanel:Knob("SubOscWaveform", 3, 1, 4, true)
+    subOscWaveformKnob.displayName = "SubWave"
+    subOscWaveformKnob.y = mixerLabel.y
+    subOscWaveformKnob.x = subOscMixKnob.x + subOscMixKnob.width + marginRight
+    subOscWaveformKnob.size = knobSize
+    subOscWaveformKnob.fillColour = knobColour
+    subOscWaveformKnob.outlineColour = osc2Colour
+    subOscWaveformKnob.changed = function(self)
+      osc2:setParameter("Waveform", self.value)
+      self.displayText = waveforms[self.value]
+     end
+    subOscWaveformKnob:changed()
+    table.insert(tweakables, {widget=subOscWaveformKnob,min=4,default=75,noDefaultTweak=true,category="synthesis"})
   end
 
   local noiseTypeMenu
@@ -1699,7 +1733,7 @@ function createMixerPanel()
   panSpreadKnob.displayName = "Pan Spread"
   panSpreadKnob.y = mixerLabel.y
   if isAnalog3Osc then
-    panSpreadKnob.x = subOscMixKnob.x + subOscMixKnob.width - marginRight
+    panSpreadKnob.x = subOscWaveformKnob.x + subOscWaveformKnob.width - marginRight
   else
     panSpreadKnob.x = noiseTypeMenu.x + noiseTypeMenu.width + marginRight
   end
@@ -1715,13 +1749,13 @@ function createMixerPanel()
 
   local arpeggiatorButton = mixerPanel:OnOffButton("Arp", false)
   arpeggiatorButton.y = mixerLabel.y
-  arpeggiatorButton.x = 620
+  arpeggiatorButton.x = 655 --620
   arpeggiatorButton.alpha = buttonAlpha
   arpeggiatorButton.backgroundColourOff = buttonBackgroundColourOff
   arpeggiatorButton.backgroundColourOn = buttonBackgroundColourOn
   arpeggiatorButton.textColourOff = buttonTextColourOff
   arpeggiatorButton.textColourOn = buttonTextColourOn
-  arpeggiatorButton.width = 80
+  arpeggiatorButton.width = 50 --80
   arpeggiatorButton.height = 40
   arpeggiatorButton.changed = function(self)
     local value = -1
@@ -1737,7 +1771,7 @@ function createMixerPanel()
     randomPhaseStartKnob = mixerPanel:Knob("RandomPhaseStart", 0, 0, 1)
     randomPhaseStartKnob.displayName = "Rand Phase"
     randomPhaseStartKnob.y = 50
-    randomPhaseStartKnob.x = marginRight
+    randomPhaseStartKnob.x = mixerLabel.x
     randomPhaseStartKnob.size = knobSize
     randomPhaseStartKnob.fillColour = knobColour
     randomPhaseStartKnob.outlineColour = unisonColour
@@ -1763,7 +1797,7 @@ function createMixerPanel()
     playModeMenu.x = randomPhaseStartKnob.x + randomPhaseStartKnob.width + marginRight
   else
     playModeMenu.y = 50
-    playModeMenu.x = marginRight
+    playModeMenu.x = mixerLabel.x
   end
   playModeMenu.width = 120
   playModeMenu.backgroundColour = menuBackgroundColour
@@ -3422,7 +3456,7 @@ function createEffectsPanel()
     self.displayText = percent(self.value)
   end
   driveKnob:changed()
-  table.insert(tweakables, {widget=driveKnob,ceiling=0.4,probability=90,absoluteLimit=0.6,default=50,category="effects"})
+  table.insert(tweakables, {widget=driveKnob,ceiling=0.25,probability=90,absoluteLimit=0.6,default=60,category="effects"})
 
   local maximizerButton = effectsPanel:OnOffButton("Maximizer", false)
   maximizerButton.alpha = buttonAlpha

@@ -11,35 +11,39 @@ Tweak Synth comes in different flavors - wavetable, two analog and additive. The
 ## Synth overview
 
 Tweak Synth is built in UVI Falcon, using a signal flow and parameters that are typical of classic analog synths. The synths have two oscillators, and a noise generator, except the 3 Osc Analog, that has three oscillators and a sub oscillator.
-The synth is divided into six sections: Patchmaker, Twequencer, Synthesis, Filter, Modulation, Effects. Switching between sections is done using the buttons above the mixer. The mixer section is always visible, and also features an on/off button for the Falcon arpeggiator.
+The synth is divided into six pages: Patchmaker, Twequencer, Synthesis, Filter, Modulation and Effects. Switching between pages is done using the buttons above the mixer. 
+
+### Mixer
+
+The mixer section is always visible for easy access to global parameters. Here you find levels for the oscillators, unison settings, play mode (poly/mono/glide) and noise type or sub waveform. It also features an on/off button for the Falcon arpeggiator for easy access.
 
 ### Synthesis section
 
-The synthesis section contains the oscillators for editing waveform, pitch, stereo/unison, vibrato and amplitude envelope.
+The synthesis section contains the oscillators for editing waveform, pitch, vibrato and amplitude envelope.
 
 ### Filter section
 
-The filter section contains two filters, a lowpass 24, and a highpass filter. The filter envelope has a few different targets, in addition to both filters. There are some variations here depending on whether the wavetable or analog version is used.
+The filter section contains two filters, a lowpass 24, and a highpass filter. The filter envelope has a few different modulation targets, in addition to both filters. There are some variations here depending on whether the wavetable, analog or additive version of the synth is used.
 
 ### Modulation section
 
-The modulation section contains an LFO that can be assigned to a number of different targets. It is possible to override filter modulation for the noise oscillator, if this should be treated separatly. By default, the settings for the LFO is shared by all oscillators, but it is possible to use different settings for each oscillator. This option can be selected directly to the left of the waveform select menu. If a widget has different settings for each oscillator, the widget will be locked when "All" oscillators are selected, to avoid unintended changes.
+The modulation section contains an LFO that can be assigned to a number of different targets. It is possible to override filter modulation for the noise oscillator, if this should be treated separatly. By default, the settings for the LFO is shared by all oscillators, but it is possible to use different settings for each oscillator. This option can be selected directly to the left of the waveform select menu. If a widget has different settings for each oscillator, the widget will be locked when "All" oscillators are selected, to avoid unintended changes. The 3 Osc Analog synth cannot have individual LFO settings per oscillator.
 
 ### Effects section
 
-Here you find a selection of useful effects for easy access. These are standard Falcon effects, so effects can easily be added, replaced, or edited in Falcon.
+Here you find a selection of useful effects for easy access. These are standard Falcon effects, so effects can easily be added, replaced, or edited in Falcon. Effects can easily be bypassed if you want to listen to the dry sound.
 
 ### Envelopes
 
-By default, the settings for the envelopes are shared by all oscillators, but it is possible to use different settings for each oscillator. This option can be selected directly to the left of the attack knob. If a widget has different settings for each oscillator, the widget will be locked when "All" oscillators are selected, to avoid unintended changes. The 3 Osc Analog cannot have different envelopes per oscillator.
+By default, the settings for the envelopes are shared by all oscillators, but it is possible to use different settings for each oscillator. This option can be selected directly to the left of the attack knob. If a widget has different settings for each oscillator, the widget will be locked when "All" oscillators are selected, to avoid unintended changes. The 3 Osc Analog synth cannot have individual envelopes per oscillator.
 
 ## Tweak Synth
 
-The two sections that makes Tweak Synth different is Patchmaker and Twequencer. This is where you can create new presets from presets you made yourself, or from scratch. The two sections use the same alogithms to create new patches, but they differ in approach.
+The two sections that make Tweak Synth different is Patchmaker and Twequencer. This is where you can create new presets from presets you made yourself, or from scratch. The two sections use the same alogithms to create new patches, but they differ in approach.
 
 ### Patchmaker
 
-The patchmaker is where you create new patches instantly, with the click of a button. This is also where any snapshots you add are stored.
+Patchmaker is where you create new patches instantly, with the click of a button. This is also where any snapshots you add are stored.
 
 #### Snapshots
 
@@ -47,11 +51,11 @@ A snapshot contains the settings that were present in the current editing state 
 
 #### Tweak level
 
-When creating a new patch, the tweak level is you way of telling the synth how far from the original tweak source you want to change the sound. At tweak level 0 there will be virtually no changes made. As the tweak level rises, more changes will be introduced. At 100 the sound will be something completely new, and totally different than the original. This is an extreme setting, and will in most cases not produce any usable sounds. But it is fun to test! At sensible levels, usable sounds may be created. They will need a human touch, but can sound quite interesting right away. If you are not satisfied, just click the "Tweak patch" button again!
+When creating a new patch, the tweak level is your way of telling the synth how far from the original tweak source you want to change the sound. At tweak level 0 there will be virtually no changes made. As the tweak level rises, more changes will be introduced. At 100 the sound will be something completely new, and totally different than the original. This is an extreme setting, and will in most cases not produce any usable sounds. But it is fun to test! At sensible levels, usable sounds may be created. They will need a human touch, but can sound quite interesting right away. If you are not satisfied, just click the "Tweak patch" button again!
 
 #### Tweak source
 
-Selecting a tweak source will tell the synth where to get it's ideas from. If you have created some good snapshots, they can be used to create new sounds. The automatic option will use ideas from all the different sources. When "Current edit" is selected, remeber that the current edit will change every time you create a new patch. So this can be a great way to introduce small changes for each iteration. Works well with the Twequencer, and at low tweak levels.
+Selecting a tweak source will tell the synth where to get it's ideas from. If you have created some good snapshots, they can be used to create new sounds. The automatic option will use ideas from all the different sources. When "Current edit" is selected, remember that the current edit will change every time a new patch is created. So this can be a great way to introduce small changes for each iteration. Works well with the Twequencer, and at low tweak levels.
 
 #### Envelope style
 
@@ -59,7 +63,7 @@ Envelope styles are a way to control the envelope times of the sounds being crea
 
 #### Tweak Scope
 
-Directly below the tweak source and envelope style there are five scope buttons. Each button represents a section of the synth. When a button is selected, that section will be included when creating the patch. If no buttons are selected, no changes are made. This is useful if you only want to change parts of the sound. If you are happy with the mix, effects and modulation, you can deselect them, and changes will only be made to the synthesis and filter sections.
+There are five scope buttons. Each button represents a section of the synth. When a button is selected, that section will be included when creating the patch. If no buttons are selected, no changes are made. This is useful if you only want to change parts of the sound. If you are happy with the mix, effects and modulation, you can deselect them, and changes will only be made to the synthesis and filter sections.
 
 #### Actions menu
 
@@ -73,7 +77,7 @@ When you add the first snapshot, an initial snapshot containing the last saved s
 
 ### Twequencer
 
-The Twequencer is a simple sequencer that tweaks your sound as you play. Set a tweak level (see description below), select a play mode, and start playing! You can hear the changes to your sound being made for each round. A round consist of the number of steps that are set. By default 8 steps are selected, but if you set it to 2, the sound will change for every second step.
+The Twequencer is a simple sequencer that tweaks your sound as you play. Set a tweak level, select a play mode, and start playing! You can hear the changes to your sound being made for each round. A round consist of the number of steps that are set. By default 8 steps are selected, but if you set it to 2, the sound will change every second step.
 
 **Note: When you start playing the twequencer and the tweak level is above 0, the current settings will be changed. Remeber to store it in the patchmaker, if you want to keep it! If tweak level is 0 no changes are made, but the sequencer still runs, if a play mode is selected.**
 
