@@ -589,14 +589,8 @@ function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle, 
       if type(options.ceiling) == "number" then
         ceiling = options.ceiling
       end
-      -- Check values to avoid eternal loop
-      if (ceiling - floor) < (options.widget.max / 100) then
-        endValue = floor
-        print("Value set to floor", floor)
-      else
-        print("Probability/floor/ceiling:", options.probability, floor, ceiling)
-        endValue = getValueBetween(floor, ceiling, endValue, options)
-      end
+      print("Probability/floor/ceiling:", options.probability, floor, ceiling)
+      endValue = getValueBetween(floor, ceiling, endValue, options)
     end
     if type(options.bipolar) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.bipolar)) == true then
       if getRandom(100) <= options.bipolar then
@@ -1745,7 +1739,7 @@ function createMixerPanel()
     self.displayText = percent(self.value)
   end
   panSpreadKnob:changed()
-  table.insert(tweakables, {widget=panSpreadKnob,ceiling=0.6,probability=70,default=30,category="synthesis"})
+  table.insert(tweakables, {widget=panSpreadKnob,ceiling=0.6,probability=70,default=30,category="mixer"})
 
   local arpeggiatorButton = mixerPanel:OnOffButton("Arp", false)
   arpeggiatorButton.y = mixerLabel.y
