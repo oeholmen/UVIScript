@@ -1610,7 +1610,7 @@ function createMixerPanel()
   if isAnalog3Osc then
     mixerLabel.width = 60
     marginRight = 1
-    knobSize = {96,40}
+    knobSize = {95,40}
   elseif isAdditive then
     knobSize = {110,40}
   end
@@ -1663,7 +1663,7 @@ function createMixerPanel()
     subOscMixKnob.displayName = "Sub"
     subOscMixKnob.y = mixerLabel.y
     subOscMixKnob.x = osc3MixKnob.x + osc3MixKnob.width + marginRight
-    subOscMixKnob.size = knobSize
+    subOscMixKnob.size = {90,knobSize[2]}
     subOscMixKnob.fillColour = knobColour
     subOscMixKnob.outlineColour = osc2Colour
     subOscMixKnob.changed = function(self)
@@ -1689,11 +1689,15 @@ function createMixerPanel()
   end
 
   local noiseTypeMenu
-  if isAnalog or isAnalogStack or isWavetable or isAdditive then
     local noiseMixKnob = mixerPanel:Knob("NoiseMix", 0, 0, 1)
     noiseMixKnob.displayName = "Noise"
-    noiseMixKnob.y = mixerLabel.y
-    noiseMixKnob.x = osc2MixKnob.x + osc2MixKnob.width + marginRight
+    if isAnalog3Osc then
+      noiseMixKnob.y = 50
+      noiseMixKnob.x = 630
+    else
+      noiseMixKnob.y = mixerLabel.y
+      noiseMixKnob.x = osc2MixKnob.x + osc2MixKnob.width + marginRight
+    end
     noiseMixKnob.size = knobSize
     noiseMixKnob.fillColour = knobColour
     noiseMixKnob.outlineColour = osc2Colour
@@ -1704,6 +1708,7 @@ function createMixerPanel()
     noiseMixKnob:changed()
     table.insert(tweakables, {widget=noiseMixKnob,floor=0.3,ceiling=0.75,probability=100,default=5,zero=10,absoluteLimit=0.8,category="mixer"})
   
+    if isAnalog or isAnalogStack or isWavetable or isAdditive then
     local noiseTypes = {"Band", "S&H", "Static1", "Static2", "Violet", "Blue", "White", "Pink", "Brown", "Lorenz", "Rossler", "Crackle", "Logistic", "Dust", "Velvet"}
     noiseTypeMenu = mixerPanel:Menu("NoiseTypeMenu", noiseTypes)
     noiseTypeMenu.y = 2
@@ -1726,7 +1731,7 @@ function createMixerPanel()
   local panSpreadKnob = mixerPanel:Knob("PanSpread", 0, 0, 1)
   panSpreadKnob.displayName = "Pan Spread"
   panSpreadKnob.y = mixerLabel.y
-  if isAnalog3Osc then
+  if subOscWaveformKnob then
     panSpreadKnob.x = subOscWaveformKnob.x + subOscWaveformKnob.width - marginRight
   else
     panSpreadKnob.x = noiseTypeMenu.x + noiseTypeMenu.width + marginRight
