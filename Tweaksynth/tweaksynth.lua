@@ -1747,6 +1747,7 @@ function createMixerPanel()
   table.insert(tweakables, {widget=panSpreadKnob,ceiling=0.6,probability=70,default=30,category="mixer"})
 
   local arpeggiatorButton = mixerPanel:OnOffButton("Arp", false)
+  --arpeggiatorButton.showLabel = true
   arpeggiatorButton.y = mixerLabel.y
   arpeggiatorButton.x = 655 --620
   arpeggiatorButton.alpha = buttonAlpha
@@ -1754,6 +1755,8 @@ function createMixerPanel()
   arpeggiatorButton.backgroundColourOn = buttonBackgroundColourOn
   arpeggiatorButton.textColourOff = buttonTextColourOff
   arpeggiatorButton.textColourOn = buttonTextColourOn
+  --arpeggiatorButton.normalImage = "resources/button_off.png"
+  --arpeggiatorButton.pressedImage = "resources/button_on.png"
   arpeggiatorButton.width = 50 --80
   arpeggiatorButton.height = 40
   arpeggiatorButton.changed = function(self)
@@ -3878,6 +3881,7 @@ function createTwequencerPanel()
   tweakLevelKnob.displayName = "Tweak Level"
   tweakLevelKnob.width = 120
   tweakLevelKnob.y = 20
+  --tweakLevelKnob:setStripImage("resources/knob.png", 1)
 
   local sequencerPlayMenu = tweqPanel:Menu("SequencerPlay", {"Off", "Mono", "As played", "Random", "Chord"})
   sequencerPlayMenu.backgroundColour = menuBackgroundColour
