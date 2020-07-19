@@ -209,7 +209,7 @@ local analogMacros = {
   lfoToPitchOsc3 = macros[57],
   atToHardsync1 = macros[58],
   filterEnvToPitchOsc3 = macros[59],
-  macro60 = macros[60]-- UNUSED
+  filterDb = macros[60]
 }
 
 -- Name wavetable macros
@@ -1949,7 +1949,25 @@ local mixerPanel = createMixerPanel()
 function createFilterPanel()  
   local filterPanel = Panel("Filter")
 
-  filterPanel:Label("Low-pass Filter")
+  if isAnalog or isAnalog3Osc then
+    filterDbMenu = filterPanel:Menu("FilterDb", {"24db", "12db"})
+    filterDbMenu.backgroundColour = menuBackgroundColour
+    filterDbMenu.textColour = menuTextColour
+    filterDbMenu.arrowColour = menuArrowColour
+    filterDbMenu.outlineColour = menuOutlineColour
+    filterDbMenu.displayName = "Low-pass Filter"
+    filterDbMenu.changed = function(self)
+      local value = -1
+      if self.value == 2 then
+        value = 1
+      end
+      analogMacros["filterDb"]:setParameter("Value", value)
+    end
+    filterDbMenu:changed()
+    table.insert(tweakables, {widget=filterDbMenu,min=2,default=70,category="filter"})
+  else
+    filterPanel:Label("Low-pass Filter")
+  end
 
   local cutoffKnob = filterPanel:Knob("Cutoff", 1, 0, 1)
   cutoffKnob.fillColour = knobColour
