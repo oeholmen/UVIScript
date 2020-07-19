@@ -1950,7 +1950,7 @@ function createFilterPanel()
   local filterPanel = Panel("Filter")
 
   if isAnalog or isAnalog3Osc then
-    filterDbMenu = filterPanel:Menu("FilterDb", {"24db", "12db"})
+    filterDbMenu = filterPanel:Menu("FilterDb", {"24dB", "12dB"})
     filterDbMenu.backgroundColour = menuBackgroundColour
     filterDbMenu.textColour = menuTextColour
     filterDbMenu.arrowColour = menuArrowColour
