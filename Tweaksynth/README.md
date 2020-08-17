@@ -6,16 +6,16 @@ Tweak Synth was created to spark new ideas, and to trigger creativity. We can al
 
 ## Different flavors
 
-Tweak Synth comes in different flavors - wavetable, two analog and additive. They are all similar, but there are different modulation options, and of course, the oscillators differ. But the tweaking algorithm is shared between all synths.
+Tweak Synth comes in different flavors - wavetable, analog and additive. They are all similar, but there are different modulation options, and of course, the oscillators differ. But the tweaking algorithm is shared between all synths.
 
 ## Synth overview
 
-Tweak Synth is built in UVI Falcon, using a signal flow and parameters that are typical of classic analog synths. The synths have two oscillators, and a noise generator, except the 3 Osc Analog, that has three oscillators and a sub oscillator.
+Tweak Synth is built in UVI Falcon, using subtactive synthesis typical of classic analog synths. The synths have two oscillators, and a noise generator.
 The synth is divided into six pages: Patchmaker, Twequencer, Synthesis, Filter, Modulation and Effects. Switching between pages is done using the buttons above the mixer. 
 
 ### Mixer
 
-The mixer section is always visible for easy access to global parameters. Here you find levels for the oscillators, unison settings, play mode (poly/mono/glide) and noise type or sub waveform. It also features an on/off button for the Falcon arpeggiator for easy access.
+The mixer section is always visible for easy access to global parameters. Here you find levels for the oscillators, unison settings, play mode (poly/mono/glide) and noise type. It also features an on/off button for the Falcon arpeggiator for easy access.
 
 ### Synthesis section
 
@@ -23,11 +23,11 @@ The synthesis section contains the oscillators for editing waveform, pitch, vibr
 
 ### Filter section
 
-The filter section contains two filters, a lowpass 24, and a highpass filter. The filter envelope has a few different modulation targets, in addition to both filters. There are some variations here depending on whether the wavetable, analog or additive version of the synth is used.
+The filter section contains two filters, a lowpass, and a highpass filter. The filter envelope has a few different modulation targets, in addition to both filters. There are some variations here depending on whether the wavetable, analog or additive version of the synth is used.
 
 ### Modulation section
 
-The modulation section contains an LFO that can be assigned to a number of different targets. It is possible to override filter modulation for the noise oscillator, if this should be treated separatly. By default, the settings for the LFO is shared by all oscillators, but it is possible to use different settings for each oscillator. This option can be selected directly to the left of the waveform select menu. If a widget has different settings for each oscillator, the widget will be locked when "All" oscillators are selected, to avoid unintended changes. The 3 Osc Analog synth cannot have individual LFO settings per oscillator.
+The modulation section contains an LFO that can be assigned to a number of different targets. It is possible to override filter modulation for the noise oscillator, if this should be treated separatly. By default, the settings for the LFO is shared by all oscillators, but it is possible to use different settings for each oscillator. This option can be selected directly to the left of the waveform select menu. If a widget has different settings for each oscillator, the widget will be locked when "All" oscillators are selected, to avoid unintended changes.
 
 ### Effects section
 
@@ -35,7 +35,7 @@ Here you find a selection of useful effects for easy access. These are standard 
 
 ### Envelopes
 
-By default, the settings for the envelopes are shared by all oscillators, but it is possible to use different settings for each oscillator. This option can be selected directly to the left of the attack knob. If a widget has different settings for each oscillator, the widget will be locked when "All" oscillators are selected, to avoid unintended changes. The 3 Osc Analog synth cannot have individual envelopes per oscillator.
+By default, the settings for the envelopes are shared by all oscillators, but it is possible to use different settings for each oscillator. This option can be selected directly to the left of the attack knob. If a widget has different settings for each oscillator, the widget will be locked when "All" oscillators are selected, to avoid unintended changes.
 
 ## Tweak Synth
 

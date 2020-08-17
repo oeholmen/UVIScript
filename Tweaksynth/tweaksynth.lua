@@ -298,7 +298,11 @@ end
 function initPatch()
   print("Setting default values...")
   for i,v in ipairs(tweakables) do
-    v.widget.value = v.widget.default
+    if v.widget.name == "NoiseTypeMenu" then
+      v.widget.value = 7
+    else
+      v.widget.value = v.widget.default
+    end
     print("Set default value for widget", v.widget.name, v.widget.value)
   end
 end
@@ -441,6 +445,9 @@ function getValueForTweaking(options, tweakLevel, tweakSource)
   end
   -- Or tweak the default value
   local value = options.widget.default
+  if options.widget.name == "NoiseTypeMenu" then
+    value = 7
+  end
   if tweakSource == 5 or (tweakSource == 1 and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, 25))) == true then
     print("Tweaking the default value:", value)
     return tweakValue(options, value, tweakLevel)
@@ -1689,26 +1696,26 @@ function createMixerPanel()
   end
 
   local noiseTypeMenu
-    local noiseMixKnob = mixerPanel:Knob("NoiseMix", 0, 0, 1)
-    noiseMixKnob.displayName = "Noise"
-    if isAnalog3Osc then
-      noiseMixKnob.y = 50
-      noiseMixKnob.x = 630
-    else
-      noiseMixKnob.y = mixerLabel.y
-      noiseMixKnob.x = osc2MixKnob.x + osc2MixKnob.width + marginRight
-    end
-    noiseMixKnob.size = knobSize
-    noiseMixKnob.fillColour = knobColour
-    noiseMixKnob.outlineColour = osc2Colour
-    noiseMixKnob.changed = function(self)
-      noiseMix:setParameter("Value", self.value)
-      self.displayText = formatGainInDb(self.value)
-    end
-    noiseMixKnob:changed()
-    table.insert(tweakables, {widget=noiseMixKnob,floor=0.3,ceiling=0.75,probability=100,default=5,zero=10,absoluteLimit=0.8,category="mixer"})
+  local noiseMixKnob = mixerPanel:Knob("NoiseMix", 0, 0, 1)
+  noiseMixKnob.displayName = "Noise"
+  if isAnalog3Osc then
+    noiseMixKnob.y = 50
+    noiseMixKnob.x = 630
+  else
+    noiseMixKnob.y = mixerLabel.y
+    noiseMixKnob.x = osc2MixKnob.x + osc2MixKnob.width + marginRight
+  end
+  noiseMixKnob.size = knobSize
+  noiseMixKnob.fillColour = knobColour
+  noiseMixKnob.outlineColour = osc2Colour
+  noiseMixKnob.changed = function(self)
+    noiseMix:setParameter("Value", self.value)
+    self.displayText = formatGainInDb(self.value)
+  end
+  noiseMixKnob:changed()
+  table.insert(tweakables, {widget=noiseMixKnob,floor=0.3,ceiling=0.75,probability=100,default=5,zero=10,absoluteLimit=0.8,category="mixer"})
   
-    if isAnalog or isAnalogStack or isWavetable or isAdditive then
+  if isAnalog or isAnalogStack or isWavetable or isAdditive then
     local noiseTypes = {"Band", "S&H", "Static1", "Static2", "Violet", "Blue", "White", "Pink", "Brown", "Lorenz", "Rossler", "Crackle", "Logistic", "Dust", "Velvet"}
     noiseTypeMenu = mixerPanel:Menu("NoiseTypeMenu", noiseTypes)
     noiseTypeMenu.y = 2
@@ -1725,7 +1732,7 @@ function createMixerPanel()
       noiseOsc:setParameter("NoiseType", value)
     end
     noiseTypeMenu:changed()
-    table.insert(tweakables, {widget=noiseTypeMenu,min=#noiseTypes,category="synthesis"})
+    table.insert(tweakables, {widget=noiseTypeMenu,min=#noiseTypes,default=75,valueFilter={5,6,7,8,9},category="synthesis"})
   end
 
   local panSpreadKnob = mixerPanel:Knob("PanSpread", 0, 0, 1)
@@ -1914,7 +1921,7 @@ function createMixerPanel()
     elseif isAnalogStack then
       setStackVoices(self.value, unisonDetuneKnob.value, stereoSpreadKnob.value, randomPhaseStartKnob.value)
     elseif isWavetable or isAdditive then
-      local factor = 1 / unisonVoicesMax
+      local factor = 1 / (unisonVoicesMax + 1)
       local value = factor * self.value
       wavetableMacros["unisonVoices"]:setParameter("Value", value)
     elseif isAnalog3Osc then
@@ -2168,7 +2175,7 @@ function createFilterEnvPanel()
     self.displayText = formatTimeInSeconds(self.value)
   end
   filterDecayKnob:changed()
-  table.insert(tweakables, {widget=filterDecayKnob,factor=3,floor=0.01,ceiling=0.5,probability=50,default=25,category="filter"})
+  table.insert(tweakables, {widget=filterDecayKnob,factor=3,floor=0.01,ceiling=0.75,probability=50,default=10,category="filter"})
 
   local filterSustainKnob = filterEnvPanel:Knob("FSustain", 1, 0, 1)
   filterSustainKnob.displayName="Sustain"
