@@ -101,7 +101,8 @@ local macros = {
   Program.modulations["Macro 58"],
   Program.modulations["Macro 59"],
   Program.modulations["Macro 60"],
-  Program.modulations["Macro 61"]
+  Program.modulations["Macro 61"],
+  Program.modulations["Macro 62"]
 }
 
 local isAnalog = osc1.type == "MinBlepGenerator" and osc2.type == "MinBlepGenerator"
@@ -181,6 +182,7 @@ local wheelToHpf = macros[54]
 local atToHpf = macros[55]
 local lfoToHpf = macros[56]
 local phasorMix = macros[61]
+local wheelToLfo = macros[62]
 
 -- Name additive macros
 local additiveMacros = {
@@ -2842,6 +2844,17 @@ function createLfoTargetPanel()
   end
   lfoToDetuneKnob:changed()
   table.insert(tweakables, {widget=lfoToDetuneKnob,default=25,ceiling=0.25,probability=30,category="modulation"})
+
+  local wheelToLfoKnob = lfoTargetPanel:Knob("WheelToLfo", 0, 0, 1)
+  wheelToLfoKnob.displayName = "Via Wheel"
+  wheelToLfoKnob.fillColour = knobColour
+  wheelToLfoKnob.outlineColour = lfoColour
+  wheelToLfoKnob.changed = function(self)
+    wheelToLfo:setParameter("Value", self.value)
+    self.displayText = percent(self.value)
+  end
+  wheelToLfoKnob:changed()
+  table.insert(tweakables, {widget=wheelToLfoKnob,default=75,category="modulation"})
 
   ------- NOISE OSC ----------
 
