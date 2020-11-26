@@ -23,11 +23,11 @@ The synthesis section contains the oscillators for editing waveform, pitch, vibr
 
 ### Filter section
 
-The filter section contains two filters, a lowpass, and a highpass filter. The filter envelope has a few different modulation targets, in addition to both filters. There are some variations here depending on whether the wavetable, analog or additive version of the synth is used.
+The filter section contains two filters, a lowpass, and a high-pass filter. The filter envelope has a few different modulation targets, in addition to both filters. There are some variations here depending on whether the wavetable, analog or additive version of the synth is used.
 
 ### Modulation section
 
-The modulation section contains an LFO that can be assigned to a number of different targets. It is possible to override filter modulation for the noise oscillator, if this should be treated separatly. By default, the settings for the LFO is shared by all oscillators, but it is possible to use different settings for each oscillator. This option can be selected directly to the left of the waveform select menu. If a widget has different settings for each oscillator, the widget will be locked when "All" oscillators are selected, to avoid unintended changes.
+The modulation section contains an LFO that can be assigned to a number of different targets. It is possible to override filter modulation for the noise oscillator, if this should be treated separately. By default, the settings for the LFO is shared by all oscillators, but it is possible to use different settings for each oscillator. This option can be selected directly to the left of the waveform select menu. If a widget has different settings for each oscillator, the widget will be locked when "All" oscillators are selected, to avoid unintended changes.
 
 ### Effects section
 
@@ -47,7 +47,7 @@ Patchmaker is where you create new patches instantly, with the click of a button
 
 #### Snapshots
 
-A snapshot contains the settings that were present in the current editing state when the snapshot was added. Snapshots can be added from manually created pathces as well as the ones created in twequencer and patchmaker. Most of the times you will want to do some manual changes to created patches, to make them sound the way you want, and then add them to you snapshots. Snapshots are stored with the program when it is saved. You can switch between snapshots using the menu, or the buttons. Remember that you current edit will be replaced with the settings from the selected snapshot, so remember to add or update the current edit to snaphots if you want to keep it.
+A snapshot contains the settings that were present in the current editing state when the snapshot was added. Snapshots can be added from manually created patches as well as the ones created in twequencer and patchmaker. Most of the times you will want to do some manual changes to created patches, to make them sound the way you want, and then add them to you snapshots. Snapshots are stored with the program when it is saved. You can switch between snapshots using the menu, or the buttons. Remember that you current edit will be replaced with the settings from the selected snapshot, so remember to add or update the current edit to snapshots if you want to keep it.
 
 #### Tweak level
 
