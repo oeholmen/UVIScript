@@ -10,7 +10,7 @@ Tweak Synth comes in different flavors - wavetable, analog and additive. They ar
 
 ## Synth overview
 
-Tweak Synth is built in UVI Falcon, using subtactive synthesis typical of classic analog synths. The synths have two oscillators, and a noise generator.
+Tweak Synth is built in UVI Falcon, using subtractive synthesis typical of classic analog synths. The synths have two oscillators, and a noise generator.
 The synth is divided into six pages: Patchmaker, Twequencer, Synthesis, Filter, Modulation and Effects. Switching between pages is done using the buttons above the mixer. 
 
 ### Mixer
