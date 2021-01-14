@@ -12,8 +12,6 @@ local isStarting = true
 -- Synth engine elements
 --------------------------------------------------------------------------------
 
---local script = Program.eventProcessors[1]
-
 -- LAYERS
 local osc1Layer = Program.layers[1]
 local osc2Layer = Program.layers[2]
