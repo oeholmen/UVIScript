@@ -4574,11 +4574,11 @@ function onController(e)
   local controllerToWidgetMap = {
     CC16 = {name = "Attack", page = synthesisPageButton},
     CC17 = {name = "Decay", page = synthesisPageButton},
-    CC18 = {name = "Sustain", page = synthesisPageButton},
+    CC18 = {name = "Sustain", bipolar = 0, page = synthesisPageButton},
     CC19 = {name = "Release", page = synthesisPageButton},
     CC20 = {name = "FAttack", page = filterPageButton},
     CC21 = {name = "FDecay", page = filterPageButton},
-    CC22 = {name = "FSustain", page = filterPageButton},
+    CC22 = {name = "FSustain", bipolar = 0, page = filterPageButton},
     CC23 = {name = "FRelease", page = filterPageButton},
     CC24 = {name = "LfoFreq", bipolar = 0, page = modulationPageButton, factor = 20}, -- LFO RATE
     CC26 = {name = "LfoToCutoff", bipolar = 1, page = modulationPageButton}, -- LFO INT
@@ -4605,8 +4605,8 @@ function onController(e)
     CC56 = {name = "EnvStyle", bipolar = 0, page = patchmakerPageButton}, -- TARGET > Envelope style
     CC57 = {name = "LfoRetrigger", bipolar = 0, page = modulationPageButton}, -- EG MOD > LFO Retrigger/Sync
     CC58 = {name = "WaveFormTypeMenu", bipolar = 0, page = modulationPageButton}, -- LFO WAVE
-    CC80 = {name = "Arp", bipolar = 0}, -- SYNC > Arp on/off
-    CC81 = {name = "VibratoDepth", bipolar = 0, page = synthesisPageButton}, -- RING
+    CC80 = {name = "VibratoDepth", bipolar = 0, page = synthesisPageButton}, -- RING
+    CC81 = {name = "Arp", bipolar = 0}, -- SYNC > Arp on/off
     CC82 = {name = "VelocityToFilterEnv", bipolar = 0, page = filterPageButton, factor = 20}, -- VELOCITY
     CC83 = {name = "KeyTracking", bipolar = 0, page = filterPageButton}, -- KEY TRACK
     CC84 = {name = "FilterDb", bipolar = 0, page = filterPageButton}, -- 2/4-POLE

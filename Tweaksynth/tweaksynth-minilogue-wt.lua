@@ -38,7 +38,6 @@ local ampEnvNoise = noiseKeygroup.modulations["Amp. Env"]
 local filterEnv1 = osc1Keygroup.modulations["Analog ADSR 1"]
 local filterEnv2 = osc2Keygroup.modulations["Analog ADSR 1"]
 local filterEnvNoise = noiseKeygroup.modulations["Analog ADSR 1"]
---local cc20 = Program.modulations["@MIDI CC 20"]
 
 -- MACROS
 local macros = {
@@ -103,7 +102,8 @@ local macros = {
   Program.modulations["Macro 59"],
   Program.modulations["Macro 60"],
   Program.modulations["Macro 61"],
-  Program.modulations["Macro 62"]
+  Program.modulations["Macro 62"],
+  Program.modulations["Macro 63"]
 }
 
 local isAnalog = osc1.type == "MinBlepGenerator" and osc2.type == "MinBlepGenerator"
@@ -184,6 +184,7 @@ local atToHpf = macros[55]
 local lfoToHpf = macros[56]
 local phasorMix = macros[61]
 local wheelToLfo = macros[62]
+local filterDb = macros[63]
 
 -- Name additive macros
 local additiveMacros = {
@@ -227,7 +228,8 @@ local wavetableMacros = {
   waveSpread = macros[57],
   wheelToShape1 = macros[58],
   wheelToShape2 = macros[59],
-  atToShape1 = macros[60]
+  atToShape1 = macros[60],
+  filterDb = macros[63]
 }
 
 --------------------------------------------------------------------------------
@@ -298,14 +300,18 @@ end
 -- Helper functions
 --------------------------------------------------------------------------------
 
-function controllerValueToWidgetValue(value, bipolar, factor)
+function controllerValueToWidgetValue(value, cc)--bipolar, factor)
   local max = 127
-  if bipolar == 1 then
+  --[[ if type(mapper) == "string" then
+    -- TODO Check mapper type Quartic: param = min + (max-min)*pos^4
+    value = max ^ 4 * value
+  end ]]
+  if cc.bipolar == 1 then
     max = max / 2
   end
-  value = (value / max) - bipolar
-  if type(factor) == "number" then
-    value = value * factor
+  value = (value / max) - cc.bipolar
+  if type(cc.factor) == "number" then
+    value = value * cc.factor
   end
   return value
 end
@@ -1599,14 +1605,14 @@ function createOsc3Panel()
   local osc3Panel = Panel("Osc3Panel")
   osc3Panel:Label("Osc 3")
 
-  createAnalog3OscPanel(osc3Panel, 2)
+  createAnalog3OscPanel(osc3Panel, 3)
 
   return osc3Panel
 end
 
 local osc3Panel
 if isAnalog3Osc then
-  --osc3Panel = createOsc3Panel()
+  osc3Panel = createOsc3Panel()
 end
 
 --------------------------------------------------------------------------------
@@ -1667,10 +1673,9 @@ function createMixerPanel()
   osc2MixKnob:changed()
   table.insert(tweakables, {widget=osc2MixKnob,floor=0.5,ceiling=0.75,probability=100,absoluteLimit=0.8,zero=10,default=5,category="mixer"})
 
-  --local subOscWaveformKnob
-  local subOscMixKnob
+  local subOscWaveformKnob
   if isAnalog3Osc then
-    --[[ local osc3MixKnob = mixerPanel:Knob("Osc3Mix", 0, 0, 1)
+    local osc3MixKnob = mixerPanel:Knob("Osc3Mix", 0, 0, 1)
     osc3MixKnob.displayName = "Osc 3"
     osc3MixKnob.y = mixerLabel.y
     osc3MixKnob.x = osc2MixKnob.x + osc2MixKnob.width + marginRight
@@ -1682,12 +1687,12 @@ function createMixerPanel()
       self.displayText = formatGainInDb(self.value)
     end
     osc3MixKnob:changed()
-    table.insert(tweakables, {widget=osc3MixKnob,floor=0.5,ceiling=0.75,probability=100,absoluteLimit=0.8,zero=25,default=10,noDefaultTweak=true,category="mixer"}) ]]
+    table.insert(tweakables, {widget=osc3MixKnob,floor=0.5,ceiling=0.75,probability=100,absoluteLimit=0.8,zero=25,default=10,noDefaultTweak=true,category="mixer"})
 
-    subOscMixKnob = mixerPanel:Knob("SubOscMix", 0, 0, 1)
+    local subOscMixKnob = mixerPanel:Knob("SubOscMix", 0, 0, 1)
     subOscMixKnob.displayName = "Sub"
     subOscMixKnob.y = mixerLabel.y
-    subOscMixKnob.x = osc2MixKnob.x + osc2MixKnob.width + marginRight
+    subOscMixKnob.x = osc3MixKnob.x + osc3MixKnob.width + marginRight
     subOscMixKnob.size = {90,knobSize[2]}
     subOscMixKnob.fillColour = knobColour
     subOscMixKnob.outlineColour = osc2Colour
@@ -1698,7 +1703,7 @@ function createMixerPanel()
     subOscMixKnob:changed()
     table.insert(tweakables, {widget=subOscMixKnob,floor=0.4,ceiling=0.75,probability=100,absoluteLimit=0.8,zero=10,default=5,category="mixer"})
 
-    --[[ subOscWaveformKnob = mixerPanel:Knob("SubOscWaveform", 3, 1, 4, true)
+    subOscWaveformKnob = mixerPanel:Knob("SubOscWaveform", 3, 1, 4, true)
     subOscWaveformKnob.displayName = "SubWave"
     subOscWaveformKnob.y = mixerLabel.y
     subOscWaveformKnob.x = subOscMixKnob.x + subOscMixKnob.width + marginRight
@@ -1710,15 +1715,15 @@ function createMixerPanel()
       self.displayText = waveforms[self.value]
      end
     subOscWaveformKnob:changed()
-    table.insert(tweakables, {widget=subOscWaveformKnob,min=4,default=75,noDefaultTweak=true,category="synthesis"}) ]]
+    table.insert(tweakables, {widget=subOscWaveformKnob,min=4,default=75,noDefaultTweak=true,category="synthesis"})
   end
 
   local noiseTypeMenu
   local noiseMixKnob = mixerPanel:Knob("NoiseMix", 0, 0, 1)
   noiseMixKnob.displayName = "Noise"
   if isAnalog3Osc then
-    noiseMixKnob.y = mixerLabel.y
-    noiseMixKnob.x = subOscMixKnob.x + subOscMixKnob.width + marginRight
+    noiseMixKnob.y = 50
+    noiseMixKnob.x = 630
   else
     noiseMixKnob.y = mixerLabel.y
     noiseMixKnob.x = osc2MixKnob.x + osc2MixKnob.width + marginRight
@@ -1733,7 +1738,7 @@ function createMixerPanel()
   noiseMixKnob:changed()
   table.insert(tweakables, {widget=noiseMixKnob,floor=0.3,ceiling=0.75,probability=100,default=5,zero=10,absoluteLimit=0.8,category="mixer"})
   
-  --if isAnalog or isAnalogStack or isWavetable or isAdditive then
+  if isAnalog or isAnalogStack or isWavetable or isAdditive then
     local noiseTypes = {"Band", "S&H", "Static1", "Static2", "Violet", "Blue", "White", "Pink", "Brown", "Lorenz", "Rossler", "Crackle", "Logistic", "Dust", "Velvet"}
     noiseTypeMenu = mixerPanel:Menu("NoiseTypeMenu", noiseTypes)
     noiseTypeMenu.y = 2
@@ -1751,16 +1756,16 @@ function createMixerPanel()
     end
     noiseTypeMenu:changed()
     table.insert(tweakables, {widget=noiseTypeMenu,min=#noiseTypes,default=75,valueFilter={5,6,7,8,9},category="synthesis"})
-  --end
+  end
 
   local panSpreadKnob = mixerPanel:Knob("PanSpread", 0, 0, 1)
   panSpreadKnob.displayName = "Pan Spread"
   panSpreadKnob.y = mixerLabel.y
-  --[[ if subOscMixKnob then
-    panSpreadKnob.x = noiseMixKnob.x + noiseMixKnob.width - marginRight
-  else ]]
+  if subOscWaveformKnob then
+    panSpreadKnob.x = subOscWaveformKnob.x + subOscWaveformKnob.width - marginRight
+  else
     panSpreadKnob.x = noiseTypeMenu.x + noiseTypeMenu.width + marginRight
-  --end
+  end
   panSpreadKnob.size = knobSize
   panSpreadKnob.fillColour = knobColour
   panSpreadKnob.outlineColour = unisonColour
@@ -1974,7 +1979,7 @@ local mixerPanel = createMixerPanel()
 function createFilterPanel()  
   local filterPanel = Panel("Filter")
 
-  --[[ if isAnalog or isAnalog3Osc then
+  if isAnalog or isWavetable or isAnalog3Osc then
     filterDbMenu = filterPanel:Menu("FilterDb", {"24dB", "12dB"})
     filterDbMenu.backgroundColour = menuBackgroundColour
     filterDbMenu.textColour = menuTextColour
@@ -1986,13 +1991,17 @@ function createFilterPanel()
       if self.value == 2 then
         value = 1
       end
-      analogMacros["filterDb"]:setParameter("Value", value)
+      if isWavetable then
+        wavetableMacros["filterDb"]:setParameter("Value", value)
+      else
+        analogMacros["filterDb"]:setParameter("Value", value)
+      end
     end
     filterDbMenu:changed()
     table.insert(tweakables, {widget=filterDbMenu,min=2,default=70,category="filter"})
-  else ]]
+  else
     filterPanel:Label("Low-pass Filter")
-  --end
+  end
 
   local cutoffKnob = filterPanel:Knob("Cutoff", 1, 0, 1)
   cutoffKnob.fillColour = knobColour
@@ -2173,6 +2182,7 @@ function createFilterEnvPanel()
     self.displayText = formatTimeInSeconds(self.value)
   end
   filterAttackKnob:changed()
+  --cc20.connections[1] = filterAttackKnob
   table.insert(tweakables, {widget=filterAttackKnob,attack=true,floor=0.001,ceiling=0.01,probability=85,default=35,defaultTweakRange=3,category="filter"})
 
   local filterDecayKnob = filterEnvPanel:Knob("FDecay", 0.050, 0, 10)
@@ -2359,7 +2369,7 @@ function createFilterEnvOscTargetsPanel()
     table.insert(tweakables, {widget=filterEnvToPitchOsc2Knob,ceiling=0.1,probability=85,default=75,noDefaultTweak=true,zero=25,category="filter"})
 
     -- TODO Adjust if hardsync enabled
-    --[[ local filterEnvToPitchOsc3Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToPitchOsc3", 0, 0, 48)
+    local filterEnvToPitchOsc3Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToPitchOsc3", 0, 0, 48)
     filterEnvToPitchOsc3Knob.displayName = "Pitch 3"
     filterEnvToPitchOsc3Knob.mapper = Mapper.Quadratic
     filterEnvToPitchOsc3Knob.fillColour = knobColour
@@ -2370,7 +2380,7 @@ function createFilterEnvOscTargetsPanel()
       analogMacros["filterEnvToPitchOsc3"]:setParameter("Value", value)
     end
     filterEnvToPitchOsc3Knob:changed()
-    table.insert(tweakables, {widget=filterEnvToPitchOsc3Knob,ceiling=0.1,probability=85,default=75,noDefaultTweak=true,zero=25,category="filter"}) ]]
+    table.insert(tweakables, {widget=filterEnvToPitchOsc3Knob,ceiling=0.1,probability=85,default=75,noDefaultTweak=true,zero=25,category="filter"})
   elseif isAnalog or isAdditive or isWavetable then
     filterEnvOscTargetsPanel:Label("Filter Env -> Osc 1 ->")
 
@@ -3006,7 +3016,7 @@ function createLfoTargetPanel1()
     osc2LfoToPWMKnob:changed()
     table.insert(tweakables, {widget=osc2LfoToPWMKnob,ceiling=0.25,probability=90,default=50,category="modulation"})
 
-    --[[ local osc3LfoToPWMKnob = lfoTargetPanel1:Knob("LfoToOsc3PWM", 0, 0, 0.5)
+    local osc3LfoToPWMKnob = lfoTargetPanel1:Knob("LfoToOsc3PWM", 0, 0, 0.5)
     osc3LfoToPWMKnob.displayName = "PWM 3"
     osc3LfoToPWMKnob.mapper = Mapper.Quadratic
     osc3LfoToPWMKnob.fillColour = knobColour
@@ -3016,7 +3026,7 @@ function createLfoTargetPanel1()
       self.displayText = percent(self.value)
     end
     osc3LfoToPWMKnob:changed()
-    table.insert(tweakables, {widget=osc3LfoToPWMKnob,ceiling=0.25,probability=90,default=50,category="modulation"}) ]]
+    table.insert(tweakables, {widget=osc3LfoToPWMKnob,ceiling=0.25,probability=90,default=50,category="modulation"})
   else
     lfoTargetPanel1:Label("LFO -> Osc 1 ->")
 
@@ -3151,7 +3161,7 @@ function createLfoTargetPanel2()
     table.insert(tweakables, {widget=lfoToPitchOsc2Knob,ceiling=0.1,probability=75,default=80,noDefaultTweak=true,zero=30,category="modulation"})
 
     -- TODO Validate pitch modulation - if hard sync is enabled, ceiling can be higher
-    --[[ local lfoToPitchOsc3Knob = lfoTargetPanel2:Knob("LfoToPitchOsc3Knob", 0, 0, 48)
+    local lfoToPitchOsc3Knob = lfoTargetPanel2:Knob("LfoToPitchOsc3Knob", 0, 0, 48)
     lfoToPitchOsc3Knob.displayName = "Pitch 3"
     lfoToPitchOsc3Knob.mapper = Mapper.Quadratic
     lfoToPitchOsc3Knob.fillColour = knobColour
@@ -3162,7 +3172,7 @@ function createLfoTargetPanel2()
       analogMacros["lfoToPitchOsc3"]:setParameter("Value", value)
     end
     lfoToPitchOsc3Knob:changed()
-    table.insert(tweakables, {widget=lfoToPitchOsc3Knob,ceiling=0.1,probability=75,default=80,noDefaultTweak=true,zero=30,category="modulation"}) ]]
+    table.insert(tweakables, {widget=lfoToPitchOsc3Knob,ceiling=0.1,probability=75,default=80,noDefaultTweak=true,zero=30,category="modulation"})
   else
     lfoTargetPanel2:Label("LFO -> Osc 2 ->")
 
@@ -4563,20 +4573,20 @@ local tweakPanel = createPatchMakerPanel()
 -- Map Midi CC for HW (Minilogue)
 --------------------------------------------------------------------------------
 
-function onEvent(e)
+--[[ function onEvent(e)
   print(e)
   postEvent(e)
-end
+end ]]
 
---[[ function onController(e)
-    local controllerToWidgetMap = {
-    CC16 = {name = "Attack", page = synthesisPageButton},
+function onController(e)
+  local controllerToWidgetMap = {
+    CC16 = {name = "Attack", bipolar = nil, factor = 10, mapper = 'quartic', page = synthesisPageButton},
     CC17 = {name = "Decay", page = synthesisPageButton},
-    CC18 = {name = "Sustain", page = synthesisPageButton},
+    CC18 = {name = "Sustain", bipolar = 0, page = synthesisPageButton}, -- SUSTAIN
     CC19 = {name = "Release", page = synthesisPageButton},
     CC20 = {name = "FAttack", page = filterPageButton},
     CC21 = {name = "FDecay", page = filterPageButton},
-    CC22 = {name = "FSustain", page = filterPageButton},
+    CC22 = {name = "FSustain", bipolar = 0, page = filterPageButton}, -- SUSTAIN
     CC23 = {name = "FRelease", page = filterPageButton},
     CC24 = {name = "LfoFreq", bipolar = 0, page = modulationPageButton, factor = 20}, -- LFO RATE
     CC26 = {name = "LfoToCutoff", bipolar = 1, page = modulationPageButton}, -- LFO INT
@@ -4587,24 +4597,24 @@ end
     CC33 = {name = "NoiseMix", bipolar = 0}, -- NOISE
     CC34 = {name = "Osc1StartPhase", bipolar = 0, page = synthesisPageButton}, -- VCO 1 PITCH > Start Phase 1
     CC35 = {name = "Osc2FinePitch", bipolar = 0, page = synthesisPageButton}, -- VCO 2 PITCH > Fine pitch
-    CC36 = {name = "HardsyncOsc1", bipolar = 0, page = synthesisPageButton, factor = 36}, -- VCO1 SHAPE > Hardsync 1
-    CC37 = {name = "HardsyncOsc2", bipolar = 0, page = synthesisPageButton, factor = 36}, -- VCO2 SHAPE > Hardsync 2
+    CC36 = {name = "Osc1Wave", bipolar = 0, page = synthesisPageButton}, -- VCO1 SHAPE > Wave 1
+    CC37 = {name = "Osc2Wave", bipolar = 0, page = synthesisPageButton}, -- VCO2 SHAPE > Wave 2
     CC39 = {name = "Osc1Mix", bipolar = 0}, -- VCO1
     CC40 = {name = "Osc2Mix", bipolar = 0}, -- VCO2
-    CC41 = {name = "FilterEnvToHardsync1", bipolar = 0, page = filterPageButton}, -- CROSS MOD DEPTH > Osc 1 Hardsync FEnv Amt
-    CC42 = {name = "FilterEnvToHardsync2", bipolar = 0, page = filterPageButton}, -- PITCH EG INT > Osc 2 Hardsync FEnv Amt
+    CC41 = {name = "Osc1FilterEnvToIndex", bipolar = 0, page = filterPageButton}, -- CROSS MOD DEPTH > Osc 1 Wavindex FEnv Amt
+    CC42 = {name = "Osc2FilterEnvToIndex", bipolar = 0, page = filterPageButton}, -- PITCH EG INT > Osc 2 Wavindex FEnv Amt
     CC43 = {name = "Cutoff", bipolar = 0, page = filterPageButton}, -- CUTOFF > Cutoff
     CC44 = {name = "Resonance", bipolar = 0, page = filterPageButton}, -- RESONANCE > Resonance
     CC45 = {name = "EnvelopeAmt", bipolar = 1, page = filterPageButton}, -- EG INT > Cutoff filter env amount
     CC48 = {name = "Osc1Pitch", bipolar = 0, page = synthesisPageButton}, -- VCO 1 OCTAVE
     CC49 = {name = "Osc2Pitch", bipolar = 0, page = synthesisPageButton}, -- VCO 2 OCTAVE
-    CC50 = {name = "Osc1Wave", bipolar = 0, page = synthesisPageButton}, -- VCO 1 WAVE
-    CC51 = {name = "Osc2Wave", bipolar = 0, page = synthesisPageButton}, -- VCO 2 WAVE
+    CC50 = {name = "Osc1LfoToWaveIndex", bipolar = 0, page = modulationPageButton}, -- VCO 1 WAVE > Lfo to Waveindex 1
+    CC51 = {name = "Osc2LfoToWaveIndex", bipolar = 0, page = modulationPageButton}, -- VCO 2 WAVE > Lfo to Waveindex 2
     CC56 = {name = "EnvStyle", bipolar = 0, page = patchmakerPageButton}, -- TARGET > Envelope style
     CC57 = {name = "LfoRetrigger", bipolar = 0, page = modulationPageButton}, -- EG MOD > LFO Retrigger/Sync
     CC58 = {name = "WaveFormTypeMenu", bipolar = 0, page = modulationPageButton}, -- LFO WAVE
-    CC80 = {name = "Arp", bipolar = 0}, -- SYNC > Arp on/off
-    CC81 = {name = "VibratoDepth", bipolar = 0, page = synthesisPageButton}, -- RING
+    CC80 = {name = "VibratoDepth", bipolar = 0, page = synthesisPageButton}, -- RING
+    CC81 = {name = "Arp", bipolar = 0}, -- SYNC > Arp on/off
     CC82 = {name = "VelocityToFilterEnv", bipolar = 0, page = filterPageButton, factor = 20}, -- VELOCITY
     CC83 = {name = "KeyTracking", bipolar = 0, page = filterPageButton}, -- KEY TRACK
     CC84 = {name = "FilterDb", bipolar = 0, page = filterPageButton}, -- 2/4-POLE
@@ -4622,7 +4632,7 @@ end
       postEvent(e)
       return
     end
-    local value = controllerValueToWidgetValue(e.value, cc.bipolar, cc.factor)
+    local value = controllerValueToWidgetValue(e.value, cc)
     print("Value in/out:", e.value, value)
 
     if cc.name == "Arp" then
@@ -4673,13 +4683,6 @@ end
     if cc.name == "VibratoDepth" and value == 1 then
       value = 0.3
     end
-    if cc.name == "Osc1Wave" or cc.name == "Osc2Wave" then
-      if value == 0 then
-        value = 2
-      elseif value < 1 then
-        value = 3
-      end
-    end
     if cc.name == "Osc1Pitch" then
       if value == 1 then
         value = 2
@@ -4718,7 +4721,7 @@ end
   end
 
   postEvent(e)
-end ]]
+end
 
 --------------------------------------------------------------------------------
 -- Set pages

@@ -1,0 +1,10 @@
+                <Connections>
+                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="@MIDI CC 23" Destination="Attack" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="@MIDI CC 24" Destination="Decay" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="@MIDI CC 25" Destination="Sustain" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="@MIDI CC 26" Destination="Release" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="@MIDI CC 28" Destination="FAttack" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="@MIDI CC 29" Destination="FDecay" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="@MIDI CC 30" Destination="FSustain" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                    <SignalConnection Name="SignalConnection 0" Ratio="1" Source="@MIDI CC 30" Destination="FRelease" Mapper="" ConnectionMode="1" Bypass="0" Inverted="0" Offset="0" SignalConnectionVersion="1"/>
+                </Connections>
