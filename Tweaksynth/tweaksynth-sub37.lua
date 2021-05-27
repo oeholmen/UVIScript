@@ -38,7 +38,9 @@ local ampEnvNoise = noiseKeygroup.modulations["Amp. Env"]
 local filterEnv1 = osc1Keygroup.modulations["Analog ADSR 1"]
 local filterEnv2 = osc2Keygroup.modulations["Analog ADSR 1"]
 local filterEnvNoise = noiseKeygroup.modulations["Analog ADSR 1"]
---local cc20 = Program.modulations["@MIDI CC 20"]
+local filterInsert1 = osc1Keygroup.inserts[3]
+local filterInsert2 = osc2Keygroup.inserts[3]
+local filterInsert3 = noiseKeygroup.inserts[3]
 
 -- MACROS
 local macros = {
@@ -205,12 +207,12 @@ local analogMacros = {
   osc3LfoToPWM = macros[7],
   subOscMix = macros[17],
   randomPhaseStart = macros[34],
-  lfoToHardsync1 = macros[38],
+  lfoToHardsync1 = macros[38], -- Filter overdrive
   lfoToHardsync2 = macros[39],
   filterEnvToHardsync1 = macros[40],
   filterEnvToHardsync2 = macros[41],
   lfoToPitchOsc3 = macros[57],
-  atToHardsync1 = macros[58],
+  atToHardsync1 = macros[58], -- Filter thickness
   filterEnvToPitchOsc3 = macros[59],
   filterDb = macros[60]
 }
@@ -298,16 +300,23 @@ end
 -- Helper functions
 --------------------------------------------------------------------------------
 
-function controllerValueToWidgetValue(value, bipolar, factor)
+function controllerValueToWidgetValue(controllerValue, bipolar, factor)
   local max = 127
   if bipolar == 1 then
     max = max / 2
   end
-  value = (value / max) - bipolar
-  if type(factor) == "number" then
-    value = value * factor
+  local widgetValue = (controllerValue / max) - bipolar
+  if controllerValue == 64 then
+    if bipolar == 0 then
+      widgetValue = 0.5
+    else
+      widgetValue = 0
+    end
   end
-  return value
+  if type(factor) == "number" then
+    widgetValue = widgetValue * factor
+  end
+  return widgetValue
 end
 
 function initPatch()
@@ -1975,21 +1984,23 @@ function createFilterPanel()
   local filterPanel = Panel("Filter")
 
   if isAnalog or isAnalog3Osc then
-    filterDbMenu = filterPanel:Menu("FilterDb", {"24dB", "12dB"})
+    filterDbMenu = filterPanel:Menu("FilterDb", {"6db", "12dB", "18dB", "24dB"})
     filterDbMenu.backgroundColour = menuBackgroundColour
     filterDbMenu.textColour = menuTextColour
     filterDbMenu.arrowColour = menuArrowColour
     filterDbMenu.outlineColour = menuOutlineColour
     filterDbMenu.displayName = "Low-pass Filter"
+    filterDbMenu.selected = 4
     filterDbMenu.changed = function(self)
-      local value = -1
-      if self.value == 2 then
-        value = 1
-      end
-      analogMacros["filterDb"]:setParameter("Value", value)
+      local value = self.value - 1
+      local factor = 1 / 7
+      analogMacros["filterDb"]:setParameter("Value", value * factor)
+      filterInsert1:setParameter("Mode", value)
+      filterInsert2:setParameter("Mode", value)
+      filterInsert3:setParameter("Mode", value)
     end
     filterDbMenu:changed()
-    table.insert(tweakables, {widget=filterDbMenu,min=2,default=70,category="filter"})
+    table.insert(tweakables, {widget=filterDbMenu,min=4,floor=2,probability=90,default=10,category="filter"})
   else
     filterPanel:Label("Low-pass Filter")
   end
@@ -3123,28 +3134,28 @@ function createLfoTargetPanel2()
   if isAnalog3Osc then
     lfoTargetPanel2:Label("LFO -> Osc ->")
 
-    local lfoToPitchOsc1Knob = lfoTargetPanel2:Knob("LfoToPitchOsc1Knob", 0, 0, 48)
+    local lfoToPitchOsc1Knob = lfoTargetPanel2:Knob("LfoToPitchOsc1Knob", 0, -24, 24)
     lfoToPitchOsc1Knob.displayName = "Pitch 1"
     lfoToPitchOsc1Knob.mapper = Mapper.Quadratic
     lfoToPitchOsc1Knob.fillColour = knobColour
     lfoToPitchOsc1Knob.outlineColour = lfoColour
     lfoToPitchOsc1Knob.changed = function(self)
       local factor = 1 / 48
-      local value = (self.value * factor)
+      local value = (self.value * factor) + 0.5
       lfoToPitchOsc1:setParameter("Value", value)
     end
     lfoToPitchOsc1Knob:changed()
     table.insert(tweakables, {widget=lfoToPitchOsc1Knob,ceiling=0.1,probability=80,default=80,noDefaultTweak=true,zero=50,category="modulation"})
 
     -- TODO Validate pitch modulation - if hard sync is enabled, ceiling can be higher
-    local lfoToPitchOsc2Knob = lfoTargetPanel2:Knob("LfoToPitchOsc2Knob", 0, 0, 48)
+    local lfoToPitchOsc2Knob = lfoTargetPanel2:Knob("LfoToPitchOsc2Knob", 0, -24, 24)
     lfoToPitchOsc2Knob.displayName = "Pitch 2"
     lfoToPitchOsc2Knob.mapper = Mapper.Quadratic
     lfoToPitchOsc2Knob.fillColour = knobColour
     lfoToPitchOsc2Knob.outlineColour = lfoColour
     lfoToPitchOsc2Knob.changed = function(self)
       local factor = 1 / 48
-      local value = (self.value * factor)
+      local value = (self.value * factor) + 0.5
       lfoToPitchOsc2:setParameter("Value", value)
     end
     lfoToPitchOsc2Knob:changed()
@@ -4568,54 +4579,93 @@ local tweakPanel = createPatchMakerPanel()
   postEvent(e)
 end ]]
 
+local activeLfoPitchOsc = {osc1 = true, osc2 = true}
+local activeLfoPitchValue = 0
+local activeLfoTarget = {pwmosc1 = true, pwmosc2 = true, amplitude = false, detune = false, hpf = false}
+local activeLfoTargetValue = 0
+
+function setLfoTargetValue()
+  if activeLfoTarget.pwmosc1 == false then
+    getWidget("LfoToOsc1PWM").value = 0
+  else
+    getWidget("LfoToOsc1PWM").value = controllerValueToWidgetValue(activeLfoTargetValue, 0, 0.5)
+  end
+
+  if activeLfoTarget.pwmosc2 == false then
+    getWidget("LfoToOsc2PWM").value = 0
+  else
+    getWidget("LfoToOsc2PWM").value = controllerValueToWidgetValue(activeLfoTargetValue, 0, 0.5)
+  end
+
+  if activeLfoTarget.amplitude == false then
+    getWidget("LfoToAmplitude").value = 0
+  else
+    getWidget("LfoToAmplitude").value = controllerValueToWidgetValue(activeLfoTargetValue, 1)
+  end
+
+  if activeLfoTarget.hpf == false then
+    getWidget("LfoToHpfCutoff").value = 0
+  else
+    getWidget("LfoToHpfCutoff").value = controllerValueToWidgetValue(activeLfoTargetValue, 1)
+  end
+end
+
 function onController(e)
   print(e)
   local controllerToWidgetMap = {
-    CC23 = {name = "Attack", page = synthesisPageButton},
-    CC24 = {name = "Decay", page = synthesisPageButton},
-    CC25 = {name = "Sustain", page = synthesisPageButton},
-    CC26 = {name = "Release", page = synthesisPageButton},
-    CC28 = {name = "FAttack", page = filterPageButton},
-    CC29 = {name = "FDecay", page = filterPageButton},
-    CC30 = {name = "FSustain", page = filterPageButton},
-    CC31 = {name = "FRelease", page = filterPageButton},
+    CC28 = {name = "Attack", bipolar = nil, factor = 10, page = synthesisPageButton},
+    CC29 = {name = "Decay", bipolar = nil, factor = 10, page = synthesisPageButton},
+    CC30 = {name = "Sustain", bipolar = 0, page = synthesisPageButton},
+    CC31 = {name = "Release", bipolar = nil, factor = 10, page = synthesisPageButton},
+    CC23 = {name = "FAttack", bipolar = nil, factor = 10, page = filterPageButton},
+    CC24 = {name = "FDecay", bipolar = nil, factor = 10, page = filterPageButton},
+    CC25 = {name = "FSustain", bipolar = 0, page = filterPageButton},
+    CC26 = {name = "FRelease", bipolar = nil, factor = 10, page = filterPageButton},
+    CC3 = {name = "VibratoRate", bipolar = 0, page = synthesisPageButton}, -- LFO 1 RATE
+    CC5 = {name = "PortamentoTime", bipolar = 0, page = modulationPageButton}, -- GLIDE TIME
     CC8 = {name = "LfoFreq", bipolar = 0, page = modulationPageButton, factor = 20}, -- LFO RATE
     CC16 = {name = "LfoToCutoff", bipolar = 1, page = modulationPageButton}, -- LFO INT
-    --CC27 = {name = "UnisonVoices", bipolar = 0, factor = 8}, -- Voice Mode Depth > Unison
-    --CC29 = {name = "HpfCutoff", bipolar = 0, page = filterPageButton}, -- HI PASS CUTOFF
-    --CC30 = {name = "HpfEnvelopeAmt", bipolar = 1, page = filterPageButton}, -- TIME
-    --CC31 = {name = "TweakLevel", bipolar = 0, page = patchmakerPageButton, factor = 100}, -- FEEDBACK > Tweak level
-    CC117 = {name = "NoiseMix", bipolar = 0}, -- NOISE
-    --CC34 = {name = "Osc1StartPhase", bipolar = 0, page = synthesisPageButton}, -- VCO 1 PITCH > Start Phase 1
+    CC88 = {name = "ActiveLfoPitchOscSelector", bipolar = 0, page = modulationPageButton}, -- OSC
+    CC15 = {name = "LfoToPitchKnob", bipolar = 1, factor = 24, page = modulationPageButton}, -- LFO INT
+    CC92 = {name = "ActiveLfoTargetSelector", bipolar = 0, page = modulationPageButton}, -- OSC
+    CC17 = {name = "LfoToTargetKnob", bipolar = 0, page = modulationPageButton}, -- MOD 2 AMT
+    CC20 = {name = "TweakLevel", bipolar = 0, page = patchmakerPageButton, factor = 100}, -- MOD 1 AMT > Tweak level
     CC75 = {name = "Osc2Oct", bipolar = 0, page = synthesisPageButton}, -- VCO 2 OCTAVE
-    CC12 = {name = "Osc2Pitch", bipolar = 1, factor = 24, page = synthesisPageButton}, -- VCO 2 FREQUENCY > Fine pitch
+    CC12 = {name = "Osc2Pitch", bipolar = 1, factor = 7, page = synthesisPageButton}, -- VCO 2 FREQUENCY > Fine pitch
     CC13 = {name = "Osc2Pitch", bipolar = 1, page = synthesisPageButton}, -- VCO 2 FREQUENCY > Fine pitch
-    --CC75 = {name = "Osc2Pitch", bipolar = 1, factor=24, page = synthesisPageButton}, -- VCO 2 FREQUENCY > Fine pitch
-    --CC36 = {name = "HardsyncOsc1", bipolar = 0, page = synthesisPageButton, factor = 36}, -- VCO1 SHAPE > Hardsync 1
-    --CC13 = {name = "HardsyncOsc2", bipolar = 0, page = synthesisPageButton, factor = 36}, -- BEAT FREQ > Hardsync 2
+    CC77 = {name = "SyncOsc2ToOsc1", bipolar = 0, page = synthesisPageButton}, -- HARD SYNC
     CC114 = {name = "Osc1Mix", bipolar = 0}, -- VCO1
     CC116 = {name = "Osc2Mix", bipolar = 0}, -- VCO2
     CC115 = {name = "SubOscMix", bipolar = 0}, -- SUB1
-    --CC41 = {name = "FilterEnvToHardsync1", bipolar = 0, page = filterPageButton}, -- CROSS MOD DEPTH > Osc 1 Hardsync FEnv Amt
-    --CC42 = {name = "FilterEnvToHardsync2", bipolar = 0, page = filterPageButton}, -- PITCH EG INT > Osc 2 Hardsync FEnv Amt
+    CC117 = {name = "NoiseMix", bipolar = 0}, -- NOISE
+    CC111 = {name = "RandomPhaseStart", bipolar = 0}, -- KB CTRL
+    CC81 = {name = "Osc1StartPhase", bipolar = 0, page = synthesisPageButton}, -- KB RESET
+    CC110 = {name = "Osc2StartPhase", bipolar = 0, page = synthesisPageButton}, -- DUO MODE
     CC74 = {name = "Cutoff", bipolar = 0, page = filterPageButton}, -- CUTOFF > Cutoff
     CC21 = {name = "Resonance", bipolar = 0, page = filterPageButton}, -- RESONANCE > Resonance
     CC27 = {name = "EnvelopeAmt", bipolar = 1, page = filterPageButton}, -- EG INT > Cutoff filter env amount
-    --CC48 = {name = "Osc1Pitch", bipolar = 0, page = synthesisPageButton}, -- VCO 1 OCTAVE
     CC9 = {name = "Osc1Wave", bipolar = 0, factor = 6, page = synthesisPageButton}, -- VCO 1 WAVE
     CC14 = {name = "Osc2Wave", bipolar = 0, factor = 6, page = synthesisPageButton}, -- VCO 2 WAVE
-    --CC56 = {name = "EnvStyle", bipolar = 0, page = patchmakerPageButton}, -- TARGET > Envelope style
-    CC112 = {name = "LfoRetrigger", bipolar = 0, page = modulationPageButton}, -- EG MOD > LFO Retrigger/Sync
+    CC78 = {name = "Lfo2Sync", bipolar = 0, page = modulationPageButton}, -- HI RANGE > LFO Sync
+    CC95 = {name = "Lfo2Trigger", bipolar = 0, page = modulationPageButton}, -- KB RESET > LFO Retrigger
     CC72 = {name = "WaveFormTypeMenu", bipolar = 0, page = modulationPageButton}, -- LFO WAVE
-    CC73 = {name = "Arp", bipolar = 0}, -- Arp on/off
-    --CC90 = {name = "ArpRate", bipolar = 0}, -- Arp rate
+    CC69 = {name = "Arp", bipolar = 0}, -- Arp on/off
     CC4 = {name = "VibratoDepth", bipolar = 0, page = synthesisPageButton}, -- 
-    CC11 = {name = "LfoRiseTime", bipolar = 0, factor = 10, page = synthesisPageButton}, -- 
-    --CC82 = {name = "VelocityToFilterEnv", bipolar = 0, page = filterPageButton, factor = 20}, -- VELOCITY
+    --CC11 = {name = "LfoRiseTime", bipolar = 0, factor = 10, page = synthesisPageButton}, -- MOD 1 FILTER AMT
+    CC11 = {name = "Delay", bipolar = 0, page = effectsPageButton}, -- MOD 1 FILTER AMT
+    CC71 = {name = "Chorus", bipolar = 0, page = effectsPageButton}, -- MOD 1 SOURCE
     CC22 = {name = "KeyTracking", bipolar = 0, page = filterPageButton}, -- KEY TRACK
-    CC109 = {name = "FilterDb", bipolar = 0, page = filterPageButton}, -- 2/4-POLE
-    CC18 = {name = "Drive", bipolar = 0, page = effectsPageButton} -- MULTIDRIVE
-    --CC88 = {name = "Tweak", bipolar = 0} -- OUTPUT ROUTING > Tweak button
+    CC109 = {name = "FilterDb", bipolar = 0, factor = 4, page = filterPageButton}, -- SLOPE
+    CC18 = {name = "Drive", bipolar = 0, page = effectsPageButton}, -- MULTIDRIVE
+    CC118 = {name = "Reverb", bipolar = 0, page = effectsPageButton}, -- EXT IN
+    CC70 = {name = "Tweak", bipolar = 0}, -- MOD 1 OSC > Tweak button
+    CC93 = {name = "Init", bipolar = 0}, -- MOD 1 KB RESET > Init patch
+    CC85 = {name = "PlayModeMenu", bipolar = 0}, -- GLIDE TYPE > Play mode
+    CC91 = {name = "EnvStyle", page = patchmakerPageButton, bipolar = 0}, -- MOD 1 OSC > Tweak button
+    CC112 = {name = "SynthPage", page = synthesisPageButton}, -- FENV MULTI TRIG
+    CC82 = {name = "FilterPage", page = filterPageButton}, -- FENV RESET
+    CC113 = {name = "ModPage", page = modulationPageButton}, -- AENV MULTI TRIG
+    CC83 = {name = "EffectsPage", page = effectsPageButton} -- AENV RESET
   }
 
   local key = "CC" .. e.controller
@@ -4635,58 +4685,195 @@ function onController(e)
       arpeggiatorButton:setValue(value > 0)
       return
     end
-    --[[ if cc.name == "EnvStyle" then
+    if cc.name == "ActiveLfoPitchOscSelector" then
       if value == 0 then
-        envStyleMenu.value = 1
-      elseif value == 1 then
-        envStyleMenu.value = 6
+        activeLfoPitchOsc.osc1 = true
+        activeLfoPitchOsc.osc2 = true
+      elseif value < 0.4 then
+        activeLfoPitchOsc.osc1 = true
+        activeLfoPitchOsc.osc2 = false
       else
-        envStyleMenu.value = 3
+        activeLfoPitchOsc.osc1 = false
+        activeLfoPitchOsc.osc2 = true
+      end
+      if activeLfoPitchOsc.osc1 == false then
+        getWidget("LfoToPitchOsc1Knob").value = 0
+      else
+        getWidget("LfoToPitchOsc1Knob").value = activeLfoPitchValue
+      end
+      if activeLfoPitchOsc.osc2 == false then
+        getWidget("LfoToPitchOsc2Knob").value = 0
+      else
+        getWidget("LfoToPitchOsc2Knob").value = activeLfoPitchValue
       end
       return
-    end ]]
+    end
+    if cc.name == "LfoToPitchKnob" then
+      activeLfoPitchValue = value
+      local osc1 = getWidget("LfoToPitchOsc1Knob")
+      local osc2 = getWidget("LfoToPitchOsc2Knob")
+      if activeLfoPitchOsc.osc1 == true then
+        osc1.value = value
+      else
+        osc1.value = 0
+      end
+      if activeLfoPitchOsc.osc2 == true then
+        osc2.value = value
+      else
+        osc2.value = 0
+      end
+      return
+    end
+    if cc.name == "ActiveLfoTargetSelector" then
+      if e.value == 0 then
+        -- LFO 1 RATE > Hpf
+        activeLfoTarget.detune = false
+        activeLfoTarget.amplitude = false
+        activeLfoTarget.hpf = true
+        activeLfoTarget.pwmosc1 = false
+        activeLfoTarget.pwmosc2 = false
+      elseif e.value == 18 then
+        -- VCA LEVEL > Amplitude
+        activeLfoTarget.detune = false
+        activeLfoTarget.amplitude = true
+        activeLfoTarget.hpf = false
+        activeLfoTarget.pwmosc1 = false
+        activeLfoTarget.pwmosc2 = false
+      elseif e.value == 37 then
+        activeLfoTarget.detune = false
+        activeLfoTarget.amplitude = false
+        activeLfoTarget.hpf = false
+        activeLfoTarget.pwmosc1 = true
+        activeLfoTarget.pwmosc2 = false
+      elseif e.value == 55 then
+        activeLfoTarget.detune = false
+        activeLfoTarget.amplitude = false
+        activeLfoTarget.hpf = false
+        activeLfoTarget.pwmosc1 = true
+        activeLfoTarget.pwmosc2 = true
+      elseif e.value == 73 then
+        activeLfoTarget.detune = false
+        activeLfoTarget.amplitude = false
+        activeLfoTarget.hpf = false
+        activeLfoTarget.pwmosc1 = false
+        activeLfoTarget.pwmosc2 = true
+      elseif e.value == 91 then
+        -- NOISE LEVEL > Detune
+        activeLfoTarget.detune = true
+        activeLfoTarget.amplitude = false
+        activeLfoTarget.hpf = false
+        activeLfoTarget.pwmosc1 = false
+        activeLfoTarget.pwmosc2 = false
+      elseif e.value == 110 then
+        -- EG TIME/PGM
+        --[[ activeLfoTarget.detune = false
+        activeLfoTarget.amplitude = false
+        activeLfoTarget.hpf = false
+        activeLfoTarget.pwmosc1 = false
+        activeLfoTarget.pwmosc2 = false ]]
+      end
+      setLfoTargetValue()
+      return
+    end
+    if cc.name == "LfoToTargetKnob" then
+      activeLfoTargetValue = e.value
+      setLfoTargetValue()
+      --[[ local pwmosc1 = getWidget("LfoToOsc1PWM")
+      local pwmosc2 = getWidget("LfoToOsc2PWM")
+      local amplitude = getWidget("LfoToAmplitude")
+      local hpf = getWidget("LfoToHpfCutoff")
+      if activeLfoTarget.pwmosc1 == true then
+        pwmosc1.value = controllerValueToWidgetValue(activeLfoTargetValue, 0, 0.5)
+      else
+        pwmosc1.value = 0
+      end
+      if activeLfoTarget.pwmosc2 == true then
+        pwmosc2.value = controllerValueToWidgetValue(activeLfoTargetValue, 0, 0.5)
+      else
+        pwmosc2.value = 0
+      end
+      if activeLfoTarget.amplitude == true then
+        amplitude.value = controllerValueToWidgetValue(activeLfoTargetValue, 1)
+      else
+        amplitude.value = 0
+      end
+      if activeLfoTarget.hpf == true then
+        hpf.value = controllerValueToWidgetValue(activeLfoTargetValue, 1)
+      else
+        hpf.value = 0
+      end ]]
+      return
+    end
+    if cc.name == "EnvStyle" then
+      if value == 0 then
+        envStyleMenu.value = 2
+      elseif value < 0.2 then
+        envStyleMenu.value = 3
+      elseif value < 0.3 then
+        envStyleMenu.value = 4
+      elseif value < 0.5 then
+        envStyleMenu.value = 5
+      elseif value < 0.6 then
+        envStyleMenu.value = 6
+      elseif value < 0.8 then
+        envStyleMenu.value = 7
+      else
+        envStyleMenu.value = 1
+      end
+      return
+    end
     if cc.name == "TweakLevel" then
       tweakLevelKnob.value = value
       return
     end
-    --[[ if cc.name == "Tweak" then
-      if value == 1 then
-        initPatch()
-      else
-        storeNewSnapshot()
-        tweakButton:push(true)
-      end
+    if cc.name == "Init" then
+      storeNewSnapshot()
+      initPatch()
       return
-    end ]]
-    --[[ if cc.name == "LfoRetrigger" then
-      local retrigger = getWidget("Lfo2Trigger")
-      local sync = getWidget("Lfo2Sync")
-      if value == 0 then
-        retrigger:setValue(true)
-        sync:setValue(false)
-      elseif value == 1 then
-        retrigger:setValue(false)
-        sync:setValue(true)
-      else
-        retrigger:setValue(false)
-        sync:setValue(false)
-      end
-      return
-    end ]]
-    if cc.name == "FilterDb" and (value == 0 or math.floor(value * 10) == 5) then
-      value = 2
     end
-    --[[ if cc.name == "Osc1Pitch" then
-      if value == 1 then
-        value = 2
-      elseif value > 0.6 then
+    if cc.name == "Tweak" then
+      storeNewSnapshot()
+      tweakButton:push(true)
+      return
+    end
+    if cc.name == "Lfo2Trigger" then
+      local retrigger = getWidget("Lfo2Trigger")
+      retrigger:setValue(value > 0)
+      return
+    end
+    if cc.name == "Lfo2Sync" then
+      local sync = getWidget("Lfo2Sync")
+      sync:setValue(value > 0.5)
+      return
+    end
+    if cc.name == "SyncOsc2ToOsc1" then
+      local widget = getWidget(cc.name)
+      widget:setValue(value > 0)
+      return
+    end
+    if cc.name == "PlayModeMenu" then
+      if e.value == 0 then
         value = 1
-      elseif value > 0.3 then
-        value = 0
-      else
-        value = -1
+      elseif e.value == 43 then
+        value = 3
+      elseif e.value == 85 then
+        value = 4
       end
-    end ]]
+    end
+    if cc.name == "Osc1Wave" or cc.name == "Osc2Wave" then
+      if e.value < 20 then
+        value = 3
+      elseif e.value < 60 then
+        value = 1
+      elseif e.value < 110 then
+        value = 2
+      else
+        value = 6
+      end
+    end
+    if cc.name == "FilterDb" then
+      value = math.floor(value) + 1
+    end
     if cc.name == "Osc2Pitch" then
       if type(cc.factor) == "number" then
         value = math.floor(value)
@@ -4703,15 +4890,21 @@ function onController(e)
         value = 2
       end
     end
-    --[[ if cc.name == "WaveFormTypeMenu" then
+    if cc.name == "WaveFormTypeMenu" then
       if value == 0 then
-        value = 6
-      elseif value == 1 then
-        value = 5
-      else
         value = 3
+      elseif value < 0.2 then
+        value = 2
+      elseif value < 0.4 then
+        value = 5
+      elseif value < 0.6 then
+        value = 4
+      elseif value < 0.8 then
+        value = 7
+      else
+        value = 1
       end
-    end ]]
+    end
     print("Setting value:", value)
     local widget = getWidget(cc.name)
     widget.value = value

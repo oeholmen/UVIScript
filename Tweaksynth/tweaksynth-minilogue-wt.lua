@@ -184,7 +184,6 @@ local atToHpf = macros[55]
 local lfoToHpf = macros[56]
 local phasorMix = macros[61]
 local wheelToLfo = macros[62]
-local filterDb = macros[63]
 
 -- Name additive macros
 local additiveMacros = {
@@ -300,7 +299,7 @@ end
 -- Helper functions
 --------------------------------------------------------------------------------
 
-function controllerValueToWidgetValue(value, cc)--bipolar, factor)
+function controllerValueToWidgetValue(controllerValue, cc)--bipolar, factor)
   local max = 127
   --[[ if type(mapper) == "string" then
     -- TODO Check mapper type Quartic: param = min + (max-min)*pos^4
@@ -309,7 +308,14 @@ function controllerValueToWidgetValue(value, cc)--bipolar, factor)
   if cc.bipolar == 1 then
     max = max / 2
   end
-  value = (value / max) - cc.bipolar
+  local value = (controllerValue / max) - cc.bipolar
+  if controllerValue == 64 then
+    if bipolar == 0 then
+      widgetValue = 0.5
+    else
+      widgetValue = 0
+    end
+  end
   if type(cc.factor) == "number" then
     value = value * cc.factor
   end
@@ -4601,8 +4607,8 @@ function onController(e)
     CC37 = {name = "Osc2Wave", bipolar = 0, page = synthesisPageButton}, -- VCO2 SHAPE > Wave 2
     CC39 = {name = "Osc1Mix", bipolar = 0}, -- VCO1
     CC40 = {name = "Osc2Mix", bipolar = 0}, -- VCO2
-    CC41 = {name = "Osc1FilterEnvToIndex", bipolar = 0, page = filterPageButton}, -- CROSS MOD DEPTH > Osc 1 Wavindex FEnv Amt
-    CC42 = {name = "Osc2FilterEnvToIndex", bipolar = 0, page = filterPageButton}, -- PITCH EG INT > Osc 2 Wavindex FEnv Amt
+    CC41 = {name = "Osc1FilterEnvToIndex", bipolar = 1, page = filterPageButton}, -- CROSS MOD DEPTH > Osc 1 Wavindex FEnv Amt
+    CC42 = {name = "Osc2FilterEnvToIndex", bipolar = 1, page = filterPageButton}, -- PITCH EG INT > Osc 2 Wavindex FEnv Amt
     CC43 = {name = "Cutoff", bipolar = 0, page = filterPageButton}, -- CUTOFF > Cutoff
     CC44 = {name = "Resonance", bipolar = 0, page = filterPageButton}, -- RESONANCE > Resonance
     CC45 = {name = "EnvelopeAmt", bipolar = 1, page = filterPageButton}, -- EG INT > Cutoff filter env amount

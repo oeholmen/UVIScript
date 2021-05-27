@@ -102,7 +102,8 @@ local macros = {
   Program.modulations["Macro 59"],
   Program.modulations["Macro 60"],
   Program.modulations["Macro 61"],
-  Program.modulations["Macro 62"]
+  Program.modulations["Macro 62"],
+  Program.modulations["Macro 63"]
 }
 
 local isAnalog = osc1.type == "MinBlepGenerator" and osc2.type == "MinBlepGenerator"
@@ -226,7 +227,8 @@ local wavetableMacros = {
   waveSpread = macros[57],
   wheelToShape1 = macros[58],
   wheelToShape2 = macros[59],
-  atToShape1 = macros[60]
+  atToShape1 = macros[60],
+  filterDb = macros[63]
 }
 
 --------------------------------------------------------------------------------
@@ -616,12 +618,12 @@ function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle, 
     print("End value limited by absoluteLimit", options.absoluteLimit)
     endValue = options.absoluteLimit
   end
-  if duration == 0 or useDuration == false then
+  if duration == 0 or useDuration == false or type(endValue) ~= "number" then
     options.widget.value = endValue
     print("Tweak endValue:", endValue)
     return
   end
-  local durationInMilliseconds = beat2ms(duration) * 0.9
+  local durationInMilliseconds = beat2ms(duration) * 0.8
   local millisecondsPerStep = 25
   print("Duration of change (beat):", duration)
   print("Duration of change (ms):", durationInMilliseconds)
@@ -1958,7 +1960,7 @@ local mixerPanel = createMixerPanel()
 function createFilterPanel()  
   local filterPanel = Panel("Filter")
 
-  if isAnalog or isAnalog3Osc then
+  if isAnalog or isWavetable or isAnalog3Osc then
     filterDbMenu = filterPanel:Menu("FilterDb", {"24dB", "12dB"})
     filterDbMenu.backgroundColour = menuBackgroundColour
     filterDbMenu.textColour = menuTextColour
@@ -1970,7 +1972,11 @@ function createFilterPanel()
       if self.value == 2 then
         value = 1
       end
-      analogMacros["filterDb"]:setParameter("Value", value)
+      if isWavetable then
+        wavetableMacros["filterDb"]:setParameter("Value", value)
+      else
+        analogMacros["filterDb"]:setParameter("Value", value)
+      end
     end
     filterDbMenu:changed()
     table.insert(tweakables, {widget=filterDbMenu,min=2,default=70,category="filter"})
@@ -3957,6 +3963,16 @@ function createTwequencerPanel()
   numStepsBox.arrowColour = menuArrowColour
   numStepsBox.outlineColour = menuOutlineColour
 
+  local durationButton = tweqPanel:OnOffButton("DurationOnOff", false)
+  durationButton.alpha = buttonAlpha
+  durationButton.backgroundColourOff = buttonBackgroundColourOff
+  durationButton.backgroundColourOn = buttonBackgroundColourOn
+  durationButton.textColourOff = buttonTextColourOff
+  durationButton.textColourOn = buttonTextColourOn
+  durationButton.displayName = "TimeTweak"
+  durationButton.fillColour = knobColour
+  durationButton.size = {numStepsBox.width,35}
+
   local seqPitchTable = tweqPanel:Table("Pitch", numStepsBox.value, 0, -12, 12, true)
   seqPitchTable.showPopupDisplay = true
   seqPitchTable.showLabel = true
@@ -4150,6 +4166,9 @@ function createTwequencerPanel()
   end
   numStepsBox:changed()
 
+  durationButton.x = resolution.x
+  durationButton.y = numStepsBox.y + numStepsBox.height + 10
+
   sequencerPlayMenu.changed = function (self)
     -- Stop sequencer if turned off
     if self.value == 1 then
@@ -4262,12 +4281,12 @@ function createTwequencerPanel()
     end
   end
 
-  function getSpawnsFromResolution(res)
+  --[[ function getSpawnsFromResolution(res)
     local factor = res / 21 * getResolution(res) / 2.4
     local num = math.ceil(getResolution(res) / factor)
     print("Number of spawns for resolution", num, getResolution(res))
     return num
-  end
+  end ]]
 
   function arpeg(arpId_)
     local index = 0
@@ -4297,7 +4316,7 @@ function createTwequencerPanel()
       end
 
       -- SET VALUES
-      local p = getResolution(resolution.value)
+      local duration = getResolution(resolution.value)
       local vel = seqVelTable:getValue(index+1)
       local numSteps = numStepsBox.value
       local currentPosition = (index % numSteps) + 1
@@ -4318,7 +4337,7 @@ function createTwequencerPanel()
             snapshotsMenu:setValue(snapshotPosition, false)
             -- Tweak
             for i,v in ipairs(tweakablesForTwequencer) do
-              tweakWidget(v, tweakLevelKnob.value, p, tweakSourceMenu.value, envStyleMenu.value)
+              run(tweakWidget, v, tweakLevelKnob.value, duration*numSteps, tweakSourceMenu.value, envStyleMenu.value, durationButton.value)
             end
             -- Verify filter settings
             if filterButton.value == true then
@@ -4355,7 +4374,7 @@ function createTwequencerPanel()
 
       -- PLAY NOTE(S)
       for i,note in ipairs(notes) do
-        playNote(note, vel, beat2ms(gateKnob.value*p))
+        playNote(note, vel, beat2ms(duration*gateKnob.value))
       end
 
       -- UPDATE POSITION TABLE AND INCREMENT POSITION
@@ -4364,7 +4383,7 @@ function createTwequencerPanel()
       index = (index + 1) % numSteps -- increment position
 
       -- WAIT FOR NEXT BEAT
-      waitBeat(p)
+      waitBeat(duration)
     end
   end
 

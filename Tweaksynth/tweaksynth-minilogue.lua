@@ -12,8 +12,6 @@ local isStarting = true
 -- Synth engine elements
 --------------------------------------------------------------------------------
 
---local script = Program.eventProcessors[1]
-
 -- LAYERS
 local osc1Layer = Program.layers[1]
 local osc2Layer = Program.layers[2]
@@ -40,7 +38,11 @@ local ampEnvNoise = noiseKeygroup.modulations["Amp. Env"]
 local filterEnv1 = osc1Keygroup.modulations["Analog ADSR 1"]
 local filterEnv2 = osc2Keygroup.modulations["Analog ADSR 1"]
 local filterEnvNoise = noiseKeygroup.modulations["Analog ADSR 1"]
---local cc20 = Program.modulations["@MIDI CC 20"]
+
+-- Xpander Filter
+local filterInsert1 = osc1Keygroup.inserts[3]
+local filterInsert2 = osc2Keygroup.inserts[3]
+local filterInsert3 = noiseKeygroup.inserts[3]
 
 -- MACROS
 local macros = {
@@ -300,16 +302,23 @@ end
 -- Helper functions
 --------------------------------------------------------------------------------
 
-function controllerValueToWidgetValue(value, bipolar, factor)
+function controllerValueToWidgetValue(controllerValue, bipolar, factor)
   local max = 127
   if bipolar == 1 then
     max = max / 2
   end
-  value = (value / max) - bipolar
-  if type(factor) == "number" then
-    value = value * factor
+  local widgetValue = (controllerValue / max) - bipolar
+  if controllerValue == 64 then
+    if bipolar == 0 then
+      widgetValue = 0.5
+    else
+      widgetValue = 0
+    end
   end
-  return value
+  if type(factor) == "number" then
+    widgetValue = widgetValue * factor
+  end
+  return widgetValue
 end
 
 function initPatch()
@@ -631,12 +640,12 @@ function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle, 
     print("End value limited by absoluteLimit", options.absoluteLimit)
     endValue = options.absoluteLimit
   end
-  if duration == 0 or useDuration == false then
+  if duration == 0 or useDuration == false or type(endValue) ~= "number" then
     options.widget.value = endValue
     print("Tweak endValue:", endValue)
     return
   end
-  local durationInMilliseconds = beat2ms(duration) * 0.9
+  local durationInMilliseconds = beat2ms(duration) * 0.8
   local millisecondsPerStep = 25
   print("Duration of change (beat):", duration)
   print("Duration of change (ms):", durationInMilliseconds)
@@ -665,7 +674,7 @@ function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle, 
     end
   end
   options.widget.value = endValue
-  print("Tweak endValue/duration:", endValue, duration)
+  print("Tweak widget/startValue/endValue/duration:", options.widget.name, startValue, endValue, duration)
 end
 
 function verifyUnisonSettings()
@@ -1976,18 +1985,31 @@ function createFilterPanel()
   local filterPanel = Panel("Filter")
 
   if isAnalog or isAnalog3Osc then
-    filterDbMenu = filterPanel:Menu("FilterDb", {"24dB", "12dB"})
+    filterDbMenu = filterPanel:Menu("FilterDb", {"4-pole", "2-pole"})
     filterDbMenu.backgroundColour = menuBackgroundColour
     filterDbMenu.textColour = menuTextColour
     filterDbMenu.arrowColour = menuArrowColour
     filterDbMenu.outlineColour = menuOutlineColour
     filterDbMenu.displayName = "Low-pass Filter"
+    filterDbMenu.selected = 1
     filterDbMenu.changed = function(self)
-      local value = -1
-      if self.value == 2 then
-        value = 1
+      if filterInsert1:getParameter("Bypass") == false then
+        local value = self.value
+        if self.value == 2 then
+          value = 1
+        else
+          value = 3
+        end
+        filterInsert1:setParameter("Mode", value)
+        filterInsert2:setParameter("Mode", value)
+        filterInsert3:setParameter("Mode", value)
+      else
+        local value = -1
+        if self.value == 2 then
+          value = 1
+        end
+        analogMacros["filterDb"]:setParameter("Value", value)
       end
-      analogMacros["filterDb"]:setParameter("Value", value)
     end
     filterDbMenu:changed()
     table.insert(tweakables, {widget=filterDbMenu,min=2,default=70,category="filter"})
@@ -3942,7 +3964,7 @@ function createTwequencerPanel()
   local heldNotes = {}
   local snapshots = {}
   local snapshotPosition = 1
-  local maxSnapshots = 100
+  local maxSnapshots = 100 -- TODO Make it possible to set in UI?
   
   local tweqPanel = Panel("Sequencer")
   tweqPanel.backgroundColour = bgColor
@@ -3990,11 +4012,52 @@ function createTwequencerPanel()
   envStyleMenu.y = tweakSourceMenu.y + tweakSourceMenu.height + 10
   envStyleMenu.width = tweakSourceMenu.width
 
+  local holdButton = tweqPanel:OnOffButton("HoldOnOff", false)
+  holdButton.alpha = buttonAlpha
+  holdButton.backgroundColourOff = buttonBackgroundColourOff
+  holdButton.backgroundColourOn = buttonBackgroundColourOn
+  holdButton.textColourOff = buttonTextColourOff
+  holdButton.textColourOn = buttonTextColourOn
+  holdButton.displayName = "Hold"
+  holdButton.fillColour = knobColour
+  holdButton.size = {envStyleMenu.width,35}
+  holdButton.x = envStyleMenu.x
+  holdButton.y = envStyleMenu.y + envStyleMenu.height + 10
+  holdButton.changed = function(self)
+    if self.value == false then
+      heldNotes = {}
+      clearPosition()
+      resetTweakLevel()
+      arpId = arpId + 1
+    end
+  end
+  --muteOscButton:changed()
+
   local numStepsBox = tweqPanel:NumBox("Steps", 8, 2, 32, true)
   numStepsBox.backgroundColour = menuBackgroundColour
   numStepsBox.textColour = menuTextColour
   numStepsBox.arrowColour = menuArrowColour
   numStepsBox.outlineColour = menuOutlineColour
+
+  local durationButton = tweqPanel:OnOffButton("DurationOnOff", false)
+  durationButton.alpha = buttonAlpha
+  durationButton.backgroundColourOff = buttonBackgroundColourOff
+  durationButton.backgroundColourOn = buttonBackgroundColourOn
+  durationButton.textColourOff = buttonTextColourOff
+  durationButton.textColourOn = buttonTextColourOn
+  durationButton.displayName = "Tweak over time"
+  durationButton.fillColour = knobColour
+  durationButton.size = {numStepsBox.width,35}
+
+  local stepButton = tweqPanel:OnOffButton("StepOnOff", false)
+  stepButton.alpha = buttonAlpha
+  stepButton.backgroundColourOff = buttonBackgroundColourOff
+  stepButton.backgroundColourOn = buttonBackgroundColourOn
+  stepButton.textColourOff = buttonTextColourOff
+  stepButton.textColourOn = buttonTextColourOn
+  stepButton.displayName = "Tweak each step"
+  stepButton.fillColour = knobColour
+  stepButton.size = {numStepsBox.width,35}
 
   local seqPitchTable = tweqPanel:Table("Pitch", numStepsBox.value, 0, -12, 12, true)
   seqPitchTable.showPopupDisplay = true
@@ -4189,6 +4252,12 @@ function createTwequencerPanel()
   end
   numStepsBox:changed()
 
+  durationButton.x = resolution.x
+  durationButton.y = numStepsBox.y + numStepsBox.height + 10
+
+  stepButton.x = resolution.x
+  stepButton.y = durationButton.y + durationButton.height + 10
+
   sequencerPlayMenu.changed = function (self)
     -- Stop sequencer if turned off
     if self.value == 1 then
@@ -4301,12 +4370,12 @@ function createTwequencerPanel()
     end
   end
 
-  function getSpawnsFromResolution(res)
+  --[[ function getSpawnsFromResolution(res)
     local factor = res / 21 * getResolution(res) / 2.4
     local num = math.ceil(getResolution(res) / factor)
     print("Number of spawns for resolution", num, getResolution(res))
     return num
-  end
+  end ]]
 
   function arpeg(arpId_)
     local index = 0
@@ -4336,7 +4405,9 @@ function createTwequencerPanel()
       end
 
       -- SET VALUES
-      local p = getResolution(resolution.value)
+      local duration = getResolution(resolution.value)
+      local useDuration = durationButton.value
+      local tweakOnEachStep = stepButton.value
       local vel = seqVelTable:getValue(index+1)
       local numSteps = numStepsBox.value
       local currentPosition = (index % numSteps) + 1
@@ -4346,20 +4417,43 @@ function createTwequencerPanel()
       -- CHECK FOR TWEAKLEVEL
       if tweakLevelKnob.value > 0 then
         -- START TWEAKING
-        if currentPosition == 1 then
+        if currentPosition == 1 or tweakOnEachStep == true then
           local tweakablesForTwequencer = getTweakablesForTwequencer()
           if #tweakablesForTwequencer > 0 then
-            print("Tweaking at level", tweakLevelKnob.value)
             -- Update snapshots menu
             snapshotsMenu.enabled = true
             prevSnapshotButton.enabled = true
             nextSnapshotButton.enabled = true
             snapshotsMenu:setValue(snapshotPosition, false)
-            -- Tweak
-            for i,v in ipairs(tweakablesForTwequencer) do
-              tweakWidget(v, tweakLevelKnob.value, p, tweakSourceMenu.value, envStyleMenu.value)
+            -- STORE ROUND TWEAKS AT SNAPSHOT POSITION
+            if maxSnapshots > 0 then
+              local snapshot = {}
+              for i,v in ipairs(tweakables) do
+                table.insert(snapshot, {widget=v.widget,value=v.widget.value})
+              end
+              table.remove(snapshots, snapshotPosition)
+              table.insert(snapshots, snapshotPosition, snapshot)
+              print("Updated snapshot at index:", snapshotPosition)
+              if #snapshotsMenu.items < snapshotPosition then
+                snapshotsMenu:addItem("Round "..snapshotPosition)
+              else
+                snapshotsMenu:setItem(snapshotPosition, "Round "..snapshotPosition)
+              end
+              snapshotPosition = snapshotPosition + 1 -- increment snapshot position
+              if snapshotPosition > maxSnapshots then
+                snapshotPosition = 1
+              end
             end
-            -- Verify filter settings
+            -- Tweak
+            print("Tweaking at level", tweakLevelKnob.value)
+            local tweakDuration = duration * numSteps
+            if tweakOnEachStep == true then
+              tweakDuration = duration
+            end
+            for i,v in ipairs(tweakablesForTwequencer) do
+              spawn(tweakWidget, v, tweakLevelKnob.value, tweakDuration, tweakSourceMenu.value, envStyleMenu.value, useDuration)
+            end
+            --[[ -- Verify filter settings
             if filterButton.value == true then
               verifyFilterSettings()
             end
@@ -4370,31 +4464,14 @@ function createTwequencerPanel()
             -- Verify unison settings
             if synthesisButton.value == true then
               verifyUnisonSettings()
-            end
-            -- STORE ROUND TWEAKS AT SNAPSHOT POSITION
-            local snapshot = {}
-            for i,v in ipairs(tweakables) do
-              table.insert(snapshot, {widget=v.widget,value=v.widget.value})
-            end
-            table.remove(snapshots, snapshotPosition)
-            table.insert(snapshots, snapshotPosition, snapshot)
-            print("Updated snapshot at index:", snapshotPosition)
-            if #snapshotsMenu.items < snapshotPosition then
-              snapshotsMenu:addItem("Round "..snapshotPosition)
-            else
-              snapshotsMenu:setItem(snapshotPosition, "Round "..snapshotPosition)
-            end
-            snapshotPosition = snapshotPosition + 1 -- increment snapshot position
-            if snapshotPosition > maxSnapshots then
-              snapshotPosition = 1
-            end
+            end ]]
           end
         end
       end
 
       -- PLAY NOTE(S)
       for i,note in ipairs(notes) do
-        playNote(note, vel, beat2ms(gateKnob.value*p))
+        playNote(note, vel, beat2ms(duration*gateKnob.value))
       end
 
       -- UPDATE POSITION TABLE AND INCREMENT POSITION
@@ -4403,7 +4480,7 @@ function createTwequencerPanel()
       index = (index + 1) % numSteps -- increment position
 
       -- WAIT FOR NEXT BEAT
-      waitBeat(p)
+      waitBeat(duration)
     end
   end
 
@@ -4419,15 +4496,17 @@ function createTwequencerPanel()
   end
 
   function onRelease(e)
-    for i,v in ipairs(heldNotes) do
-      if v.note == e.note then
-        table.remove(heldNotes, i)
-        if #heldNotes == 0 then
-          clearPosition()
-          resetTweakLevel()
-          arpId = arpId + 1
+    if holdButton.value == false then
+      for i,v in ipairs(heldNotes) do
+        if v.note == e.note then
+          table.remove(heldNotes, i)
+          if #heldNotes == 0 then
+            clearPosition()
+            resetTweakLevel()
+            arpId = arpId + 1
+          end
+          break
         end
-        break
       end
     end
     postEvent(e)
@@ -4565,12 +4644,35 @@ local tweakPanel = createPatchMakerPanel()
 -- Map Midi CC for HW (Minilogue)
 --------------------------------------------------------------------------------
 
---[[ function onEvent(e)
-  print(e)
-  postEvent(e)
-end ]]
+local activeLfoTarget = {cutoff = true, pwm = false, hardsync = false}
+local activeLfoTargetValue = 64
+
+function setLfoTargetValue()
+  if activeLfoTarget.cutoff == true then
+    getWidget("LfoToCutoff").value = controllerValueToWidgetValue(activeLfoTargetValue, 1)
+  else
+    getWidget("LfoToCutoff").value = 0
+  end
+  
+  if activeLfoTarget.pwm == true then
+    getWidget("LfoToOsc1PWM").value = controllerValueToWidgetValue(activeLfoTargetValue, 0, 0.5)
+    getWidget("LfoToOsc2PWM").value = controllerValueToWidgetValue(activeLfoTargetValue, 0, 0.5)
+  else
+    getWidget("LfoToOsc1PWM").value = 0
+    getWidget("LfoToOsc2PWM").value = 0
+  end
+
+  if activeLfoTarget.hardsync == true then
+    getWidget("LfoToHardsync1").value = controllerValueToWidgetValue(activeLfoTargetValue, 0)
+    getWidget("LfoToHardsync2").value = controllerValueToWidgetValue(activeLfoTargetValue, 0)
+  else
+    getWidget("LfoToHardsync1").value = 0
+    getWidget("LfoToHardsync2").value = 0
+  end
+end
 
 function onController(e)
+  print(e)
   local controllerToWidgetMap = {
     CC16 = {name = "Attack", page = synthesisPageButton},
     CC17 = {name = "Decay", page = synthesisPageButton},
@@ -4581,8 +4683,10 @@ function onController(e)
     CC22 = {name = "FSustain", bipolar = 0, page = filterPageButton},
     CC23 = {name = "FRelease", page = filterPageButton},
     CC24 = {name = "LfoFreq", bipolar = 0, page = modulationPageButton, factor = 20}, -- LFO RATE
-    CC26 = {name = "LfoToCutoff", bipolar = 1, page = modulationPageButton}, -- LFO INT
-    CC27 = {name = "UnisonVoices", bipolar = 0, factor = 8}, -- Voice Mode Depth > Unison
+    --CC26 = {name = "LfoToCutoff", bipolar = 1, page = modulationPageButton}, -- LFO INT
+    CC26 = {name = "LfoToTargetKnob", bipolar = 0, page = modulationPageButton}, -- LFO INT
+    --CC27 = {name = "UnisonVoices", bipolar = 0, factor = 8}, -- Voice Mode Depth > Unison
+    CC27 = {name = "Drive", bipolar = 0, page = effectsPageButton}, -- Voice Mode Depth > Drive
     CC29 = {name = "HpfCutoff", bipolar = 0, page = filterPageButton}, -- HI PASS CUTOFF
     CC30 = {name = "HpfEnvelopeAmt", bipolar = 1, page = filterPageButton}, -- TIME
     CC31 = {name = "TweakLevel", bipolar = 0, page = patchmakerPageButton, factor = 100}, -- FEEDBACK > Tweak level
@@ -4602,7 +4706,8 @@ function onController(e)
     CC49 = {name = "Osc2Pitch", bipolar = 0, page = synthesisPageButton}, -- VCO 2 OCTAVE
     CC50 = {name = "Osc1Wave", bipolar = 0, page = synthesisPageButton}, -- VCO 1 WAVE
     CC51 = {name = "Osc2Wave", bipolar = 0, page = synthesisPageButton}, -- VCO 2 WAVE
-    CC56 = {name = "EnvStyle", bipolar = 0, page = patchmakerPageButton}, -- TARGET > Envelope style
+    --CC56 = {name = "EnvStyle", bipolar = 0, page = patchmakerPageButton}, -- TARGET > Envelope style
+    CC56 = {name = "ActiveLfoTargetSelector", bipolar = 0, page = modulationPageButton}, -- TARGET
     CC57 = {name = "LfoRetrigger", bipolar = 0, page = modulationPageButton}, -- EG MOD > LFO Retrigger/Sync
     CC58 = {name = "WaveFormTypeMenu", bipolar = 0, page = modulationPageButton}, -- LFO WAVE
     CC80 = {name = "VibratoDepth", bipolar = 0, page = synthesisPageButton}, -- RING
@@ -4631,7 +4736,7 @@ function onController(e)
       arpeggiatorButton:setValue(value == 1)
       return
     end
-    if cc.name == "EnvStyle" then
+    --[[ if cc.name == "EnvStyle" then
       if value == 0 then
         envStyleMenu.value = 1
       elseif value == 1 then
@@ -4639,6 +4744,31 @@ function onController(e)
       else
         envStyleMenu.value = 3
       end
+      return
+    end ]]
+    if cc.name == "ActiveLfoTargetSelector" then
+      if value == 1 then
+        -- HARDSYNC
+        activeLfoTarget.cutoff = false
+        activeLfoTarget.pwm = false
+        activeLfoTarget.hardsync = true
+      elseif value == 0.5 then
+        -- PWM
+        activeLfoTarget.cutoff = false
+        activeLfoTarget.pwm = true
+        activeLfoTarget.hardsync = false
+      else
+        -- CUTOFF
+        activeLfoTarget.cutoff = true
+        activeLfoTarget.pwm = false
+        activeLfoTarget.hardsync = false
+      end
+      setLfoTargetValue()
+      return
+    end
+    if cc.name == "LfoToTargetKnob" then
+      activeLfoTargetValue = e.value
+      setLfoTargetValue()
       return
     end
     if cc.name == "TweakLevel" then
@@ -4669,8 +4799,10 @@ function onController(e)
       end
       return
     end
-    if cc.name == "FilterDb" and value == 0 then
-      value = 2
+    if cc.name == "FilterDb" then
+      if value == 0 then
+        value = 2
+      end
     end
     if cc.name == "VibratoDepth" and value == 1 then
       value = 0.3
@@ -4811,6 +4943,13 @@ isStarting = false -- Startup complete!
 
 -- Set start page
 patchmakerPageButton.changed()
+
+--[[ meter = AudioMeter("OutputLevel", Program, false, 0, true)
+meter.bounds = {0, 320, 720, 20}
+meter["0dBColour"] = "red"
+meter["3dBColour"] = "orange"
+meter["6dBColour"] = "blue"
+meter["10dBColour"] = "green" ]]
 
 setSize(720, 480)
 
