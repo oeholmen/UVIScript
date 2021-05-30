@@ -553,7 +553,7 @@ end
   -- ceiling = the highest value
   -- probability = the probability (affected by tweak level) that value is within limits (floor/ceiling) - probability is passed to any custom func
   -- zero = the probability that the value is set to 0
-  -- excludeWithDuration = if ran with a duration, this widget is excluded
+  -- excludeWithTwequencer = if ran with tewquencer, this widget is excluded
   -- useDuration = if ran with a duration, this widget will tweak it's value over the length of the given duration
   -- noDefaultTweak = do not tweak the default/stored value
   -- defaultTweakRange = the range to use when tweaking default/stored value - if not provided, the full range is used
@@ -880,9 +880,18 @@ local resolutions =     { 32,   24,   16,  12,    8,     6,         4,      3,  
 local resolutionNames = {"8x", "6x", "4x", "3x", "2x", "1/1 dot", "1/1", "1/2 dot", "1/2", "1/2 tri", "1/4 dot",   "1/4", "1/4 tri",   "1/8 dot",     "1/8", "1/8 tri",    "1/16 dot",      "1/16", "1/16 tri",     "1/32 dot",      "1/32", "Random"}
 local waveforms = {"Saw", "Square", "Triangle", "Sine", "Noise", "Pulse"}
 
-function getResolution(i)
+function getResolution(i, tweakLevel)
   if i == #resolutions then
-    i = getRandom(1, #resolutions-1)
+    if type(tweakLevel) ~= "number" then
+      tweakLevel = 50
+    end
+    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, 85)) then
+      i = getRandom(12, #resolutions-1)
+    elseif getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, 75)) then
+      i = getRandom(7, #resolutions-1)
+    else
+      i = getRandom(1, #resolutions-1)
+    end
   end
   return resolutions[i]
 end
@@ -1428,7 +1437,7 @@ function createOsc1Panel()
         self.displayText = percent(self.value)
       end
       atToHardsycKnob:changed()
-      table.insert(tweakables, {widget=atToHardsycKnob,zero=25,default=25,excludeWithDuration=true,category="synthesis"})
+      table.insert(tweakables, {widget=atToHardsycKnob,zero=25,default=25,excludeWithTwequencer=true,category="synthesis"})
     elseif isWavetable then
       local aftertouchToWaveKnob = osc1Panel:Knob("AftertouchToWave1", 0, -1, 1)
       aftertouchToWaveKnob.displayName = "AT->Wave"
@@ -1440,7 +1449,7 @@ function createOsc1Panel()
         self.displayText = percent(self.value)
       end
       aftertouchToWaveKnob:changed()
-      table.insert(tweakables, {widget=aftertouchToWaveKnob,bipolar=25,excludeWithDuration=true,category="synthesis"})
+      table.insert(tweakables, {widget=aftertouchToWaveKnob,bipolar=25,excludeWithTwequencer=true,category="synthesis"})
 
       local wheelToWaveKnob = osc1Panel:Knob("WheelToWave1", 0, -1, 1)
       wheelToWaveKnob.displayName = "Wheel->Wave"
@@ -1452,7 +1461,7 @@ function createOsc1Panel()
         self.displayText = percent(self.value)
       end
       wheelToWaveKnob:changed()
-      table.insert(tweakables, {widget=wheelToWaveKnob,bipolar=25,excludeWithDuration=true,category="synthesis"})
+      table.insert(tweakables, {widget=wheelToWaveKnob,bipolar=25,excludeWithTwequencer=true,category="synthesis"})
     elseif isAdditive then
       local harmShiftKnob = osc1Panel:Knob("HarmShift1", 0, 0, 48)
       harmShiftKnob.displayName = "Harm. Shift"
@@ -1611,7 +1620,7 @@ function createOsc2Panel()
         self.displayText = percent(self.value)
       end
       wheelToWaveKnob:changed()
-      table.insert(tweakables, {widget=wheelToWaveKnob,bipolar=25,excludeWithDuration=true,category="synthesis"})
+      table.insert(tweakables, {widget=wheelToWaveKnob,bipolar=25,excludeWithTwequencer=true,category="synthesis"})
     end
   end
 
@@ -1988,7 +1997,7 @@ function createMixerPanel()
     noiseOsc:setParameter("Stereo", unisonActive)
   end
   unisonVoicesKnob:changed()
-  table.insert(tweakables, {widget=unisonVoicesKnob,min=unisonVoicesMax,default=25,category="synthesis"})
+  table.insert(tweakables, {widget=unisonVoicesKnob,min=unisonVoicesMax,default=25,excludeWithTwequencer=true,category="synthesis"})
 
   return mixerPanel
 end
@@ -2048,7 +2057,7 @@ function createFilterPanel()
     end
   end
   cutoffKnob:changed()
-  table.insert(tweakables, {widget=cutoffKnob,floor=0.3,ceiling=0.8,probability=75,zero=10,default=35,useDuration=true,category="filter"})
+  table.insert(tweakables, {widget=cutoffKnob,floor=0.3,ceiling=0.7,probability=85,zero=25,default=35,useDuration=true,category="filter"})
 
   local filterResonanceKnob = filterPanel:Knob("Resonance", 0, 0, 1)
   filterResonanceKnob.fillColour = knobColour
@@ -2058,7 +2067,7 @@ function createFilterPanel()
     self.displayText = percent(self.value)
   end
   filterResonanceKnob:changed()
-  table.insert(tweakables, {widget=filterResonanceKnob,floor=0.1,ceiling=0.6,probability=10,default=30,zero=10,absoluteLimit=0.8,useDuration=true,category="filter"})
+  table.insert(tweakables, {widget=filterResonanceKnob,floor=0.1,ceiling=0.6,probability=60,default=30,zero=10,absoluteLimit=0.8,useDuration=true,category="filter"})
 
   local filterKeyTrackingKnob = filterPanel:Knob("KeyTracking", 0, 0, 1)
   filterKeyTrackingKnob.displayName = "Key Track"
@@ -2081,7 +2090,7 @@ function createFilterPanel()
     self.displayText = percent(self.value)
   end
   wheelToCutoffKnob:changed()
-  table.insert(tweakables, {widget=wheelToCutoffKnob,bipolar=25,excludeWithDuration=true,category="filter"})
+  table.insert(tweakables, {widget=wheelToCutoffKnob,bipolar=25,excludeWithTwequencer=true,category="filter"})
 
   local atToCutoffKnob = filterPanel:Knob("AftertouchToCutoff", 0, -1, 1)
   atToCutoffKnob.displayName = "Aftertouch"
@@ -2093,7 +2102,7 @@ function createFilterPanel()
     self.displayText = percent(self.value)
   end
   atToCutoffKnob:changed()
-  table.insert(tweakables, {widget=atToCutoffKnob,bipolar=25,excludeWithDuration=true,category="filter"})
+  table.insert(tweakables, {widget=atToCutoffKnob,bipolar=25,excludeWithTwequencer=true,category="filter"})
 
   return filterPanel
 end
@@ -2157,7 +2166,7 @@ function createHpFilterPanel()
     self.displayText = percent(self.value)
   end
   wheelToHpfCutoffKnob:changed()
-  table.insert(tweakables, {widget=wheelToHpfCutoffKnob,bipolar=25,excludeWithDuration=true,category="filter"})
+  table.insert(tweakables, {widget=wheelToHpfCutoffKnob,bipolar=25,excludeWithTwequencer=true,category="filter"})
 
   local atToHpfCutoffKnob = hpFilterPanel:Knob("AftertouchToHpfCutoff", 0, -1, 1)
   atToHpfCutoffKnob.displayName = "Aftertouch"
@@ -2169,7 +2178,7 @@ function createHpFilterPanel()
     self.displayText = percent(self.value)
   end
   atToHpfCutoffKnob:changed()
-  table.insert(tweakables, {widget=atToHpfCutoffKnob,bipolar=25,excludeWithDuration=true,category="filter"})
+  table.insert(tweakables, {widget=atToHpfCutoffKnob,bipolar=25,excludeWithTwequencer=true,category="filter"})
 
   return hpFilterPanel
 end
@@ -2628,7 +2637,7 @@ function createLfoPanel()
     end
   end
   lfo2SyncButton:changed()
-  table.insert(tweakables, {widget=lfo2SyncButton,func=getRandomBoolean,category="modulation"})
+  table.insert(tweakables, {widget=lfo2SyncButton,func=getRandomBoolean,excludeWithTwequencer=true,category="modulation"})
 
   table.insert(tweakables, {widget=lfoFreqKnob,factor=20,useDuration=true,category="modulation"})
 
@@ -3573,7 +3582,7 @@ function createEffectsPanel()
     maximizer:setParameter("Value", value)
   end
   maximizerButton:changed()
-  table.insert(tweakables, {widget=maximizerButton,func=getRandomBoolean,probability=10,excludeWithDuration=true,category="effects"})
+  table.insert(tweakables, {widget=maximizerButton,func=getRandomBoolean,probability=10,excludeWithTwequencer=true,category="effects"})
 
   return effectsPanel
 end
@@ -3641,7 +3650,7 @@ function createVibratoPanel()
     self.displayText = percent(self.value)
   end
   wheelToVibratoKnob:changed()
-  table.insert(tweakables, {widget=wheelToVibratoKnob,excludeWithDuration=true,category="synthesis"})
+  table.insert(tweakables, {widget=wheelToVibratoKnob,excludeWithTwequencer=true,category="synthesis"})
 
   local atToVibratoKnob = vibratoPanel:Knob("AftertouchToVibrato", 0, 0, 1)
   atToVibratoKnob.displayName="Aftertouch"
@@ -3652,7 +3661,7 @@ function createVibratoPanel()
     self.displayText = percent(self.value)
   end
   atToVibratoKnob:changed()
-  table.insert(tweakables, {widget=atToVibratoKnob,excludeWithDuration=true,category="synthesis"})
+  table.insert(tweakables, {widget=atToVibratoKnob,excludeWithTwequencer=true,category="synthesis"})
 
   return vibratoPanel
 end
@@ -3991,7 +4000,7 @@ function createTwequencerPanel()
   tweqPanel.width = width
   tweqPanel.height = 320
 
-  local tweakLevelKnob = tweqPanel:Knob("SeqTweakLevel", 0, 0, 100, true)
+  local tweakLevelKnob = tweqPanel:Knob("SeqTweakLevel", 50, 0, 100, true)
   tweakLevelKnob.fillColour = knobColour
   tweakLevelKnob.outlineColour = outlineColour
   tweakLevelKnob.persistent = false
@@ -4000,7 +4009,7 @@ function createTwequencerPanel()
   tweakLevelKnob.y = 20
   --tweakLevelKnob:setStripImage("resources/knob.png", 1)
 
-  local sequencerPlayMenu = tweqPanel:Menu("SequencerPlay", {"Off", "Mono", "As played", "Random", "Chord", "Random Chord", "Generate"})
+  local sequencerPlayMenu = tweqPanel:Menu("SequencerPlay", {"Off", "Mono", "As played", "Random", "Chord", "Random Chord", "Generate", "Alternate"})
   sequencerPlayMenu.backgroundColour = menuBackgroundColour
   sequencerPlayMenu.textColour = menuTextColour
   sequencerPlayMenu.arrowColour = menuArrowColour
@@ -4030,8 +4039,7 @@ function createTwequencerPanel()
   envStyleMenu.y = tweakSourceMenu.y + tweakSourceMenu.height + 10
   envStyleMenu.width = tweakSourceMenu.width
 
-  --local waveformMenu = tweqPanel:Menu("AllowedWaveforms", {"All", "Saw/Square", "Triangle/Sine", "Square/Triangle", "Square/Pulse", "Saw/Sine", "Saw/Triangle", "Square/Sine", "Saw/Sq/Tri", "Sq/Tri/Sine", "Saw/Sq/Tri/Sine", "Saw", "Square", "Triangle", "Sine", "Noise", "Pulse"})
-  local waveformMenu = tweqPanel:Menu("AllowedWaveforms", {"All", "Saw/Square", "Triangle/Sine", "Saw/Sq/Tri/Sine", "Saw", "Square", "Triangle", "Sine", "Noise", "Pulse"})
+  local waveformMenu = tweqPanel:Menu("AllowedWaveforms", {"All", "Saw/Square", "Triangle/Sine", "Square/Triangle", "Saw/Sq/Tri/Sine", "Saw", "Square", "Triangle", "Sine", "Noise", "Pulse"})
   waveformMenu.backgroundColour = menuBackgroundColour
   waveformMenu.textColour = menuTextColour
   waveformMenu.arrowColour = menuArrowColour
@@ -4081,7 +4089,6 @@ function createTwequencerPanel()
       heldNotes = {}
       clearPosition()
       resetTweakLevel()
-      --storeRoundTweaks()
       arpId = arpId + 1
     end
   end
@@ -4378,7 +4385,7 @@ function createTwequencerPanel()
       elseif v.category == "effects" and effectsButton.value == false then
         skip = true
       end
-      if skip == true or v.widget.enabled == false or v.excludeWithDuration == true then
+      if skip == true or v.widget.enabled == false or v.excludeWithTwequencer == true then
         print("Skipping:", v.widget.name)
       else
         table.insert(t, v)
@@ -4391,7 +4398,7 @@ function createTwequencerPanel()
   end
 
   function resetTweakLevel()
-    tweakLevelKnob.value = 0
+    --tweakLevelKnob.value = 0
   end
 
   function clearPosition()
@@ -4420,36 +4427,55 @@ function createTwequencerPanel()
     local index = 0
     local heldNoteIndex = 0
     local tweakablesIndex = 0
-    --local duration = getResolution(resolution.value)
+    local duration = getResolution(resolution.value, tweakLevelKnob.value)
+    local automaticSequencerRunning = false
     -- START ARP LOOP
     while arpId_ == arpId do
       -- GET NOTES FOR ARP
       local notes = {}
       local pitchAdjustment = seqPitchTable:getValue(index+1)
-      if sequencerPlayMenu.value == 2 then -- MONO
+      local sequencerMode = sequencerPlayMenu.value
+      -- ALTERNATE alternates between the other sequencer modes
+      if sequencerMode == 8 then
+        sequencerMode = getRandom(2,7)
+      end
+      if sequencerMode == 2 then -- MONO
+        -- MONO plays the last note in held notes
         heldNoteIndex = #heldNotes
         table.insert(notes, heldNotes[heldNoteIndex].note + pitchAdjustment)
-      elseif sequencerPlayMenu.value == 3 then -- AS PLAYED
+      elseif sequencerMode == 3 then -- AS PLAYED
+        -- AS PLAYED plays one note at a time in the order they where held down
         heldNoteIndex = heldNoteIndex + 1 -- Increment
         if heldNoteIndex > #heldNotes then
           heldNoteIndex = 1
         end
         table.insert(notes, heldNotes[heldNoteIndex].note + pitchAdjustment)
-      elseif sequencerPlayMenu.value == 4 then -- RANDOM
+      elseif sequencerMode == 4 then -- RANDOM
+        -- RANDOM plays a random note from the held notes
         heldNoteIndex = math.random(1, #heldNotes)
         table.insert(notes, heldNotes[heldNoteIndex].note + pitchAdjustment)
-      elseif sequencerPlayMenu.value == 5 then -- CHORD
+      elseif sequencerMode == 5 then -- CHORD
+        -- CHORD plays all the held notes at once
         for i=1,#heldNotes do
           table.insert(notes, heldNotes[i].note + pitchAdjustment)
         end
-      elseif sequencerPlayMenu.value == 6 then -- RANDOM CHORD
-        while #notes < 3 do
-          local noteToPlay = getRandom(1, #heldNotes)
-          if table.contains(notes, noteToPlay) == false then
-            table.insert(notes, heldNotes[noteToPlay].note + pitchAdjustment)
+      elseif sequencerMode == 6 then -- RANDOM CHORD
+        -- RANDOM CHORD plays a random chord using notes from held noted
+        local numberOfNotes = getRandom(1, math.min(6, #heldNotes))
+        if numberOfNotes == #heldNotes then
+          for i=1,#heldNotes do
+            table.insert(notes, heldNotes[i].note + pitchAdjustment)
+          end
+        else
+          while #notes < numberOfNotes do
+            local noteToPlay = getRandom(1, #heldNotes)
+            if table.contains(notes, noteToPlay) == false then
+              table.insert(notes, heldNotes[noteToPlay].note + pitchAdjustment)
+            end
           end
         end
-      elseif sequencerPlayMenu.value == 7 then -- GENERATE
+      elseif sequencerMode == 7 then -- GENERATE
+        -- GENERATE plays between 1-6 random notes
         local numberOfNotes = getRandom(1, 6)
         if arpeggiatorButton.value == true then
           numberOfNotes = getRandom(3, 9)
@@ -4469,19 +4495,22 @@ function createTwequencerPanel()
       end
 
       -- SET VALUES
-      local duration = getResolution(resolution.value)
+      --local duration = getResolution(resolution.value)
       local useDuration = durationButton.value
       local tweakOnEachStep = stepButton.value
+      local envelopeStyle = envStyleMenu.value
       local vel = seqVelTable:getValue(index+1)
       local numSteps = numStepsBox.value
       local currentPosition = (index % numSteps) + 1
-      print("Current pos:", currentPosition)
-      print("Snapshot pos:", snapshotPosition)
 
       -- GET DURATION
-      --[[ if currentPosition == 1 or tweakOnEachStep == true or useDuration == false then
-        duration = getResolution(resolution.value)
-      end ]]
+      if currentPosition == 1 or tweakOnEachStep == true or useDuration == false then
+        duration = getResolution(resolution.value, tweakLevelKnob.value)
+      end
+
+      print("Current pos:", currentPosition)
+      print("Snapshot pos:", snapshotPosition)
+      print("Duration:", duration)
 
       -- CHECK FOR TWEAKLEVEL
       if tweakLevelKnob.value > 0 then
@@ -4499,9 +4528,18 @@ function createTwequencerPanel()
             if useDuration == true then
               storeRoundTweaks()
             end
+            
+            if automaticSequencerRunning == true then
+              arpeggiatorButton.value = false
+              automaticSequencerRunning = false
+            elseif arpeggiatorButton.value == false and getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) == true then
+              envelopeStyle = getRandom(2,4)
+              arpeggiatorButton.value = true
+              automaticSequencerRunning = true
+            end
 
             -- Check for allowed waveforms
-            -- {1:"All", 2:"Saw/Square", 3:"Triangle/Sine", 4:"Saw/Sq/Tri/Sine", 5:"Saw", 6:"Square", 7:"Triangle", 8:"Sine", 9:"Noise", 10:"Pulse"}
+            -- {1:"All", 2:"Saw/Square", 3:"Triangle/Sine", 4:"Square/Triangle", 5:"Saw/Sq/Tri/Sine", 6:"Saw", 7:"Square", 8:"Triangle", 9:"Sine", 10:"Noise", 11:"Pulse"}
             -- local waveforms = {1:"Saw", 2:"Square", 3:"Triangle", 4:"Sine", 5:"Noise", 6:"Pulse"}
             local allowedWaveforms = waveformMenu.value
             local valueFilter = nil
@@ -4510,18 +4548,20 @@ function createTwequencerPanel()
             elseif allowedWaveforms == 3 then
               valueFilter = {3,4}
             elseif allowedWaveforms == 4 then
-              valueFilter = {1,2,3,4}
+              valueFilter = {2,3}
             elseif allowedWaveforms == 5 then
-              valueFilter = {1}
+              valueFilter = {1,2,3,4}
             elseif allowedWaveforms == 6 then
-              valueFilter = {2}
+              valueFilter = {1}
             elseif allowedWaveforms == 7 then
-              valueFilter = {3}
+              valueFilter = {2}
             elseif allowedWaveforms == 8 then
-              valueFilter = {4}
+              valueFilter = {3}
             elseif allowedWaveforms == 9 then
-              valueFilter = {5}
+              valueFilter = {4}
             elseif allowedWaveforms == 10 then
+              valueFilter = {5}
+            elseif allowedWaveforms == 11 then
               valueFilter = {6}
             end
 
@@ -4536,9 +4576,9 @@ function createTwequencerPanel()
                 v.valueFilter = valueFilter
               end
               if useDuration == true and type(v.useDuration) == "boolean" and v.useDuration == true then
-                spawn(tweakWidget, v, tweakLevelKnob.value, tweakDuration, tweakSourceMenu.value, envStyleMenu.value, useDuration)
+                spawn(tweakWidget, v, tweakLevelKnob.value, tweakDuration, tweakSourceMenu.value, envelopeStyle, useDuration)
               else
-                tweakWidget(v, tweakLevelKnob.value, tweakDuration, tweakSourceMenu.value, envStyleMenu.value)
+                tweakWidget(v, tweakLevelKnob.value, tweakDuration, tweakSourceMenu.value, envelopeStyle)
               end
             end
 
@@ -4630,7 +4670,6 @@ function createTwequencerPanel()
           if #heldNotes == 0 then
             clearPosition()
             resetTweakLevel()
-            --storeRoundTweaks()
             arpId = arpId + 1
           end
           break
