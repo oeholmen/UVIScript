@@ -3991,7 +3991,7 @@ function createTwequencerPanel()
   local heldNotes = {}
   local snapshots = {}
   local snapshotPosition = 1
-  local maxSnapshots = 100 -- TODO Make it possible to set in UI?
+  local maxSnapshots = 500 -- TODO Make it possible to set in UI?
   
   local tweqPanel = Panel("Sequencer")
   tweqPanel.backgroundColour = bgColor
@@ -4003,13 +4003,13 @@ function createTwequencerPanel()
   local tweakLevelKnob = tweqPanel:Knob("SeqTweakLevel", 50, 0, 100, true)
   tweakLevelKnob.fillColour = knobColour
   tweakLevelKnob.outlineColour = outlineColour
-  tweakLevelKnob.persistent = false
+  --tweakLevelKnob.persistent = false
   tweakLevelKnob.displayName = "Tweak Level"
   tweakLevelKnob.width = 120
   tweakLevelKnob.y = 20
   --tweakLevelKnob:setStripImage("resources/knob.png", 1)
 
-  local sequencerPlayMenu = tweqPanel:Menu("SequencerPlay", {"Off", "Mono", "As played", "Random", "Chord", "Random Chord", "Generate", "Alternate"})
+  local sequencerPlayMenu = tweqPanel:Menu("SequencerPlay", {"Off", "Mono", "As played", "Random", "Chord", "Random Chord", "Generate Chord", "Generate Mono", "Alternate"})
   sequencerPlayMenu.backgroundColour = menuBackgroundColour
   sequencerPlayMenu.textColour = menuTextColour
   sequencerPlayMenu.arrowColour = menuArrowColour
@@ -4039,15 +4039,18 @@ function createTwequencerPanel()
   envStyleMenu.y = tweakSourceMenu.y + tweakSourceMenu.height + 10
   envStyleMenu.width = tweakSourceMenu.width
 
-  local waveformMenu = tweqPanel:Menu("AllowedWaveforms", {"All", "Saw/Square", "Triangle/Sine", "Square/Triangle", "Saw/Sq/Tri/Sine", "Saw", "Square", "Triangle", "Sine", "Noise", "Pulse"})
-  waveformMenu.backgroundColour = menuBackgroundColour
-  waveformMenu.textColour = menuTextColour
-  waveformMenu.arrowColour = menuArrowColour
-  waveformMenu.outlineColour = menuOutlineColour
-  waveformMenu.displayName = "Allowed Waveforms"
-  waveformMenu.x = envStyleMenu.x
-  waveformMenu.y = envStyleMenu.y + envStyleMenu.height + 10
-  waveformMenu.width = envStyleMenu.width
+  local waveformMenu
+  if isAnalog or isAnalog3Osc or isAnalogStack then
+    waveformMenu = tweqPanel:Menu("AllowedWaveforms", {"All", "Saw/Square", "Triangle/Sine", "Square/Triangle", "Saw/Sq/Tri/Sine", "Saw", "Square", "Triangle", "Sine", "Noise", "Pulse"})
+    waveformMenu.backgroundColour = menuBackgroundColour
+    waveformMenu.textColour = menuTextColour
+    waveformMenu.arrowColour = menuArrowColour
+    waveformMenu.outlineColour = menuOutlineColour
+    waveformMenu.displayName = "Allowed Waveforms"
+    waveformMenu.x = envStyleMenu.x
+    waveformMenu.y = envStyleMenu.y + envStyleMenu.height + 10
+    waveformMenu.width = envStyleMenu.width
+  end
 
   local numStepsBox = tweqPanel:NumBox("Steps", 8, 2, 32, true)
   numStepsBox.backgroundColour = menuBackgroundColour
@@ -4436,8 +4439,8 @@ function createTwequencerPanel()
       local pitchAdjustment = seqPitchTable:getValue(index+1)
       local sequencerMode = sequencerPlayMenu.value
       -- ALTERNATE alternates between the other sequencer modes
-      if sequencerMode == 8 then
-        sequencerMode = getRandom(2,7)
+      if sequencerMode == 9 then
+        sequencerMode = getRandom(2,8)
       end
       if sequencerMode == 2 then -- MONO
         -- MONO plays the last note in held notes
@@ -4474,8 +4477,8 @@ function createTwequencerPanel()
             end
           end
         end
-      elseif sequencerMode == 7 then -- GENERATE
-        -- GENERATE plays between 1-6 random notes
+      elseif sequencerMode == 7 then -- GENERATE CHORD
+        -- GENERATE CHORD plays between 1-6 random notes
         local numberOfNotes = getRandom(1, 6)
         if arpeggiatorButton.value == true then
           numberOfNotes = getRandom(3, 9)
@@ -4492,6 +4495,15 @@ function createTwequencerPanel()
             table.insert(notes, noteToPlay)
           end
         end
+      elseif sequencerMode == 8 then -- GENERATE MONO
+        -- GENERATE MONO plays a single random note
+        local minNote = 21
+        local maxNote = 108
+        if arpeggiatorButton.value == true then
+          minNote = 33
+          maxNote = 88
+        end
+        table.insert(notes, getRandom(minNote, maxNote))
       end
 
       -- SET VALUES
@@ -4532,7 +4544,7 @@ function createTwequencerPanel()
             if automaticSequencerRunning == true then
               arpeggiatorButton.value = false
               automaticSequencerRunning = false
-            elseif arpeggiatorButton.value == false and getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) == true then
+            elseif arpeggiatorButton.value == false and envStyleMenu.value == 1 and getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) == true then
               envelopeStyle = getRandom(2,4)
               arpeggiatorButton.value = true
               automaticSequencerRunning = true
@@ -4541,28 +4553,30 @@ function createTwequencerPanel()
             -- Check for allowed waveforms
             -- {1:"All", 2:"Saw/Square", 3:"Triangle/Sine", 4:"Square/Triangle", 5:"Saw/Sq/Tri/Sine", 6:"Saw", 7:"Square", 8:"Triangle", 9:"Sine", 10:"Noise", 11:"Pulse"}
             -- local waveforms = {1:"Saw", 2:"Square", 3:"Triangle", 4:"Sine", 5:"Noise", 6:"Pulse"}
-            local allowedWaveforms = waveformMenu.value
             local valueFilter = nil
-            if allowedWaveforms == 2 then
-              valueFilter = {1,2}
-            elseif allowedWaveforms == 3 then
-              valueFilter = {3,4}
-            elseif allowedWaveforms == 4 then
-              valueFilter = {2,3}
-            elseif allowedWaveforms == 5 then
-              valueFilter = {1,2,3,4}
-            elseif allowedWaveforms == 6 then
-              valueFilter = {1}
-            elseif allowedWaveforms == 7 then
-              valueFilter = {2}
-            elseif allowedWaveforms == 8 then
-              valueFilter = {3}
-            elseif allowedWaveforms == 9 then
-              valueFilter = {4}
-            elseif allowedWaveforms == 10 then
-              valueFilter = {5}
-            elseif allowedWaveforms == 11 then
-              valueFilter = {6}
+            if waveformMenu then
+              local allowedWaveforms = waveformMenu.value
+              if allowedWaveforms == 2 then
+                valueFilter = {1,2}
+              elseif allowedWaveforms == 3 then
+                valueFilter = {3,4}
+              elseif allowedWaveforms == 4 then
+                valueFilter = {2,3}
+              elseif allowedWaveforms == 5 then
+                valueFilter = {1,2,3,4}
+              elseif allowedWaveforms == 6 then
+                valueFilter = {1}
+              elseif allowedWaveforms == 7 then
+                valueFilter = {2}
+              elseif allowedWaveforms == 8 then
+                valueFilter = {3}
+              elseif allowedWaveforms == 9 then
+                valueFilter = {4}
+              elseif allowedWaveforms == 10 then
+                valueFilter = {5}
+              elseif allowedWaveforms == 11 then
+                valueFilter = {6}
+              end
             end
 
             -- Tweak
@@ -4572,7 +4586,7 @@ function createTwequencerPanel()
               tweakDuration = duration
             end
             for _,v in ipairs(tweakablesForTwequencer) do
-              if v.widget.name == "Osc1Wave" or v.widget.name == "Osc2Wave" then
+              if string.match(v.widget.name, 'Osc%dWave') or v.widget.name == "SubOscWaveform" then
                 v.valueFilter = valueFilter
               end
               if useDuration == true and type(v.useDuration) == "boolean" and v.useDuration == true then
