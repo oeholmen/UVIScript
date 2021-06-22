@@ -234,16 +234,18 @@ local wavetableMacros = {
 
 -- Name FM macros
 local FMMacros = {
-  osc3LfoToPWM = macros[7], -- UNUSED
-  subOscMix = macros[17], -- UNUSED
-  randomPhaseStart = macros[34], -- UNUSED
-  lfoToHardsync1 = macros[38], -- UNUSED
-  lfoToHardsync2 = macros[39], -- UNUSED
-  filterEnvToHardsync1 = macros[40], -- UNUSED
-  filterEnvToHardsync2 = macros[41], -- UNUSED
-  lfoToPitchOsc3 = macros[57], -- UNUSED
-  atToHardsync1 = macros[58], -- UNUSED
-  filterEnvToPitchOsc3 = macros[59], -- UNUSED
+  lfoToOsc1OpBLevel = macros[7],
+  lfoToOsc1OpCLevel = macros[17],
+  lfoToOsc1OpDLevel = macros[34],
+  lfoToOsc2OpBLevel = macros[27],
+  lfoToOsc2OpCLevel = macros[28],
+  lfoToOsc2OpDLevel = macros[38],
+  lfoToWT2 = macros[39], -- UNUSED Feedback osc1?
+  filterEnvToOsc1OpBLevel = macros[40],
+  filterEnvToOsc1OpCLevel = macros[41],
+  filterEnvToOsc2OpBLevel = macros[57],
+  filterEnvToOsc2OpCLevel = macros[58],
+  filterEnvToPitchOsc3 = macros[59], -- UNUSED Feedback osc2?
   filterDb = macros[60]
 }
 
@@ -314,6 +316,34 @@ end
 --------------------------------------------------------------------------------
 -- Helper functions
 --------------------------------------------------------------------------------
+
+-- Topologies for FM synth
+local topologies = {"D->C->B->A", "D+C->B->A", "C->B,B+D->A", "D->B+C->A", "D->C->A+B", "D->C->B,A", "B+C+D->A", "B->A,D->C", "D->A+B+C", "A,B,D->C", "A,B,C,D"}
+
+-- Set maxLevel based on topology:
+-- topology 0-3 > A
+-- topology 4-5 > A+B
+-- topology 6 > A
+-- topology 7 > A+C
+-- topology 8-9 > A+B+C
+-- topology 10 > A+B+C+D
+function getMaxFromTopology(op, topology)
+  if op == 2 then
+    if topology == 4 or topology == 5 or topology > 7 then
+      return 1
+    end
+  end
+
+  if op == 3 and topology > 6 then
+    return 1
+  end
+
+  if op == 4 and topology == 10 then
+    return 1
+  end
+
+  return 20
+end
 
 function initPatch()
   print("Setting default values...")
@@ -1307,13 +1337,125 @@ end
 function createOsc1Panel()
   local osc1Panel = Panel("Osc1Panel")
 
-  osc1Panel:Label("Osc 1")
-
   if isAnalogStack then
+    osc1Panel:Label("Osc 1")
     createStackOscPanel(osc1Panel, 1)
   elseif isAnalog3Osc then
+    osc1Panel:Label("Osc 1")
     createAnalog3OscPanel(osc1Panel, 1)
-  else
+  elseif isFM then
+    local osc1LevelKnobs = {}
+    local osc1RatioKnobs = {}
+
+    local opMenu = osc1Panel:Menu("OpOsc1", {"Op A", "Op B", "Op C", "Op D"})
+    opMenu.displayName = "Osc 1"
+    opMenu.backgroundColour = menuBackgroundColour
+    opMenu.textColour = menuTextColour
+    opMenu.arrowColour = menuArrowColour
+    opMenu.outlineColour = menuOutlineColour
+    opMenu.changed = function (self)
+      for i=1,4 do
+        osc1LevelKnobs[i].visible = i == self.value
+        osc1RatioKnobs[i].visible = i == self.value
+      end
+    end
+
+    local osc1TopologyKnob = osc1Panel:Knob("Osc1Topology", 0, 0, 10, true)
+    osc1TopologyKnob.displayName = "Topology"
+    osc1TopologyKnob.fillColour = knobColour
+    osc1TopologyKnob.outlineColour = osc1Colour
+    osc1TopologyKnob.changed = function(self)
+      osc1:setParameter("Topology", self.value)
+      self.displayText = topologies[self.value+1]
+      -- Set max level for level knobs based on topology
+      for i=2,4 do
+        local max = getMaxFromTopology(i, self.value)
+        if max ~= osc1LevelKnobs[i].max then
+          osc1LevelKnobs[i]:setRange(0, max)
+          osc1LevelKnobs[i]:setValue(1)
+        end
+      end
+    end
+    table.insert(tweakables, {widget=osc1TopologyKnob,default=10,factor=10,category="synthesis"})
+
+    for i=1,4 do
+      local op = 'A'
+      local maxLevel = 1
+      if i == 2 then
+        op = 'B'
+        maxLevel = 20
+      elseif i == 3 then
+        op = 'C'
+        maxLevel = 20
+      elseif i == 4 then
+        op = 'D'
+        maxLevel = 20
+      end
+      local osc1LevelKnob = osc1Panel:Knob("Osc1LevelOp"..op, 1, 0, maxLevel)
+      osc1LevelKnob.displayName = "Level "..op
+      osc1LevelKnob.fillColour = knobColour
+      osc1LevelKnob.outlineColour = osc1Colour
+      osc1LevelKnob.y = osc1TopologyKnob.y
+      osc1LevelKnob.x = osc1TopologyKnob.x + osc1TopologyKnob.width + marginX
+      osc1LevelKnob.changed = function(self)
+        osc1:setParameter("Level"..op, self.value)
+      end
+      osc1LevelKnob:changed()
+      table.insert(osc1LevelKnobs, osc1LevelKnob)
+      table.insert(tweakables, {widget=osc1LevelKnob,default=50,floor=0.7,ceil=1,probability=70,factor=maxLevel,category="synthesis"})
+    end
+
+    for i=1,4 do
+      local op = 'A'
+      if i == 2 then
+        op = 'B'
+      elseif i == 3 then
+        op = 'C'
+      elseif i == 4 then
+        op = 'D'
+      end
+      local osc1RatioKnob = osc1Panel:Knob("Osc1RatioOp"..op, 1, 1, 40, true)
+      osc1RatioKnob.displayName = "Ratio "..op
+      osc1RatioKnob.fillColour = knobColour
+      osc1RatioKnob.outlineColour = osc1Colour
+      osc1RatioKnob.y = osc1TopologyKnob.y
+      osc1RatioKnob.x = osc1TopologyKnob.x + (osc1TopologyKnob.width * 2) + (marginX * 2)
+      osc1RatioKnob.changed = function(self)
+        osc1:setParameter("Ratio"..op, self.value)
+        self.displayText = self.value..'x'
+      end
+      osc1RatioKnob:changed()
+      table.insert(osc1RatioKnobs, osc1RatioKnob)
+      table.insert(tweakables, {widget=osc1RatioKnob,default=30,floor=1,ceiling=16,probability=70,category="synthesis"})
+    end
+
+    local osc1PitchKnob = osc1Panel:Knob("Osc1Pitch", 0, -2, 2, true)
+    osc1PitchKnob.displayName = "Octave"
+    osc1PitchKnob.fillColour = knobColour
+    osc1PitchKnob.outlineColour = osc1Colour
+    osc1PitchKnob.changed = function(self)
+      local factor = 1 / 4
+      local value = (self.value * factor) + 0.5
+      osc1Pitch:setParameter("Value", value)
+    end
+    osc1PitchKnob:changed()
+    table.insert(tweakables, {widget=osc1PitchKnob,min=-2,max=2,default=80,noDefaultTweak=true,zero=25,category="synthesis"})
+
+    local osc1FeedbackKnob = osc1Panel:Knob("Osc1Feedback", 0, 0, 1)
+    osc1FeedbackKnob.displayName = "Feedback"
+    osc1FeedbackKnob.fillColour = knobColour
+    osc1FeedbackKnob.outlineColour = osc1Colour
+    osc1FeedbackKnob.changed = function(self)
+      osc1:setParameter("Feedback", self.value)
+      self.displayText = percent(self.value)
+    end
+    osc1FeedbackKnob:changed()
+    table.insert(tweakables, {widget=osc1FeedbackKnob,default=60,category="synthesis"})
+
+    osc1TopologyKnob:changed()
+    opMenu:changed()
+else
+    osc1Panel:Label("Osc 1")
     if isAnalog then
       local osc1ShapeKnob = osc1Panel:Knob("Osc1Wave", 1, 1, 6, true)
       osc1ShapeKnob.displayName = "Waveform"
@@ -1363,16 +1505,6 @@ function createOsc1Panel()
       end
       osc1EvenOddKnob:changed()
       table.insert(tweakables, {widget=osc1EvenOddKnob,bipolar=50,default=10,category="synthesis"})
-    elseif isFM then
-      local osc1TopologyKnob = osc1Panel:Knob("Osc1Topology", 0, 0, 10, true)
-      osc1TopologyKnob.displayName = "Topology"
-      osc1TopologyKnob.fillColour = knobColour
-      osc1TopologyKnob.outlineColour = osc1Colour
-      osc1TopologyKnob.changed = function(self)
-        osc1:setParameter("Topology", self.value)
-      end
-      osc1TopologyKnob:changed()
-      table.insert(tweakables, {widget=osc1TopologyKnob,default=0,category="synthesis"})
     end
     
     if isAnalog or isWavetable then
@@ -1487,13 +1619,135 @@ local osc1Panel = createOsc1Panel()
 function createOsc2Panel()
   local osc2Panel = Panel("Osc2Panel")
 
-  osc2Panel:Label("Osc 2")
-
   if isAnalogStack then
+    osc2Panel:Label("Osc 2")
     createStackOscPanel(osc2Panel, 2)
   elseif isAnalog3Osc then
+    osc2Panel:Label("Osc 2")
     createAnalog3OscPanel(osc2Panel, 2)
+  elseif isFM then
+    local osc2LevelKnobs = {}
+    local osc2RatioKnobs = {}
+
+    local opMenu = osc2Panel:Menu("OpOsc2", {"Op A", "Op B", "Op C", "Op D"})
+    opMenu.displayName = "Osc 2"
+    opMenu.backgroundColour = menuBackgroundColour
+    opMenu.textColour = menuTextColour
+    opMenu.arrowColour = menuArrowColour
+    opMenu.outlineColour = menuOutlineColour
+    opMenu.changed = function (self)
+      for i=1,4 do
+        osc2LevelKnobs[i].visible = i == self.value
+        osc2RatioKnobs[i].visible = i == self.value
+      end
+    end
+
+    local osc2TopologyKnob = osc2Panel:Knob("Osc2Topology", 0, 0, 10, true)
+    osc2TopologyKnob.displayName = "Topology"
+    osc2TopologyKnob.fillColour = knobColour
+    osc2TopologyKnob.outlineColour = osc1Colour
+    osc2TopologyKnob.changed = function(self)
+      osc2:setParameter("Topology", self.value)
+      self.displayText = topologies[self.value+1]
+      -- Set max level for level knobs based on topology
+      for i=2,4 do
+        local max = getMaxFromTopology(i, self.value)
+        if max ~= osc2LevelKnobs[i].max then
+          osc2LevelKnobs[i]:setRange(0, max)
+          osc2LevelKnobs[i]:setValue(1)
+        end
+      end
+    end
+    table.insert(tweakables, {widget=osc2TopologyKnob,default=10,factor=10,category="synthesis"})
+
+    for i=1,4 do
+      local op = 'A'
+      local maxLevel = 1
+      if i == 2 then
+        op = 'B'
+        maxLevel = 20
+      elseif i == 3 then
+        op = 'C'
+        maxLevel = 20
+      elseif i == 4 then
+        op = 'D'
+        maxLevel = 20
+      end
+      local osc2LevelKnob = osc2Panel:Knob("Osc2LevelOp"..op, 1, 0, maxLevel)
+      osc2LevelKnob.displayName = "Level "..op
+      osc2LevelKnob.fillColour = knobColour
+      osc2LevelKnob.outlineColour = osc2Colour
+      osc2LevelKnob.y = osc2TopologyKnob.y
+      osc2LevelKnob.x = osc2TopologyKnob.x + osc2TopologyKnob.width + marginX
+      osc2LevelKnob.changed = function(self)
+        osc2:setParameter("Level"..op, self.value)
+      end
+      osc2LevelKnob:changed()
+      table.insert(osc2LevelKnobs, osc2LevelKnob)
+      table.insert(tweakables, {widget=osc2LevelKnob,default=50,floor=0.7,ceil=1,probability=70,factor=maxLevel,category="synthesis"})
+    end
+
+    for i=1,4 do
+      local op = 'A'
+      if i == 2 then
+        op = 'B'
+      elseif i == 3 then
+        op = 'C'
+      elseif i == 4 then
+        op = 'D'
+      end
+      local osc2RatioKnob = osc2Panel:Knob("Osc2RatioOp"..op, 1, 1, 40, true)
+      osc2RatioKnob.displayName = "Ratio "..op
+      osc2RatioKnob.fillColour = knobColour
+      osc2RatioKnob.outlineColour = osc2Colour
+      osc2RatioKnob.y = osc2TopologyKnob.y
+      osc2RatioKnob.x = osc2TopologyKnob.x + (osc2TopologyKnob.width * 2) + (marginX * 2)
+      osc2RatioKnob.changed = function(self)
+        osc2:setParameter("Ratio"..op, self.value)
+        self.displayText = self.value..'x'
+      end
+      osc2RatioKnob:changed()
+      table.insert(osc2RatioKnobs, osc2RatioKnob)
+      table.insert(tweakables, {widget=osc2RatioKnob,default=30,floor=1,ceiling=16,probability=70,category="synthesis"})
+    end
+
+    local osc2PitchKnob = osc2Panel:Knob("Osc2Pitch", 0, -24, 24, true)
+    osc2PitchKnob.displayName = "Pitch"
+    osc2PitchKnob.fillColour = knobColour
+    osc2PitchKnob.outlineColour = osc2Colour
+    osc2PitchKnob.changed = function(self)
+      local factor = 1 / 48
+      local value = (self.value * factor) + 0.5
+      osc2Pitch:setParameter("Value", value)
+    end
+    osc2PitchKnob:changed()
+    table.insert(tweakables, {widget=osc2PitchKnob,min=-24,max=24,valueFilter={-24,-12,-5,0,7,12,19,24},floor=-12,ceiling=12,probability=75,default=50,zero=50,useDuration=true,category="synthesis"})
+
+    local osc2FeedbackKnob = osc2Panel:Knob("Osc2Feedback", 0, 0, 1)
+    osc2FeedbackKnob.displayName = "Feedback"
+    osc2FeedbackKnob.fillColour = knobColour
+    osc2FeedbackKnob.outlineColour = osc2Colour
+    osc2FeedbackKnob.changed = function(self)
+      osc2:setParameter("Feedback", self.value)
+      self.displayText = percent(self.value)
+    end
+    osc2FeedbackKnob:changed()
+    table.insert(tweakables, {widget=osc2FeedbackKnob,default=60,category="synthesis"})
+
+    --[[ local osc2DetuneKnob = osc2Panel:Knob("Osc2FinePitch", 0, 0, 1)
+    osc2DetuneKnob.displayName = "Fine Pitch"
+    osc2DetuneKnob.fillColour = knobColour
+    osc2DetuneKnob.outlineColour = osc2Colour
+    osc2DetuneKnob.changed = function(self)
+      osc2Detune:setParameter("Value", self.value)
+    end
+    osc2DetuneKnob:changed()
+    table.insert(tweakables, {widget=osc2DetuneKnob,ceiling=0.25,probability=90,default=50,defaultTweakRange=0.15,zero=25,absoluteLimit=0.4,useDuration=true,category="synthesis"}) ]]
+
+    osc2TopologyKnob:changed()
+    opMenu:changed()
   else
+    osc2Panel:Label("Osc 2")
     if isAnalog then
       local osc2ShapeKnob = osc2Panel:Knob("Osc2Wave", 1, 1, 6, true)
       osc2ShapeKnob.displayName = "Waveform"
@@ -1543,16 +1797,6 @@ function createOsc2Panel()
       end
       osc2EvenOddKnob:changed()
       table.insert(tweakables, {widget=osc2EvenOddKnob,bipolar=50,default=10,category="synthesis"})
-    elseif isFM then
-      local osc2TopologyKnob = osc2Panel:Knob("Osc2Topology", 0, 0, 10, true)
-      osc2TopologyKnob.displayName = "Topology"
-      osc2TopologyKnob.fillColour = knobColour
-      osc2TopologyKnob.outlineColour = osc1Colour
-      osc2TopologyKnob.changed = function(self)
-        osc2:setParameter("Topology", self.value)
-      end
-      osc2TopologyKnob:changed()
-      table.insert(tweakables, {widget=osc2TopologyKnob,default=0,category="synthesis"})
     end
 
     if isAnalog or isWavetable then
@@ -1992,6 +2236,9 @@ function createMixerPanel()
     elseif isAnalog3Osc then
       osc1Layer:setParameter("NumVoicesPerNote", self.value)
       osc2:setParameter("NumOscillators", self.value)  
+    elseif isFM then
+      osc1Layer:setParameter("NumVoicesPerNote", self.value)
+      osc2Layer:setParameter("NumVoicesPerNote", self.value)
     end
     if self.value == 1 then
       self.displayText = "Off"
@@ -3072,17 +3319,19 @@ function createLfoTargetPanel1()
   else
     lfoTargetPanel1:Label("LFO -> Osc 1 ->")
 
-    local osc1LfoToPWMKnob = lfoTargetPanel1:Knob("LfoToOsc1PWM", 0, 0, 0.5)
-    osc1LfoToPWMKnob.displayName = "PWM"
-    osc1LfoToPWMKnob.mapper = Mapper.Quadratic
-    osc1LfoToPWMKnob.fillColour = knobColour
-    osc1LfoToPWMKnob.outlineColour = lfoColour
-    osc1LfoToPWMKnob.changed = function(self)
-      osc1LfoToPWM:setParameter("Value", self.value)
-      self.displayText = percent(self.value)
+    if isAnalog or isAdditive or isWavetable or isAnalogStack then
+      local osc1LfoToPWMKnob = lfoTargetPanel1:Knob("LfoToOsc1PWM", 0, 0, 0.5)
+      osc1LfoToPWMKnob.displayName = "PWM"
+      osc1LfoToPWMKnob.mapper = Mapper.Quadratic
+      osc1LfoToPWMKnob.fillColour = knobColour
+      osc1LfoToPWMKnob.outlineColour = lfoColour
+      osc1LfoToPWMKnob.changed = function(self)
+        osc1LfoToPWM:setParameter("Value", self.value)
+        self.displayText = percent(self.value)
+      end
+      osc1LfoToPWMKnob:changed()
+      table.insert(tweakables, {widget=osc1LfoToPWMKnob,ceiling=0.25,probability=90,default=50,useDuration=true,category="modulation"})
     end
-    osc1LfoToPWMKnob:changed()
-    table.insert(tweakables, {widget=osc1LfoToPWMKnob,ceiling=0.25,probability=90,default=50,useDuration=true,category="modulation"})
 
     if isAnalog then
       local lfoToHardsync1Knob = lfoTargetPanel1:Knob("LfoToHardsync1", 0, 0, 1)
@@ -3142,9 +3391,44 @@ function createLfoTargetPanel1()
       end
       lfoToWaveSpread1Knob:changed()
       table.insert(tweakables, {widget=lfoToWaveSpread1Knob,bipolar=80,default=50,useDuration=true,category="modulation"})
+    elseif isFM then
+      local lfoToOsc1OpBLevelKnob = lfoTargetPanel1:Knob("LfoToOsc1OpBLevelKnob", 0, 0, 1)
+      lfoToOsc1OpBLevelKnob.displayName = "Op B Level"
+      lfoToOsc1OpBLevelKnob.fillColour = knobColour
+      lfoToOsc1OpBLevelKnob.outlineColour = lfoColour
+      lfoToOsc1OpBLevelKnob.changed = function(self)
+        FMMacros["lfoToOsc1OpBLevel"]:setParameter("Value", self.value)
+        self.displayText = percent(self.value)
+      end
+      lfoToOsc1OpBLevelKnob:changed()
+      table.insert(tweakables, {widget=lfoToOsc1OpBLevelKnob,default=50,category="modulation"})
+
+      local lfoToOsc1OpCLevelKnob = lfoTargetPanel1:Knob("LfoToOsc1OpCLevelKnob", 0, 0, 1)
+      lfoToOsc1OpCLevelKnob.displayName = "Op C Level"
+      lfoToOsc1OpCLevelKnob.fillColour = knobColour
+      lfoToOsc1OpCLevelKnob.outlineColour = lfoColour
+      lfoToOsc1OpCLevelKnob.changed = function(self)
+        FMMacros["lfoToOsc1OpCLevel"]:setParameter("Value", self.value)
+        self.displayText = percent(self.value)
+      end
+      lfoToOsc1OpCLevelKnob:changed()
+      table.insert(tweakables, {widget=lfoToOsc1OpCLevelKnob,default=50,category="modulation"})
+
+      local lfoToOsc1OpDLevelKnob = lfoTargetPanel1:Knob("LfoToOsc1OpDLevelKnob", 0, 0, 1)
+      lfoToOsc1OpDLevelKnob.displayName = "Op D Level"
+      lfoToOsc1OpDLevelKnob.fillColour = knobColour
+      lfoToOsc1OpDLevelKnob.outlineColour = lfoColour
+      lfoToOsc1OpDLevelKnob.changed = function(self)
+        FMMacros["lfoToOsc1OpDLevel"]:setParameter("Value", self.value)
+        self.displayText = percent(self.value)
+      end
+      lfoToOsc1OpDLevelKnob:changed()
+      table.insert(tweakables, {widget=lfoToOsc1OpDLevelKnob,default=50,category="modulation"})
+
+      -- TODO Add feedback modulation
     end
 
-    if isAnalog or isAdditive or isWavetable then
+    if isAnalog or isAdditive or isWavetable or isFM then
       local lfoToPitchOsc1Knob = lfoTargetPanel1:Knob("LfoToPitchOsc1Knob", 0, 0, 48)
       lfoToPitchOsc1Knob.displayName = "Pitch"
       lfoToPitchOsc1Knob.mapper = Mapper.Quadratic
@@ -3218,17 +3502,19 @@ function createLfoTargetPanel2()
   else
     lfoTargetPanel2:Label("LFO -> Osc 2 ->")
 
-    local osc2LfoToPWMKnob = lfoTargetPanel2:Knob("LfoToOsc2PWM", 0, 0, 0.5)
-    osc2LfoToPWMKnob.displayName = "PWM"
-    osc2LfoToPWMKnob.mapper = Mapper.Quadratic
-    osc2LfoToPWMKnob.fillColour = knobColour
-    osc2LfoToPWMKnob.outlineColour = lfoColour
-    osc2LfoToPWMKnob.changed = function(self)
-      osc2LfoToPWM:setParameter("Value", self.value)
-      self.displayText = percent(self.value)
+    if isAnalog or isAdditive or isWavetable or isAnalogStack then
+      local osc2LfoToPWMKnob = lfoTargetPanel2:Knob("LfoToOsc2PWM", 0, 0, 0.5)
+      osc2LfoToPWMKnob.displayName = "PWM"
+      osc2LfoToPWMKnob.mapper = Mapper.Quadratic
+      osc2LfoToPWMKnob.fillColour = knobColour
+      osc2LfoToPWMKnob.outlineColour = lfoColour
+      osc2LfoToPWMKnob.changed = function(self)
+        osc2LfoToPWM:setParameter("Value", self.value)
+        self.displayText = percent(self.value)
+      end
+      osc2LfoToPWMKnob:changed()
+      table.insert(tweakables, {widget=osc2LfoToPWMKnob,ceiling=0.25,probability=90,default=50,useDuration=true,category="modulation"})
     end
-    osc2LfoToPWMKnob:changed()
-    table.insert(tweakables, {widget=osc2LfoToPWMKnob,ceiling=0.25,probability=90,default=50,useDuration=true,category="modulation"})
 
     if isAnalog then
       local lfoToHardsync2Knob = lfoTargetPanel2:Knob("LfoToHardsync2", 0, 0, 1)
@@ -3288,9 +3574,42 @@ function createLfoTargetPanel2()
       end
       lfoToWaveSpread2Knob:changed()
       table.insert(tweakables, {widget=lfoToWaveSpread2Knob,bipolar=80,default=50,useDuration=true,category="modulation"})
+    elseif isFM then
+      local lfoToOsc2OpBLevelKnob = lfoTargetPanel2:Knob("LfoToOsc2OpBLevelKnob", 0, 0, 1)
+      lfoToOsc2OpBLevelKnob.displayName = "Op B Level"
+      lfoToOsc2OpBLevelKnob.fillColour = knobColour
+      lfoToOsc2OpBLevelKnob.outlineColour = lfoColour
+      lfoToOsc2OpBLevelKnob.changed = function(self)
+        FMMacros["lfoToOsc2OpBLevel"]:setParameter("Value", self.value)
+        self.displayText = percent(self.value)
+      end
+      lfoToOsc2OpBLevelKnob:changed()
+      table.insert(tweakables, {widget=lfoToOsc2OpBLevelKnob,default=50,category="modulation"})
+
+      local lfoToOsc2OpCLevelKnob = lfoTargetPanel2:Knob("LfoToOsc2OpCLevelKnob", 0, 0, 1)
+      lfoToOsc2OpCLevelKnob.displayName = "Op C Level"
+      lfoToOsc2OpCLevelKnob.fillColour = knobColour
+      lfoToOsc2OpCLevelKnob.outlineColour = lfoColour
+      lfoToOsc2OpCLevelKnob.changed = function(self)
+        FMMacros["lfoToOsc2OpCLevel"]:setParameter("Value", self.value)
+        self.displayText = percent(self.value)
+      end
+      lfoToOsc2OpCLevelKnob:changed()
+      table.insert(tweakables, {widget=lfoToOsc2OpCLevelKnob,default=50,category="modulation"})
+
+      local lfoToOsc2OpDLevelKnob = lfoTargetPanel2:Knob("LfoToOsc2OpDLevelKnob", 0, 0, 1)
+      lfoToOsc2OpDLevelKnob.displayName = "Op D Level"
+      lfoToOsc2OpDLevelKnob.fillColour = knobColour
+      lfoToOsc2OpDLevelKnob.outlineColour = lfoColour
+      lfoToOsc2OpDLevelKnob.changed = function(self)
+        FMMacros["lfoToOsc2OpDLevel"]:setParameter("Value", self.value)
+        self.displayText = percent(self.value)
+      end
+      lfoToOsc2OpDLevelKnob:changed()
+      table.insert(tweakables, {widget=lfoToOsc2OpDLevelKnob,default=50,category="modulation"})
     end
 
-    if isAnalog or isAdditive or isWavetable then
+    if isAnalog or isAdditive or isWavetable or isFM then
       local lfoToPitchOsc2Knob = lfoTargetPanel2:Knob("LfoToPitchOsc2Knob", 0, 0, 48)
       lfoToPitchOsc2Knob.displayName = "Pitch"
       lfoToPitchOsc2Knob.mapper = Mapper.Quadratic
