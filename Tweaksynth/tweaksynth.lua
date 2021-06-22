@@ -234,18 +234,20 @@ local wavetableMacros = {
 
 -- Name FM macros
 local FMMacros = {
+  filterEnvToOsc1OpDLevel = macros[1],
   lfoToOsc1OpBLevel = macros[7],
+  filterEnvToOsc2OpDLevel = macros[9],
   lfoToOsc1OpCLevel = macros[17],
   lfoToOsc1OpDLevel = macros[34],
   lfoToOsc2OpBLevel = macros[27],
   lfoToOsc2OpCLevel = macros[28],
   lfoToOsc2OpDLevel = macros[38],
-  lfoToWT2 = macros[39], -- UNUSED Feedback osc1?
+  lfoToOsc1Feedback = macros[39],
   filterEnvToOsc1OpBLevel = macros[40],
   filterEnvToOsc1OpCLevel = macros[41],
   filterEnvToOsc2OpBLevel = macros[57],
   filterEnvToOsc2OpCLevel = macros[58],
-  filterEnvToPitchOsc3 = macros[59], -- UNUSED Feedback osc2?
+  lfoToOsc2Feedback = macros[59],
   filterDb = macros[60]
 }
 
@@ -712,6 +714,61 @@ function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle, 
   end
   options.widget.value = endValue
   print("Tweak widget/startValue/endValue/duration:", options.widget.name, startValue, endValue, duration)
+end
+
+function verifyOpLevelSettings()
+  if isFM == false then
+    return
+  end
+  local max = 1
+
+  print("--- Checking Osc 1 Operator Levels ---")
+  local Osc1Topology = getWidgetValue("Osc1Topology")
+  local Osc1OpBLvl = getWidget("Osc1LevelOpB")
+  local Osc1OpCLvl = getWidget("Osc1LevelOpC")
+  local Osc1OpDLvl = getWidget("Osc1LevelOpD")
+
+  max = getMaxFromTopology(2, Osc1Topology)
+  if max < Osc1OpBLvl.value then
+    Osc1OpBLvl.value = max
+    print("Osc1OpBLvlm was adjusted to max", max)
+  end
+
+  max = getMaxFromTopology(3, Osc1Topology)
+  if max < Osc1OpCLvl.value then
+    Osc1OpCLvl.value = max
+    print("Osc1OpCLvl was adjusted to max", max)
+  end
+
+  max = getMaxFromTopology(4, Osc1Topology)
+  if max < Osc1OpDLvl.value then
+    Osc1OpDLvl.value = max
+    print("Osc1OpDLvl was adjusted to max", max)
+  end
+  
+  print("--- Checking Osc 2 Operator Levels ---")
+  local Osc2Topology = getWidgetValue("Osc2Topology")
+  local Osc2OpBLvl = getWidget("Osc2LevelOpB")
+  local Osc2OpCLvl = getWidget("Osc2LevelOpC")
+  local Osc2OpDLvl = getWidget("Osc2LevelOpD")
+
+  max = getMaxFromTopology(2, Osc2Topology)
+  if max < Osc2OpBLvl.value then
+    Osc2OpBLvl.value = max
+    print("Osc2OpBLvl was adjusted to max", max)
+  end
+
+  max = getMaxFromTopology(3, Osc2Topology)
+  if max < Osc2OpCLvl.value then
+    Osc2OpCLvl.value = max
+    print("Osc2OpCLvl was adjusted to max", max)
+  end
+
+  max = getMaxFromTopology(4, Osc2Topology)
+  if max < Osc2OpDLvl.value then
+    Osc2OpDLvl.value = max
+    print("Osc2OpDLvl was adjusted to max", max)
+  end
 end
 
 function verifyUnisonSettings()
@@ -1378,41 +1435,70 @@ function createOsc1Panel()
     end
     table.insert(tweakables, {widget=osc1TopologyKnob,default=10,factor=10,category="synthesis"})
 
-    for i=1,4 do
-      local op = 'A'
-      local maxLevel = 1
-      if i == 2 then
-        op = 'B'
-        maxLevel = 20
-      elseif i == 3 then
-        op = 'C'
-        maxLevel = 20
-      elseif i == 4 then
-        op = 'D'
-        maxLevel = 20
-      end
-      local osc1LevelKnob = osc1Panel:Knob("Osc1LevelOp"..op, 1, 0, maxLevel)
-      osc1LevelKnob.displayName = "Level "..op
-      osc1LevelKnob.fillColour = knobColour
-      osc1LevelKnob.outlineColour = osc1Colour
-      osc1LevelKnob.y = osc1TopologyKnob.y
-      osc1LevelKnob.x = osc1TopologyKnob.x + osc1TopologyKnob.width + marginX
-      osc1LevelKnob.changed = function(self)
-        osc1:setParameter("Level"..op, self.value)
-      end
-      osc1LevelKnob:changed()
-      table.insert(osc1LevelKnobs, osc1LevelKnob)
-      table.insert(tweakables, {widget=osc1LevelKnob,default=50,floor=0.7,ceil=1,probability=70,factor=maxLevel,category="synthesis"})
+    local osc1LevelKnobA = osc1Panel:Knob("Osc1LevelOpA", 1, 0, 1)
+    osc1LevelKnobA.displayName = "Level A"
+    osc1LevelKnobA.fillColour = knobColour
+    osc1LevelKnobA.outlineColour = osc1Colour
+    osc1LevelKnobA.y = osc1TopologyKnob.y
+    osc1LevelKnobA.x = osc1TopologyKnob.x + osc1TopologyKnob.width + marginX
+    osc1LevelKnobA.changed = function(self)
+      osc1:setParameter("LevelA", self.value)
     end
+    osc1LevelKnobA:changed()
+    table.insert(osc1LevelKnobs, osc1LevelKnobA)
+    table.insert(tweakables, {widget=osc1LevelKnobA,default=80,floor=0.8,ceil=1,probability=80,category="synthesis"})
+
+    local osc1LevelKnobB = osc1Panel:Knob("Osc1LevelOpB", 1, 0, 20)
+    osc1LevelKnobB.displayName = "Level B"
+    osc1LevelKnobB.fillColour = knobColour
+    osc1LevelKnobB.outlineColour = osc1Colour
+    osc1LevelKnobB.y = osc1TopologyKnob.y
+    osc1LevelKnobB.x = osc1TopologyKnob.x + osc1TopologyKnob.width + marginX
+    osc1LevelKnobB.changed = function(self)
+      osc1:setParameter("LevelB", self.value)
+    end
+    osc1LevelKnobB:changed()
+    table.insert(osc1LevelKnobs, osc1LevelKnobB)
+    table.insert(tweakables, {widget=osc1LevelKnobB,default=50,zero=5,floor=0.7,ceil=1,probability=50,factor=20,category="synthesis"})
+
+    local osc1LevelKnobC = osc1Panel:Knob("Osc1LevelOpC", 1, 0, 20)
+    osc1LevelKnobC.displayName = "Level C"
+    osc1LevelKnobC.fillColour = knobColour
+    osc1LevelKnobC.outlineColour = osc1Colour
+    osc1LevelKnobC.y = osc1TopologyKnob.y
+    osc1LevelKnobC.x = osc1TopologyKnob.x + osc1TopologyKnob.width + marginX
+    osc1LevelKnobC.changed = function(self)
+      osc1:setParameter("LevelC", self.value)
+    end
+    osc1LevelKnobC:changed()
+    table.insert(osc1LevelKnobs, osc1LevelKnobC)
+    table.insert(tweakables, {widget=osc1LevelKnobC,default=50,zero=10,floor=0.7,ceil=1,probability=60,factor=20,category="synthesis"})
+
+    local osc1LevelKnobD = osc1Panel:Knob("Osc1LevelOpD", 1, 0, 20)
+    osc1LevelKnobD.displayName = "Level D"
+    osc1LevelKnobD.fillColour = knobColour
+    osc1LevelKnobD.outlineColour = osc1Colour
+    osc1LevelKnobD.y = osc1TopologyKnob.y
+    osc1LevelKnobD.x = osc1TopologyKnob.x + osc1TopologyKnob.width + marginX
+    osc1LevelKnobD.changed = function(self)
+      osc1:setParameter("LevelD", self.value)
+    end
+    osc1LevelKnobD:changed()
+    table.insert(osc1LevelKnobs, osc1LevelKnobD)
+    table.insert(tweakables, {widget=osc1LevelKnobD,default=50,zero=20,floor=0.7,ceil=1,probability=70,factor=20,category="synthesis"})
 
     for i=1,4 do
       local op = 'A'
+      local probability = 80
       if i == 2 then
         op = 'B'
+        probability = 60
       elseif i == 3 then
         op = 'C'
+        probability = 40
       elseif i == 4 then
         op = 'D'
+        probability = 20
       end
       local osc1RatioKnob = osc1Panel:Knob("Osc1RatioOp"..op, 1, 1, 40, true)
       osc1RatioKnob.displayName = "Ratio "..op
@@ -1426,7 +1512,7 @@ function createOsc1Panel()
       end
       osc1RatioKnob:changed()
       table.insert(osc1RatioKnobs, osc1RatioKnob)
-      table.insert(tweakables, {widget=osc1RatioKnob,default=30,floor=1,ceiling=16,probability=70,category="synthesis"})
+      table.insert(tweakables, {widget=osc1RatioKnob,default=30,min=1,max=40,floor=1,ceiling=20,probability=probability,category="synthesis"})
     end
 
     local osc1PitchKnob = osc1Panel:Knob("Osc1Pitch", 0, -2, 2, true)
@@ -1660,41 +1746,70 @@ function createOsc2Panel()
     end
     table.insert(tweakables, {widget=osc2TopologyKnob,default=10,factor=10,category="synthesis"})
 
-    for i=1,4 do
-      local op = 'A'
-      local maxLevel = 1
-      if i == 2 then
-        op = 'B'
-        maxLevel = 20
-      elseif i == 3 then
-        op = 'C'
-        maxLevel = 20
-      elseif i == 4 then
-        op = 'D'
-        maxLevel = 20
-      end
-      local osc2LevelKnob = osc2Panel:Knob("Osc2LevelOp"..op, 1, 0, maxLevel)
-      osc2LevelKnob.displayName = "Level "..op
-      osc2LevelKnob.fillColour = knobColour
-      osc2LevelKnob.outlineColour = osc2Colour
-      osc2LevelKnob.y = osc2TopologyKnob.y
-      osc2LevelKnob.x = osc2TopologyKnob.x + osc2TopologyKnob.width + marginX
-      osc2LevelKnob.changed = function(self)
-        osc2:setParameter("Level"..op, self.value)
-      end
-      osc2LevelKnob:changed()
-      table.insert(osc2LevelKnobs, osc2LevelKnob)
-      table.insert(tweakables, {widget=osc2LevelKnob,default=50,floor=0.7,ceil=1,probability=70,factor=maxLevel,category="synthesis"})
+    local osc2LevelKnobA = osc2Panel:Knob("Osc2LevelOpA", 1, 0, 1)
+    osc2LevelKnobA.displayName = "Level A"
+    osc2LevelKnobA.fillColour = knobColour
+    osc2LevelKnobA.outlineColour = osc2Colour
+    osc2LevelKnobA.y = osc2TopologyKnob.y
+    osc2LevelKnobA.x = osc2TopologyKnob.x + osc2TopologyKnob.width + marginX
+    osc2LevelKnobA.changed = function(self)
+      osc2:setParameter("LevelA", self.value)
     end
+    osc2LevelKnobA:changed()
+    table.insert(osc2LevelKnobs, osc2LevelKnobA)
+    table.insert(tweakables, {widget=osc2LevelKnobA,default=70,floor=0.7,ceil=1,probability=80,category="synthesis"})
+
+    local osc2LevelKnobB = osc2Panel:Knob("Osc2LevelOpB", 1, 0, 20)
+    osc2LevelKnobB.displayName = "Level B"
+    osc2LevelKnobB.fillColour = knobColour
+    osc2LevelKnobB.outlineColour = osc2Colour
+    osc2LevelKnobB.y = osc2TopologyKnob.y
+    osc2LevelKnobB.x = osc2TopologyKnob.x + osc2TopologyKnob.width + marginX
+    osc2LevelKnobB.changed = function(self)
+      osc2:setParameter("LevelB", self.value)
+    end
+    osc2LevelKnobB:changed()
+    table.insert(osc2LevelKnobs, osc2LevelKnobB)
+    table.insert(tweakables, {widget=osc2LevelKnobB,default=50,zero=10,floor=0.7,ceil=1,probability=50,factor=20,category="synthesis"})
+
+    local osc2LevelKnobC = osc2Panel:Knob("Osc2LevelOpC", 1, 0, 20)
+    osc2LevelKnobC.displayName = "Level C"
+    osc2LevelKnobC.fillColour = knobColour
+    osc2LevelKnobC.outlineColour = osc2Colour
+    osc2LevelKnobC.y = osc2TopologyKnob.y
+    osc2LevelKnobC.x = osc2TopologyKnob.x + osc2TopologyKnob.width + marginX
+    osc2LevelKnobC.changed = function(self)
+      osc2:setParameter("LevelC", self.value)
+    end
+    osc2LevelKnobC:changed()
+    table.insert(osc2LevelKnobs, osc2LevelKnobC)
+    table.insert(tweakables, {widget=osc2LevelKnobC,default=50,zero=15,floor=0.7,ceil=1,probability=60,factor=20,category="synthesis"})
+
+    local osc2LevelKnobD = osc2Panel:Knob("Osc2LevelOpD", 1, 0, 20)
+    osc2LevelKnobD.displayName = "Level D"
+    osc2LevelKnobD.fillColour = knobColour
+    osc2LevelKnobD.outlineColour = osc2Colour
+    osc2LevelKnobD.y = osc2TopologyKnob.y
+    osc2LevelKnobD.x = osc2TopologyKnob.x + osc2TopologyKnob.width + marginX
+    osc2LevelKnobD.changed = function(self)
+      osc2:setParameter("LevelD", self.value)
+    end
+    osc2LevelKnobD:changed()
+    table.insert(osc2LevelKnobs, osc2LevelKnobD)
+    table.insert(tweakables, {widget=osc2LevelKnobD,default=50,zero=20,floor=0.7,ceil=1,probability=70,factor=20,category="synthesis"})
 
     for i=1,4 do
       local op = 'A'
+      local probability = 80
       if i == 2 then
         op = 'B'
+        probability = 60
       elseif i == 3 then
         op = 'C'
+        probability = 40
       elseif i == 4 then
         op = 'D'
+        probability = 20
       end
       local osc2RatioKnob = osc2Panel:Knob("Osc2RatioOp"..op, 1, 1, 40, true)
       osc2RatioKnob.displayName = "Ratio "..op
@@ -1708,7 +1823,7 @@ function createOsc2Panel()
       end
       osc2RatioKnob:changed()
       table.insert(osc2RatioKnobs, osc2RatioKnob)
-      table.insert(tweakables, {widget=osc2RatioKnob,default=30,floor=1,ceiling=16,probability=70,category="synthesis"})
+      table.insert(tweakables, {widget=osc2RatioKnob,default=30,min=1,max=40,floor=1,ceiling=20,probability=probability,category="synthesis"})
     end
 
     local osc2PitchKnob = osc2Panel:Knob("Osc2Pitch", 0, -24, 24, true)
@@ -2670,6 +2785,72 @@ function createFilterEnvOscTargetsPanel()
     end
     filterEnvToPitchOsc3Knob:changed()
     table.insert(tweakables, {widget=filterEnvToPitchOsc3Knob,ceiling=0.1,probability=85,default=75,noDefaultTweak=true,zero=25,category="filter"})
+  elseif isFM then
+    local filterEnvToOsc1OpBLevelKnob = filterEnvOscTargetsPanel:Knob("Osc1FilterEnvToOpBLevel", 0, 0, 1)
+    filterEnvToOsc1OpBLevelKnob.displayName = "Osc1 OpB Lvl"
+    filterEnvToOsc1OpBLevelKnob.fillColour = knobColour
+    filterEnvToOsc1OpBLevelKnob.outlineColour = lfoColour
+    filterEnvToOsc1OpBLevelKnob.changed = function(self)
+      FMMacros["filterEnvToOsc1OpBLevel"]:setParameter("Value", self.value)
+      self.displayText = percent(self.value)
+    end
+    filterEnvToOsc1OpBLevelKnob:changed()
+    table.insert(tweakables, {widget=filterEnvToOsc1OpBLevelKnob,default=50,zero=30,useDuration=true,category="filter"})
+
+    local filterEnvToOsc1OpCLevelKnob = filterEnvOscTargetsPanel:Knob("Osc1FilterEnvToOpCLevel", 0, 0, 1)
+    filterEnvToOsc1OpCLevelKnob.displayName = "Osc1 OpC Lvl"
+    filterEnvToOsc1OpCLevelKnob.fillColour = knobColour
+    filterEnvToOsc1OpCLevelKnob.outlineColour = lfoColour
+    filterEnvToOsc1OpCLevelKnob.changed = function(self)
+      FMMacros["filterEnvToOsc1OpCLevel"]:setParameter("Value", self.value)
+      self.displayText = percent(self.value)
+    end
+    filterEnvToOsc1OpCLevelKnob:changed()
+    table.insert(tweakables, {widget=filterEnvToOsc1OpCLevelKnob,default=60,zero=40,useDuration=true,category="filter"})
+
+    local filterEnvToOsc1OpDLevelKnob = filterEnvOscTargetsPanel:Knob("Osc1FilterEnvToOpDLevel", 0, 0, 1)
+    filterEnvToOsc1OpDLevelKnob.displayName = "Osc1 OpD Lvl"
+    filterEnvToOsc1OpDLevelKnob.fillColour = knobColour
+    filterEnvToOsc1OpDLevelKnob.outlineColour = lfoColour
+    filterEnvToOsc1OpDLevelKnob.changed = function(self)
+      FMMacros["filterEnvToOsc1OpDLevel"]:setParameter("Value", self.value)
+      self.displayText = percent(self.value)
+    end
+    filterEnvToOsc1OpDLevelKnob:changed()
+    table.insert(tweakables, {widget=filterEnvToOsc1OpDLevelKnob,default=70,zero=50,useDuration=true,category="filter"})
+
+    local filterEnvToOsc2OpBLevelKnob = filterEnvOscTargetsPanel:Knob("Osc2FilterEnvToOpBLevel", 0, 0, 1)
+    filterEnvToOsc2OpBLevelKnob.displayName = "Osc2 OpB Lvl"
+    filterEnvToOsc2OpBLevelKnob.fillColour = knobColour
+    filterEnvToOsc2OpBLevelKnob.outlineColour = lfoColour
+    filterEnvToOsc2OpBLevelKnob.changed = function(self)
+      FMMacros["filterEnvToOsc2OpBLevel"]:setParameter("Value", self.value)
+      self.displayText = percent(self.value)
+    end
+    filterEnvToOsc2OpBLevelKnob:changed()
+    table.insert(tweakables, {widget=filterEnvToOsc2OpBLevelKnob,default=50,zero=30,useDuration=true,category="filter"})
+
+    local filterEnvToOsc2OpCLevelKnob = filterEnvOscTargetsPanel:Knob("Osc2FilterEnvToOpCLevel", 0, 0, 1)
+    filterEnvToOsc2OpCLevelKnob.displayName = "Osc2 OpC Lvl"
+    filterEnvToOsc2OpCLevelKnob.fillColour = knobColour
+    filterEnvToOsc2OpCLevelKnob.outlineColour = lfoColour
+    filterEnvToOsc2OpCLevelKnob.changed = function(self)
+      FMMacros["filterEnvToOsc2OpCLevel"]:setParameter("Value", self.value)
+      self.displayText = percent(self.value)
+    end
+    filterEnvToOsc2OpCLevelKnob:changed()
+    table.insert(tweakables, {widget=filterEnvToOsc2OpCLevelKnob,default=60,zero=40,useDuration=true,category="filter"})
+
+    local filterEnvToOsc2OpDLevelKnob = filterEnvOscTargetsPanel:Knob("Osc2FilterEnvToOpDLevel", 0, 0, 1)
+    filterEnvToOsc2OpDLevelKnob.displayName = "Osc2 OpD Lvl"
+    filterEnvToOsc2OpDLevelKnob.fillColour = knobColour
+    filterEnvToOsc2OpDLevelKnob.outlineColour = lfoColour
+    filterEnvToOsc2OpDLevelKnob.changed = function(self)
+      FMMacros["filterEnvToOsc2OpDLevel"]:setParameter("Value", self.value)
+      self.displayText = percent(self.value)
+    end
+    filterEnvToOsc2OpDLevelKnob:changed()
+    table.insert(tweakables, {widget=filterEnvToOsc2OpDLevelKnob,default=70,zero=50,useDuration=true,category="filter"})
   elseif isAnalog or isAdditive or isWavetable then
     filterEnvOscTargetsPanel:Label("Filter Env -> Osc 1 ->")
 
@@ -3425,7 +3606,16 @@ function createLfoTargetPanel1()
       lfoToOsc1OpDLevelKnob:changed()
       table.insert(tweakables, {widget=lfoToOsc1OpDLevelKnob,default=50,category="modulation"})
 
-      -- TODO Add feedback modulation
+      local lfoToOsc1FeedbackKnob = lfoTargetPanel1:Knob("LfoToOsc1Feedback", 0, 0, 1)
+      lfoToOsc1FeedbackKnob.displayName = "Feedback"
+      lfoToOsc1FeedbackKnob.fillColour = knobColour
+      lfoToOsc1FeedbackKnob.outlineColour = lfoColour
+      lfoToOsc1FeedbackKnob.changed = function(self)
+        FMMacros["lfoToOsc1Feedback"]:setParameter("Value", self.value)
+        self.displayText = percent(self.value)
+      end
+      lfoToOsc1FeedbackKnob:changed()
+      table.insert(tweakables, {widget=lfoToOsc1FeedbackKnob,default=50,category="modulation"})
     end
 
     if isAnalog or isAdditive or isWavetable or isFM then
@@ -3607,6 +3797,17 @@ function createLfoTargetPanel2()
       end
       lfoToOsc2OpDLevelKnob:changed()
       table.insert(tweakables, {widget=lfoToOsc2OpDLevelKnob,default=50,category="modulation"})
+
+      local lfoToOsc2FeedbackKnob = lfoTargetPanel2:Knob("LfoToOsc2Feedback", 0, 0, 1)
+      lfoToOsc2FeedbackKnob.displayName = "Feedback"
+      lfoToOsc2FeedbackKnob.fillColour = knobColour
+      lfoToOsc2FeedbackKnob.outlineColour = lfoColour
+      lfoToOsc2FeedbackKnob.changed = function(self)
+        FMMacros["lfoToOsc2Feedback"]:setParameter("Value", self.value)
+        self.displayText = percent(self.value)
+      end
+      lfoToOsc2FeedbackKnob:changed()
+      table.insert(tweakables, {widget=lfoToOsc2FeedbackKnob,default=50,category="modulation"})
     end
 
     if isAnalog or isAdditive or isWavetable or isFM then
@@ -4240,8 +4441,9 @@ function createPatchMakerPanel()
     if mixerButton.value == true then
       verifyMixerSettings()
     end
-    -- Verify unison settings
+    -- Verify unison/opLevel settings
     if synthesisButton.value == true then
+      verifyOpLevelSettings()
       verifyUnisonSettings()
     end
     print("Tweaking complete!")
@@ -4916,8 +5118,9 @@ function createTwequencerPanel()
               if mixerButton.value == true then
                 verifyMixerSettings()
               end
-              -- Verify unison settings
+              -- Verify unison/opLevel settings
               if synthesisButton.value == true then
+                verifyOpLevelSettings()
                 verifyUnisonSettings()
               end
               -- STORE ROUND TWEAKS
