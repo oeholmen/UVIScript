@@ -248,7 +248,8 @@ local FMMacros = {
   filterEnvToOsc2OpBLevel = macros[57],
   filterEnvToOsc2OpCLevel = macros[58],
   lfoToOsc2Feedback = macros[59],
-  filterDb = macros[60]
+  filterDb = macros[60],
+  filterType = macros[63]
 }
 
 --------------------------------------------------------------------------------
@@ -2383,8 +2384,47 @@ local mixerPanel = createMixerPanel()
 function createFilterPanel()  
   local filterPanel = Panel("Filter")
 
-  if isAnalog or isWavetable or isAnalog3Osc then
-    filterDbMenu = filterPanel:Menu("FilterDb", {"24dB", "12dB"})
+  if isFM then
+    local types = {"Low Pass", "High Pass", "Band Pass", "Notch", "Low Shelf", "High Shelf", "Peak"}
+    local filterTypeMenu = filterPanel:Menu("FilterType", types)
+    filterTypeMenu.backgroundColour = menuBackgroundColour
+    filterTypeMenu.textColour = menuTextColour
+    filterTypeMenu.arrowColour = menuArrowColour
+    filterTypeMenu.outlineColour = menuOutlineColour
+    filterTypeMenu.displayName = "Filter"
+    filterTypeMenu.changed = function(self)
+      local factor = 1 / #types
+      local value = (self.value - 0.5) * factor
+      FMMacros["filterType"]:setParameter("Value", value)
+    end
+    filterTypeMenu:changed()
+    table.insert(tweakables, {widget=filterTypeMenu,min=#types,default=85,category="filter"})
+
+    local slopes = {"6dB", "12dB", "18dB", "24dB", "36dB", "48dB", "72dB", "96dB"}
+    local filterDbMenu = filterPanel:Menu("FilterDb", slopes)
+    filterDbMenu.backgroundColour = menuBackgroundColour
+    filterDbMenu.textColour = menuTextColour
+    filterDbMenu.arrowColour = menuArrowColour
+    filterDbMenu.outlineColour = menuOutlineColour
+    filterDbMenu.showLabel = false
+    filterDbMenu.selected = 4
+    filterDbMenu.height = 18
+    filterDbMenu.x = filterTypeMenu.x
+    filterDbMenu.y = filterTypeMenu.y + filterTypeMenu.height + (marginY*2)
+    filterDbMenu.changed = function(self)
+      local factor = 1 / #slopes
+      local value = (self.value - 0.5) * factor
+      FMMacros["filterDb"]:setParameter("Value", value)
+      local resonanceKnob = getWidget("Resonance")
+      if resonanceKnob then
+        resonanceKnob.enabled = self.value > 1
+      end
+    end
+    filterDbMenu:changed()
+    table.insert(tweakables, {widget=filterDbMenu,min=#slopes,default=85,category="filter"})
+  elseif isAnalog or isWavetable or isAnalog3Osc then
+    local slopes = {"24dB", "12dB"}
+    local filterDbMenu = filterPanel:Menu("FilterDb", slopes)
     filterDbMenu.backgroundColour = menuBackgroundColour
     filterDbMenu.textColour = menuTextColour
     filterDbMenu.arrowColour = menuArrowColour
@@ -2402,7 +2442,7 @@ function createFilterPanel()
       end
     end
     filterDbMenu:changed()
-    table.insert(tweakables, {widget=filterDbMenu,min=2,default=70,category="filter"})
+    table.insert(tweakables, {widget=filterDbMenu,min=#slopes,default=70,category="filter"})
   else
     filterPanel:Label("Low-pass Filter")
   end
