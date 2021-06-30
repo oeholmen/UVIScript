@@ -39,6 +39,11 @@ local filterEnv1 = osc1Keygroup.modulations["Analog ADSR 1"]
 local filterEnv2 = osc2Keygroup.modulations["Analog ADSR 1"]
 local filterEnvNoise = noiseKeygroup.modulations["Analog ADSR 1"]
 
+-- Korg Minilogue has the Xpander Filter on insert 3
+local filterInsert1 = osc1Keygroup.inserts[3]
+local filterInsert2 = osc2Keygroup.inserts[3]
+local filterInsert3 = noiseKeygroup.inserts[3]
+
 -- MACROS
 local macros = {
   Program.modulations["Macro 1"],
@@ -112,6 +117,7 @@ local isAnalogStack = osc1.type == "MinBlepGeneratorStack" and osc2.type == "Min
 local isWavetable = osc1.type == "WaveTableOscillator" and osc2.type == "WaveTableOscillator"
 local isAdditive = osc1.type == "Additive" and osc2.type == "Additive"
 local isFM = osc1.type == "FmOscillator" and osc2.type == "FmOscillator"
+local isMinilogue = filterInsert1 and filterInsert1.type == "XpanderFilter"
 
 -- SET SOME PARAMETER VALUES (OVERRIDE FALCON DEFAULT VALUES)
 local polyphony = 16
@@ -129,6 +135,10 @@ end
 print("Starting TweakSynth!")
 print("Oscillator 1:", osc1.type)
 print("Oscillator 2:", osc2.type)
+
+if isMinilogue then
+  print("Loading Korg Minilogue Midi CC mappings!")
+end
 
 --------------------------------------------------------------------------------
 -- Name common macros
@@ -2418,6 +2428,9 @@ function createFilterPanel()
     table.insert(tweakables, {widget=filterDbMenu,min=#slopes,default=85,category="filter"})
   elseif isAnalog or isWavetable or isAnalog3Osc then
     local slopes = {"24dB", "12dB"}
+    if isMinilogue then
+      slopes = {"4-pole", "2-pole"}
+    end
     local filterDbMenu = filterPanel:Menu("FilterDb", slopes)
     filterDbMenu.backgroundColour = menuBackgroundColour
     filterDbMenu.textColour = menuTextColour
@@ -2425,14 +2438,26 @@ function createFilterPanel()
     filterDbMenu.outlineColour = menuOutlineColour
     filterDbMenu.displayName = "Low-pass Filter"
     filterDbMenu.changed = function(self)
-      local value = -1
-      if self.value == 2 then
-        value = 1
-      end
-      if isWavetable then
-        wavetableMacros["filterDb"]:setParameter("Value", value)
+      if isMinilogue then
+        local value = self.value
+        if self.value == 2 then
+          value = 1
+        else
+          value = 3
+        end
+        filterInsert1:setParameter("Mode", value)
+        filterInsert2:setParameter("Mode", value)
+        filterInsert3:setParameter("Mode", value)
       else
-        analogMacros["filterDb"]:setParameter("Value", value)
+        local value = -1
+        if self.value == 2 then
+          value = 1
+        end
+        if isWavetable then
+          wavetableMacros["filterDb"]:setParameter("Value", value)
+        else
+          analogMacros["filterDb"]:setParameter("Value", value)
+        end
       end
     end
     filterDbMenu:changed()
@@ -4514,23 +4539,6 @@ function createPatchMakerPanel()
     patchesMenu:setValue(#storedPatches)
   end
 
-  --[[ function storeNewSnapshot()
-    print("Storing patch tweaks...")
-    if #storedPatches == 0 then
-      table.insert(storedPatches, storedPatch)
-    end
-    local snapshot = {}
-    for i,v in ipairs(tweakables) do
-      table.insert(snapshot, {index=i,widget=v.widget.name,value=v.widget.value})
-    end
-    table.insert(storedPatches, snapshot)
-    print("Storing snapshot")
-    patchesMenu:clear()
-    populatePatchesMenu()
-    print("Adding to patchesMenu", index)
-    patchesMenu:setValue(#storedPatches)
-  end ]]
-
   return tweakPanel
 end
 
@@ -4556,7 +4564,6 @@ function createTwequencerPanel()
   local tweakLevelKnob = tweqPanel:Knob("SeqTweakLevel", 50, 0, 100, true)
   tweakLevelKnob.fillColour = knobColour
   tweakLevelKnob.outlineColour = outlineColour
-  --tweakLevelKnob.persistent = false
   tweakLevelKnob.displayName = "Tweak Level"
   tweakLevelKnob.width = 120
   tweakLevelKnob.y = 20
@@ -5378,6 +5385,232 @@ setupEffectsPage()
 local tweqPanel = createTwequencerPanel()
 
 local tweakPanel = createPatchMakerPanel()
+
+--------------------------------------------------------------------------------
+-- Map Midi CC for HW (Minilogue)
+--------------------------------------------------------------------------------
+
+function mapMinilogueCC()
+  local activeLfoTarget = {cutoff = true, pwm = false, hardsync = false}
+  local activeLfoTargetValue = 64
+
+  function controllerValueToWidgetValue(controllerValue, bipolar, factor)
+    local max = 127
+    if bipolar == 1 then
+      max = max / 2
+    end
+    local widgetValue = (controllerValue / max) - bipolar
+    if controllerValue == 64 then
+      if bipolar == 0 then
+        widgetValue = 0.5
+      else
+        widgetValue = 0
+      end
+    end
+    if type(factor) == "number" then
+      widgetValue = widgetValue * factor
+    end
+    return widgetValue
+  end
+  
+  function setLfoTargetValue()
+    if activeLfoTarget.cutoff == true then
+      getWidget("LfoToCutoff").value = controllerValueToWidgetValue(activeLfoTargetValue, 1)
+    else
+      getWidget("LfoToCutoff").value = 0
+    end
+    
+    if activeLfoTarget.pwm == true then
+      getWidget("LfoToOsc1PWM").value = controllerValueToWidgetValue(activeLfoTargetValue, 0, 0.5)
+      getWidget("LfoToOsc2PWM").value = controllerValueToWidgetValue(activeLfoTargetValue, 0, 0.5)
+    else
+      getWidget("LfoToOsc1PWM").value = 0
+      getWidget("LfoToOsc2PWM").value = 0
+    end
+
+    if activeLfoTarget.hardsync == true then
+      getWidget("LfoToHardsync1").value = controllerValueToWidgetValue(activeLfoTargetValue, 0)
+      getWidget("LfoToHardsync2").value = controllerValueToWidgetValue(activeLfoTargetValue, 0)
+    else
+      getWidget("LfoToHardsync1").value = 0
+      getWidget("LfoToHardsync2").value = 0
+    end
+  end
+
+  function onController(e)
+    print(e)
+    local controllerToWidgetMap = {
+      CC16 = {name = "Attack", page = synthesisPageButton},
+      CC17 = {name = "Decay", page = synthesisPageButton},
+      CC18 = {name = "Sustain", bipolar = 0, page = synthesisPageButton},
+      CC19 = {name = "Release", page = synthesisPageButton},
+      CC20 = {name = "FAttack", page = filterPageButton},
+      CC21 = {name = "FDecay", page = filterPageButton},
+      CC22 = {name = "FSustain", bipolar = 0, page = filterPageButton},
+      CC23 = {name = "FRelease", page = filterPageButton},
+      CC24 = {name = "LfoFreq", bipolar = 0, page = modulationPageButton, factor = 20}, -- LFO RATE
+      CC26 = {name = "LfoToTargetKnob", bipolar = 0, page = modulationPageButton}, -- LFO INT
+      CC27 = {name = "Drive", bipolar = 0, page = effectsPageButton}, -- Voice Mode Depth > Drive
+      CC29 = {name = "HpfCutoff", bipolar = 0, page = filterPageButton}, -- HI PASS CUTOFF
+      CC30 = {name = "HpfEnvelopeAmt", bipolar = 1, page = filterPageButton}, -- TIME
+      CC31 = {name = "TweakLevel", bipolar = 0, page = patchmakerPageButton, factor = 100}, -- FEEDBACK > Tweak level
+      CC33 = {name = "NoiseMix", bipolar = 0}, -- NOISE
+      CC34 = {name = "Osc1StartPhase", bipolar = 0, page = synthesisPageButton}, -- VCO 1 PITCH > Start Phase 1
+      CC35 = {name = "Osc2FinePitch", bipolar = 0, page = synthesisPageButton}, -- VCO 2 PITCH > Fine pitch
+      CC36 = {name = "HardsyncOsc1", bipolar = 0, page = synthesisPageButton, factor = 36}, -- VCO1 SHAPE > Hardsync 1
+      CC37 = {name = "HardsyncOsc2", bipolar = 0, page = synthesisPageButton, factor = 36}, -- VCO2 SHAPE > Hardsync 2
+      CC39 = {name = "Osc1Mix", bipolar = 0}, -- VCO1
+      CC40 = {name = "Osc2Mix", bipolar = 0}, -- VCO2
+      CC41 = {name = "FilterEnvToHardsync1", bipolar = 0, page = filterPageButton}, -- CROSS MOD DEPTH > Osc 1 Hardsync FEnv Amt
+      CC42 = {name = "FilterEnvToHardsync2", bipolar = 0, page = filterPageButton}, -- PITCH EG INT > Osc 2 Hardsync FEnv Amt
+      CC43 = {name = "Cutoff", bipolar = 0, page = filterPageButton}, -- CUTOFF > Cutoff
+      CC44 = {name = "Resonance", bipolar = 0, page = filterPageButton}, -- RESONANCE > Resonance
+      CC45 = {name = "EnvelopeAmt", bipolar = 1, page = filterPageButton}, -- EG INT > Cutoff filter env amount
+      CC48 = {name = "Osc1Pitch", bipolar = 0, page = synthesisPageButton}, -- VCO 1 OCTAVE
+      CC49 = {name = "Osc2Pitch", bipolar = 0, page = synthesisPageButton}, -- VCO 2 OCTAVE
+      CC50 = {name = "Osc1Wave", bipolar = 0, page = synthesisPageButton}, -- VCO 1 WAVE
+      CC51 = {name = "Osc2Wave", bipolar = 0, page = synthesisPageButton}, -- VCO 2 WAVE
+      CC56 = {name = "ActiveLfoTargetSelector", bipolar = 0, page = modulationPageButton}, -- TARGET
+      CC57 = {name = "LfoRetrigger", bipolar = 0, page = modulationPageButton}, -- EG MOD > LFO Retrigger/Sync
+      CC58 = {name = "WaveFormTypeMenu", bipolar = 0, page = modulationPageButton}, -- LFO WAVE
+      CC80 = {name = "VibratoDepth", bipolar = 0, page = synthesisPageButton}, -- RING
+      CC81 = {name = "Arp", bipolar = 0}, -- SYNC > Arp on/off
+      CC82 = {name = "VelocityToFilterEnv", bipolar = 0, page = filterPageButton, factor = 20}, -- VELOCITY
+      CC83 = {name = "KeyTracking", bipolar = 0, page = filterPageButton}, -- KEY TRACK
+      CC84 = {name = "FilterDb", bipolar = 0, page = filterPageButton}, -- 2/4-POLE
+      CC88 = {name = "Tweak", bipolar = 0} -- OUTPUT ROUTING > Tweak button
+    }
+
+    local key = "CC" .. e.controller
+    local cc = controllerToWidgetMap[key];
+    
+    if cc then
+      if cc.page then
+        cc.page:setValue(true)
+      end
+      if type(cc.bipolar) ~= "number" then
+        postEvent(e)
+        return
+      end
+      local value = controllerValueToWidgetValue(e.value, cc.bipolar, cc.factor)
+      print("Value in/out:", e.value, value)
+
+      if cc.name == "Arp" then
+        arpeggiatorButton:setValue(value == 1)
+        return
+      end
+      if cc.name == "ActiveLfoTargetSelector" then
+        if value == 1 then
+          -- HARDSYNC
+          activeLfoTarget.cutoff = false
+          activeLfoTarget.pwm = false
+          activeLfoTarget.hardsync = true
+        elseif value == 0.5 then
+          -- PWM
+          activeLfoTarget.cutoff = false
+          activeLfoTarget.pwm = true
+          activeLfoTarget.hardsync = false
+        else
+          -- CUTOFF
+          activeLfoTarget.cutoff = true
+          activeLfoTarget.pwm = false
+          activeLfoTarget.hardsync = false
+        end
+        setLfoTargetValue()
+        return
+      end
+      if cc.name == "LfoToTargetKnob" then
+        activeLfoTargetValue = e.value
+        setLfoTargetValue()
+        return
+      end
+      if cc.name == "TweakLevel" then
+        tweakLevelKnob.value = value
+        return
+      end
+      if cc.name == "Tweak" then
+        if value == 1 then
+          initPatch()
+        else
+          storeNewSnapshot()
+          tweakButton:push(true)
+        end
+        return
+      end
+      if cc.name == "LfoRetrigger" then
+        local retrigger = getWidget("Lfo2Trigger")
+        local sync = getWidget("Lfo2Sync")
+        if value == 0 then
+          retrigger:setValue(true)
+          sync:setValue(false)
+        elseif value == 1 then
+          retrigger:setValue(false)
+          sync:setValue(true)
+        else
+          retrigger:setValue(false)
+          sync:setValue(false)
+        end
+        return
+      end
+      if cc.name == "FilterDb" then
+        if value == 0 then
+          value = 2
+        end
+      end
+      if cc.name == "VibratoDepth" and value == 1 then
+        value = 0.3
+      end
+      if cc.name == "Osc1Wave" or cc.name == "Osc2Wave" then
+        if value == 0 then
+          value = 2
+        elseif value < 1 then
+          value = 3
+        end
+      end
+      if cc.name == "Osc1Pitch" then
+        if value == 1 then
+          value = 2
+        elseif value > 0.6 then
+          value = 1
+        elseif value > 0.3 then
+          value = 0
+        else
+          value = -1
+        end
+      end
+      if cc.name == "Osc2Pitch" then
+        if value == 1 then
+          value = 24
+        elseif value > 0.6 then
+          value = 12
+        elseif value > 0.3 then
+          value = 0
+        else
+          value = -12
+        end
+      end
+      if cc.name == "WaveFormTypeMenu" then
+        if value == 0 then
+          value = 6
+        elseif value == 1 then
+          value = 5
+        else
+          value = 3
+        end
+      end
+      print("Setting value:", value)
+      local widget = getWidget(cc.name)
+      widget.value = value
+      return
+    end
+
+    postEvent(e)
+  end
+end
+
+if isMinilogue then
+  mapMinilogueCC()
+end
 
 --------------------------------------------------------------------------------
 -- Set pages
