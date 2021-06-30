@@ -587,6 +587,7 @@ end
   -- default = the probability that the default/stored value is used (affected by tweak level)
   -- min = min value
   -- max = max value
+  -- fmLevel = tweak as fm operator level if probability hits
   -- valueFilter = a table of allowed values. Incoming values are adjusted to the closest value of the valuefilter.
   -- absoluteLimit = the highest allowed limit - used mainly for safety resons to avoid extreme levels
   -- category = the category the widget belongs to (synthesis, modulation, filter, mixer, effects)
@@ -643,6 +644,9 @@ function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle, 
     -- Get value from tweaksource or default
     endValue = getValueForTweaking(options, tweakLevel, tweakSource)
     print("getValueForTweaking:", endValue)
+  elseif type(options.fmLevel) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.fmLevel)) == true then
+    endValue = getRandom(nil, nil, options.widget.max)
+    print("FM Operator Level: (max/endValue)", options.widget.max, endValue)
   else
     -- Get a random value within min/max limit
     endValue = getRandom(options.min, options.max, options.factor)
@@ -1447,7 +1451,7 @@ function createOsc1Panel()
     end
     osc1LevelKnobA:changed()
     table.insert(osc1LevelKnobs, osc1LevelKnobA)
-    table.insert(tweakables, {widget=osc1LevelKnobA,default=80,floor=0.8,ceil=1,probability=80,category="synthesis"})
+    table.insert(tweakables, {widget=osc1LevelKnobA,default=80,floor=0.85,ceil=1,probability=96,category="synthesis"})
 
     local osc1LevelKnobB = osc1Panel:Knob("Osc1LevelOpB", 1, 0, 20)
     osc1LevelKnobB.displayName = "Level B"
@@ -1460,7 +1464,7 @@ function createOsc1Panel()
     end
     osc1LevelKnobB:changed()
     table.insert(osc1LevelKnobs, osc1LevelKnobB)
-    table.insert(tweakables, {widget=osc1LevelKnobB,default=50,zero=5,floor=0.7,ceil=1,probability=50,factor=20,category="synthesis"})
+    table.insert(tweakables, {widget=osc1LevelKnobB,default=50,zero=5,floor=0.5,ceil=1,probability=96,defaultTweakRange=3,fmLevel=25,category="synthesis"})
 
     local osc1LevelKnobC = osc1Panel:Knob("Osc1LevelOpC", 1, 0, 20)
     osc1LevelKnobC.displayName = "Level C"
@@ -1473,7 +1477,7 @@ function createOsc1Panel()
     end
     osc1LevelKnobC:changed()
     table.insert(osc1LevelKnobs, osc1LevelKnobC)
-    table.insert(tweakables, {widget=osc1LevelKnobC,default=50,zero=10,floor=0.7,ceil=1,probability=60,factor=20,category="synthesis"})
+    table.insert(tweakables, {widget=osc1LevelKnobC,default=50,zero=5,floor=0.5,ceil=1,probability=96,defaultTweakRange=6,fmLevel=25,category="synthesis"})
 
     local osc1LevelKnobD = osc1Panel:Knob("Osc1LevelOpD", 1, 0, 20)
     osc1LevelKnobD.displayName = "Level D"
@@ -1486,20 +1490,20 @@ function createOsc1Panel()
     end
     osc1LevelKnobD:changed()
     table.insert(osc1LevelKnobs, osc1LevelKnobD)
-    table.insert(tweakables, {widget=osc1LevelKnobD,default=50,zero=20,floor=0.7,ceil=1,probability=70,factor=20,category="synthesis"})
+    table.insert(tweakables, {widget=osc1LevelKnobD,default=50,zero=5,floor=0.5,ceil=1,probability=96,defaultTweakRange=9,fmLevel=25,category="synthesis"})
 
     for i=1,4 do
       local op = 'A'
       local probability = 80
       if i == 2 then
         op = 'B'
-        probability = 60
+        probability = 70
       elseif i == 3 then
         op = 'C'
-        probability = 40
+        probability = 60
       elseif i == 4 then
         op = 'D'
-        probability = 20
+        probability = 50
       end
       local osc1RatioKnob = osc1Panel:Knob("Osc1RatioOp"..op, 1, 1, 40, true)
       osc1RatioKnob.displayName = "Ratio "..op
@@ -1513,7 +1517,7 @@ function createOsc1Panel()
       end
       osc1RatioKnob:changed()
       table.insert(osc1RatioKnobs, osc1RatioKnob)
-      table.insert(tweakables, {widget=osc1RatioKnob,default=30,min=1,max=40,floor=1,ceiling=20,probability=probability,category="synthesis"})
+      table.insert(tweakables, {widget=osc1RatioKnob,default=50,factor=40,floor=1,ceiling=8,probability=probability,category="synthesis"})
     end
 
     local osc1PitchKnob = osc1Panel:Knob("Osc1Pitch", 0, -2, 2, true)
@@ -1758,7 +1762,7 @@ function createOsc2Panel()
     end
     osc2LevelKnobA:changed()
     table.insert(osc2LevelKnobs, osc2LevelKnobA)
-    table.insert(tweakables, {widget=osc2LevelKnobA,default=70,floor=0.7,ceil=1,probability=80,category="synthesis"})
+    table.insert(tweakables, {widget=osc2LevelKnobA,default=80,floor=0.8,ceil=1,probability=90,category="synthesis"})
 
     local osc2LevelKnobB = osc2Panel:Knob("Osc2LevelOpB", 1, 0, 20)
     osc2LevelKnobB.displayName = "Level B"
@@ -1771,7 +1775,7 @@ function createOsc2Panel()
     end
     osc2LevelKnobB:changed()
     table.insert(osc2LevelKnobs, osc2LevelKnobB)
-    table.insert(tweakables, {widget=osc2LevelKnobB,default=50,zero=10,floor=0.7,ceil=1,probability=50,factor=20,category="synthesis"})
+    table.insert(tweakables, {widget=osc2LevelKnobB,default=50,zero=5,floor=0.5,ceil=1,probability=96,defaultTweakRange=3,fmLevel=25,category="synthesis"})
 
     local osc2LevelKnobC = osc2Panel:Knob("Osc2LevelOpC", 1, 0, 20)
     osc2LevelKnobC.displayName = "Level C"
@@ -1784,7 +1788,7 @@ function createOsc2Panel()
     end
     osc2LevelKnobC:changed()
     table.insert(osc2LevelKnobs, osc2LevelKnobC)
-    table.insert(tweakables, {widget=osc2LevelKnobC,default=50,zero=15,floor=0.7,ceil=1,probability=60,factor=20,category="synthesis"})
+    table.insert(tweakables, {widget=osc2LevelKnobC,default=50,zero=5,floor=0.5,ceil=1,probability=96,defaultTweakRange=6,fmLevel=25,category="synthesis"})
 
     local osc2LevelKnobD = osc2Panel:Knob("Osc2LevelOpD", 1, 0, 20)
     osc2LevelKnobD.displayName = "Level D"
@@ -1797,20 +1801,20 @@ function createOsc2Panel()
     end
     osc2LevelKnobD:changed()
     table.insert(osc2LevelKnobs, osc2LevelKnobD)
-    table.insert(tweakables, {widget=osc2LevelKnobD,default=50,zero=20,floor=0.7,ceil=1,probability=70,factor=20,category="synthesis"})
+    table.insert(tweakables, {widget=osc2LevelKnobD,default=50,zero=5,floor=0.5,ceil=1,probability=96,defaultTweakRange=9,fmLevel=25,category="synthesis"})
 
     for i=1,4 do
       local op = 'A'
       local probability = 80
       if i == 2 then
         op = 'B'
-        probability = 60
+        probability = 70
       elseif i == 3 then
         op = 'C'
-        probability = 40
+        probability = 60
       elseif i == 4 then
         op = 'D'
-        probability = 20
+        probability = 50
       end
       local osc2RatioKnob = osc2Panel:Knob("Osc2RatioOp"..op, 1, 1, 40, true)
       osc2RatioKnob.displayName = "Ratio "..op
@@ -1824,7 +1828,7 @@ function createOsc2Panel()
       end
       osc2RatioKnob:changed()
       table.insert(osc2RatioKnobs, osc2RatioKnob)
-      table.insert(tweakables, {widget=osc2RatioKnob,default=30,min=1,max=40,floor=1,ceiling=20,probability=probability,category="synthesis"})
+      table.insert(tweakables, {widget=osc2RatioKnob,default=50,factor=40,floor=1,ceiling=8,probability=probability,category="synthesis"})
     end
 
     local osc2PitchKnob = osc2Panel:Knob("Osc2Pitch", 0, -24, 24, true)
@@ -1849,16 +1853,6 @@ function createOsc2Panel()
     end
     osc2FeedbackKnob:changed()
     table.insert(tweakables, {widget=osc2FeedbackKnob,default=60,category="synthesis"})
-
-    --[[ local osc2DetuneKnob = osc2Panel:Knob("Osc2FinePitch", 0, 0, 1)
-    osc2DetuneKnob.displayName = "Fine Pitch"
-    osc2DetuneKnob.fillColour = knobColour
-    osc2DetuneKnob.outlineColour = osc2Colour
-    osc2DetuneKnob.changed = function(self)
-      osc2Detune:setParameter("Value", self.value)
-    end
-    osc2DetuneKnob:changed()
-    table.insert(tweakables, {widget=osc2DetuneKnob,ceiling=0.25,probability=90,default=50,defaultTweakRange=0.15,zero=25,absoluteLimit=0.4,useDuration=true,category="synthesis"}) ]]
 
     osc2TopologyKnob:changed()
     opMenu:changed()
@@ -2626,7 +2620,6 @@ function createFilterEnvPanel()
     self.displayText = formatTimeInSeconds(self.value)
   end
   filterAttackKnob:changed()
-  --cc20.connections[1] = filterAttackKnob
   table.insert(tweakables, {widget=filterAttackKnob,attack=true,floor=0.001,ceiling=0.01,probability=85,default=35,defaultTweakRange=3,category="filter"})
 
   local filterDecayKnob = filterEnvPanel:Knob("FDecay", 0.050, 0, 10)
@@ -4551,6 +4544,7 @@ function createTwequencerPanel()
   local snapshots = {}
   local snapshotPosition = 1
   local maxSnapshots = 500 -- TODO Make it possible to set in UI?
+  local automaticSequencerRunning = false
   
   local tweqPanel = Panel("Sequencer")
   tweqPanel.backgroundColour = bgColor
@@ -4652,6 +4646,10 @@ function createTwequencerPanel()
       clearPosition()
       resetTweakLevel()
       arpId = arpId + 1
+      if automaticSequencerRunning == true then
+        arpeggiatorButton.value = false
+        automaticSequencerRunning = false
+      end
     end
   end
 
@@ -4864,6 +4862,10 @@ function createTwequencerPanel()
       clearPosition()
       resetTweakLevel()
       arpId = arpId + 1
+      if automaticSequencerRunning == true then
+        arpeggiatorButton.value = false
+        automaticSequencerRunning = false
+      end
     end
   end
 
@@ -4983,7 +4985,6 @@ function createTwequencerPanel()
     local heldNoteIndex = 0
     local tweakablesIndex = 0
     local duration = getResolution(resolution.value, tweakLevelKnob.value)
-    local automaticSequencerRunning = false
     -- START ARP LOOP
     while arpId_ == arpId do
       -- GET NOTES FOR ARP
@@ -5241,6 +5242,10 @@ function createTwequencerPanel()
           end
           break
         end
+      end
+      if automaticSequencerRunning == true then
+        arpeggiatorButton.value = false
+        automaticSequencerRunning = false
       end
     end
     postEvent(e)
