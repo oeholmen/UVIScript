@@ -5230,6 +5230,7 @@ function createTwequencerPanel()
       end
       table.insert(heldNotes, e)
       if #heldNotes == 1 then
+          wait(10) -- Short delay to ensure all notes are included before starting the arpeggiator
           arpeg(arpId)
       end
     else
