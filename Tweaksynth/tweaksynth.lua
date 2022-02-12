@@ -5148,13 +5148,15 @@ function createTwequencerPanel()
             if automaticSequencerRunning == true then
               arpeggiatorButton.value = false
               automaticSequencerRunning = false
-            elseif arpOnOff == true and getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) == true then
+            elseif (arpOnOff == true or (tweakArp == true and arpeggiatorButton.value == true)) and getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) == true then
               envelopeStyle = getRandom(2,4)
               if tweakArp == true then
                 doArpTweaks()
               end
               arpeggiatorButton.value = true
-              automaticSequencerRunning = true
+              if arpOnOff == true then
+                automaticSequencerRunning = true
+              end
             end
 
             -- Check for allowed waveforms
