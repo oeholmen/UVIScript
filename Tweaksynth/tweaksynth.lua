@@ -5148,13 +5148,13 @@ function createTwequencerPanel()
             if automaticSequencerRunning == true then
               arpeggiatorButton.value = false
               automaticSequencerRunning = false
-            elseif (arpOnOff == true or (tweakArp == true and arpeggiatorButton.value == true)) and getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) == true then
+            elseif (arpOnOff == true and getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) == true) or (tweakArp == true and arpeggiatorButton.value == true) then
               envelopeStyle = getRandom(2,4)
               if tweakArp == true then
                 doArpTweaks()
               end
-              arpeggiatorButton.value = true
               if arpOnOff == true then
+                arpeggiatorButton.value = true
                 automaticSequencerRunning = true
               end
             end
@@ -5245,36 +5245,55 @@ function createTwequencerPanel()
   end
 
   function getArpOctave()
-    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
+    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 40)) then
       return getRandom(-3,3) -- default 0
     end
     return 0
   end
 
   function getArpNumStrike()
-    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
+    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 25)) then
       return getRandom(1,4) -- default 1
     end
     return 1
   end
 
   function getArpMode()
-    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
+    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 20)) then
       return getRandom(0,26) -- default 0
+    end
+    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 20)) then
+      -- 25 = chord
+      return 25
     end
     return 0
   end
 
   function getArpNumSteps()
-    --return getRandom(1,128) -- default 16 make table with accepted step values
-    return getRandom(1,32) -- default 16
+    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 10)) then
+      return getRandom(1,128)
+    end
+    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 40)) then
+      return getRandom(1,32)
+    end
+    return getRandom(1,16) -- default 16
   end
 
   -- TODO Resolution must depend on step length
   function getArpResolution()
-    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
-      return getRandom(6,29) -- default 22
+    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 20)) then
+      return getRandom(13,29) -- default 22
     end
+    -- 16 = 1/4
+    -- 17 = 1/8 dot
+    -- 18 = 1/4 tri
+    -- 19 = 1/8
+    -- 20 = 1/16 dot
+    -- 21 = 1/8 tri
+    -- 22 = 1/16
+    -- 23 = 1/32 dot
+    -- 24 = 1/16 tri
+    -- 25 = 1/32
     return getRandom(16,25) -- default 22
   end
 
@@ -5286,8 +5305,10 @@ function createTwequencerPanel()
     arp:setParameter("Mode", getArpMode())
     arp:setParameter("NumStrike", getArpNumStrike())
     arp:setParameter("Octave", getArpOctave())
+    arp:setParameter("ArpVelocityBlend", getRandom())
+    arp:setParameter("StepLength", 1)
     for i=0,arpNumSteps do
-      if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
+      if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 30)) then
         arp:setParameter("Step"..i.."State", getRandom(0,3)) -- 0-3 def 0
       else
         arp:setParameter("Step"..i.."State", 1) -- 0-3 def 0
@@ -5297,7 +5318,7 @@ function createTwequencerPanel()
       else
         arp:setParameter("Step"..i.."Size", 1) -- 0-1 def 1
       end
-      if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
+      if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 40)) then
         arp:setParameter("Step"..i.."Level", getRandom()) -- 0-1 def 1
       else
         arp:setParameter("Step"..i.."Level", 1) -- 0-1 def 1
