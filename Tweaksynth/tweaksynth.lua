@@ -4470,6 +4470,22 @@ function createPatchMakerPanel()
   mixerButton.x = effectsButton.x + effectsButton.width + marginX
   mixerButton.y = synthesisButton.y
 
+  -- ARP TWEAK BUTTON
+  tweakArpeggiatorButton = tweakPanel:Button("TweakArp")
+  tweakArpeggiatorButton.persistent = false
+  tweakArpeggiatorButton.alpha = buttonAlpha
+  tweakArpeggiatorButton.backgroundColourOff = buttonBackgroundColourOff
+  tweakArpeggiatorButton.backgroundColourOn = buttonBackgroundColourOn
+  tweakArpeggiatorButton.textColourOff = buttonTextColourOff
+  tweakArpeggiatorButton.textColourOn = buttonTextColourOn
+  tweakArpeggiatorButton.displayName = "Tweak arpeggiator"
+  tweakArpeggiatorButton.bounds = {0,0,280,synthesisButton.height}
+  tweakArpeggiatorButton.x = 10
+  tweakArpeggiatorButton.y = synthesisButton.y
+  tweakArpeggiatorButton.changed = function (self)
+    doArpTweaks()
+  end
+
   tweakButton.changed = function(self)
     print("Start tweaking!")
     for _,v in ipairs(tweakables) do
@@ -4626,7 +4642,7 @@ function createTwequencerPanel()
   durationButton.textColourOn = buttonTextColourOn
   durationButton.displayName = "Tweak over time"
   durationButton.fillColour = knobColour
-  durationButton.size = {numStepsBox.width,35}
+  durationButton.size = {numStepsBox.width,23}
 
   local stepButton = tweqPanel:OnOffButton("StepOnOff", false)
   stepButton.alpha = buttonAlpha
@@ -4636,7 +4652,27 @@ function createTwequencerPanel()
   stepButton.textColourOn = buttonTextColourOn
   stepButton.displayName = "Tweak each step"
   stepButton.fillColour = knobColour
-  stepButton.size = {numStepsBox.width,35}
+  stepButton.size = {numStepsBox.width,durationButton.height}
+
+  local arpOnOffButton = tweqPanel:OnOffButton("ArpOnOff", false)
+  arpOnOffButton.alpha = buttonAlpha
+  arpOnOffButton.backgroundColourOff = buttonBackgroundColourOff
+  arpOnOffButton.backgroundColourOn = buttonBackgroundColourOn
+  arpOnOffButton.textColourOff = buttonTextColourOff
+  arpOnOffButton.textColourOn = buttonTextColourOn
+  arpOnOffButton.displayName = "Arp on/off"
+  arpOnOffButton.fillColour = knobColour
+  arpOnOffButton.size = {numStepsBox.width,durationButton.height}
+
+  local tweakArpButton = tweqPanel:OnOffButton("TweakArpOnOff", false)
+  tweakArpButton.alpha = buttonAlpha
+  tweakArpButton.backgroundColourOff = buttonBackgroundColourOff
+  tweakArpButton.backgroundColourOn = buttonBackgroundColourOn
+  tweakArpButton.textColourOff = buttonTextColourOff
+  tweakArpButton.textColourOn = buttonTextColourOn
+  tweakArpButton.displayName = "Tweak arp"
+  tweakArpButton.fillColour = knobColour
+  tweakArpButton.size = {numStepsBox.width,durationButton.height}
 
   local holdButton = tweqPanel:OnOffButton("HoldOnOff", false)
   holdButton.alpha = buttonAlpha
@@ -4646,7 +4682,7 @@ function createTwequencerPanel()
   holdButton.textColourOn = buttonTextColourOn
   holdButton.displayName = "Hold"
   holdButton.fillColour = knobColour
-  holdButton.size = {numStepsBox.width,35}
+  holdButton.size = {numStepsBox.width,durationButton.height}
   holdButton.changed = function(self)
     if self.value == false then
       heldNotes = {}
@@ -4859,8 +4895,14 @@ function createTwequencerPanel()
   stepButton.x = resolution.x
   stepButton.y = durationButton.y + durationButton.height + 10
 
-  holdButton.x = stepButton.x
-  holdButton.y = stepButton.y + stepButton.height + 10
+  arpOnOffButton.x = stepButton.x
+  arpOnOffButton.y = stepButton.y + stepButton.height + 10
+
+  tweakArpButton.x = arpOnOffButton.x
+  tweakArpButton.y = arpOnOffButton.y + arpOnOffButton.height + 10
+
+  holdButton.x = tweakArpButton.x
+  holdButton.y = tweakArpButton.y + tweakArpButton.height + 10
 
   sequencerPlayMenu.changed = function (self)
     -- Stop sequencer if turned off
@@ -5070,6 +5112,8 @@ function createTwequencerPanel()
       --local duration = getResolution(resolution.value)
       local useDuration = durationButton.value
       local tweakOnEachStep = stepButton.value
+      local arpOnOff = arpOnOffButton.value
+      local tweakArp = tweakArpButton.value
       local envelopeStyle = envStyleMenu.value
       local vel = seqVelTable:getValue(index+1)
       local numSteps = numStepsBox.value
@@ -5104,8 +5148,11 @@ function createTwequencerPanel()
             if automaticSequencerRunning == true then
               arpeggiatorButton.value = false
               automaticSequencerRunning = false
-            elseif arpeggiatorButton.value == false and envStyleMenu.value == 1 and getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) == true then
+            elseif arpOnOff == true and getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) == true then
               envelopeStyle = getRandom(2,4)
+              if tweakArp == true then
+                doArpTweaks()
+              end
               arpeggiatorButton.value = true
               automaticSequencerRunning = true
             end
@@ -5192,6 +5239,67 @@ function createTwequencerPanel()
       waitBeat(duration)
 
       --print("numSteps, currentPosition:", numSteps, currentPosition)      
+    end
+  end
+
+  function getArpOctave()
+    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
+      return getRandom(-3,3) -- default 0
+    end
+    return 0
+  end
+
+  function getArpNumStrike()
+    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
+      return getRandom(1,4) -- default 1
+    end
+    return 1
+  end
+
+  function getArpMode()
+    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
+      return getRandom(0,26) -- default 0
+    end
+    return 0
+  end
+
+  function getArpNumSteps()
+    --return getRandom(1,128) -- default 16 make table with accepted step values
+    return getRandom(1,32) -- default 16
+  end
+
+  -- TODO Resolution must depend on step length
+  function getArpResolution()
+    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
+      return getRandom(6,29) -- default 22
+    end
+    return getRandom(16,25) -- default 22
+  end
+
+  function doArpTweaks()
+    local arp = Program.eventProcessors[2] -- get the arpeggiator
+    local arpNumSteps = getArpNumSteps() -- get the number of steps to set for the arpeggiator
+    arp:setParameter("NumSteps", arpNumSteps)
+    arp:setParameter("Resolution", getArpResolution())
+    arp:setParameter("Mode", getArpMode())
+    arp:setParameter("NumStrike", getArpNumStrike())
+    arp:setParameter("Octave", getArpOctave())
+    for i=0,arpNumSteps do
+      if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
+        arp:setParameter("Step"..i.."State", getRandom(0,3)) -- 0-3 def 0
+      else
+        arp:setParameter("Step"..i.."State", 1) -- 0-3 def 0
+      end
+      if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
+        arp:setParameter("Step"..i.."Size", getRandom()) -- 0-1 def 1
+      else
+        arp:setParameter("Step"..i.."Size", 1) -- 0-1 def 1
+      end
+      if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
+        arp:setParameter("Step"..i.."Level", getRandom()) -- 0-1 def 1
+      else
+        arp:setParameter("Step"..i.."Level", 1) -- 0-1 def 1
+      end
     end
   end
 
