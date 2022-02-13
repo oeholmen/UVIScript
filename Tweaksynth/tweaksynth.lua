@@ -5273,8 +5273,17 @@ function createTwequencerPanel()
     if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 10)) then
       return getRandom(1,128)
     end
-    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 40)) then
+    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 20)) then
       return getRandom(1,32)
+    end
+    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
+      return 16
+    end
+    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
+      return 8
+    end
+    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
+      return 4
     end
     return getRandom(1,16) -- default 16
   end
@@ -5318,10 +5327,10 @@ function createTwequencerPanel()
       else
         arp:setParameter("Step"..i.."Size", 1) -- 0-1 def 1
       end
-      if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 40)) then
+      if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 30)) then
         arp:setParameter("Step"..i.."Level", getRandom()) -- 0-1 def 1
       else
-        arp:setParameter("Step"..i.."Level", 1) -- 0-1 def 1
+        arp:setParameter("Step"..i.."Level", getRandom(60,100) / 100) -- 0-1 def 1
       end
     end
   end
