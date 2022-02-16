@@ -784,10 +784,10 @@ function verifyOpLevelSettings(selectedTweakables)
   local max = 1
 
   print("--- Checking Osc 1 Operator Levels ---")
-  local Osc1Topology = getWidget("Osc1Topology", selectedTweakables)
-  local Osc1OpBLvl = getWidget("Osc1LevelOpB", selectedTweakables)
-  local Osc1OpCLvl = getWidget("Osc1LevelOpC", selectedTweakables)
-  local Osc1OpDLvl = getWidget("Osc1LevelOpD", selectedTweakables)
+  local Osc1Topology = getTweakable("Osc1Topology", selectedTweakables)
+  local Osc1OpBLvl = getTweakable("Osc1LevelOpB", selectedTweakables)
+  local Osc1OpCLvl = getTweakable("Osc1LevelOpC", selectedTweakables)
+  local Osc1OpDLvl = getTweakable("Osc1LevelOpD", selectedTweakables)
 
   max = getMaxFromTopology(2, Osc1Topology.targetValue)
   if max < Osc1OpBLvl.targetValue then
@@ -808,24 +808,24 @@ function verifyOpLevelSettings(selectedTweakables)
   end
   
   print("--- Checking Osc 2 Operator Levels ---")
-  local Osc2Topology = getWidgetValue("Osc2Topology")
-  local Osc2OpBLvl = getWidget("Osc2LevelOpB")
-  local Osc2OpCLvl = getWidget("Osc2LevelOpC")
-  local Osc2OpDLvl = getWidget("Osc2LevelOpD")
+  local Osc2Topology = getTweakable("Osc2Topology", selectedTweakables)
+  local Osc2OpBLvl = getTweakable("Osc2LevelOpB", selectedTweakables)
+  local Osc2OpCLvl = getTweakable("Osc2LevelOpC", selectedTweakables)
+  local Osc2OpDLvl = getTweakable("Osc2LevelOpD", selectedTweakables)
 
-  max = getMaxFromTopology(2, Osc2Topology)
+  max = getMaxFromTopology(2, Osc2Topology.targetValue)
   if max < Osc2OpBLvl.targetValue then
     Osc2OpBLvl.targetValue = max
     print("Osc2OpBLvl was adjusted to max", max)
   end
 
-  max = getMaxFromTopology(3, Osc2Topology)
+  max = getMaxFromTopology(3, Osc2Topology.targetValue)
   if max < Osc2OpCLvl.targetValue then
     Osc2OpCLvl.targetValue = max
     print("Osc2OpCLvl was adjusted to max", max)
   end
 
-  max = getMaxFromTopology(4, Osc2Topology)
+  max = getMaxFromTopology(4, Osc2Topology.targetValue)
   if max < Osc2OpDLvl.targetValue then
     Osc2OpDLvl.targetValue = max
     print("Osc2OpDLvl was adjusted to max", max)
