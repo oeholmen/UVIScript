@@ -582,6 +582,100 @@ function getValueBetween(floor, ceiling, originalValue, options, maxRounds)
   return originalValue
 end
 
+-- Get the widgets to tweak
+function getTweakables(twequencer, synthesisButton, modulationButton, filterButton, mixerButton, effectsButton)
+  if type(twequencer) ~= "boolean" then
+    -- Set twequencer to false, if not given as an argument
+    twequencer = false
+  end
+  local t = {}
+  for _,v in ipairs(tweakables) do
+    local skip = false
+    if v.category == "synthesis" and synthesisButton.value == false then
+      skip = true
+    elseif v.category == "modulation" and modulationButton.value == false then
+      skip = true
+    elseif v.category == "filter" and filterButton.value == false then
+      skip = true
+    elseif v.category == "mixer" and mixerButton.value == false then
+      skip = true
+    elseif v.category == "effects" and effectsButton.value == false then
+      skip = true
+    end
+    if skip == true or v.widget.enabled == false or (twequencer == true and v.excludeWithTwequencer == true) then
+      print("Skipping:", v.widget.name)
+    else
+      table.insert(t, v)
+    end
+  end
+
+  print("Widgets ready:", #t)
+
+  return t
+end
+
+-- Perform tweak
+function tweakWidget(options, duration, useDuration)
+  if type(duration) ~= "number" then
+    -- Set duration to 0, if not given as an argument
+    duration = 0
+  end
+  if type(useDuration) ~= "boolean" then
+    -- Set useDuration to false, if not given as an argument
+    useDuration = false
+  end
+  if type(options.widget.useDuration) == "boolean" then
+    -- Override useDuration if set in options for this widget
+    useDuration = options.useDuration
+  end
+  print("******************** Tweaking:", options.widget.name, "********************")
+  local startValue = options.widget.value
+  local endValue = options.targetValue
+  print("Start value:", startValue)
+  print("End value:", endValue)
+  if duration == 0 or useDuration == false or type(endValue) ~= "number" or startValue == endValue then
+    options.widget.value = endValue
+    print("Tweaking without duration")
+    return
+  end
+  local durationInMilliseconds = beat2ms(duration) -- * 0.8
+  local millisecondsPerStep = 25
+  print("Duration of change (beat):", duration)
+  print("Duration of change (ms):", durationInMilliseconds)
+  print("Change from/to:", startValue, endValue)
+  -- diff / durationInMilliseconds
+  local diff = math.max(endValue, startValue) - math.min(endValue, startValue)
+  local numberOfSteps = durationInMilliseconds / millisecondsPerStep
+  local changePerStep = diff / numberOfSteps
+  print("Number of steps:", numberOfSteps)
+  if durationInMilliseconds <= millisecondsPerStep then
+    options.widget.value = endValue
+    print("Short duration, skip steps:", endValue)
+    return
+  end
+  if startValue < endValue then
+    print("Increment per step:", changePerStep)
+    for i = 1, numberOfSteps-1 do
+      if startValue > endValue then
+        break
+      end
+      options.widget.value = options.widget.value + changePerStep
+      wait(millisecondsPerStep)
+    end
+  else
+    print("Decrement per step:", changePerStep)
+    for i = 1, numberOfSteps-1 do
+      if startValue < endValue then
+        break
+      end
+      options.widget.value = options.widget.value - changePerStep
+      wait(millisecondsPerStep)
+    end
+  end
+  options.widget.value = endValue
+  print("Tweak widget/startValue/endValue/duration:", options.widget.name, startValue, endValue, duration)
+end
+
 -- Tweak options:
   -- widget = the widget to tweak - the only non-optional parameter
   -- func = the function to execute for getting the value - default is getRandom
@@ -590,7 +684,7 @@ end
   -- ceiling = the highest value
   -- probability = the probability (affected by tweak level) that value is within limits (floor/ceiling) - probability is passed to any custom func
   -- zero = the probability that the value is set to 0
-  -- excludeWithTwequencer = if ran with tewquencer, this widget is excluded
+  -- excludeWithTwequencer = if ran with twequencer, this widget is excluded
   -- useDuration = if ran with a duration, this widget will tweak it's value over the length of the given duration
   -- noDefaultTweak = do not tweak the default/stored value
   -- defaultTweakRange = the range to use when tweaking default/stored value - if not provided, the full range is used
@@ -603,12 +697,9 @@ end
   -- category = the category the widget belongs to (synthesis, modulation, filter, mixer, effects)
 --
 -- Example: table.insert(tweakables, {widget=driveKnob,floor=0,ceiling=0.5,probability=90,zero=50,useDuration=true})
-function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle, useDuration)
+function getTweakSuggestion(options, tweakLevel, tweakSource, envelopeStyle, duration)
   if type(tweakLevel) ~= "number" then
     tweakLevel = 50
-  end
-  if type(duration) ~= "number" then
-    duration = 0
   end
   if type(tweakSource) ~= "number" then
     tweakSource = 1
@@ -616,22 +707,16 @@ function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle, 
   if type(envelopeStyle) ~= "number" then
     envelopeStyle = 1
   end
-  if type(useDuration) ~= "boolean" then
-    -- Set useDuration to false, if not given as an argument
-    useDuration = false
+  if type(duration) ~= "number" then
+    duration = 0
   end
-  if type(options.widget.useDuration) == "boolean" then
-    -- Override useDuration if set in options for this widget
-    useDuration = options.useDuration
-  end
-  print("******************** Tweaking:", options.widget.name, "********************")
+  print("******************** Getting tweak suggestion:", options.widget.name, "********************")
   print("Tweak level:", tweakLevel)
   local startValue = options.widget.value
   local endValue = startValue
   print("Start value:", startValue)
   print("Tweak source:", tweakSource)
   print("Envelope style:", envelopeStyle)
-  print("Use duration:", useDuration)
   if type(options.func) == "function" then
     endValue = options.func(options.probability)
     print("From func:", endValue, options.probability)
@@ -688,76 +773,37 @@ function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle, 
     print("End value limited by absoluteLimit", options.absoluteLimit)
     endValue = options.absoluteLimit
   end
-  if duration == 0 or useDuration == false or type(endValue) ~= "number" then
-    options.widget.value = endValue
-    print("Tweak endValue:", endValue)
-    return
-  end
-  local durationInMilliseconds = beat2ms(duration) -- * 0.8
-  local millisecondsPerStep = 25
-  print("Duration of change (beat):", duration)
-  print("Duration of change (ms):", durationInMilliseconds)
-  print("Change from/to:", startValue, endValue)
-  -- diff / durationInMilliseconds
-  local diff = math.max(endValue, startValue) - math.min(endValue, startValue)
-  local numberOfSteps = durationInMilliseconds / millisecondsPerStep
-  local changePerStep = diff / numberOfSteps
-  print("Number of steps:", numberOfSteps)
-  if durationInMilliseconds <= millisecondsPerStep then
-    options.widget.value = endValue
-    print("Short duration, skip steps:", endValue)
-    return
-  end
-  if startValue < endValue then
-    print("Increment per step:", changePerStep)
-    for i = 1, numberOfSteps-1 do
-      if startValue > endValue then
-        break
-      end
-      options.widget.value = options.widget.value + changePerStep
-      wait(millisecondsPerStep)
-    end
-  else
-    print("Decrement per step:", changePerStep)
-    for i = 1, numberOfSteps-1 do
-      if startValue < endValue then
-        break
-      end
-      options.widget.value = options.widget.value - changePerStep
-      wait(millisecondsPerStep)
-    end
-  end
-  options.widget.value = endValue
-  print("Tweak widget/startValue/endValue/duration:", options.widget.name, startValue, endValue, duration)
+  print("Tweak endValue:", endValue)
+  return endValue
 end
 
-function verifyOpLevelSettings()
+function verifyOpLevelSettings(selectedTweakables)
   if isFM == false then
     return
   end
   local max = 1
 
   print("--- Checking Osc 1 Operator Levels ---")
-  local Osc1Topology = getWidgetValue("Osc1Topology")
-  local Osc1OpBLvl = getWidget("Osc1LevelOpB")
-  local Osc1OpCLvl = getWidget("Osc1LevelOpC")
-  local Osc1OpDLvl = getWidget("Osc1LevelOpD")
+  local Osc1Topology = getWidget("Osc1Topology", selectedTweakables)
+  local Osc1OpBLvl = getWidget("Osc1LevelOpB", selectedTweakables)
+  local Osc1OpCLvl = getWidget("Osc1LevelOpC", selectedTweakables)
+  local Osc1OpDLvl = getWidget("Osc1LevelOpD", selectedTweakables)
 
-  max = getMaxFromTopology(2, Osc1Topology)
-  if max < Osc1OpBLvl.value then
-    Osc1OpBLvl.value = max
+  max = getMaxFromTopology(2, Osc1Topology.targetValue)
+  if max < Osc1OpBLvl.targetValue then
+    Osc1OpBLvl.targetValue = max
     print("Osc1OpBLvlm was adjusted to max", max)
   end
 
-  max = getMaxFromTopology(3, Osc1Topology)
-  if max < Osc1OpCLvl.value then
-    Osc1OpCLvl.value = max
+  max = getMaxFromTopology(3, Osc1Topology.targetValue)
+  if max < Osc1OpCLvl.targetValue then
+    Osc1OpCLvl.targetValue = max
     print("Osc1OpCLvl was adjusted to max", max)
   end
 
-  max = getMaxFromTopology(4, Osc1Topology)
-  if max < Osc1OpDLvl.value then
-    Osc1OpDLvl.value = max
+  max = getMaxFromTopology(4, Osc1Topology.targetValue)
+  if max < Osc1OpDLvl.targetValue then
+    Osc1OpDLvl.targetValue = max
     print("Osc1OpDLvl was adjusted to max", max)
   end
   
@@ -768,164 +814,174 @@ function verifyOpLevelSettings()
   local Osc2OpDLvl = getWidget("Osc2LevelOpD")
 
   max = getMaxFromTopology(2, Osc2Topology)
-  if max < Osc2OpBLvl.value then
-    Osc2OpBLvl.value = max
+  if max < Osc2OpBLvl.targetValue then
+    Osc2OpBLvl.targetValue = max
     print("Osc2OpBLvl was adjusted to max", max)
   end
 
   max = getMaxFromTopology(3, Osc2Topology)
-  if max < Osc2OpCLvl.value then
-    Osc2OpCLvl.value = max
+  if max < Osc2OpCLvl.targetValue then
+    Osc2OpCLvl.targetValue = max
     print("Osc2OpCLvl was adjusted to max", max)
   end
 
   max = getMaxFromTopology(4, Osc2Topology)
-  if max < Osc2OpDLvl.value then
-    Osc2OpDLvl.value = max
+  if max < Osc2OpDLvl.targetValue then
+    Osc2OpDLvl.targetValue = max
     print("Osc2OpDLvl was adjusted to max", max)
   end
 end
 
-function verifyUnisonSettings()
-  local UnisonVoices = getWidget("UnisonVoices")
-  local UnisonDetune = getWidget("UnisonDetune")
+function verifyUnisonSettings(selectedTweakables)
+  local UnisonVoices = getTweakable("UnisonVoices", selectedTweakables)
+  local UnisonDetune = getTweakable("UnisonDetune", selectedTweakables)
 
   if type(UnisonVoices) == "nil" or type(UnisonDetune) == "nil" then
     return
   end
 
-  local factor = UnisonVoices.value * 0.1
+  local factor = UnisonVoices.targetValue * 0.1
 
   print("--- Checking Unison Settings ---")
-  print("UnisonVoices:", UnisonVoices.value)
-  print("UnisonDetune:", UnisonDetune.value)
+  print("UnisonVoices:", UnisonVoices.targetValue)
+  print("UnisonDetune:", UnisonDetune.targetValue)
   print("Factor:", factor)
 
-  if UnisonVoices.value == 1 then
-    UnisonDetune.value = UnisonDetune.default
-    print("Unison off - detune set to default value:", UnisonDetune.value)
-  elseif UnisonDetune.value > factor then
+  if UnisonVoices.targetValue == 1 then
+    UnisonDetune.targetValue = UnisonDetune.default
+    print("Unison off - detune set to default value:", UnisonDetune.targetValue)
+  elseif UnisonDetune.targetValue > factor then
     local floor = UnisonDetune.default / 2
     local ceiling = UnisonDetune.default + factor
-    UnisonDetune.value = getValueBetween(floor, ceiling, UnisonDetune.value)
-    print("UnisonDetune adjusted to:", UnisonDetune.value)
+    UnisonDetune.targetValue = getValueBetween(floor, ceiling, UnisonDetune.targetValue)
+    print("UnisonDetune adjusted to:", UnisonDetune.targetValue)
   else
     print("Unison Settings OK")
   end
 end
 
-function verifyMixerSettings()
-  local Osc1Mix = getWidget("Osc1Mix")
-  local Osc2Mix = getWidget("Osc2Mix")
-  local Osc3Mix = getWidget("Osc3Mix")
-  local SubOscMix = getWidget("SubOscMix")
+function verifyMixerSettings(selectedTweakables)
+  local Osc1Mix = getTweakable("Osc1Mix", selectedTweakables)
+  local Osc2Mix = getTweakable("Osc2Mix", selectedTweakables)
+  local Osc3Mix = getTweakable("Osc3Mix", selectedTweakables)
+  local SubOscMix = getTweakable("SubOscMix", selectedTweakables)
 
   print("--- Checking Mixer Settings ---")
-  print("Osc1Mix:", Osc1Mix.value)
-  print("Osc2Mix:", Osc2Mix.value)
+  print("Osc1Mix:", Osc1Mix.targetValue)
+  print("Osc2Mix:", Osc2Mix.targetValue)
 
   if Osc3Mix then
-    print("Osc3Mix:", Osc3Mix.value)
+    print("Osc3Mix:", Osc3Mix.targetValue)
 
-    if Osc3Mix.value > 0 and Osc3Mix.value < 0.6 then
-      Osc3Mix.value = getValueBetween(0.65, 0.8, Osc3Mix.value)
-      print("Osc3Mix adjusted to:", Osc3Mix.value)
+    if Osc3Mix.targetValue > 0 and Osc3Mix.targetValue < 0.6 then
+      Osc3Mix.targetValue = getValueBetween(0.65, 0.8, Osc3Mix.targetValue)
+      print("Osc3Mix adjusted to:", Osc3Mix.targetValue)
     end
   end
 
   if SubOscMix then
-    print("SubOscMix:", SubOscMix.value)
+    print("SubOscMix:", SubOscMix.targetValue)
 
-    if SubOscMix.value > 0.2 and SubOscMix.value < 0.7 then
-      SubOscMix.value = getValueBetween(0.7, 0.9, SubOscMix.value)
-      print("SubOscMix adjusted to:", SubOscMix.value)
-    elseif SubOscMix.value < 0.2 then
-      SubOscMix.value = 0
-      print("SubOscMix adjusted to:", SubOscMix.value)
+    if SubOscMix.targetValue > 0.2 and SubOscMix.targetValue < 0.7 then
+      SubOscMix.targetValue = getValueBetween(0.7, 0.9, SubOscMix.targetValue)
+      print("SubOscMix adjusted to:", SubOscMix.targetValue)
+    elseif SubOscMix.targetValue < 0.2 then
+      SubOscMix.targetValue = 0
+      print("SubOscMix adjusted to:", SubOscMix.targetValue)
     end
   end
 
-  if Osc2Mix.value == 0 and Osc1Mix.value < 0.6 then
-    Osc1Mix.value = getValueBetween(0.65, 0.8, Osc1Mix.value)
-    print("Osc1Mix adjusted to:", Osc1Mix.value)
-  elseif Osc1Mix.value < 0.6 and Osc2Mix.value < 0.6 then
-    Osc1Mix.value = getValueBetween(0.6, 0.8, Osc1Mix.value)
-    print("Osc1Mix adjusted to:", Osc1Mix.value)
-    Osc2Mix.value = getValueBetween(0.6, 0.8, Osc2Mix.value)
-    print("Osc2Mix adjusted to:", Osc2Mix.value)
-  elseif Osc1Mix.value < 0.6 or Osc2Mix.value < 0.6 then
-    if math.min(Osc1Mix.value, Osc2Mix.value) == Osc1Mix.value then
-      Osc1Mix.value = getValueBetween(0.6, 0.8, Osc1Mix.value)
-      print("Osc1Mix adjusted to:", Osc1Mix.value)
+  if Osc2Mix.targetValue == 0 and Osc1Mix.targetValue < 0.6 then
+    Osc1Mix.targetValue = getValueBetween(0.65, 0.8, Osc1Mix.targetValue)
+    print("Osc1Mix adjusted to:", Osc1Mix.targetValue)
+  elseif Osc1Mix.targetValue < 0.6 and Osc2Mix.targetValue < 0.6 then
+    Osc1Mix.targetValue = getValueBetween(0.6, 0.8, Osc1Mix.targetValue)
+    print("Osc1Mix adjusted to:", Osc1Mix.targetValue)
+    Osc2Mix.targetValue = getValueBetween(0.6, 0.8, Osc2Mix.targetValue)
+    print("Osc2Mix adjusted to:", Osc2Mix.targetValue)
+  elseif Osc1Mix.targetValue < 0.6 or Osc2Mix.targetValue < 0.6 then
+    if math.min(Osc1Mix.targetValue, Osc2Mix.targetValue) == Osc1Mix.targetValue then
+      Osc1Mix.targetValue = getValueBetween(0.6, 0.8, Osc1Mix.targetValue)
+      print("Osc1Mix adjusted to:", Osc1Mix.targetValue)
     else
-      Osc2Mix.value = getValueBetween(0.6, 0.8, Osc2Mix.value)
-      print("Osc2Mix adjusted to:", Osc2Mix.value)
+      Osc2Mix.targetValue = getValueBetween(0.6, 0.8, Osc2Mix.targetValue)
+      print("Osc2Mix adjusted to:", Osc2Mix.targetValue)
     end
   else
     print("Mixer Settings OK")
   end
 end
 
-function verifyFilterSettings()
-  local Cutoff = getWidget("Cutoff")
-  local HpfCutoff = getWidget("HpfCutoff")
-  local EnvelopeAmt = getWidget("EnvelopeAmt")
-  local HpfEnvelopeAmt = getWidget("HpfEnvelopeAmt")
-  local FAttack = getWidget("FAttack")
+function getTweakable(name, selectedTweakables)
+  for _,v in ipairs(selectedTweakables) do
+    if v.widget.name == name then
+      return v
+    end
+  end
+end
+
+function verifyFilterSettings(selectedTweakables)
+  local Cutoff = getTweakable("Cutoff", selectedTweakables)
+  local HpfCutoff = getTweakable("HpfCutoff", selectedTweakables)
+  local EnvelopeAmt = getTweakable("EnvelopeAmt", selectedTweakables)
+  local HpfEnvelopeAmt = getTweakable("HpfEnvelopeAmt", selectedTweakables)
+  local FAttack = getTweakable("FAttack", selectedTweakables)
   local changes = 0
+  local envelopeAmtValue = EnvelopeAmt.targetValue
+  local cutoffValue = Cutoff.targetValue
+  local hpfEnvelopeAmtValue = HpfEnvelopeAmt.targetValue
+  local attackValue = FAttack.targetValue
 
   print("--- Checking Filter Settings ---")
-  print("Filter Cutoff:", Cutoff.value)
-  print("Filter EnvelopeAmt:", EnvelopeAmt.value)
-  print("Filter HpfCutoff:", HpfCutoff.value)
-  print("Filter HpfEnvelopeAmt:", HpfEnvelopeAmt.value)
-  print("Filter FAttack:", FAttack.value)
+  print("Filter Cutoff:", cutoffValue)
+  print("Filter EnvelopeAmt:", envelopeAmtValue)
+  print("Filter HpfCutoff:", HpfCutoff.targetValue)
+  print("Filter HpfEnvelopeAmt:", HpfEnvelopeAmt.targetValue)
+  print("Filter FAttack:", FAttack.targetValue)
 
   -- Check lpf cutoff freq
-  local cutoffValue = Cutoff.value
-  if cutoffValue == 1 and EnvelopeAmt.value > 0.3 then
+  if cutoffValue == 1 and envelopeAmtValue > 0.3 then
     cutoffValue = getValueBetween(0.4, 0.8, cutoffValue)
   end
-  
+
   -- Check lpf amt
-  local envelopeAmtValue = EnvelopeAmt.value
-  if Cutoff.value < 0.25 and envelopeAmtValue < 0.5 then
-    envelopeAmtValue = getValueBetween(0.8, 1.0, envelopeAmtValue)
+  if cutoffValue < 0.25 and envelopeAmtValue < 0.5 then
+    cutoffValue = getValueBetween(0.3, 0.7, cutoffValue)
+    envelopeAmtValue = getValueBetween(0.5, 0.8, envelopeAmtValue)
   end
   
   -- Check lpf and attack time
-  local attackValue = FAttack.value
-  if Cutoff.value < 0.05 and envelopeAmtValue > 0.75 and attackValue > 0.9 then
+  if cutoffValue < 0.05 and envelopeAmtValue > 0.75 and attackValue > 0.9 then
     attackValue = getValueBetween(0.01, 0.9, attackValue)
   end
 
   -- Check hpf amt
-  local hpfEnvelopeAmtValue = HpfEnvelopeAmt.value
-  if HpfCutoff.value > 0.65 and hpfEnvelopeAmtValue >= 0 then
+  if HpfCutoff.targetValue > 0.65 and hpfEnvelopeAmtValue >= 0 then
     hpfEnvelopeAmtValue = -(getValueBetween(0.1, 0.8, attackValue))
   end
 
-  if cutoffValue ~= Cutoff.value then
+  -- Set cutoff value if changed
+  if cutoffValue ~= Cutoff.targetValue then
     print("Adjusting lfp cutoff to:", cutoffValue)
-    Cutoff.value = cutoffValue
+    Cutoff.targetValue = cutoffValue
     changes = changes + 1
   end
 
-  if envelopeAmtValue ~= EnvelopeAmt.value then
+  if envelopeAmtValue ~= EnvelopeAmt.targetValue then
     print("Adjusting lfp env amount to:", envelopeAmtValue)
-    EnvelopeAmt.value = envelopeAmtValue
+    EnvelopeAmt.targetValue = envelopeAmtValue
     changes = changes + 1
   end
 
-  if attackValue ~= FAttack.value then
+  if attackValue ~= FAttack.targetValue then
     print("Adjusting filter env attack to:", attackValue)
-    FAttack.value = attackValue
+    FAttack.targetValue = attackValue
     changes = changes + 1
   end
 
-  if hpfEnvelopeAmtValue ~= HpfEnvelopeAmt.value then
+  if hpfEnvelopeAmtValue ~= HpfEnvelopeAmt.targetValue then
     print("Adjusting hpf env amt to:", hpfEnvelopeAmtValue)
-    HpfEnvelopeAmt.value = hpfEnvelopeAmtValue
+    HpfEnvelopeAmt.targetValue = hpfEnvelopeAmtValue
     changes = changes + 1
   end
 
@@ -2142,7 +2198,7 @@ function createMixerPanel()
     self.displayText = formatGainInDb(self.value)
   end
   noiseMixKnob:changed()
-  table.insert(tweakables, {widget=noiseMixKnob,floor=0.3,ceiling=0.75,probability=100,default=5,zero=10,absoluteLimit=0.8,category="mixer"})
+  table.insert(tweakables, {widget=noiseMixKnob,floor=0.3,ceiling=0.75,probability=100,default=5,zero=10,absoluteLimit=0.8,useDuration=true,category="mixer"})
   
   if isAnalog or isAnalogStack or isWavetable or isAdditive or isFM then
     local noiseTypes = {"Band", "S&H", "Static1", "Static2", "Violet", "Blue", "White", "Pink", "Brown", "Lorenz", "Rossler", "Crackle", "Logistic", "Dust", "Velvet"}
@@ -4487,38 +4543,33 @@ function createPatchMakerPanel()
   end
 
   tweakButton.changed = function(self)
-    print("Start tweaking!")
-    for _,v in ipairs(tweakables) do
-      local skip = false
-      if v.category == "synthesis" and synthesisButton.value == false then
-        skip = true
-      elseif v.category == "modulation" and modulationButton.value == false then
-        skip = true
-      elseif v.category == "filter" and filterButton.value == false then
-        skip = true
-      elseif v.category == "mixer" and mixerButton.value == false then
-        skip = true
-      elseif v.category == "effects" and effectsButton.value == false then
-        skip = true
-      end
-      if skip == false then
-        tweakWidget(v, tweakLevelKnob.value, 0, tweakSourceMenu.value, envStyleMenu.value)
-      else
-        print("Skipping:", v.widget.name)
-      end
+    print("Find widgets to tweak")
+    local widgetsForTweaking = getTweakables(false, synthesisButton, modulationButton, filterButton, mixerButton, effectsButton)
+    -- Get the tweak suggestions
+    for _,v in ipairs(widgetsForTweaking) do
+      -- TODO Add waveform filter to tweak panel?
+      --[[ if string.match(v.widget.name, 'Osc%dWave') or v.widget.name == "SubOscWaveform" then
+        v.valueFilter = valueFilter
+      end ]]
+      v.targetValue = getTweakSuggestion(v, tweakLevelKnob.value, tweakSourceMenu.value, envStyleMenu.value)
     end
     -- Verify filter settings
     if filterButton.value == true then
-      verifyFilterSettings()
+      verifyFilterSettings(widgetsForTweaking)
     end
     -- Verify mixer settings
     if mixerButton.value == true then
-      verifyMixerSettings()
+      verifyMixerSettings(widgetsForTweaking)
     end
     -- Verify unison/opLevel settings
     if synthesisButton.value == true then
-      verifyOpLevelSettings()
-      verifyUnisonSettings()
+      verifyOpLevelSettings(widgetsForTweaking)
+      verifyUnisonSettings(widgetsForTweaking)
+    end
+    -- Perform the suggested tweaks
+    print("Start tweaking!")
+    for _,v in ipairs(widgetsForTweaking) do
+      tweakWidget(v)
     end
     print("Tweaking complete!")
   end
@@ -4983,33 +5034,6 @@ function createTwequencerPanel()
   mixerButton.x = effectsButton.x + effectsButton.width + marginX
   mixerButton.y = synthesisButton.y
 
-  function getTweakablesForTwequencer()
-    local t = {}
-    for _,v in ipairs(tweakables) do
-      local skip = false
-      if v.category == "synthesis" and synthesisButton.value == false then
-        skip = true
-      elseif v.category == "modulation" and modulationButton.value == false then
-        skip = true
-      elseif v.category == "filter" and filterButton.value == false then
-        skip = true
-      elseif v.category == "mixer" and mixerButton.value == false then
-        skip = true
-      elseif v.category == "effects" and effectsButton.value == false then
-        skip = true
-      end
-      if skip == true or v.widget.enabled == false or v.excludeWithTwequencer == true then
-        print("Skipping:", v.widget.name)
-      else
-        table.insert(t, v)
-      end
-    end
-  
-    print("Widgets ready:", #t)
-
-    return t
-  end
-
   function resetTweakLevel()
     --tweakLevelKnob.value = 0
   end
@@ -5132,7 +5156,7 @@ function createTwequencerPanel()
       if tweakLevelKnob.value > 0 then
         -- START TWEAKING
         if currentPosition == 1 or tweakOnEachStep == true then
-          local tweakablesForTwequencer = getTweakablesForTwequencer()
+          local tweakablesForTwequencer = getTweakables(true, synthesisButton, modulationButton, filterButton, mixerButton, effectsButton)
           if #tweakablesForTwequencer > 0 then
             -- Update snapshots menu
             snapshotsMenu.enabled = true
@@ -5198,32 +5222,39 @@ function createTwequencerPanel()
             if tweakOnEachStep == true then
               tweakDuration = duration
             end
+            -- Get the tweak suggestion
             for _,v in ipairs(tweakablesForTwequencer) do
               if string.match(v.widget.name, 'Osc%dWave') or v.widget.name == "SubOscWaveform" then
                 v.valueFilter = valueFilter
               end
+              v.targetValue = getTweakSuggestion(v, tweakLevelKnob.value, tweakSourceMenu.value, envelopeStyle, tweakDuration)
+            end
+            -- Verify tweak suggestion
+              -- Verify filter settings
+              if filterButton.value == true then
+                verifyFilterSettings(tweakablesForTwequencer)
+              end
+              -- Verify mixer settings
+              if mixerButton.value == true then
+                verifyMixerSettings(tweakablesForTwequencer)
+              end
+              -- Verify unison/opLevel settings
+              if synthesisButton.value == true then
+                verifyOpLevelSettings(tweakablesForTwequencer)
+                verifyUnisonSettings(tweakablesForTwequencer)
+              end
+
+            -- Do the tweak
+            for _,v in ipairs(tweakablesForTwequencer) do
               if useDuration == true and type(v.useDuration) == "boolean" and v.useDuration == true then
-                spawn(tweakWidget, v, tweakLevelKnob.value, tweakDuration, tweakSourceMenu.value, envelopeStyle, useDuration)
+                spawn(tweakWidget, v, tweakDuration, useDuration)
               else
-                tweakWidget(v, tweakLevelKnob.value, tweakDuration, tweakSourceMenu.value, envelopeStyle)
+                tweakWidget(v, tweakDuration)
               end
             end
 
             -- IF NOT USING DURATION WE MUST STORE ROUND TWEAKS JUST AFTER TWEAKING
             if useDuration == false then
-              -- Verify filter settings
-              if filterButton.value == true then
-                verifyFilterSettings()
-              end
-              -- Verify mixer settings
-              if mixerButton.value == true then
-                verifyMixerSettings()
-              end
-              -- Verify unison/opLevel settings
-              if synthesisButton.value == true then
-                verifyOpLevelSettings()
-                verifyUnisonSettings()
-              end
               -- STORE ROUND TWEAKS
               storeRoundTweaks()
             end
