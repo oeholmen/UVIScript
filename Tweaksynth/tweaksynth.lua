@@ -650,7 +650,7 @@ function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle, 
       endValue = getEnvelopeTimeForDuration(options, duration)
       print("getEnvelopeTimeForDuration:", endValue)
     end
-  elseif getRandomBoolean(tweakLevel) == false or (type(options.default) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.default)) == true) then
+  elseif tweakSource == 4 or getRandomBoolean(tweakLevel) == false or (type(options.default) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.default)) == true) then
     -- Get value from tweaksource or default
     endValue = getValueForTweaking(options, tweakLevel, tweakSource)
     print("getValueForTweaking:", endValue)
@@ -2251,7 +2251,7 @@ function createMixerPanel()
     noiseLayer:setParameter("PlayMode", value)
   end
   playModeMenu:changed()
-  table.insert(tweakables, {widget=playModeMenu,min=#playModes,default=75,noDefaultTweak=true,category="synthesis"})
+  table.insert(tweakables, {widget=playModeMenu,min=#playModes,default=75,noDefaultTweak=true,excludeWithTwequencer=true,category="synthesis"})
 
   local portamentoTimeKnob = mixerPanel:Knob("PortamentoTime", 0.03, 0, 10)
   portamentoTimeKnob.displayName = "Glide Time"
@@ -2268,7 +2268,7 @@ function createMixerPanel()
     self.displayText = formatTimeInSeconds(self.value)
   end
   portamentoTimeKnob:changed()
-  table.insert(tweakables, {widget=portamentoTimeKnob,floor=0.03,ceiling=0.15,probability=95,default=50,noDefaultTweak=true,category="synthesis"})
+  table.insert(tweakables, {widget=portamentoTimeKnob,floor=0.03,ceiling=0.15,probability=95,default=50,noDefaultTweak=true,excludeWithTwequencer=true,category="synthesis"})
 
   local unisonVoicesMax = 8
   if isAdditive then
@@ -2301,7 +2301,7 @@ function createMixerPanel()
     self.displayText = percent(self.value)
   end
   unisonDetuneKnob:changed()
-  table.insert(tweakables, {widget=unisonDetuneKnob,ceiling=0.3,probability=90,default=80,tweakRange=0.2,useDuration=true,category="synthesis"})
+  table.insert(tweakables, {widget=unisonDetuneKnob,ceiling=0.3,probability=90,default=80,tweakRange=0.2,useDuration=true,excludeWithTwequencer=true,category="synthesis"})
 
   if isAdditive then
     stereoSpreadKnob.displayName = "Beating"
@@ -2323,7 +2323,7 @@ function createMixerPanel()
     self.displayText = percent(self.value)
   end
   stereoSpreadKnob:changed()
-  table.insert(tweakables, {widget=stereoSpreadKnob,ceiling=0.5,probability=40,default=40,useDuration=true,category="synthesis"})
+  table.insert(tweakables, {widget=stereoSpreadKnob,ceiling=0.5,probability=40,default=40,useDuration=true,excludeWithTwequencer=true,category="synthesis"})
 
   local waveSpreadKnob
   if isWavetable then
@@ -2339,7 +2339,7 @@ function createMixerPanel()
       self.displayText = percent(self.value)
     end
     waveSpreadKnob:changed()
-    table.insert(tweakables, {widget=waveSpreadKnob,ceiling=0.5,probability=30,default=30,useDuration=true,category="synthesis"})
+    table.insert(tweakables, {widget=waveSpreadKnob,ceiling=0.5,probability=30,default=30,useDuration=true,excludeWithTwequencer=true,category="synthesis"})
   end
 
   unisonVoicesKnob.changed = function(self)
@@ -5080,8 +5080,8 @@ function createTwequencerPanel()
           end
         end
       elseif sequencerMode == 7 then -- GENERATE CHORD
-        -- GENERATE CHORD plays between 1-6 random notes
-        local numberOfNotes = getRandom(1, 6)
+        -- GENERATE CHORD plays between 2-6 random notes
+        local numberOfNotes = getRandom(2, 6)
         if arpeggiatorButton.value == true then
           numberOfNotes = getRandom(3, 9)
         end
@@ -5145,10 +5145,14 @@ function createTwequencerPanel()
               storeRoundTweaks()
             end
             
+            -- STOP THE AUTOMATIC SEQUENCER
             if automaticSequencerRunning == true then
               arpeggiatorButton.value = false
               automaticSequencerRunning = false
-            elseif (arpOnOff == true and getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) == true) or (tweakArp == true and arpeggiatorButton.value == true) then
+            end
+            
+            -- CHECK IF THE SEQUENCER SHOULD BE STARTED OR IS ALREADY RUNNING
+            if (arpOnOff == true and getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) == true) or (tweakArp == true and arpeggiatorButton.value == true) then
               envelopeStyle = getRandom(2,4)
               if tweakArp == true then
                 doArpTweaks()
