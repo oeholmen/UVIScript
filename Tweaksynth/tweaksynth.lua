@@ -550,6 +550,17 @@ function getEnvelopeTimeByStyle(options, style)
   return getRandom(min*100000, max*100000)/100000
 end
 
+function getModulationFreqByStyle(options, style)
+  local index = style - 1
+  local freq = {{15.5,20.},{12.5,16.5},{8.5,13.5},{5.,9.5},{3.1,7.1},{1.5,3.5},{0.1,2.5}}
+  local min = freq[index][1]
+  local max = freq[index][2]
+  
+  print("getModulationFreqByStyle min/max:", min, max)
+  
+  return getRandom(min, max)
+end
+
 function getValueBetween(floor, ceiling, originalValue, options, maxRounds)
   -- Set startvalue
   local value = originalValue
@@ -697,7 +708,7 @@ end
   -- category = the category the widget belongs to (synthesis, modulation, filter, mixer, effects)
 --
 -- Example: table.insert(tweakables, {widget=driveKnob,floor=0,ceiling=0.5,probability=90,zero=50,useDuration=true})
-function getTweakSuggestion(options, tweakLevel, tweakSource, envelopeStyle, duration)
+function getTweakSuggestion(options, tweakLevel, tweakSource, envelopeStyle, modulationStyle, duration)
   if type(tweakLevel) ~= "number" then
     tweakLevel = 50
   end
@@ -706,6 +717,9 @@ function getTweakSuggestion(options, tweakLevel, tweakSource, envelopeStyle, dur
   end
   if type(envelopeStyle) ~= "number" then
     envelopeStyle = 1
+  end
+  if type(modulationStyle) ~= "number" then
+    modulationStyle = 1
   end
   if type(duration) ~= "number" then
     duration = 0
@@ -724,6 +738,9 @@ function getTweakSuggestion(options, tweakLevel, tweakSource, envelopeStyle, dur
     -- Set to zero if probability hits
     endValue = 0
     print("Zero:", options.zero)
+  elseif modulationStyle > 1 and (options.widget.name == 'LfoFreq') then
+    endValue = getModulationFreqByStyle(options, modulationStyle)
+    print("getEnvelopeTimeByStyle:", endValue)
   elseif envelopeStyle > 1 and (options.attack == true or options.release == true) then
     endValue = getEnvelopeTimeByStyle(options, envelopeStyle)
     print("getEnvelopeTimeByStyle:", endValue)
@@ -4641,7 +4658,7 @@ function createTwequencerPanel()
   sequencerPlayMenu.outlineColour = menuOutlineColour
   sequencerPlayMenu.displayName = "Play Mode"
   sequencerPlayMenu.x = tweakLevelKnob.x
-  sequencerPlayMenu.y = tweakLevelKnob.y + tweakLevelKnob.height + 10
+  sequencerPlayMenu.y = tweakLevelKnob.y + tweakLevelKnob.height + 6
   sequencerPlayMenu.width = tweakLevelKnob.width
 
   local tweakSourceMenu = tweqPanel:Menu("SeqTweakSource", tweakSources)
@@ -4651,7 +4668,7 @@ function createTwequencerPanel()
   tweakSourceMenu.outlineColour = menuOutlineColour
   tweakSourceMenu.displayName = "Tweak Source"
   tweakSourceMenu.x = sequencerPlayMenu.x
-  tweakSourceMenu.y = sequencerPlayMenu.y + sequencerPlayMenu.height + 10
+  tweakSourceMenu.y = sequencerPlayMenu.y + sequencerPlayMenu.height + 6
   tweakSourceMenu.width = sequencerPlayMenu.width
 
   local envStyleMenu = tweqPanel:Menu("SeqEnvStyle", {"Automatic", "Very short", "Short", "Medium short", "Medium", "Medium long", "Long", "Very long"})
@@ -4661,8 +4678,18 @@ function createTwequencerPanel()
   envStyleMenu.outlineColour = menuOutlineColour
   envStyleMenu.displayName = "Envelope Style"
   envStyleMenu.x = tweakSourceMenu.x
-  envStyleMenu.y = tweakSourceMenu.y + tweakSourceMenu.height + 10
+  envStyleMenu.y = tweakSourceMenu.y + tweakSourceMenu.height + 6
   envStyleMenu.width = tweakSourceMenu.width
+
+  local modStyleMenu = tweqPanel:Menu("ModStyle", {"Automatic", "Very fast", "Fast", "Medium fast", "Medium", "Medium slow", "Slow", "Very slow"})
+  modStyleMenu.backgroundColour = menuBackgroundColour
+  modStyleMenu.textColour = menuTextColour
+  modStyleMenu.arrowColour = menuArrowColour
+  modStyleMenu.outlineColour = menuOutlineColour
+  modStyleMenu.displayName = "Modulation Style"
+  modStyleMenu.x = tweakSourceMenu.x
+  modStyleMenu.y = envStyleMenu.y + envStyleMenu.height + 6
+  modStyleMenu.width = envStyleMenu.width
 
   local waveformMenu
   if isAnalog or isAnalog3Osc or isAnalogStack then
@@ -4672,9 +4699,9 @@ function createTwequencerPanel()
     waveformMenu.arrowColour = menuArrowColour
     waveformMenu.outlineColour = menuOutlineColour
     waveformMenu.displayName = "Allowed Waveforms"
-    waveformMenu.x = envStyleMenu.x
-    waveformMenu.y = envStyleMenu.y + envStyleMenu.height + 10
-    waveformMenu.width = envStyleMenu.width
+    waveformMenu.x = modStyleMenu.x
+    waveformMenu.y = modStyleMenu.y + modStyleMenu.height + 6
+    waveformMenu.width = modStyleMenu.width
   end
 
   local numStepsBox = tweqPanel:NumBox("Steps", 4, 2, 32, true)
@@ -4928,6 +4955,51 @@ function createTwequencerPanel()
     self:setValue(1)
   end
 
+  local generateMin = tweqPanel:Slider("GenerateMin", 21, 0, 127, true)
+  generateMin.showPopupDisplay = true
+  generateMin.showLabel = true
+  generateMin.fillStyle = "gloss"
+  generateMin.sliderColour = menuArrowColour
+  generateMin.displayName = "Lowest note"
+  generateMin.visible = false
+  generateMin.width = 200
+  generateMin.x = sequencerPlayMenu.width * 1.2
+  generateMin.y = 150
+
+  local generateMax = tweqPanel:Slider("GenerateMax", 108, 0, 127, true)
+  generateMax.showPopupDisplay = true
+  generateMax.showLabel = true
+  generateMax.fillStyle = "gloss"
+  generateMax.sliderColour = menuArrowColour
+  generateMax.displayName = "Highest note"
+  generateMax.visible = false
+  generateMax.width = generateMin.width
+  generateMax.x = sequencerPlayMenu.width * 1.2
+  generateMax.y = 200
+
+  -- TODO Implement key
+  local generateKey = tweqPanel:Menu("GenerateKey", {"Any", "C", "D", "E", "F", "G", "A", "B"})
+  generateKey.displayName = "Key"
+  generateKey.visible = false
+  generateKey.width = manageSnapshotsMenu.width
+  generateKey.x = manageSnapshotsMenu.x
+  generateKey.y = generateMin.y
+  generateKey.backgroundColour = menuBackgroundColour
+  generateKey.textColour = menuTextColour
+  generateKey.arrowColour = menuArrowColour
+  generateKey.outlineColour = menuOutlineColour
+
+  local generateMaxNotes = tweqPanel:Slider("GenerateMaxNotes", 6, 3, 16, true)
+  generateMaxNotes.showPopupDisplay = true
+  generateMaxNotes.showLabel = true
+  generateMaxNotes.fillStyle = "gloss"
+  generateMaxNotes.sliderColour = menuArrowColour
+  generateMaxNotes.displayName = "Max simultanious notes"
+  generateMaxNotes.visible = false
+  generateMaxNotes.width = manageSnapshotsMenu.width
+  generateMaxNotes.x = manageSnapshotsMenu.x
+  generateMaxNotes.y = generateMax.y
+
   numStepsBox.x = resolution.x
   numStepsBox.y = resolution.y + resolution.height + 10
   numStepsBox.changed = function (self)
@@ -4965,6 +5037,13 @@ function createTwequencerPanel()
         automaticSequencerRunning = false
       end
     end
+    -- If generate is active, hide the pitch table
+    local showGenerate = self.value == 7 or self.value == 8
+    seqPitchTable.visible = showGenerate == false
+    generateMin.visible = showGenerate
+    generateMax.visible = showGenerate
+    --generateKey.visible = showGenerate
+    generateMaxNotes.visible = self.value == 7
   end
 
   --[[ local scopeLabel = tweqPanel:Label("Tweak Scope")
@@ -5103,17 +5182,17 @@ function createTwequencerPanel()
         end
       elseif sequencerMode == 7 then -- GENERATE CHORD
         -- GENERATE CHORD plays between 2-6 random notes
-        local numberOfNotes = getRandom(2, 6)
+        local numberOfNotes = getRandom(2, generateMaxNotes.value)
         if arpeggiatorButton.value == true then
-          numberOfNotes = getRandom(3, 9)
+          numberOfNotes = getRandom(3, (generateMaxNotes.value+1))
         end
         for i=1,numberOfNotes do
-          local minNote = 21
-          local maxNote = 108
-          if arpeggiatorButton.value == true then
+          local minNote = math.min(generateMin.value, generateMax.value)
+          local maxNote = math.max(generateMin.value, generateMax.value)
+          --[[ if arpeggiatorButton.value == true then
             minNote = 33
             maxNote = 88
-          end
+          end ]]
           local noteToPlay = getRandom(minNote, maxNote)
           if table.contains(notes, noteToPlay) == false then
             table.insert(notes, noteToPlay)
@@ -5121,12 +5200,12 @@ function createTwequencerPanel()
         end
       elseif sequencerMode == 8 then -- GENERATE MONO
         -- GENERATE MONO plays a single random note
-        local minNote = 21
-        local maxNote = 108
-        if arpeggiatorButton.value == true then
+        local minNote = math.min(generateMin.value, generateMax.value)
+        local maxNote = math.max(generateMin.value, generateMax.value)
+        --[[ if arpeggiatorButton.value == true then
           minNote = 33
           maxNote = 88
-        end
+        end ]]
         table.insert(notes, getRandom(minNote, maxNote))
       end
 
@@ -5137,6 +5216,7 @@ function createTwequencerPanel()
       local arpOnOff = arpOnOffButton.value
       local tweakArp = tweakArpButton.value
       local envelopeStyle = envStyleMenu.value
+      local modulationStyle = modStyleMenu.value
       local vel = seqVelTable:getValue(index+1)
       local numSteps = numStepsBox.value
       local currentPosition = (index % numSteps) + 1
@@ -5238,7 +5318,7 @@ function createTwequencerPanel()
                   v.targetValue = v.widget.default
                 end
               else
-                v.targetValue = getTweakSuggestion(v, tweakLevelKnob.value, tweakSourceMenu.value, envelopeStyle, tweakDuration)
+                v.targetValue = getTweakSuggestion(v, tweakLevelKnob.value, tweakSourceMenu.value, envelopeStyle, modulationStyle, tweakDuration)
               end
             end
             -- Verify tweak suggestions
