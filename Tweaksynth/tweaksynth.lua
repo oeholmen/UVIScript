@@ -4977,17 +4977,92 @@ function createTwequencerPanel()
   generateMax.x = sequencerPlayMenu.width * 1.2
   generateMax.y = 200
 
-  -- TODO Implement key
-  local generateKey = tweqPanel:Menu("GenerateKey", {"Any", "C", "D", "E", "F", "G", "A", "B"})
+  -- Handle keys
+  local generateKey = tweqPanel:Menu("GenerateKey", {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"})
   generateKey.displayName = "Key"
   generateKey.visible = false
-  generateKey.width = manageSnapshotsMenu.width
+  generateKey.width = manageSnapshotsMenu.width / 2
   generateKey.x = manageSnapshotsMenu.x
   generateKey.y = generateMin.y
   generateKey.backgroundColour = menuBackgroundColour
   generateKey.textColour = menuTextColour
   generateKey.arrowColour = menuArrowColour
   generateKey.outlineColour = menuOutlineColour
+
+  -- Handle scales
+  local scale = {}
+  local filteredScale = {}
+  local scaleDefinitions = {{1},{2,2,1,2,2,2,1}, {2,1,2,2,1,2,2}, {2,1,2,2,2,1,2}, {2}, {2,2,3,2,3}}
+  local generateScale = tweqPanel:Menu("GenerateScale", {"12 tone", "Major", "Minor", "Dorian", "Whole tone", "Pentatonic"})
+  generateScale.displayName = "Scale"
+  generateScale.visible = false
+  generateScale.width = manageSnapshotsMenu.width / 2
+  generateScale.x = manageSnapshotsMenu.x + generateKey.width
+  generateScale.y = generateMin.y
+  generateScale.backgroundColour = menuBackgroundColour
+  generateScale.textColour = menuTextColour
+  generateScale.arrowColour = menuArrowColour
+  generateScale.outlineColour = menuOutlineColour
+
+  function createFilteredScale()
+    local filtered = {}
+    if #scale > 0 then
+      -- TODO Check that low notes are root / five
+      -- Filter out notes outside min/max
+      local minNote = math.min(generateMin.value, generateMax.value)
+      local maxNote = math.max(generateMin.value, generateMax.value)  
+      for i=1,#scale do
+        if scale[i] >= minNote and scale[i] <= maxNote then
+          table.insert(filtered, scale[i])
+          print("Insert to filtered scale note", scale[i])
+        end
+      end
+    end
+    print("Filtered scale contains notes:", #filtered)
+    return filtered
+  end
+
+  function createScale()
+    local scaleTable = {}
+    if generateScale.value == 1 then
+      return scaleTable
+    end
+    -- Find scale definition
+    local definition = scaleDefinitions[generateScale.value]
+    -- Find root note
+    local root = generateKey.value - 1
+    -- Find notes for scale
+    local pos = 0
+    while root < 128 do
+      table.insert(scaleTable, root)
+      print("Insert to scale:", root)
+      pos = pos + 1
+      root = root + definition[pos]
+      if pos == #definition then
+        pos = 0
+      end
+    end
+    print("Generated scale contains notes:", #scaleTable)
+    return scaleTable
+  end
+
+  generateScale.changed = function (self)
+    scale = createScale()
+    filteredScale = createFilteredScale()
+  end
+
+  generateKey.changed = function (self)
+    scale = createScale()
+    filteredScale = createFilteredScale()
+  end
+
+  generateMin.changed = function (self)
+    filteredScale = createFilteredScale()
+  end
+
+  generateMax.changed = function (self)
+    filteredScale = createFilteredScale()
+  end
 
   local generateMaxNotes = tweqPanel:Slider("GenerateMaxNotes", 6, 3, 16, true)
   generateMaxNotes.showPopupDisplay = true
@@ -5042,7 +5117,8 @@ function createTwequencerPanel()
     seqPitchTable.visible = showGenerate == false
     generateMin.visible = showGenerate
     generateMax.visible = showGenerate
-    --generateKey.visible = showGenerate
+    generateKey.visible = showGenerate
+    generateScale.visible = showGenerate
     generateMaxNotes.visible = self.value == 7
   end
 
@@ -5130,6 +5206,17 @@ function createTwequencerPanel()
     return false
   end
 
+  function generateNoteToPlay()
+    if #filteredScale > 0 then
+      local pos = getRandom(1, #filteredScale)
+      return filteredScale[pos]
+    end
+
+    local minNote = math.min(generateMin.value, generateMax.value)
+    local maxNote = math.max(generateMin.value, generateMax.value)
+    return getRandom(minNote, maxNote)
+  end
+
   function arpeg(arpId_)
     local index = 0
     local heldNoteIndex = 0
@@ -5187,26 +5274,16 @@ function createTwequencerPanel()
           numberOfNotes = getRandom(3, (generateMaxNotes.value+1))
         end
         for i=1,numberOfNotes do
-          local minNote = math.min(generateMin.value, generateMax.value)
-          local maxNote = math.max(generateMin.value, generateMax.value)
-          --[[ if arpeggiatorButton.value == true then
-            minNote = 33
-            maxNote = 88
-          end ]]
-          local noteToPlay = getRandom(minNote, maxNote)
+          local noteToPlay = generateNoteToPlay()
           if table.contains(notes, noteToPlay) == false then
             table.insert(notes, noteToPlay)
+            print("Insert to notes", noteToPlay)
           end
         end
       elseif sequencerMode == 8 then -- GENERATE MONO
         -- GENERATE MONO plays a single random note
-        local minNote = math.min(generateMin.value, generateMax.value)
-        local maxNote = math.max(generateMin.value, generateMax.value)
-        --[[ if arpeggiatorButton.value == true then
-          minNote = 33
-          maxNote = 88
-        end ]]
-        table.insert(notes, getRandom(minNote, maxNote))
+        local noteToPlay = generateNoteToPlay()
+        table.insert(notes, noteToPlay)
       end
 
       -- SET VALUES
