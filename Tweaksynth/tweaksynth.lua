@@ -613,6 +613,7 @@ function getTweakables(twequencer, synthesisButton, modulationButton, filterButt
     elseif v.category == "effects" and effectsButton.value == false then
       skip = true
     end
+    v.targetValue = v.widget.value -- Ensure a target value is set
     if skip == true or v.widget.enabled == false or (twequencer == true and v.excludeWithTwequencer == true) then
       print("Skipping:", v.widget.name)
     else
@@ -4635,6 +4636,17 @@ function createTwequencerPanel()
   local snapshotPosition = 1
   local maxSnapshots = 500 -- TODO Make it possible to set in UI?
   local automaticSequencerRunning = false
+  local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
+  local noteNumberToNames = {}
+  local notenamePos = 1
+  for i=0,127 do
+    local name = notenames[notenamePos] .. (math.floor(i/12)-1) .. " (note #" .. i .. ")"
+    table.insert(noteNumberToNames, name)
+    notenamePos = notenamePos + 1
+    if notenamePos > #notenames then
+      notenamePos = 1
+    end
+  end
   
   local tweqPanel = Panel("Sequencer")
   tweqPanel.backgroundColour = bgColor
@@ -4978,10 +4990,10 @@ function createTwequencerPanel()
   generateMax.y = 200
 
   -- Handle keys
-  local generateKey = tweqPanel:Menu("GenerateKey", {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"})
+  local generateKey = tweqPanel:Menu("GenerateKey", notenames)
   generateKey.displayName = "Key"
   generateKey.visible = false
-  generateKey.width = manageSnapshotsMenu.width / 2
+  generateKey.width = (manageSnapshotsMenu.width / 2) - 10
   generateKey.x = manageSnapshotsMenu.x
   generateKey.y = generateMin.y
   generateKey.backgroundColour = menuBackgroundColour
@@ -4997,7 +5009,7 @@ function createTwequencerPanel()
   generateScale.displayName = "Scale"
   generateScale.visible = false
   generateScale.width = manageSnapshotsMenu.width / 2
-  generateScale.x = manageSnapshotsMenu.x + generateKey.width
+  generateScale.x = manageSnapshotsMenu.x + generateKey.width + 10
   generateScale.y = generateMin.y
   generateScale.backgroundColour = menuBackgroundColour
   generateScale.textColour = menuTextColour
@@ -5058,11 +5070,17 @@ function createTwequencerPanel()
 
   generateMin.changed = function (self)
     filteredScale = createFilteredScale()
+    local pos = self.value + 1
+    self.displayText = noteNumberToNames[pos]
   end
+  generateMin:changed()
 
   generateMax.changed = function (self)
     filteredScale = createFilteredScale()
+    local pos = self.value + 1
+    self.displayText = noteNumberToNames[pos]
   end
+  generateMax:changed()
 
   local generateMaxNotes = tweqPanel:Slider("GenerateMaxNotes", 6, 3, 16, true)
   generateMaxNotes.showPopupDisplay = true
@@ -5219,6 +5237,8 @@ function createTwequencerPanel()
 
   function arpeg(arpId_)
     local index = 0
+    -- Counter for generated notes
+    --local generatedNoteCounter = 1
     local heldNoteIndex = 0
     local tweakablesIndex = 0
     local duration = getResolution(resolution.value, tweakLevelKnob.value)
@@ -5282,8 +5302,20 @@ function createTwequencerPanel()
         end
       elseif sequencerMode == 8 then -- GENERATE MONO
         -- GENERATE MONO plays a single random note
+        --[[ local noteToPlay = 0
+        if #filteredScale > 0 then
+          noteToPlay = filteredScale[generatedNoteCounter]
+          generatedNoteCounter = generatedNoteCounter + 1
+          if generatedNoteCounter > #filteredScale then
+            generatedNoteCounter = 1 -- Reset
+          end
+        else
+          noteToPlay = generateNoteToPlay()
+        end ]]
         local noteToPlay = generateNoteToPlay()
         table.insert(notes, noteToPlay)
+        --print("generatedNoteCounter", generatedNoteCounter)
+        print("Insert to notes", noteToPlay)
       end
 
       -- SET VALUES
@@ -5297,6 +5329,7 @@ function createTwequencerPanel()
       local vel = seqVelTable:getValue(index+1)
       local numSteps = numStepsBox.value
       local currentPosition = (index % numSteps) + 1
+      local tweakablesForTwequencer = {}
 
       -- GET DURATION
       if currentPosition == 1 or tweakOnEachStep == true or useDuration == false then
@@ -5311,18 +5344,13 @@ function createTwequencerPanel()
       if tweakLevelKnob.value > 0 then
         -- START TWEAKING
         if currentPosition == 1 or tweakOnEachStep == true then
-          local tweakablesForTwequencer = getTweakables(true, synthesisButton, modulationButton, filterButton, mixerButton, effectsButton)
+          tweakablesForTwequencer = getTweakables(true, synthesisButton, modulationButton, filterButton, mixerButton, effectsButton)
           if #tweakablesForTwequencer > 0 then
             -- Update snapshots menu
             snapshotsMenu.enabled = true
             prevSnapshotButton.enabled = true
             nextSnapshotButton.enabled = true
             snapshotsMenu:setValue(snapshotPosition, false)
-
-            -- IF USING DURATION WE MUST STORE ROUND TWEAKS FROM THE LAST ROUND BEFORE NEW TWEAK STARTS
-            if useDuration == true then
-              storeRoundTweaks()
-            end
             
             -- STOP THE AUTOMATIC SEQUENCER
             if automaticSequencerRunning == true then
@@ -5400,19 +5428,15 @@ function createTwequencerPanel()
             end
             -- Verify tweak suggestions
             verifySettings(tweakablesForTwequencer, synthesisButton, modulationButton, filterButton, mixerButton, effectsButton)
-            -- Do the tweak
+            -- Store the tweaks
+            storeRoundTweaks()
+            -- Do the tweaking
             for _,v in ipairs(tweakablesForTwequencer) do
               if useDuration == true and type(v.useDuration) == "boolean" and v.useDuration == true then
                 spawn(tweakWidget, v, tweakDuration, useDuration)
               else
                 tweakWidget(v, tweakDuration)
               end
-            end
-
-            -- IF NOT USING DURATION WE MUST STORE ROUND TWEAKS JUST AFTER TWEAKING
-            if useDuration == false then
-              -- STORE ROUND TWEAKS
-              storeRoundTweaks()
             end
           end
         end
@@ -5430,8 +5454,6 @@ function createTwequencerPanel()
 
       -- WAIT FOR NEXT BEAT
       waitBeat(duration)
-
-      --print("numSteps, currentPosition:", numSteps, currentPosition)      
     end
   end
 
@@ -5530,7 +5552,8 @@ function createTwequencerPanel()
     if maxSnapshots > 0 then
       local snapshot = {}
       for _,v in ipairs(tweakables) do
-        table.insert(snapshot, {widget=v.widget,value=v.widget.value})
+        --table.insert(snapshot, {widget=v.widget,value=v.widget.value})
+        table.insert(snapshot, {widget=v.widget,value=v.targetValue})
       end
       table.remove(snapshots, snapshotPosition)
       table.insert(snapshots, snapshotPosition, snapshot)
