@@ -5491,16 +5491,16 @@ function createTwequencerPanel()
       end
 
       -- PLAY DRONE(S) ON POS 1 HOLDING ALL STEPS
-      local isLowDronective = droneMenu.visible and droneMenu.value > 1
-      local isHighDronective = droneHighMenu.visible and droneHighMenu.value > 1
-      if currentPosition == 1 and (isLowDronective or isHighDronective) then
+      local isLowDroneActive = droneMenu.visible and droneMenu.value > 1
+      local isHighDroneActive = droneHighMenu.visible and droneHighMenu.value > 1
+      if currentPosition == 1 and (isLowDroneActive or isHighDroneActive) then
         -- 2 = lowest, 3 = lowest in scale, 4 = lowest held
         local droneDuration = beat2ms(duration*numSteps) -- note duration is all steps
         local minNote = math.min(generateMin.value, generateMax.value)
         local maxNote = math.max(generateMin.value, generateMax.value)
         
         -- PLAY LOW DRONE ---
-        if isLowDronective then
+        if isLowDroneActive then
           local droneNote = minNote -- default lowest
           if droneMenu.value == 3 then
             -- Get lowest root note in scale
@@ -5517,7 +5517,7 @@ function createTwequencerPanel()
         end
 
         -- PLAY HIGH DRONE ---
-        if isHighDronective then
+        if isHighDroneActive then
           local droneNote = maxNote -- default highest
           if droneHighMenu.value == 3 then
             -- Get highest root note in scale
