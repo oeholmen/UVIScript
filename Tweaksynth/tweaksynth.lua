@@ -4578,11 +4578,23 @@ function createPatchMakerPanel()
   tweakArpeggiatorButton.textColourOff = buttonTextColourOff
   tweakArpeggiatorButton.textColourOn = buttonTextColourOn
   tweakArpeggiatorButton.displayName = "Tweak arpeggiator"
-  tweakArpeggiatorButton.bounds = {0,0,280,synthesisButton.height}
+  tweakArpeggiatorButton.bounds = {0,0,190,synthesisButton.height*1.3}
   tweakArpeggiatorButton.x = 10
-  tweakArpeggiatorButton.y = synthesisButton.y
+  tweakArpeggiatorButton.y = synthesisButton.y - (synthesisButton.height*0.3)
+
+  local tweakArpResMenu = tweakPanel:Menu("TweakArpResolution", {"Auto", "Even", "Dot", "Tri", "Lock"})
+  tweakArpResMenu.backgroundColour = menuBackgroundColour
+  tweakArpResMenu.textColour = menuTextColour
+  tweakArpResMenu.arrowColour = menuArrowColour
+  tweakArpResMenu.outlineColour = menuOutlineColour
+  tweakArpResMenu.displayName = "Arp resolution"
+  tweakArpResMenu.height = tweakArpeggiatorButton.height
+  tweakArpResMenu.x = tweakArpeggiatorButton.x + tweakArpeggiatorButton.width + 10
+  tweakArpResMenu.y = tweakArpeggiatorButton.y
+  tweakArpResMenu.width = 80
+
   tweakArpeggiatorButton.changed = function (self)
-    doArpTweaks()
+    doArpTweaks(tweakArpResMenu.value)
   end
 
   tweakButton.changed = function(self)
@@ -5632,6 +5644,7 @@ function createTwequencerPanel()
         min = 13 -- 1/2
         max = 28 -- 1/64
       end
+      print("getArpResolution:", resolutions, min, max)
       return getRandom(min,max)
     end
     local position = resolutions + 14 -- resolutions will be 2 = even, 3 = dot, 4 = tri, so default starts at 16 (1/4)
@@ -5644,10 +5657,12 @@ function createTwequencerPanel()
     -- Create table of resolution options
     while position <= resMax do
       table.insert(resOptions, position) -- insert current position in resolution options table
+      print("Insert arp resolution", position)
       position = position + 3 -- increment position
     end
     -- Pick a random index from resolution options table
     local index = getRandom(1, #resOptions)
+    print("Selected arp res options index", index)
     return resOptions[index]
   end
 
