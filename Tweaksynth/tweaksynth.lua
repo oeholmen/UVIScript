@@ -796,7 +796,22 @@ function getTweakSuggestion(options, tweakLevel, tweakSource, envelopeStyle, mod
 end
 
 -- Verify the suggested settings to avoid unwanted side effects
-function verifySettings(selectedTweakables, synthesisButton, modulationButton, filterButton, mixerButton, effectsButton)
+function verifySettings(tweakLevel, selectedTweakables, synthesisButton, modulationButton, filterButton, mixerButton, effectsButton, automaticSequencerRunning)
+  if type(automaticSequencerRunning) ~= "boolean" then
+    automaticSequencerRunning = false
+  end
+  if modulationButton.value == true then
+    if (automaticSequencerRunning and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, 75))) or getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, 20)) then
+      for _,v in ipairs(selectedTweakables) do
+        if v.category == "modulation" then
+          if automaticSequencerRunning then
+            v.widget.value = v.widget.default
+          end
+          v.targetValue = v.widget.default
+        end
+      end
+    end
+  end
   -- Verify unison/opLevel settings
   if synthesisButton.value == true then
     verifyOpLevelSettings(selectedTweakables)
@@ -1073,9 +1088,9 @@ function getResolution(i, tweakLevel)
       tweakLevel = 50
     end
     if getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, 85)) then
-      i = getRandom(12, #resolutions-1)
+      i = getRandom(12, #resolutions-3)
     elseif getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, 75)) then
-      i = getRandom(7, #resolutions-1)
+      i = getRandom(7, #resolutions-2)
     else
       i = getRandom(1, #resolutions-1)
     end
@@ -4581,7 +4596,7 @@ function createPatchMakerPanel()
       end ]]
       v.targetValue = getTweakSuggestion(v, tweakLevelKnob.value, tweakSourceMenu.value, envStyleMenu.value)
     end
-    verifySettings(widgetsForTweaking, synthesisButton, modulationButton, filterButton, mixerButton, effectsButton)
+    verifySettings(tweakLevelKnob.value, widgetsForTweaking, synthesisButton, modulationButton, filterButton, mixerButton, effectsButton)
     -- Perform the suggested tweaks
     print("Start tweaking!")
     for _,v in ipairs(widgetsForTweaking) do
@@ -4637,11 +4652,13 @@ function createTwequencerPanel()
   local maxSnapshots = 500 -- TODO Make it possible to set in UI?
   local automaticSequencerRunning = false
   local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
-  local noteNumberToNames = {}
+  local noteNumberToNames = {} -- Used for labels
+  local noteNumberToNoteName = {} -- Used for mapping - does not unclude octave, only name of note (C, C#...)
   local notenamePos = 1
   for i=0,127 do
     local name = notenames[notenamePos] .. (math.floor(i/12)-1) .. " (note #" .. i .. ")"
     table.insert(noteNumberToNames, name)
+    table.insert(noteNumberToNoteName, notenames[notenamePos])
     notenamePos = notenamePos + 1
     if notenamePos > #notenames then
       notenamePos = 1
@@ -4760,7 +4777,7 @@ function createTwequencerPanel()
   tweakArpButton.textColourOn = buttonTextColourOn
   tweakArpButton.displayName = "Tweak arp"
   tweakArpButton.fillColour = knobColour
-  tweakArpButton.size = {numStepsBox.width,durationButton.height}
+  tweakArpButton.size = {numStepsBox.width/2,durationButton.height}
 
   local holdButton = tweqPanel:OnOffButton("HoldOnOff", false)
   holdButton.alpha = buttonAlpha
@@ -4814,6 +4831,17 @@ function createTwequencerPanel()
       self.displayText = percent(self.value)
   end
   gateKnob:changed() -- force update
+
+  local arpResMenu = tweqPanel:Menu("ArpResolution", {"Auto", "Even", "Dot", "Tri", "Lock"})
+  arpResMenu.backgroundColour = menuBackgroundColour
+  arpResMenu.textColour = menuTextColour
+  arpResMenu.arrowColour = menuArrowColour
+  arpResMenu.outlineColour = menuOutlineColour
+  arpResMenu.showLabel = false
+  arpResMenu.height = tweakArpButton.height
+  arpResMenu.x = gateKnob.x + (numStepsBox.width/2) + 4
+  arpResMenu.y = 255
+  arpResMenu.width = (numStepsBox.width/2) - 4
 
   local resolution = tweqPanel:Menu("Resolution", getResolutionNames())
   resolution.selected = 15
@@ -4967,6 +4995,17 @@ function createTwequencerPanel()
     self:setValue(1)
   end
 
+  local droneMenu = tweqPanel:Menu("DroneMenu", {"Off", "Lowest note", "Lowest root", "Lowest held"})
+  droneMenu.backgroundColour = menuBackgroundColour
+  droneMenu.textColour = menuTextColour
+  droneMenu.arrowColour = menuArrowColour
+  droneMenu.outlineColour = menuOutlineColour
+  droneMenu.displayName = "Drone low"
+  droneMenu.visible = false
+  droneMenu.x = sequencerPlayMenu.width * 1.2
+  droneMenu.y = 150
+  droneMenu.width = 75
+
   local generateMin = tweqPanel:Slider("GenerateMin", 21, 0, 127, true)
   generateMin.showPopupDisplay = true
   generateMin.showLabel = true
@@ -4974,9 +5013,20 @@ function createTwequencerPanel()
   generateMin.sliderColour = menuArrowColour
   generateMin.displayName = "Lowest note"
   generateMin.visible = false
-  generateMin.width = 200
-  generateMin.x = sequencerPlayMenu.width * 1.2
-  generateMin.y = 150
+  generateMin.x = droneMenu.x + droneMenu.width
+  generateMin.y = droneMenu.y
+  generateMin.width = 125
+
+  local droneHighMenu = tweqPanel:Menu("DroneHighMenu", {"Off", "Highest note", "Highest root", "Highest held"})
+  droneHighMenu.backgroundColour = menuBackgroundColour
+  droneHighMenu.textColour = menuTextColour
+  droneHighMenu.arrowColour = menuArrowColour
+  droneHighMenu.outlineColour = menuOutlineColour
+  droneHighMenu.displayName = "Drone high"
+  droneHighMenu.visible = false
+  droneHighMenu.x = sequencerPlayMenu.width * 1.2
+  droneHighMenu.y = 200
+  droneHighMenu.width = droneMenu.width
 
   local generateMax = tweqPanel:Slider("GenerateMax", 108, 0, 127, true)
   generateMax.showPopupDisplay = true
@@ -4985,9 +5035,9 @@ function createTwequencerPanel()
   generateMax.sliderColour = menuArrowColour
   generateMax.displayName = "Highest note"
   generateMax.visible = false
+  generateMax.x = droneHighMenu.x + droneHighMenu.width
+  generateMax.y = droneHighMenu.y
   generateMax.width = generateMin.width
-  generateMax.x = sequencerPlayMenu.width * 1.2
-  generateMax.y = 200
 
   -- Handle keys
   local generateKey = tweqPanel:Menu("GenerateKey", notenames)
@@ -5056,6 +5106,14 @@ function createTwequencerPanel()
     end
     print("Generated scale contains notes:", #scaleTable)
     return scaleTable
+  end
+
+  function isRootNote(note)
+    -- Find root note index
+    local rootIndex = generateKey.value
+    local noteIndex = note + 1 -- note index is 1 higher than note number
+    print("Check isRootNote", rootIndex-1, note, noteNumberToNoteName[rootIndex], noteNumberToNoteName[noteIndex])
+    return noteNumberToNoteName[rootIndex] == noteNumberToNoteName[noteIndex]
   end
 
   generateScale.changed = function (self)
@@ -5134,6 +5192,8 @@ function createTwequencerPanel()
     local showGenerate = self.value == 7 or self.value == 8
     seqPitchTable.visible = showGenerate == false
     generateMin.visible = showGenerate
+    droneMenu.visible = showGenerate
+    droneHighMenu.visible = showGenerate
     generateMax.visible = showGenerate
     generateKey.visible = showGenerate
     generateScale.visible = showGenerate
@@ -5302,24 +5362,12 @@ function createTwequencerPanel()
         end
       elseif sequencerMode == 8 then -- GENERATE MONO
         -- GENERATE MONO plays a single random note
-        --[[ local noteToPlay = 0
-        if #filteredScale > 0 then
-          noteToPlay = filteredScale[generatedNoteCounter]
-          generatedNoteCounter = generatedNoteCounter + 1
-          if generatedNoteCounter > #filteredScale then
-            generatedNoteCounter = 1 -- Reset
-          end
-        else
-          noteToPlay = generateNoteToPlay()
-        end ]]
         local noteToPlay = generateNoteToPlay()
         table.insert(notes, noteToPlay)
-        --print("generatedNoteCounter", generatedNoteCounter)
         print("Insert to notes", noteToPlay)
       end
 
       -- SET VALUES
-      --local duration = getResolution(resolution.value)
       local useDuration = durationButton.value
       local tweakOnEachStep = stepButton.value
       local arpOnOff = arpOnOffButton.value
@@ -5362,7 +5410,7 @@ function createTwequencerPanel()
             if (arpOnOff == true and getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) == true) or (tweakArp == true and arpeggiatorButton.value == true) then
               envelopeStyle = getRandom(2,4)
               if tweakArp == true then
-                doArpTweaks()
+                doArpTweaks(arpResMenu.value)
               end
               if arpOnOff == true then
                 arpeggiatorButton.value = true
@@ -5427,7 +5475,7 @@ function createTwequencerPanel()
               end
             end
             -- Verify tweak suggestions
-            verifySettings(tweakablesForTwequencer, synthesisButton, modulationButton, filterButton, mixerButton, effectsButton)
+            verifySettings(tweakLevelKnob.value, tweakablesForTwequencer, synthesisButton, modulationButton, filterButton, mixerButton, effectsButton, automaticSequencerRunning)
             -- Store the tweaks
             storeRoundTweaks()
             -- Do the tweaking
@@ -5439,6 +5487,50 @@ function createTwequencerPanel()
               end
             end
           end
+        end
+      end
+
+      -- PLAY DRONE(S) ON POS 1 HOLDING ALL STEPS
+      local isLowDronective = droneMenu.visible and droneMenu.value > 1
+      local isHighDronective = droneHighMenu.visible and droneHighMenu.value > 1
+      if currentPosition == 1 and (isLowDronective or isHighDronective) then
+        -- 2 = lowest, 3 = lowest in scale, 4 = lowest held
+        local droneDuration = beat2ms(duration*numSteps) -- note duration is all steps
+        local minNote = math.min(generateMin.value, generateMax.value)
+        local maxNote = math.max(generateMin.value, generateMax.value)
+        
+        -- PLAY LOW DRONE ---
+        if isLowDronective then
+          local droneNote = minNote -- default lowest
+          if droneMenu.value == 3 then
+            -- Get lowest root note in scale
+            while(isRootNote(droneNote) == false and droneNote <= maxNote)
+            do
+              droneNote = droneNote + 1 -- increment note
+            end
+          elseif droneMenu.value == 4 then
+            -- Get the lowest held note
+            droneNote = heldNotes[1].note
+          end
+          print("Playing low drone", droneNote, droneDuration)
+          playNote(droneNote, vel, droneDuration)
+        end
+
+        -- PLAY HIGH DRONE ---
+        if isHighDronective then
+          local droneNote = maxNote -- default highest
+          if droneHighMenu.value == 3 then
+            -- Get highest root note in scale
+            while(isRootNote(droneNote) == false and droneNote >= minNote)
+            do
+              droneNote = droneNote - 1 -- decrement note
+            end
+          elseif droneHighMenu.value == 4 then
+            -- Get the highest held note
+            droneNote = heldNotes[#heldNotes].note
+          end
+          print("Playing high drone", droneNote, droneDuration)
+          playNote(droneNote, vel, droneDuration)
         end
       end
 
@@ -5459,27 +5551,23 @@ function createTwequencerPanel()
 
   function getArpOctave()
     if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 40)) then
-      return getRandom(-3,3) -- default 0
+      return getRandom(-1,1)
     end
-    return 0
+    return 0 -- default
   end
 
   function getArpNumStrike()
     if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 25)) then
-      return getRandom(1,4) -- default 1
+      return getRandom(1,4)
     end
-    return 1
+    return 1 -- default
   end
 
   function getArpMode()
     if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 20)) then
-      return getRandom(0,26) -- default 0
+      return getRandom(0,26)
     end
-    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 20)) then
-      -- 25 = chord
-      return 25
-    end
-    return 0
+    return 0 -- default
   end
 
   function getArpNumSteps()
@@ -5501,29 +5589,78 @@ function createTwequencerPanel()
     return getRandom(1,16) -- default 16
   end
 
-  -- TODO Resolution must depend on step length
-  function getArpResolution()
-    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 20)) then
-      return getRandom(13,29) -- default 22
+  -- TODO Resolution should depend on step length?
+  -- 0 = 32x
+  -- 1 = 16x
+  -- 2 = 8x
+  -- 3 = 7x
+  -- 4 = 6x
+  -- 5 = 5x
+  -- 6 = 4x
+  -- 7 = 3x
+  -- 8 = 2x
+  -- 9 = 1/1 dot
+  ----------------
+  -- 10 = 1/1
+  -- 11 = 1/2 dot
+  -- 12 = 1/1 tri
+  -- 13 = 1/2
+  -- 14 = 1/4 dot
+  -- 15 = 1/2 tri
+  -- 16 = 1/4
+  -- 17 = 1/8 dot
+  -- 18 = 1/4 tri
+  -- 19 = 1/8
+  -- 20 = 1/16 dot
+  -- 21 = 1/8 tri
+  -- 22 = 1/16 - default
+  -- 23 = 1/32 dot
+  -- 24 = 1/16 tri
+  -- 25 = 1/32
+  -- 26 = 1/64 dot
+  -- 27 = 1/32 tri
+  -- 28 = 1/64
+  ----------------
+  -- 29 = 1/64 tri
+  ----------------
+  -- default 22
+  function getArpResolution(resolutions)
+    if resolutions == 1 then
+      local min = 16 -- 1/4
+      local max = 25 -- 1/32
+      if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 20)) then
+        min = 13 -- 1/2
+        max = 28 -- 1/64
+      end
+      return getRandom(min,max)
     end
-    -- 16 = 1/4
-    -- 17 = 1/8 dot
-    -- 18 = 1/4 tri
-    -- 19 = 1/8
-    -- 20 = 1/16 dot
-    -- 21 = 1/8 tri
-    -- 22 = 1/16
-    -- 23 = 1/32 dot
-    -- 24 = 1/16 tri
-    -- 25 = 1/32
-    return getRandom(16,25) -- default 22
+    local position = resolutions + 14 -- resolutions will be 2 = even, 3 = dot, 4 = tri, so default starts at 16 (1/4)
+    local resMax = 25 -- Max 1/32
+    local resOptions = {}
+    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 25)) then
+      position = position - 6
+      resMax = 28
+    end
+    -- Create table of resolution options
+    while position <= resMax do
+      table.insert(resOptions, position) -- insert current position in resolution options table
+      position = position + 3 -- increment position
+    end
+    -- Pick a random index from resolution options table
+    local index = getRandom(1, #resOptions)
+    return resOptions[index]
   end
 
-  function doArpTweaks()
+  function doArpTweaks(resolutions)
+    if type(resolutions) ~= "number" then
+      resolutions = 1
+    end
     local arp = Program.eventProcessors[2] -- get the arpeggiator
     local arpNumSteps = getArpNumSteps() -- get the number of steps to set for the arpeggiator
     arp:setParameter("NumSteps", arpNumSteps)
-    arp:setParameter("Resolution", getArpResolution())
+    if resolutions < 5 then -- 5 = lock - no change
+      arp:setParameter("Resolution", getArpResolution(resolutions))
+    end
     arp:setParameter("Mode", getArpMode())
     arp:setParameter("NumStrike", getArpNumStrike())
     arp:setParameter("Octave", getArpOctave())
