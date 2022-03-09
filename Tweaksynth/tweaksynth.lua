@@ -333,6 +333,9 @@ end
 -- Topologies for FM synth
 local topologies = {"D->C->B->A", "D+C->B->A", "C->B,B+D->A", "D->B+C->A", "D->C->A+B", "D->C->B,A", "B+C+D->A", "B->A,D->C", "D->A+B+C", "A,B,D->C", "A,B,C,D"}
 
+-- Default probability that a tweakable will be skipped - used by twequencer and can be adjusted in settings for each parameter
+local defaultSkipProbability = 0
+
 -- Set maxLevel based on topology:
 -- topology 0-3 > A
 -- topology 4-5 > A+B
@@ -468,7 +471,7 @@ function getProbabilityByTweakLevel(tweakLevel, probability, weight)
     probability = 1
   end
 
-  print("Probability-wight:", weight)
+  print("Probability-weight:", weight)
   print("Probability-factor:", factor)
   print("Probability-out:", probability)
 
@@ -476,12 +479,47 @@ function getProbabilityByTweakLevel(tweakLevel, probability, weight)
 end
 
 function tweakValue(options, value, tweakLevel)
-  if type(options.widget.default) ~= "number" or options.noDefaultTweak == true then
+  if type(options.widget.default) ~= "number" or (type(options.default) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.default))) then
+    if options.widget.name == "NoiseType" then
+      value = 7
+    end
     return value
   end
-  print("Tweaking value")
+  print("Tweaking value:", value)
+  -- Get range limits
+  local floor = options.widget.min -- Default floor is min
+  local ceiling = options.widget.max -- Default ceiling is max
+  if type(options.min) == "number" then
+    floor = options.min
+  end
+  if type(options.max) == "number" then
+    ceiling = options.max
+  end
+  -- Adjust value to within set range if probability hits
+  if type(options.probability) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.probability)) == true then
+    if type(options.floor) == "number" then
+      floor = options.floor
+    end
+    if type(options.ceiling) == "number" then
+      ceiling = options.ceiling
+    end
+    print("Probability/floor/ceiling:", options.probability, floor, ceiling)
+  end
+
+  -- If probability is set to 100, we are forced to stay within the given range
+  local forceRange = type(options.probability) == "number" and options.probability == 100
+
+  -- If probability hits, we get a random value within the limits
+  if getRandomBoolean(tweakLevel) then
+    print("Random limited range")
+    return getValueBetween(floor, ceiling, value, options)
+  elseif getRandomBoolean(tweakLevel) and forceRange == false then
+    print("Random full range")
+    return getRandom(options.min, options.max, options.factor)
+  end
+
   -- Get widget range
-  local range = options.widget.max - options.widget.min
+  local range = ceiling - floor
   if type(options.defaultTweakRange) == "number" then
     range = options.defaultTweakRange
   end
@@ -509,7 +547,9 @@ function tweakValue(options, value, tweakLevel)
   return value
 end
 
-function getValueForTweaking(options, tweakLevel, tweakSource)
+-- Deprecated - only used by getTweakSuggestionLegacy
+function getValueForTweaking(options, tweakLevel)
+  local tweakSource = 1
   -- Tweak the value from the stored patch (the patch that was stored the last time user saved the program)
   if tweakSource == 2 or (tweakSource == 1 and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, 50)) == true) then
     for _,v in ipairs(storedPatch) do
@@ -628,7 +668,6 @@ function getTweakables(tweakLevel, synthesisButton, modulationButton, filterButt
     twequencer = false
   end
   local t = {}
-  local probability = getProbabilityByTweakLevel(tweakLevel, 30, 0.15) -- Used for random skip
   for _,v in ipairs(tweakables) do
     local skip = false
     if v.category == "synthesis" and synthesisButton.value == false then
@@ -643,6 +682,10 @@ function getTweakables(tweakLevel, synthesisButton, modulationButton, filterButt
       skip = true
     end
     -- If we are getting tweakables for the twequencer, some random parameters should be skipped
+    if type(v.skipProbability) ~= "number" then
+      v.skipProbability = defaultSkipProbability
+    end
+    local probability = getProbabilityByTweakLevel(tweakLevel, v.skipProbability, 0.15) -- Used for random skip
     if skip == false and twequencer == true then
       skip = getRandomBoolean(probability)
     end
@@ -676,12 +719,16 @@ function tweakWidget(options, duration, useDuration)
   if type(options.targetValue) == "nil" then
     options.targetValue = options.widget.value
   end
-print("******************** Tweaking:", options.widget.name, "********************")
+  print("******************** Tweaking:", options.widget.name, "********************")
   local startValue = options.widget.value
   local endValue = options.targetValue
   print("Start value:", startValue)
   print("End value:", endValue)
-  if duration == 0 or useDuration == false or type(endValue) ~= "number" or startValue == endValue then
+  if startValue == endValue then
+    print("No change")
+    return
+  end
+  if duration == 0 or useDuration == false or type(endValue) ~= "number" then
     options.widget.value = endValue
     print("Tweaking without duration")
     return
@@ -734,7 +781,6 @@ end
   -- zero = the probability that the value is set to 0
   -- excludeWithTwequencer = if ran with twequencer, this widget is excluded
   -- useDuration = if ran with a duration, this widget will tweak it's value over the length of the given duration
-  -- noDefaultTweak = do not tweak the default/stored value
   -- defaultTweakRange = the range to use when tweaking default/stored value - if not provided, the full range is used
   -- default = the probability that the default/stored value is used (affected by tweak level)
   -- min = min value
@@ -745,12 +791,9 @@ end
   -- category = the category the widget belongs to (synthesis, modulation, filter, mixer, effects)
 --
 -- Example: table.insert(tweakables, {widget=driveKnob,floor=0,ceiling=0.5,probability=90,zero=50,useDuration=true})
-function getTweakSuggestion(options, tweakLevel, tweakSource, envelopeStyle, modulationStyle, duration)
+function getTweakSuggestion(options, tweakLevel, envelopeStyle, modulationStyle, duration)
   if type(tweakLevel) ~= "number" then
     tweakLevel = 50
-  end
-  if type(tweakSource) ~= "number" then
-    tweakSource = 1
   end
   if type(envelopeStyle) ~= "number" then
     envelopeStyle = 1
@@ -766,7 +809,75 @@ function getTweakSuggestion(options, tweakLevel, tweakSource, envelopeStyle, mod
   local startValue = options.widget.value
   local endValue = startValue
   print("Start value:", startValue)
-  print("Tweak source:", tweakSource)
+  print("Envelope style:", envelopeStyle)
+  if type(options.func) == "function" then
+    endValue = options.func(options.probability)
+    print("From func:", endValue, options.probability)
+  elseif type(options.zero) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.zero)) == true then
+    -- Set to zero if probability hits
+    endValue = 0
+    print("Zero:", options.zero)
+  elseif type(options.default) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.default)) == true then
+    -- Set to the default value if probability hits
+    endValue = options.widget.default
+    print("Default:", options.default)
+  elseif modulationStyle > 1 and (options.widget.name == 'LfoFreq') then
+    endValue = getModulationFreqByStyle(options, modulationStyle)
+    print("getEnvelopeTimeByStyle:", endValue)
+  elseif envelopeStyle > 1 and (options.attack == true or options.release == true) then
+    endValue = getEnvelopeTimeByStyle(options, envelopeStyle)
+    print("getEnvelopeTimeByStyle:", endValue)
+  elseif duration > 0 and (options.attack == true or options.release == true) then
+    if envelopeStyle > 1 then
+      endValue = getEnvelopeTimeByStyle(options, envelopeStyle)
+      print("getEnvelopeTimeByStyle:", endValue)
+    else
+      endValue = getEnvelopeTimeForDuration(options, duration)
+      print("getEnvelopeTimeForDuration:", endValue)
+    end
+  elseif type(options.fmLevel) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.fmLevel)) == true then
+    endValue = getRandom(nil, nil, options.widget.max)
+    print("FM Operator Level: (max/endValue)", options.widget.max, endValue)
+  else
+    endValue = tweakValue(options, startValue, tweakLevel)
+    print("Found tweakValue:", endValue)
+  end
+  if type(options.valueFilter) == "table" then
+    print("Applying valueFilter to:", endValue)
+    endValue = applyValueFilter(options.valueFilter, endValue)
+  end
+  if type(options.bipolar) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.bipolar)) == true then
+    if getRandom(100) <= options.bipolar then
+      endValue = -endValue
+      print("Value converted to negative", options.bipolar)
+    end
+  end
+  if type(options.absoluteLimit) == "number" and type(endValue) == "number" and endValue > options.absoluteLimit then
+    print("End value limited by absoluteLimit", options.absoluteLimit)
+    endValue = options.absoluteLimit
+  end
+  print("Tweak endValue:", endValue)
+  return endValue
+end
+
+function getTweakSuggestionLegacy(options, tweakLevel, envelopeStyle, modulationStyle, duration)
+  if type(tweakLevel) ~= "number" then
+    tweakLevel = 50
+  end
+  if type(envelopeStyle) ~= "number" then
+    envelopeStyle = 1
+  end
+  if type(modulationStyle) ~= "number" then
+    modulationStyle = 1
+  end
+  if type(duration) ~= "number" then
+    duration = 0
+  end
+  print("******************** Getting tweak suggestion:", options.widget.name, "********************")
+  print("Tweak level:", tweakLevel)
+  local startValue = options.widget.value
+  local endValue = startValue
+  print("Start value:", startValue)
   print("Envelope style:", envelopeStyle)
   if type(options.func) == "function" then
     endValue = options.func(options.probability)
@@ -789,9 +900,9 @@ function getTweakSuggestion(options, tweakLevel, tweakSource, envelopeStyle, mod
       endValue = getEnvelopeTimeForDuration(options, duration)
       print("getEnvelopeTimeForDuration:", endValue)
     end
-  elseif tweakSource == 4 or getRandomBoolean(tweakLevel) == false or (type(options.default) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.default)) == true) then
+  elseif getRandomBoolean(tweakLevel) == false or (type(options.default) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.default)) == true) then
     -- Get value from tweaksource or default
-    endValue = getValueForTweaking(options, tweakLevel, tweakSource)
+    endValue = getValueForTweaking(options, tweakLevel)
     print("getValueForTweaking:", endValue)
   elseif type(options.fmLevel) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.fmLevel)) == true then
     endValue = getRandom(nil, nil, options.widget.max)
@@ -1030,23 +1141,23 @@ function verifyFilterSettings(selectedTweakables)
   print("Filter Cutoff:", cutoffValue)
   print("Filter EnvelopeAmt:", envelopeAmtValue)
   print("Filter HpfCutoff:", HpfCutoff.targetValue)
-  print("Filter HpfEnvelopeAmt:", HpfEnvelopeAmt.targetValue)
+  print("Filter HpfEnvelopeAmt:", hpfEnvelopeAmtValue)
   print("Filter FAttack:", FAttack.targetValue)
 
-  -- Check lpf cutoff freq
+  -- Reduce cutoff if env amount is high
   if cutoffValue == 1 and envelopeAmtValue > 0.3 then
     cutoffValue = getValueBetween(0.2, 0.8, cutoffValue)
   end
 
-  -- Check lpf amt
+  -- Increase env amount of cutoff is low
   if cutoffValue < 0.25 and envelopeAmtValue < 0.25 then
-    cutoffValue = getValueBetween(0.1, 0.6, cutoffValue)
-    envelopeAmtValue = getValueBetween(0.3, 0.7, envelopeAmtValue)
+    --cutoffValue = getValueBetween(0.1, 0.6, cutoffValue)
+    envelopeAmtValue = getValueBetween(0.65, 0.95, envelopeAmtValue)
   end
   
-  -- Check lpf and attack time
-  if cutoffValue < 0.05 and envelopeAmtValue > 0.75 and attackValue > 0.9 then
-    attackValue = getValueBetween(0.01, 0.9, attackValue)
+  -- Reduce long attack time if cutoff is low and env amt is high
+  if cutoffValue < 0.05 and envelopeAmtValue > 0.75 and attackValue > 0.75 then
+    attackValue = getValueBetween(0.01, 0.7, attackValue)
   end
 
   -- Check hpf amt
@@ -1121,24 +1232,40 @@ function getTriplet(value)
   return value  / 3
 end
 
-local tweakSources = {"Automatic", "Saved patch", "Stored snapshots", "Current edit", "Default value"}
 local resolutions =     { 32,   24,   16,  12,    8,     6,         4,      3,       2, getTriplet(4), getDotted(1), 1, getTriplet(2), getDotted(0.5), 0.5, getTriplet(1), getDotted(0.25), 0.25,  getTriplet(0.5), getDotted(0.125), 0.125, 0}
-local resolutionNames = {"8x", "6x", "4x", "3x", "2x", "1/1 dot", "1/1", "1/2 dot", "1/2", "1/2 tri", "1/4 dot",   "1/4", "1/4 tri",   "1/8 dot",     "1/8", "1/8 tri",    "1/16 dot",      "1/16", "1/16 tri",     "1/32 dot",      "1/32", "Random"}
+local resolutionNames = {"8x", "6x", "4x", "3x", "2x", "1/1 dot", "1/1", "1/2 dot", "1/2", "1/2 tri", "1/4 dot",   "1/4", "1/4 tri",   "1/8 dot",     "1/8", "1/8 tri",    "1/16 dot",      "1/16", "1/16 tri",     "1/32 dot",      "1/32", "Random", "Random even+dot", "Random even", "Random dot", "Random tri"}
 local waveforms = {"Saw", "Square", "Triangle", "Sine", "Noise", "Pulse"}
 
 function getResolution(i, tweakLevel)
-  if i == #resolutions then
+  -- Random
+  if i >= #resolutions then
     if type(tweakLevel) ~= "number" then
       tweakLevel = 50
     end
-    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, 85)) then
-      i = getRandom(12, #resolutions-3)
-    elseif getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, 75)) then
-      i = getRandom(7, #resolutions-2)
+    local even = {5,7,9,12,15,18,21} -- 7 = 1/1, 9 = 1/2
+    local dot = {6,8,11,14,17,20} -- 6 = 1/1 dot
+    local tri = {10,13,16,19} -- 10 = 1/2 tri
+    -- Rand even + dot
+    if i == #resolutions + 1 then
+      if getRandomBoolean() == true then
+        i = even[getRandom(#even)]
+      else
+        i = dot[getRandom(#dot)]
+      end
+    -- Rand even
+    elseif i == #resolutions + 2 or (i == #resolutions and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, 50))) then
+      i = even[getRandom(#even)]
+    -- Rand dot
+    elseif i == #resolutions + 3 or (i == #resolutions and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, 50))) then
+      i = dot[getRandom(#dot)]
+    -- Rand tri
+    elseif i == #resolutions + 4 or (i == #resolutions and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, 50))) then
+      i = tri[getRandom(#tri)]
     else
       i = getRandom(#resolutions-1)
     end
   end
+  print("getResolution", resolutionNames[i])
   return resolutions[i]
 end
 
@@ -1319,7 +1446,7 @@ function createStackOscPanel(oscPanel, oscillatorNumber)
     self.displayText = waveforms[self.value]
   end
   stackShapeKnob:changed()
-  table.insert(tweakables, {widget=stackShapeKnob,min=6,default=10,noDefaultTweak=true,useDuration=true,category="synthesis"})
+  table.insert(tweakables, {widget=stackShapeKnob,min=6,default=10,useDuration=true,category="synthesis"})
 
   local stackOctKnob = oscPanel:Knob("Osc"..oscillatorNumber.."Octave", 0, -2, 2, true)
   stackOctKnob.displayName = "Octave"
@@ -1331,7 +1458,7 @@ function createStackOscPanel(oscPanel, oscillatorNumber)
     end
   end
   stackOctKnob:changed()
-  table.insert(tweakables, {widget=stackOctKnob,min=-2,max=2,default=80,noDefaultTweak=true,zero=25,category="synthesis"})
+  table.insert(tweakables, {widget=stackOctKnob,min=-2,max=2,default=80,zero=25,category="synthesis"})
 
   local stackPitchKnob = oscPanel:Knob("PitchStack"..oscillatorNumber.."Osc", 0, -48, 48)
   stackPitchKnob.displayName = "Pitch"
@@ -1476,7 +1603,7 @@ function createAnalog3OscPanel(oscPanel, oscillatorNumber)
     self.displayText = waveforms[self.value]
   end
   oscShapeKnob:changed()
-  table.insert(tweakables, {widget=oscShapeKnob,min=6,default=10,noDefaultTweak=true,category="synthesis"})
+  table.insert(tweakables, {widget=oscShapeKnob,min=6,default=10,category="synthesis"})
     
   local oscPhaseKnob = oscPanel:Knob("Osc"..oscillatorNumber.."StartPhase", 0, 0, 1)
   oscPhaseKnob.displayName = "Start Phase"
@@ -1503,7 +1630,7 @@ function createAnalog3OscPanel(oscPanel, oscillatorNumber)
     end
   end
   oscOctKnob:changed()
-  table.insert(tweakables, {widget=oscOctKnob,min=-2,max=2,default=80,noDefaultTweak=true,zero=25,category="synthesis"})
+  table.insert(tweakables, {widget=oscOctKnob,min=-2,max=2,default=80,zero=25,category="synthesis"})
   
   local oscPitchKnob = oscPanel:Knob("Osc"..oscillatorNumber.."Pitch", 0, -24, 24, (oscillatorNumber==1))
   oscPitchKnob.displayName = "Pitch"
@@ -1682,7 +1809,7 @@ function createOsc1Panel()
       osc1Pitch:setParameter("Value", value)
     end
     osc1PitchKnob:changed()
-    table.insert(tweakables, {widget=osc1PitchKnob,min=-2,max=2,default=80,noDefaultTweak=true,zero=25,category="synthesis"})
+    table.insert(tweakables, {widget=osc1PitchKnob,min=-2,max=2,default=80,zero=25,category="synthesis"})
 
     local osc1FeedbackKnob = osc1Panel:Knob("Osc1Feedback", 0, 0, 1)
     osc1FeedbackKnob.displayName = "Feedback"
@@ -1709,7 +1836,7 @@ else
         self.displayText = waveforms[self.value]
       end
       osc1ShapeKnob:changed()
-      table.insert(tweakables, {widget=osc1ShapeKnob,min=6,default=10,noDefaultTweak=true,category="synthesis"})
+      table.insert(tweakables, {widget=osc1ShapeKnob,min=6,default=10,category="synthesis"})
     elseif isWavetable then
       local osc1ShapeKnob = osc1Panel:Knob("Osc1Wave", 0, 0, 1)
       osc1ShapeKnob.displayName = "Wave"
@@ -1789,7 +1916,7 @@ else
       osc1Pitch:setParameter("Value", value)
     end
     osc1PitchKnob:changed()
-    table.insert(tweakables, {widget=osc1PitchKnob,min=-2,max=2,default=80,noDefaultTweak=true,zero=25,category="synthesis"})
+    table.insert(tweakables, {widget=osc1PitchKnob,min=-2,max=2,default=80,zero=25,category="synthesis"})
 
     if isAnalog then
       local hardsyncKnob = osc1Panel:Knob("HardsyncOsc1", 0, 0, 36)
@@ -1801,7 +1928,7 @@ else
         osc1:setParameter("HardSyncShift", self.value)
       end
       hardsyncKnob:changed()
-      table.insert(tweakables, {widget=hardsyncKnob,ceiling=12,probability=80,min=36,zero=50,default=50,useDuration=true,noDefaultTweak=true,category="synthesis"})
+      table.insert(tweakables, {widget=hardsyncKnob,ceiling=12,probability=80,min=36,zero=50,default=50,useDuration=true,category="synthesis"})
 
       local atToHardsycKnob = osc1Panel:Knob("AtToHarsyncosc1", 0, 0, 1)
       atToHardsycKnob.displayName = "AT->Sync"
@@ -1824,7 +1951,7 @@ else
         self.displayText = percent(self.value)
       end
       aftertouchToWaveKnob:changed()
-      table.insert(tweakables, {widget=aftertouchToWaveKnob,bipolar=25,excludeWithTwequencer=true,category="synthesis"})
+      table.insert(tweakables, {widget=aftertouchToWaveKnob,bipolar=25,floor=0.5,ceiling=0.8,probability=60,default=50,excludeWithTwequencer=true,category="synthesis"})
 
       local wheelToWaveKnob = osc1Panel:Knob("WheelToWave1", 0, -1, 1)
       wheelToWaveKnob.displayName = "Wheel->Wave"
@@ -1836,7 +1963,7 @@ else
         self.displayText = percent(self.value)
       end
       wheelToWaveKnob:changed()
-      table.insert(tweakables, {widget=wheelToWaveKnob,bipolar=25,excludeWithTwequencer=true,category="synthesis"})
+      table.insert(tweakables, {widget=wheelToWaveKnob,bipolar=25,floor=0.3,ceiling=0.5,probability=60,default=50,excludeWithTwequencer=true,category="synthesis"})
     elseif isAdditive then
       local harmShiftKnob = osc1Panel:Knob("HarmShift1", 0, 0, 48)
       harmShiftKnob.displayName = "Harm. Shift"
@@ -2020,7 +2147,7 @@ function createOsc2Panel()
         self.displayText = waveforms[self.value]
       end
       osc2ShapeKnob:changed()
-      table.insert(tweakables, {widget=osc2ShapeKnob,min=6,default=10,noDefaultTweak=true,category="synthesis"})
+      table.insert(tweakables, {widget=osc2ShapeKnob,min=6,default=10,category="synthesis"})
     elseif isWavetable then
       local osc2ShapeKnob = osc2Panel:Knob("Osc2Wave", 0, 0, 1)
       osc2ShapeKnob.displayName = "Wave"
@@ -2124,7 +2251,7 @@ function createOsc2Panel()
         osc2:setParameter("HardSyncShift", self.value)
       end
       hardsyncKnob:changed()
-      table.insert(tweakables, {widget=hardsyncKnob,ceiling=12,probability=80,min=36,zero=75,default=50,noDefaultTweak=true,useDuration=true,category="synthesis"})
+      table.insert(tweakables, {widget=hardsyncKnob,ceiling=12,probability=80,min=36,zero=75,default=50,useDuration=true,category="synthesis"})
     elseif isWavetable then
       local wheelToWaveKnob = osc2Panel:Knob("WheelToWave2", 0, -1, 1)
       wheelToWaveKnob.displayName = "Wheel->Wave"
@@ -2235,7 +2362,7 @@ function createMixerPanel()
       self.displayText = formatGainInDb(self.value)
     end
     osc3MixKnob:changed()
-    table.insert(tweakables, {widget=osc3MixKnob,floor=0.5,ceiling=0.75,probability=100,absoluteLimit=0.8,zero=25,default=10,noDefaultTweak=true,category="mixer"})
+    table.insert(tweakables, {widget=osc3MixKnob,floor=0.5,ceiling=0.75,probability=100,absoluteLimit=0.8,zero=25,default=10,category="mixer"})
 
     local subOscMixKnob = mixerPanel:Knob("SubOscMix", 0, 0, 1)
     subOscMixKnob.displayName = "Sub"
@@ -2263,7 +2390,7 @@ function createMixerPanel()
       self.displayText = waveforms[self.value]
      end
     subOscWaveformKnob:changed()
-    table.insert(tweakables, {widget=subOscWaveformKnob,min=4,default=75,noDefaultTweak=true,category="synthesis"})
+    table.insert(tweakables, {widget=subOscWaveformKnob,min=4,default=75,category="synthesis"})
   end
 
   local noiseTypeMenu
@@ -2393,7 +2520,7 @@ function createMixerPanel()
     noiseLayer:setParameter("PlayMode", value)
   end
   playModeMenu:changed()
-  table.insert(tweakables, {widget=playModeMenu,min=#playModes,default=75,noDefaultTweak=true,excludeWithTwequencer=true,category="synthesis"})
+  table.insert(tweakables, {widget=playModeMenu,min=#playModes,default=75,excludeWithTwequencer=true,category="synthesis"})
 
   local portamentoTimeKnob = mixerPanel:Knob("PortamentoTime", 0.03, 0, 10)
   portamentoTimeKnob.displayName = "Glide Time"
@@ -2410,7 +2537,7 @@ function createMixerPanel()
     self.displayText = formatTimeInSeconds(self.value)
   end
   portamentoTimeKnob:changed()
-  table.insert(tweakables, {widget=portamentoTimeKnob,floor=0.03,ceiling=0.15,probability=95,default=50,noDefaultTweak=true,excludeWithTwequencer=true,category="synthesis"})
+  table.insert(tweakables, {widget=portamentoTimeKnob,floor=0.03,ceiling=0.15,probability=95,default=50,excludeWithTwequencer=true,category="synthesis"})
 
   local unisonVoicesMax = 8
   if isAdditive then
@@ -2654,7 +2781,7 @@ function createFilterPanel()
     self.displayText = percent(self.value)
   end
   wheelToCutoffKnob:changed()
-  table.insert(tweakables, {widget=wheelToCutoffKnob,bipolar=25,excludeWithTwequencer=true,category="filter"})
+  table.insert(tweakables, {widget=wheelToCutoffKnob,bipolar=25,floor=0.2,ceiling=0.4,probability=50,excludeWithTwequencer=true,category="filter"})
 
   local atToCutoffKnob = filterPanel:Knob("AftertouchToCutoff", 0, -1, 1)
   atToCutoffKnob.displayName = "Aftertouch"
@@ -2666,7 +2793,7 @@ function createFilterPanel()
     self.displayText = percent(self.value)
   end
   atToCutoffKnob:changed()
-  table.insert(tweakables, {widget=atToCutoffKnob,bipolar=25,excludeWithTwequencer=true,category="filter"})
+  table.insert(tweakables, {widget=atToCutoffKnob,bipolar=25,floor=0.3,ceiling=0.6,probability=50,excludeWithTwequencer=true,category="filter"})
 
   return filterPanel
 end
@@ -2696,7 +2823,7 @@ function createHpFilterPanel()
     end
   end
   hpfCutoffKnob:changed()
-  table.insert(tweakables, {widget=hpfCutoffKnob,ceiling=0.5,probability=60,zero=60,useDuration=true,category="filter"})
+  table.insert(tweakables, {widget=hpfCutoffKnob,ceiling=0.5,probability=90,zero=60,useDuration=true,category="filter"})
 
   local hpfResonanceKnob = hpFilterPanel:Knob("HpfResonance", 0, 0, 1)
   hpfResonanceKnob.displayName = "Resonance"
@@ -2707,7 +2834,7 @@ function createHpFilterPanel()
     self.displayText = percent(self.value)
   end
   hpfResonanceKnob:changed()
-  table.insert(tweakables, {widget=hpfResonanceKnob,ceiling=0.5,probability=75,absoluteLimit=0.8,default=50,useDuration=true,category="filter"})
+  table.insert(tweakables, {widget=hpfResonanceKnob,ceiling=0.5,probability=80,absoluteLimit=0.8,default=50,useDuration=true,category="filter"})
 
   local hpfKeyTrackingKnob = hpFilterPanel:Knob("HpfKeyTracking", 0, 0, 1)
   hpfKeyTrackingKnob.displayName = "Key Track"
@@ -2718,7 +2845,7 @@ function createHpFilterPanel()
     self.displayText = percent(self.value)
   end
   hpfKeyTrackingKnob:changed()
-  table.insert(tweakables, {widget=hpfKeyTrackingKnob,excludeWithTwequencer=true,category="filter"})
+  table.insert(tweakables, {widget=hpfKeyTrackingKnob,floor=0.2,ceiling=0.8,probability=50,excludeWithTwequencer=true,category="filter"})
 
   local wheelToHpfCutoffKnob = hpFilterPanel:Knob("WheelToHpfCutoff", 0, -1, 1)
   wheelToHpfCutoffKnob.displayName = "Modwheel"
@@ -2730,7 +2857,7 @@ function createHpFilterPanel()
     self.displayText = percent(self.value)
   end
   wheelToHpfCutoffKnob:changed()
-  table.insert(tweakables, {widget=wheelToHpfCutoffKnob,bipolar=25,excludeWithTwequencer=true,category="filter"})
+  table.insert(tweakables, {widget=wheelToHpfCutoffKnob,bipolar=25,floor=0.2,ceiling=0.4,probability=30,excludeWithTwequencer=true,category="filter"})
 
   local atToHpfCutoffKnob = hpFilterPanel:Knob("AftertouchToHpfCutoff", 0, -1, 1)
   atToHpfCutoffKnob.displayName = "Aftertouch"
@@ -2742,7 +2869,7 @@ function createHpFilterPanel()
     self.displayText = percent(self.value)
   end
   atToHpfCutoffKnob:changed()
-  table.insert(tweakables, {widget=atToHpfCutoffKnob,bipolar=25,excludeWithTwequencer=true,category="filter"})
+  table.insert(tweakables, {widget=atToHpfCutoffKnob,bipolar=25,floor=0.3,ceiling=0.7,probability=30,excludeWithTwequencer=true,category="filter"})
 
   return hpFilterPanel
 end
@@ -2787,7 +2914,7 @@ function createFilterEnvPanel()
     self.displayText = formatTimeInSeconds(self.value)
   end
   filterAttackKnob:changed()
-  table.insert(tweakables, {widget=filterAttackKnob,attack=true,floor=0.001,ceiling=0.01,probability=85,default=35,defaultTweakRange=3,useDuration=true,category="filter"})
+  table.insert(tweakables, {widget=filterAttackKnob,attack=true,floor=0.001,ceiling=0.01,probability=85,default=35,defaultTweakRange=3,useDuration=false,category="filter"})
 
   local filterDecayKnob = filterEnvPanel:Knob("FDecay", 0.050, 0, 10)
   filterDecayKnob.displayName="Decay"
@@ -2807,7 +2934,7 @@ function createFilterEnvPanel()
     self.displayText = formatTimeInSeconds(self.value)
   end
   filterDecayKnob:changed()
-  table.insert(tweakables, {widget=filterDecayKnob,factor=3,floor=0.01,ceiling=0.75,probability=50,default=10,useDuration=true,category="filter"})
+  table.insert(tweakables, {widget=filterDecayKnob,factor=3,floor=0.01,ceiling=0.75,probability=50,default=10,useDuration=false,category="filter"})
 
   local filterSustainKnob = filterEnvPanel:Knob("FSustain", 1, 0, 1)
   filterSustainKnob.displayName="Sustain"
@@ -2826,7 +2953,7 @@ function createFilterEnvPanel()
     self.displayText = percent(self.value)
   end
   filterSustainKnob:changed()
-  table.insert(tweakables, {widget=filterSustainKnob,floor=0.1,ceil=0.9,probability=90,default=12,zero=2,useDuration=true,category="filter"})
+  table.insert(tweakables, {widget=filterSustainKnob,floor=0.1,ceil=0.9,probability=90,default=12,zero=2,useDuration=false,category="filter"})
 
   local filterReleaseKnob = filterEnvPanel:Knob("FRelease", 0.010, 0, 10)
   filterReleaseKnob.displayName="Release"
@@ -2922,7 +3049,7 @@ function createFilterEnvTargetsPanel()
     self.displayText = percent(self.value)
   end
   envAmtKnob:changed()
-  table.insert(tweakables, {widget=envAmtKnob,bipolar=25,useDuration=true,category="filter"})
+  table.insert(tweakables, {widget=envAmtKnob,bipolar=25,floor=0.3,ceiling=0.9,probability=50,useDuration=true,category="filter"})
 
   local hpfEnvAmtKnob = filterEnvTargetsPanel:Knob("HpfEnvelopeAmt", 0, -1, 1)
   hpfEnvAmtKnob.displayName = "HP-Filter"
@@ -2934,7 +3061,7 @@ function createFilterEnvTargetsPanel()
     self.displayText = percent(self.value)
   end
   hpfEnvAmtKnob:changed()
-  table.insert(tweakables, {widget=hpfEnvAmtKnob,absoluteLimit=0.85,bipolar=25,useDuration=true,category="filter"})
+  table.insert(tweakables, {widget=hpfEnvAmtKnob,absoluteLimit=0.85,floor=0.1,ceiling=0.6,probability=50,bipolar=25,useDuration=true,category="filter"})
 
   return filterEnvTargetsPanel
 end
@@ -2956,7 +3083,7 @@ function createFilterEnvOscTargetsPanel()
       filterEnvToPitchOsc1:setParameter("Value", value)
     end
     filterEnvToPitchOsc1Knob:changed()
-    table.insert(tweakables, {widget=filterEnvToPitchOsc1Knob,ceiling=0.1,probability=90,default=80,noDefaultTweak=true,zero=30,category="filter"})
+    table.insert(tweakables, {widget=filterEnvToPitchOsc1Knob,ceiling=0.1,probability=90,default=80,zero=30,category="filter"})
 
     -- TODO Adjust if hardsync enabled
     local filterEnvToPitchOsc2Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToPitchOsc2", 0, 0, 48)
@@ -2970,7 +3097,7 @@ function createFilterEnvOscTargetsPanel()
       filterEnvToPitchOsc2:setParameter("Value", value)
     end
     filterEnvToPitchOsc2Knob:changed()
-    table.insert(tweakables, {widget=filterEnvToPitchOsc2Knob,ceiling=0.1,probability=85,default=75,noDefaultTweak=true,zero=25,category="filter"})
+    table.insert(tweakables, {widget=filterEnvToPitchOsc2Knob,ceiling=0.1,probability=85,default=75,zero=25,category="filter"})
 
     -- TODO Adjust if hardsync enabled
     local filterEnvToPitchOsc3Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToPitchOsc3", 0, 0, 48)
@@ -2984,7 +3111,7 @@ function createFilterEnvOscTargetsPanel()
       analogMacros["filterEnvToPitchOsc3"]:setParameter("Value", value)
     end
     filterEnvToPitchOsc3Knob:changed()
-    table.insert(tweakables, {widget=filterEnvToPitchOsc3Knob,ceiling=0.1,probability=85,default=75,noDefaultTweak=true,zero=25,category="filter"})
+    table.insert(tweakables, {widget=filterEnvToPitchOsc3Knob,ceiling=0.1,probability=85,default=75,zero=25,category="filter"})
   elseif isFM then
     local filterEnvToOsc1OpBLevelKnob = filterEnvOscTargetsPanel:Knob("Osc1FilterEnvToOpBLevel", 0, 0, 1)
     filterEnvToOsc1OpBLevelKnob.displayName = "Osc1 OpB Lvl"
@@ -2995,7 +3122,7 @@ function createFilterEnvOscTargetsPanel()
       self.displayText = percent(self.value)
     end
     filterEnvToOsc1OpBLevelKnob:changed()
-    table.insert(tweakables, {widget=filterEnvToOsc1OpBLevelKnob,default=50,zero=30,useDuration=true,category="filter"})
+    table.insert(tweakables, {widget=filterEnvToOsc1OpBLevelKnob,default=50,zero=30,floor=0.1,ceiling=0.6,probability=30,useDuration=true,category="filter"})
 
     local filterEnvToOsc1OpCLevelKnob = filterEnvOscTargetsPanel:Knob("Osc1FilterEnvToOpCLevel", 0, 0, 1)
     filterEnvToOsc1OpCLevelKnob.displayName = "Osc1 OpC Lvl"
@@ -3006,7 +3133,7 @@ function createFilterEnvOscTargetsPanel()
       self.displayText = percent(self.value)
     end
     filterEnvToOsc1OpCLevelKnob:changed()
-    table.insert(tweakables, {widget=filterEnvToOsc1OpCLevelKnob,default=60,zero=40,useDuration=true,category="filter"})
+    table.insert(tweakables, {widget=filterEnvToOsc1OpCLevelKnob,default=60,zero=40,floor=0.1,ceiling=0.6,probability=30,useDuration=true,category="filter"})
 
     local filterEnvToOsc1OpDLevelKnob = filterEnvOscTargetsPanel:Knob("Osc1FilterEnvToOpDLevel", 0, 0, 1)
     filterEnvToOsc1OpDLevelKnob.displayName = "Osc1 OpD Lvl"
@@ -3017,7 +3144,7 @@ function createFilterEnvOscTargetsPanel()
       self.displayText = percent(self.value)
     end
     filterEnvToOsc1OpDLevelKnob:changed()
-    table.insert(tweakables, {widget=filterEnvToOsc1OpDLevelKnob,default=70,zero=50,useDuration=true,category="filter"})
+    table.insert(tweakables, {widget=filterEnvToOsc1OpDLevelKnob,default=70,zero=50,floor=0.1,ceiling=0.6,probability=30,useDuration=true,category="filter"})
 
     local filterEnvToOsc2OpBLevelKnob = filterEnvOscTargetsPanel:Knob("Osc2FilterEnvToOpBLevel", 0, 0, 1)
     filterEnvToOsc2OpBLevelKnob.displayName = "Osc2 OpB Lvl"
@@ -3028,7 +3155,7 @@ function createFilterEnvOscTargetsPanel()
       self.displayText = percent(self.value)
     end
     filterEnvToOsc2OpBLevelKnob:changed()
-    table.insert(tweakables, {widget=filterEnvToOsc2OpBLevelKnob,default=50,zero=30,useDuration=true,category="filter"})
+    table.insert(tweakables, {widget=filterEnvToOsc2OpBLevelKnob,default=50,zero=30,floor=0.1,ceiling=0.6,probability=30,useDuration=true,category="filter"})
 
     local filterEnvToOsc2OpCLevelKnob = filterEnvOscTargetsPanel:Knob("Osc2FilterEnvToOpCLevel", 0, 0, 1)
     filterEnvToOsc2OpCLevelKnob.displayName = "Osc2 OpC Lvl"
@@ -3039,7 +3166,7 @@ function createFilterEnvOscTargetsPanel()
       self.displayText = percent(self.value)
     end
     filterEnvToOsc2OpCLevelKnob:changed()
-    table.insert(tweakables, {widget=filterEnvToOsc2OpCLevelKnob,default=60,zero=40,useDuration=true,category="filter"})
+    table.insert(tweakables, {widget=filterEnvToOsc2OpCLevelKnob,default=60,zero=40,floor=0.1,ceiling=0.6,probability=30,useDuration=true,category="filter"})
 
     local filterEnvToOsc2OpDLevelKnob = filterEnvOscTargetsPanel:Knob("Osc2FilterEnvToOpDLevel", 0, 0, 1)
     filterEnvToOsc2OpDLevelKnob.displayName = "Osc2 OpD Lvl"
@@ -3050,7 +3177,7 @@ function createFilterEnvOscTargetsPanel()
       self.displayText = percent(self.value)
     end
     filterEnvToOsc2OpDLevelKnob:changed()
-    table.insert(tweakables, {widget=filterEnvToOsc2OpDLevelKnob,default=70,zero=50,useDuration=true,category="filter"})
+    table.insert(tweakables, {widget=filterEnvToOsc2OpDLevelKnob,default=70,zero=50,floor=0.1,ceiling=0.6,probability=30,useDuration=true,category="filter"})
   elseif isAnalog or isAdditive or isWavetable then
     filterEnvOscTargetsPanel:Label("Filter Env -> Osc 1 ->")
 
@@ -3064,7 +3191,7 @@ function createFilterEnvOscTargetsPanel()
         self.displayText = percent(self.value)
       end
       filterEnvToHardsync1Knob:changed()
-      table.insert(tweakables, {widget=filterEnvToHardsync1Knob,zero=50,default=70,noDefaultTweak=true,useDuration=true,category="filter"})
+      table.insert(tweakables, {widget=filterEnvToHardsync1Knob,zero=50,default=70,ceiling=0.5,probability=30,useDuration=true,category="filter"})
     elseif isWavetable then
       local filterEnvToWT1Knob = filterEnvOscTargetsPanel:Knob("Osc1FilterEnvToIndex", 0, -1, 1)
       filterEnvToWT1Knob.displayName = "Waveindex"
@@ -3088,7 +3215,7 @@ function createFilterEnvOscTargetsPanel()
         self.displayText = percent(self.value)
       end
       oscFilterEnvAmtKnob:changed()
-      table.insert(tweakables, {widget=oscFilterEnvAmtKnob,bipolar=25,useDuration=true,category="filter"})
+      table.insert(tweakables, {widget=oscFilterEnvAmtKnob,bipolar=25,floor=0,ceiling=0.8,probability=30,useDuration=true,category="filter"})
     end
 
     local filterEnvToPitchOsc1Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToPitchOsc1", 0, 0, 48)
@@ -3102,7 +3229,7 @@ function createFilterEnvOscTargetsPanel()
       filterEnvToPitchOsc1:setParameter("Value", value)
     end
     filterEnvToPitchOsc1Knob:changed()
-    table.insert(tweakables, {widget=filterEnvToPitchOsc1Knob,ceiling=0.1,probability=90,default=80,noDefaultTweak=true,zero=30,useDuration=true,category="filter"})
+    table.insert(tweakables, {widget=filterEnvToPitchOsc1Knob,ceiling=0.8,probability=90,default=80,zero=10,useDuration=true,category="filter"})
 
     filterEnvOscTargetsPanel:Label("Filter Env -> Osc 2 ->")
 
@@ -3116,7 +3243,7 @@ function createFilterEnvOscTargetsPanel()
         self.displayText = percent(self.value)
       end
       filterEnvToHardsync2Knob:changed()
-      table.insert(tweakables, {widget=filterEnvToHardsync2Knob,zero=50,default=70,noDefaultTweak=true,useDuration=true,category="filter"})
+      table.insert(tweakables, {widget=filterEnvToHardsync2Knob,zero=50,default=70,floor=0.3,ceiling=0.6,probability=10,useDuration=true,category="filter"})
     elseif isWavetable then
       local filterEnvToWT2Knob = filterEnvOscTargetsPanel:Knob("Osc2FilterEnvToIndex", 0, -1, 1)
       filterEnvToWT2Knob.displayName = "Waveindex"
@@ -3128,7 +3255,7 @@ function createFilterEnvOscTargetsPanel()
         self.displayText = percent(self.value)
       end
       filterEnvToWT2Knob:changed()
-      table.insert(tweakables, {widget=filterEnvToWT2Knob,bipolar=25,useDuration=true,category="filter"})
+      table.insert(tweakables, {widget=filterEnvToWT2Knob,bipolar=25,zero=25,floor=0.2,ceiling=0.7,probability=20,useDuration=true,category="filter"})
     elseif isAdditive then
       local oscFilterEnvAmtKnob = filterEnvOscTargetsPanel:Knob("Osc2FilterEnvelopeAmt", 0, -1, 1)
       oscFilterEnvAmtKnob.displayName = "Cutoff"
@@ -3140,7 +3267,7 @@ function createFilterEnvOscTargetsPanel()
         self.displayText = percent(self.value)
       end
       oscFilterEnvAmtKnob:changed()
-      table.insert(tweakables, {widget=oscFilterEnvAmtKnob,bipolar=25,useDuration=true,category="filter"})
+      table.insert(tweakables, {widget=oscFilterEnvAmtKnob,bipolar=25,default=25,floor=0.1,ceiling=0.6,probability=10,useDuration=true,category="filter"})
     end
 
     local filterEnvToPitchOsc2Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToPitchOsc2", 0, 0, 48)
@@ -3154,7 +3281,7 @@ function createFilterEnvOscTargetsPanel()
       filterEnvToPitchOsc2:setParameter("Value", value)
     end
     filterEnvToPitchOsc2Knob:changed()
-    table.insert(tweakables, {widget=filterEnvToPitchOsc2Knob,ceiling=0.1,probability=85,default=75,noDefaultTweak=true,zero=25,useDuration=true,category="filter"})
+    table.insert(tweakables, {widget=filterEnvToPitchOsc2Knob,ceiling=0.1,probability=85,default=75,zero=25,useDuration=true,category="filter"})
   end
 
   return filterEnvOscTargetsPanel
@@ -3268,7 +3395,7 @@ function createLfoPanel()
   lfo2SyncButton:changed()
   table.insert(tweakables, {widget=lfo2SyncButton,func=getRandomBoolean,excludeWithTwequencer=true,category="modulation"})
 
-  table.insert(tweakables, {widget=lfoFreqKnob,factor=20,useDuration=true,category="modulation"})
+  table.insert(tweakables, {widget=lfoFreqKnob,factor=20,floor=0.1,ceiling=0.5,probability=25,useDuration=true,category="modulation"})
 
   local lfo2TriggerButton = lfoPanel:OnOffButton("Lfo2Trigger", true)
   lfo2TriggerButton.alpha = buttonAlpha
@@ -3380,7 +3507,7 @@ function createLfoPanel()
     self.displayText = formatTimeInSeconds(self.value)
   end
   lfoSmoothKnob:changed()
-  table.insert(tweakables, {widget=lfoSmoothKnob,ceiling=0.3,default=50,zero=70,useDuration=true,category="modulation"})
+  table.insert(tweakables, {widget=lfoSmoothKnob,ceiling=0.3,probability=50,default=50,zero=70,useDuration=true,category="modulation"})
 
   local lfoBipolarButton = lfoPanel:OnOffButton("LfoBipolar", true)
   lfoBipolarButton.alpha = buttonAlpha
@@ -3498,7 +3625,7 @@ function createLfoTargetPanel()
     self.displayText = percent(self.value)
   end
   lfoToCutoffKnob:changed()
-  table.insert(tweakables, {widget=lfoToCutoffKnob,bipolar=25,default=30,useDuration=true,category="modulation"})
+  table.insert(tweakables, {widget=lfoToCutoffKnob,bipolar=25,default=30,floor=0.01,ceiling=0.35,probability=50,useDuration=true,category="modulation"})
 
   local lfoToHpfCutoffKnob = lfoTargetPanel:Knob("LfoToHpfCutoff", 0, -1, 1)
   lfoToHpfCutoffKnob.displayName = "HP-Filter"
@@ -3513,7 +3640,7 @@ function createLfoTargetPanel()
     self.displayText = percent(self.value)
   end
   lfoToHpfCutoffKnob:changed()
-  table.insert(tweakables, {widget=lfoToHpfCutoffKnob,bipolar=25,default=50,useDuration=true,category="modulation"})
+  table.insert(tweakables, {widget=lfoToHpfCutoffKnob,bipolar=25,default=50,floor=0.1,ceiling=0.3,probability=50,useDuration=true,category="modulation"})
 
   local lfoToAmpKnob = lfoTargetPanel:Knob("LfoToAmplitude", 0, -1, 1)
   lfoToAmpKnob.displayName = "Amplitude"
@@ -3528,7 +3655,7 @@ function createLfoTargetPanel()
     self.displayText = percent(self.value)
   end
   lfoToAmpKnob:changed()
-  table.insert(tweakables, {widget=lfoToAmpKnob,bipolar=25,default=60,useDuration=true,category="modulation"})
+  table.insert(tweakables, {widget=lfoToAmpKnob,bipolar=25,default=60,floor=0.3,ceiling=0.8,probability=50,useDuration=true,category="modulation"})
 
   local lfoToDetuneKnob = lfoTargetPanel:Knob("LfoToDetune", 0, 0, 1)
   lfoToDetuneKnob.displayName = "Detune"
@@ -3550,7 +3677,7 @@ function createLfoTargetPanel()
     self.displayText = percent(self.value)
   end
   wheelToLfoKnob:changed()
-  table.insert(tweakables, {widget=wheelToLfoKnob,default=75,excludeWithTwequencer=true,category="modulation"})
+  table.insert(tweakables, {widget=wheelToLfoKnob,default=75,floor=0.5,ceiling=1.0,probability=50,excludeWithTwequencer=true,category="modulation"})
 
   ------- NOISE OSC ----------
 
@@ -3724,7 +3851,7 @@ function createLfoTargetPanel1()
         self.displayText = percent(self.value)
       end
       lfoToHardsync1Knob:changed()
-      table.insert(tweakables, {widget=lfoToHardsync1Knob,zero=50,default=70,noDefaultTweak=true,useDuration=true,category="modulation"})
+      table.insert(tweakables, {widget=lfoToHardsync1Knob,zero=50,default=70,floor=0.1,ceiling=0.6,probability=20,useDuration=true,category="modulation"})
     elseif isAdditive then
       local lfoToEvenOdd1Knob = lfoTargetPanel1:Knob("LfoToEvenOdd1", 0, 0, 1)
       lfoToEvenOdd1Knob.displayName = "Even/Odd"
@@ -3735,7 +3862,7 @@ function createLfoTargetPanel1()
         self.displayText = percent(self.value)
       end
       lfoToEvenOdd1Knob:changed()
-      table.insert(tweakables, {widget=lfoToEvenOdd1Knob,zero=50,default=70,category="modulation"})
+      table.insert(tweakables, {widget=lfoToEvenOdd1Knob,zero=50,default=70,floor=0.3,ceiling=0.9,probability=20,category="modulation"})
 
       local lfoToCutoffKnob = lfoTargetPanel1:Knob("LfoToOsc1Cutoff", 0, -1, 1)
       lfoToCutoffKnob.displayName = "Cutoff"
@@ -3747,7 +3874,7 @@ function createLfoTargetPanel1()
         self.displayText = percent(self.value)
       end
       lfoToCutoffKnob:changed()
-      table.insert(tweakables, {widget=lfoToCutoffKnob,bipolar=25,default=30,useDuration=true,category="modulation"})
+      table.insert(tweakables, {widget=lfoToCutoffKnob,bipolar=25,default=30,floor=0.1,ceiling=0.5,probability=20,useDuration=true,category="modulation"})
     elseif isWavetable then
       local lfoToWT1Knob = lfoTargetPanel1:Knob("Osc1LfoToWaveIndex", 0, -1, 1)
       lfoToWT1Knob.displayName = "Waveindex"
@@ -3759,7 +3886,7 @@ function createLfoTargetPanel1()
         self.displayText = percent(self.value)
       end
       lfoToWT1Knob:changed()
-      table.insert(tweakables, {widget=lfoToWT1Knob,bipolar=25,default=25,useDuration=true,category="modulation"})
+      table.insert(tweakables, {widget=lfoToWT1Knob,bipolar=25,default=25,floor=0.3,ceiling=0.9,probability=20,useDuration=true,category="modulation"})
 
       local lfoToWaveSpread1Knob = lfoTargetPanel1:Knob("LfoToWaveSpreadOsc1", 0, -1, 1)
       lfoToWaveSpread1Knob.displayName = "WaveSpread"
@@ -3771,7 +3898,7 @@ function createLfoTargetPanel1()
         self.displayText = percent(self.value)
       end
       lfoToWaveSpread1Knob:changed()
-      table.insert(tweakables, {widget=lfoToWaveSpread1Knob,bipolar=80,default=50,useDuration=true,category="modulation"})
+      table.insert(tweakables, {widget=lfoToWaveSpread1Knob,bipolar=80,default=50,ceiling=0.4,probability=30,useDuration=true,category="modulation"})
     elseif isFM then
       local lfoToOsc1OpBLevelKnob = lfoTargetPanel1:Knob("LfoToOsc1OpBLevelKnob", 0, 0, 1)
       lfoToOsc1OpBLevelKnob.displayName = "Op B Level"
@@ -3782,7 +3909,7 @@ function createLfoTargetPanel1()
         self.displayText = percent(self.value)
       end
       lfoToOsc1OpBLevelKnob:changed()
-      table.insert(tweakables, {widget=lfoToOsc1OpBLevelKnob,default=50,category="modulation"})
+      table.insert(tweakables, {widget=lfoToOsc1OpBLevelKnob,default=50,floor=0.1,ceiling=0.6,probability=20,category="modulation"})
 
       local lfoToOsc1OpCLevelKnob = lfoTargetPanel1:Knob("LfoToOsc1OpCLevelKnob", 0, 0, 1)
       lfoToOsc1OpCLevelKnob.displayName = "Op C Level"
@@ -3793,7 +3920,7 @@ function createLfoTargetPanel1()
         self.displayText = percent(self.value)
       end
       lfoToOsc1OpCLevelKnob:changed()
-      table.insert(tweakables, {widget=lfoToOsc1OpCLevelKnob,default=50,category="modulation"})
+      table.insert(tweakables, {widget=lfoToOsc1OpCLevelKnob,default=50,floor=0.1,ceiling=0.6,probability=20,category="modulation"})
 
       local lfoToOsc1OpDLevelKnob = lfoTargetPanel1:Knob("LfoToOsc1OpDLevelKnob", 0, 0, 1)
       lfoToOsc1OpDLevelKnob.displayName = "Op D Level"
@@ -3804,7 +3931,7 @@ function createLfoTargetPanel1()
         self.displayText = percent(self.value)
       end
       lfoToOsc1OpDLevelKnob:changed()
-      table.insert(tweakables, {widget=lfoToOsc1OpDLevelKnob,default=50,category="modulation"})
+      table.insert(tweakables, {widget=lfoToOsc1OpDLevelKnob,default=50,floor=0.1,ceiling=0.6,probability=20,category="modulation"})
 
       local lfoToOsc1FeedbackKnob = lfoTargetPanel1:Knob("LfoToOsc1Feedback", 0, 0, 1)
       lfoToOsc1FeedbackKnob.displayName = "Feedback"
@@ -3815,7 +3942,7 @@ function createLfoTargetPanel1()
         self.displayText = percent(self.value)
       end
       lfoToOsc1FeedbackKnob:changed()
-      table.insert(tweakables, {widget=lfoToOsc1FeedbackKnob,default=50,category="modulation"})
+      table.insert(tweakables, {widget=lfoToOsc1FeedbackKnob,default=50,floor=0.1,ceiling=0.6,probability=20,category="modulation"})
     end
 
     if isAnalog or isAdditive or isWavetable or isFM then
@@ -3830,7 +3957,7 @@ function createLfoTargetPanel1()
         lfoToPitchOsc1:setParameter("Value", value)
       end
       lfoToPitchOsc1Knob:changed()
-      table.insert(tweakables, {widget=lfoToPitchOsc1Knob,ceiling=0.1,probability=75,default=75,noDefaultTweak=true,zero=50,useDuration=true,category="modulation"})
+      table.insert(tweakables, {widget=lfoToPitchOsc1Knob,ceiling=0.1,probability=75,default=75,zero=50,useDuration=true,category="modulation"})
     end
   end
 
@@ -3860,7 +3987,7 @@ function createLfoTargetPanel2()
       lfoToPitchOsc1:setParameter("Value", value)
     end
     lfoToPitchOsc1Knob:changed()
-    table.insert(tweakables, {widget=lfoToPitchOsc1Knob,ceiling=0.1,probability=80,default=80,noDefaultTweak=true,zero=50,useDuration=true,category="modulation"})
+    table.insert(tweakables, {widget=lfoToPitchOsc1Knob,ceiling=0.1,probability=80,default=80,zero=50,useDuration=true,category="modulation"})
 
     -- TODO Validate pitch modulation - if hard sync is enabled, ceiling can be higher
     local lfoToPitchOsc2Knob = lfoTargetPanel2:Knob("LfoToPitchOsc2Knob", 0, 0, 48)
@@ -3874,7 +4001,7 @@ function createLfoTargetPanel2()
       lfoToPitchOsc2:setParameter("Value", value)
     end
     lfoToPitchOsc2Knob:changed()
-    table.insert(tweakables, {widget=lfoToPitchOsc2Knob,ceiling=0.1,probability=75,default=80,noDefaultTweak=true,zero=30,useDuration=true,category="modulation"})
+    table.insert(tweakables, {widget=lfoToPitchOsc2Knob,ceiling=0.1,probability=75,default=80,zero=30,useDuration=true,category="modulation"})
 
     -- TODO Validate pitch modulation - if hard sync is enabled, ceiling can be higher
     local lfoToPitchOsc3Knob = lfoTargetPanel2:Knob("LfoToPitchOsc3Knob", 0, 0, 48)
@@ -3888,7 +4015,7 @@ function createLfoTargetPanel2()
       analogMacros["lfoToPitchOsc3"]:setParameter("Value", value)
     end
     lfoToPitchOsc3Knob:changed()
-    table.insert(tweakables, {widget=lfoToPitchOsc3Knob,ceiling=0.1,probability=75,default=80,noDefaultTweak=true,zero=30,useDuration=true,category="modulation"})
+    table.insert(tweakables, {widget=lfoToPitchOsc3Knob,ceiling=0.1,probability=75,default=80,zero=30,useDuration=true,category="modulation"})
   else
     lfoTargetPanel2:Label("LFO -> Osc 2 ->")
 
@@ -3916,7 +4043,7 @@ function createLfoTargetPanel2()
         self.displayText = percent(self.value)
       end
       lfoToHardsync2Knob:changed()
-      table.insert(tweakables, {widget=lfoToHardsync2Knob,zero=50,default=70,noDefaultTweak=true,useDuration=true,category="modulation"})
+      table.insert(tweakables, {widget=lfoToHardsync2Knob,zero=50,default=70,floor=0.1,ceiling=0.6,probability=20,useDuration=true,category="modulation"})
     elseif isAdditive then
       local lfoToEvenOdd2Knob = lfoTargetPanel2:Knob("LfoToEvenOdd2", 0, 0, 1)
       lfoToEvenOdd2Knob.displayName = "Even/Odd"
@@ -3927,7 +4054,7 @@ function createLfoTargetPanel2()
         self.displayText = percent(self.value)
       end
       lfoToEvenOdd2Knob:changed()
-      table.insert(tweakables, {widget=lfoToEvenOdd2Knob,zero=50,default=70,category="modulation"})
+      table.insert(tweakables, {widget=lfoToEvenOdd2Knob,zero=50,default=70,floor=0.1,ceiling=0.6,probability=20,category="modulation"})
 
       local lfoToCutoffKnob = lfoTargetPanel2:Knob("LfoToOsc2Cutoff", 0, -1, 1)
       lfoToCutoffKnob.displayName = "Cutoff"
@@ -3939,7 +4066,7 @@ function createLfoTargetPanel2()
         self.displayText = percent(self.value)
       end
       lfoToCutoffKnob:changed()
-      table.insert(tweakables, {widget=lfoToCutoffKnob,bipolar=25,default=30,useDuration=true,category="modulation"})
+      table.insert(tweakables, {widget=lfoToCutoffKnob,bipolar=25,default=30,floor=0.1,ceiling=0.6,probability=20,useDuration=true,category="modulation"})
     elseif isWavetable then
       local lfoToWT2Knob = lfoTargetPanel2:Knob("Osc2LfoToWaveIndex", 0, -1, 1)
       lfoToWT2Knob.displayName = "Waveindex"
@@ -3951,7 +4078,7 @@ function createLfoTargetPanel2()
         self.displayText = percent(self.value)
       end
       lfoToWT2Knob:changed()
-      table.insert(tweakables, {widget=lfoToWT2Knob,bipolar=25,default=25,useDuration=true,category="modulation"})
+      table.insert(tweakables, {widget=lfoToWT2Knob,bipolar=25,default=25,floor=0.1,ceiling=0.9,probability=30,useDuration=true,category="modulation"})
 
       local lfoToWaveSpread2Knob = lfoTargetPanel2:Knob("LfoToWaveSpreadOsc2", 0, -1, 1)
       lfoToWaveSpread2Knob.displayName = "WaveSpread"
@@ -3963,7 +4090,7 @@ function createLfoTargetPanel2()
         self.displayText = percent(self.value)
       end
       lfoToWaveSpread2Knob:changed()
-      table.insert(tweakables, {widget=lfoToWaveSpread2Knob,bipolar=80,default=50,useDuration=true,category="modulation"})
+      table.insert(tweakables, {widget=lfoToWaveSpread2Knob,bipolar=80,default=50,floor=0.3,ceiling=0.7,probability=25,useDuration=true,category="modulation"})
     elseif isFM then
       local lfoToOsc2OpBLevelKnob = lfoTargetPanel2:Knob("LfoToOsc2OpBLevelKnob", 0, 0, 1)
       lfoToOsc2OpBLevelKnob.displayName = "Op B Level"
@@ -3974,7 +4101,7 @@ function createLfoTargetPanel2()
         self.displayText = percent(self.value)
       end
       lfoToOsc2OpBLevelKnob:changed()
-      table.insert(tweakables, {widget=lfoToOsc2OpBLevelKnob,default=50,category="modulation"})
+      table.insert(tweakables, {widget=lfoToOsc2OpBLevelKnob,default=50,floor=0.1,ceiling=0.6,probability=20,category="modulation"})
 
       local lfoToOsc2OpCLevelKnob = lfoTargetPanel2:Knob("LfoToOsc2OpCLevelKnob", 0, 0, 1)
       lfoToOsc2OpCLevelKnob.displayName = "Op C Level"
@@ -3985,7 +4112,7 @@ function createLfoTargetPanel2()
         self.displayText = percent(self.value)
       end
       lfoToOsc2OpCLevelKnob:changed()
-      table.insert(tweakables, {widget=lfoToOsc2OpCLevelKnob,default=50,category="modulation"})
+      table.insert(tweakables, {widget=lfoToOsc2OpCLevelKnob,default=50,floor=0.1,ceiling=0.6,probability=20,category="modulation"})
 
       local lfoToOsc2OpDLevelKnob = lfoTargetPanel2:Knob("LfoToOsc2OpDLevelKnob", 0, 0, 1)
       lfoToOsc2OpDLevelKnob.displayName = "Op D Level"
@@ -3996,7 +4123,7 @@ function createLfoTargetPanel2()
         self.displayText = percent(self.value)
       end
       lfoToOsc2OpDLevelKnob:changed()
-      table.insert(tweakables, {widget=lfoToOsc2OpDLevelKnob,default=50,category="modulation"})
+      table.insert(tweakables, {widget=lfoToOsc2OpDLevelKnob,default=50,floor=0.1,ceiling=0.6,probability=20,category="modulation"})
 
       local lfoToOsc2FeedbackKnob = lfoTargetPanel2:Knob("LfoToOsc2Feedback", 0, 0, 1)
       lfoToOsc2FeedbackKnob.displayName = "Feedback"
@@ -4007,7 +4134,7 @@ function createLfoTargetPanel2()
         self.displayText = percent(self.value)
       end
       lfoToOsc2FeedbackKnob:changed()
-      table.insert(tweakables, {widget=lfoToOsc2FeedbackKnob,default=50,category="modulation"})
+      table.insert(tweakables, {widget=lfoToOsc2FeedbackKnob,default=50,floor=0.1,ceiling=0.3,probability=50,category="modulation"})
     end
 
     if isAnalog or isAdditive or isWavetable or isFM then
@@ -4022,7 +4149,7 @@ function createLfoTargetPanel2()
         lfoToPitchOsc2:setParameter("Value", value)
       end
       lfoToPitchOsc2Knob:changed()
-      table.insert(tweakables, {widget=lfoToPitchOsc2Knob,ceiling=0.1,probability=75,default=80,noDefaultTweak=true,zero=30,useDuration=true,category="modulation"})
+      table.insert(tweakables, {widget=lfoToPitchOsc2Knob,ceiling=0.1,probability=75,default=80,zero=30,useDuration=true,category="modulation"})
     end
   end
 
@@ -4068,7 +4195,7 @@ function createAmpEnvPanel()
     self.displayText = formatTimeInSeconds(self.value)
   end
   ampAttackKnob:changed()
-  table.insert(tweakables, {widget=ampAttackKnob,attack=true,floor=0.001,ceiling=0.01,probability=85,default=50,defaultTweakRange=0.1,useDuration=true,category="synthesis"})
+  table.insert(tweakables, {widget=ampAttackKnob,attack=true,floor=0.001,ceiling=0.01,probability=85,default=50,defaultTweakRange=0.1,useDuration=false,category="synthesis"})
 
   local ampDecayKnob = ampEnvPanel:Knob("Decay", 0.050, 0, 10)
   ampDecayKnob.fillColour = knobColour
@@ -4087,7 +4214,7 @@ function createAmpEnvPanel()
     self.displayText = formatTimeInSeconds(self.value)
   end
   ampDecayKnob:changed()
-  table.insert(tweakables, {widget=ampDecayKnob,factor=3,floor=0.01,ceiling=0.5,probability=50,default=25,useDuration=true,category="synthesis"})
+  table.insert(tweakables, {widget=ampDecayKnob,factor=3,floor=0.01,ceiling=0.5,probability=50,default=25,useDuration=false,category="synthesis"})
 
   local ampSustainKnob = ampEnvPanel:Knob("Sustain", 1, 0, 1)
   ampSustainKnob.fillColour = knobColour
@@ -4105,7 +4232,7 @@ function createAmpEnvPanel()
     self.displayText = percent(self.value)
   end
   ampSustainKnob:changed()
-  table.insert(tweakables, {widget=ampSustainKnob,floor=0.3,ceil=0.9,probability=80,default=60,zero=2,useDuration=true,category="synthesis"})
+  table.insert(tweakables, {widget=ampSustainKnob,floor=0.3,ceil=0.9,probability=80,default=60,zero=2,useDuration=false,category="synthesis"})
 
   local ampReleaseKnob = ampEnvPanel:Knob("Release", 0.010, 0, 10)
   ampReleaseKnob.fillColour = knobColour
@@ -4124,7 +4251,7 @@ function createAmpEnvPanel()
     self.displayText = formatTimeInSeconds(self.value)
   end
   ampReleaseKnob:changed()
-  table.insert(tweakables, {widget=ampReleaseKnob,release=true,factor=2,floor=0.01,ceiling=0.5,probability=90,default=70,defaultTweakRange=1,useDuration=true,category="synthesis"})
+  table.insert(tweakables, {widget=ampReleaseKnob,release=true,factor=2,floor=0.01,ceiling=0.5,probability=90,default=70,defaultTweakRange=1,useDuration=false,category="synthesis"})
 
   local ampVelocityKnob = ampEnvPanel:Knob("VelocityToAmpEnv", 10, 0, 40)
   ampVelocityKnob.displayName="Velocity"
@@ -4256,7 +4383,7 @@ function createEffectsPanel()
     self.displayText = percent(self.value)
   end
   phasorMixKnob:changed()
-  table.insert(tweakables, {widget=phasorMixKnob,default=80,zero=50,useDuration=true,category="effects"})
+  table.insert(tweakables, {widget=phasorMixKnob,default=80,zero=50,ceiling=0.75,probability=20,useDuration=true,category="effects"})
 
   local chorusKnob = effectsPanel:Knob("Chorus", 0, 0, 1)
   chorusKnob.size = knobSize
@@ -4348,7 +4475,7 @@ function createVibratoPanel()
     end
   end
   vibratoRateKnob:changed()
-  table.insert(tweakables, {widget=vibratoRateKnob,default=50,useDuration=true,category="synthesis"})
+  table.insert(tweakables, {widget=vibratoRateKnob,default=50,floor=0.5,ceiling=0.8,probability=50,useDuration=true,category="synthesis"})
 
   local vibratoRiseKnob = vibratoPanel:Knob("VibratoRiseTime", 0, 0, 10)
   vibratoRiseKnob.displayName="Rise Time"
@@ -4371,7 +4498,7 @@ function createVibratoPanel()
     self.displayText = percent(self.value)
   end
   wheelToVibratoKnob:changed()
-  table.insert(tweakables, {widget=wheelToVibratoKnob,excludeWithTwequencer=true,category="synthesis"})
+  table.insert(tweakables, {widget=wheelToVibratoKnob,default=50,floor=0.6,ceiling=0.85,probability=60,excludeWithTwequencer=true,category="synthesis"})
 
   local atToVibratoKnob = vibratoPanel:Knob("AftertouchToVibrato", 0, 0, 1)
   atToVibratoKnob.displayName="Aftertouch"
@@ -4382,7 +4509,7 @@ function createVibratoPanel()
     self.displayText = percent(self.value)
   end
   atToVibratoKnob:changed()
-  table.insert(tweakables, {widget=atToVibratoKnob,excludeWithTwequencer=true,category="synthesis"})
+  table.insert(tweakables, {widget=atToVibratoKnob,default=50,floor=0.7,ceiling=0.9,probability=70,excludeWithTwequencer=true,category="synthesis"})
 
   return vibratoPanel
 end
@@ -4537,15 +4664,15 @@ function createPatchMakerPanel()
     self:setValue(1)
   end
 
-  local tweakSourceMenu = tweakPanel:Menu("TweakSource", tweakSources)
-  tweakSourceMenu.backgroundColour = menuBackgroundColour
-  tweakSourceMenu.textColour = menuTextColour
-  tweakSourceMenu.arrowColour = menuArrowColour
-  tweakSourceMenu.outlineColour = menuOutlineColour
-  tweakSourceMenu.displayName = "Tweak Source"
-  tweakSourceMenu.width = width/4-10
-  tweakSourceMenu.x = width/2
-  tweakSourceMenu.y = patchesMenu.y
+  local modStyleMenu = tweakPanel:Menu("ModulationStyle", {"Automatic", "Very fast", "Fast", "Medium fast", "Medium", "Medium slow", "Slow", "Very slow"})
+  modStyleMenu.backgroundColour = menuBackgroundColour
+  modStyleMenu.textColour = menuTextColour
+  modStyleMenu.arrowColour = menuArrowColour
+  modStyleMenu.outlineColour = menuOutlineColour
+  modStyleMenu.displayName = "Modulation Style"
+  modStyleMenu.x = width/2
+  modStyleMenu.y = patchesMenu.y
+  modStyleMenu.width = width/4-10
 
   envStyleMenu = tweakPanel:Menu("EnvStyle", {"Automatic", "Very short", "Short", "Medium short", "Medium", "Medium long", "Long", "Very long"})
   envStyleMenu.backgroundColour = menuBackgroundColour
@@ -4553,13 +4680,13 @@ function createPatchMakerPanel()
   envStyleMenu.arrowColour = menuArrowColour
   envStyleMenu.outlineColour = menuOutlineColour
   envStyleMenu.displayName = "Envelope Style"
-  envStyleMenu.width = tweakSourceMenu.width
-  envStyleMenu.x = tweakSourceMenu.width + tweakSourceMenu.x + 10
-  envStyleMenu.y = tweakSourceMenu.y
+  envStyleMenu.width = modStyleMenu.width
+  envStyleMenu.x = modStyleMenu.width + modStyleMenu.x + 10
+  envStyleMenu.y = modStyleMenu.y
 
   local scopeLabel = tweakPanel:Label("Tweak Scope")
-  scopeLabel.x = tweakSourceMenu.x
-  scopeLabel.y = tweakSourceMenu.y + tweakSourceMenu.height + 10
+  scopeLabel.x = modStyleMenu.x
+  scopeLabel.y = modStyleMenu.y + modStyleMenu.height + 10
 
   -- SCOPE BUTTONS - synthesis, modulation, filter, mixer, effects
   local synthesisButton = tweakPanel:OnOffButton("Synthesis", true)
@@ -4649,7 +4776,7 @@ function createPatchMakerPanel()
       --[[ if string.match(v.widget.name, 'Osc%dWave') or v.widget.name == "SubOscWaveform" then
         v.valueFilter = valueFilter
       end ]]
-      v.targetValue = getTweakSuggestion(v, tweakLevelKnob.value, tweakSourceMenu.value, envStyleMenu.value)
+      v.targetValue = getTweakSuggestion(v, tweakLevelKnob.value, envStyleMenu.value, modStyleMenu.value)
     end
     verifySettings(tweakLevelKnob.value, widgetsForTweaking, synthesisButton, modulationButton, filterButton, mixerButton, effectsButton)
     -- Perform the suggested tweaks
@@ -4711,7 +4838,7 @@ function createTwequencerPanel()
   local noteNumberToNoteName = {} -- Used for mapping - does not unclude octave, only name of note (C, C#...)
   local notenamePos = 1
   for i=0,127 do
-    local name = notenames[notenamePos] .. (math.floor(i/12)-1) .. " (note #" .. i .. ")"
+    local name = notenames[notenamePos] .. (math.floor(i/12)-2) .. " (" .. i .. ")"
     table.insert(noteNumberToNames, name)
     table.insert(noteNumberToNoteName, notenames[notenamePos])
     notenamePos = notenamePos + 1
@@ -4745,15 +4872,18 @@ function createTwequencerPanel()
   sequencerPlayMenu.y = tweakLevelKnob.y + tweakLevelKnob.height + 6
   sequencerPlayMenu.width = tweakLevelKnob.width
 
-  local tweakSourceMenu = tweqPanel:Menu("SeqTweakSource", tweakSources)
-  tweakSourceMenu.backgroundColour = menuBackgroundColour
-  tweakSourceMenu.textColour = menuTextColour
-  tweakSourceMenu.arrowColour = menuArrowColour
-  tweakSourceMenu.outlineColour = menuOutlineColour
-  tweakSourceMenu.displayName = "Tweak/Morph Source"
-  tweakSourceMenu.x = sequencerPlayMenu.x
-  tweakSourceMenu.y = sequencerPlayMenu.y + sequencerPlayMenu.height + 6
-  tweakSourceMenu.width = sequencerPlayMenu.width
+  local tweakModeMenu = tweqPanel:Menu("TweakMode", {"Tweak over time", "Tweak", "Morph between stored snapshots", "Off"})
+  tweakModeMenu.backgroundColour = menuBackgroundColour
+  tweakModeMenu.textColour = menuTextColour
+  tweakModeMenu.arrowColour = menuArrowColour
+  tweakModeMenu.outlineColour = menuOutlineColour
+  tweakModeMenu.displayName = "Tweak mode"
+  tweakModeMenu.x = sequencerPlayMenu.x
+  tweakModeMenu.y = sequencerPlayMenu.y + sequencerPlayMenu.height + 6
+  tweakModeMenu.width = sequencerPlayMenu.width
+  tweakModeMenu.changed = function (self)
+    tweakLevelKnob.enabled = self.value < 3
+  end
 
   local envStyleMenu = tweqPanel:Menu("SeqEnvStyle", {"Automatic", "Very short", "Short", "Medium short", "Medium", "Medium long", "Long", "Very long"})
   envStyleMenu.backgroundColour = menuBackgroundColour
@@ -4761,9 +4891,9 @@ function createTwequencerPanel()
   envStyleMenu.arrowColour = menuArrowColour
   envStyleMenu.outlineColour = menuOutlineColour
   envStyleMenu.displayName = "Envelope Style"
-  envStyleMenu.x = tweakSourceMenu.x
-  envStyleMenu.y = tweakSourceMenu.y + tweakSourceMenu.height + 6
-  envStyleMenu.width = tweakSourceMenu.width
+  envStyleMenu.x = tweakModeMenu.x
+  envStyleMenu.y = tweakModeMenu.y + tweakModeMenu.height + 6
+  envStyleMenu.width = tweakModeMenu.width
 
   local modStyleMenu = tweqPanel:Menu("ModStyle", {"Automatic", "Very fast", "Fast", "Medium fast", "Medium", "Medium slow", "Slow", "Very slow"})
   modStyleMenu.backgroundColour = menuBackgroundColour
@@ -4771,7 +4901,7 @@ function createTwequencerPanel()
   modStyleMenu.arrowColour = menuArrowColour
   modStyleMenu.outlineColour = menuOutlineColour
   modStyleMenu.displayName = "Modulation Style"
-  modStyleMenu.x = tweakSourceMenu.x
+  modStyleMenu.x = tweakModeMenu.x
   modStyleMenu.y = envStyleMenu.y + envStyleMenu.height + 6
   modStyleMenu.width = envStyleMenu.width
 
@@ -4794,16 +4924,6 @@ function createTwequencerPanel()
   numStepsBox.arrowColour = menuArrowColour
   numStepsBox.outlineColour = menuOutlineColour
 
-  local durationButton = tweqPanel:OnOffButton("DurationOnOff", true)
-  durationButton.alpha = buttonAlpha
-  durationButton.backgroundColourOff = buttonBackgroundColourOff
-  durationButton.backgroundColourOn = buttonBackgroundColourOn
-  durationButton.textColourOff = buttonTextColourOff
-  durationButton.textColourOn = buttonTextColourOn
-  durationButton.displayName = "Tweak over time"
-  durationButton.fillColour = knobColour
-  durationButton.size = {numStepsBox.width,23}
-
   local stepButton = tweqPanel:OnOffButton("StepOnOff", false)
   stepButton.alpha = buttonAlpha
   stepButton.backgroundColourOff = buttonBackgroundColourOff
@@ -4812,7 +4932,7 @@ function createTwequencerPanel()
   stepButton.textColourOn = buttonTextColourOn
   stepButton.displayName = "Tweak each step"
   stepButton.fillColour = knobColour
-  stepButton.size = {numStepsBox.width,durationButton.height}
+  stepButton.size = {numStepsBox.width,22}
 
   local arpOnOffButton = tweqPanel:OnOffButton("ArpOnOff", false)
   arpOnOffButton.alpha = buttonAlpha
@@ -4822,7 +4942,7 @@ function createTwequencerPanel()
   arpOnOffButton.textColourOn = buttonTextColourOn
   arpOnOffButton.displayName = "Arp on/off"
   arpOnOffButton.fillColour = knobColour
-  arpOnOffButton.size = {numStepsBox.width,durationButton.height}
+  arpOnOffButton.size = {numStepsBox.width,stepButton.height}
 
   local tweakArpButton = tweqPanel:OnOffButton("TweakArpOnOff", false)
   tweakArpButton.alpha = buttonAlpha
@@ -4832,7 +4952,7 @@ function createTwequencerPanel()
   tweakArpButton.textColourOn = buttonTextColourOn
   tweakArpButton.displayName = "Tweak Arp"
   tweakArpButton.fillColour = knobColour
-  tweakArpButton.size = {numStepsBox.width/2,durationButton.height}
+  tweakArpButton.size = {numStepsBox.width/2,stepButton.height}
 
   local holdButton = tweqPanel:OnOffButton("HoldOnOff", false)
   holdButton.alpha = buttonAlpha
@@ -4842,7 +4962,7 @@ function createTwequencerPanel()
   holdButton.textColourOn = buttonTextColourOn
   holdButton.displayName = "Hold"
   holdButton.fillColour = knobColour
-  holdButton.size = {numStepsBox.width,durationButton.height}
+  holdButton.size = {numStepsBox.width,stepButton.height}
   holdButton.changed = function(self)
     if self.value == false then
       heldNotes = {}
@@ -4854,6 +4974,14 @@ function createTwequencerPanel()
         automaticSequencerRunning = false
       end
     end
+  end
+
+  local settingsButton = tweqPanel:Button("TweqSettings")
+  settingsButton.displayName = "Settings"
+  settingsButton.fillColour = knobColour
+  settingsButton.size = {numStepsBox.width,stepButton.height}
+  settingsButton.changed = function()
+    setPage(7)
   end
 
   local seqPitchTable = tweqPanel:Table("Pitch", numStepsBox.value, 0, -12, 12, true)
@@ -4894,8 +5022,6 @@ function createTwequencerPanel()
   arpResMenu.outlineColour = menuOutlineColour
   arpResMenu.showLabel = false
   arpResMenu.height = tweakArpButton.height
-  arpResMenu.x = gateKnob.x + (numStepsBox.width/2) + 4
-  arpResMenu.y = 255
   arpResMenu.width = (numStepsBox.width/2) - 4
 
   local resolution = tweqPanel:Menu("Resolution", getResolutionNames())
@@ -5216,11 +5342,8 @@ function createTwequencerPanel()
   end
   numStepsBox:changed()
 
-  durationButton.x = resolution.x
-  durationButton.y = numStepsBox.y + numStepsBox.height + 10
-
   stepButton.x = resolution.x
-  stepButton.y = durationButton.y + durationButton.height + 10
+  stepButton.y = numStepsBox.y + numStepsBox.height + 10
 
   arpOnOffButton.x = stepButton.x
   arpOnOffButton.y = stepButton.y + stepButton.height + 10
@@ -5228,8 +5351,14 @@ function createTwequencerPanel()
   tweakArpButton.x = arpOnOffButton.x
   tweakArpButton.y = arpOnOffButton.y + arpOnOffButton.height + 10
 
+  arpResMenu.x = tweakArpButton.x + (numStepsBox.width/2) + 4
+  arpResMenu.y = tweakArpButton.y
+
   holdButton.x = tweakArpButton.x
   holdButton.y = tweakArpButton.y + tweakArpButton.height + 10
+
+  settingsButton.x = holdButton.x
+  settingsButton.y = holdButton.y + holdButton.height + 10
 
   sequencerPlayMenu.changed = function(self)
     -- Stop sequencer if turned off
@@ -5268,7 +5397,7 @@ function createTwequencerPanel()
   synthesisButton.textColourOn = buttonTextColourOn
   synthesisButton.displayName = "Synthesis"
   synthesisButton.fillColour = knobColour
-  synthesisButton.size = {66,35}
+  synthesisButton.size = {78,35}
   synthesisButton.x = positionTable.x
   synthesisButton.y = positionTable.y + positionTable.height + 10
 
@@ -5319,21 +5448,6 @@ function createTwequencerPanel()
   mixerButton.size = synthesisButton.size
   mixerButton.x = effectsButton.x + effectsButton.width + marginX
   mixerButton.y = synthesisButton.y
-
-  local settingsButton = tweqPanel:Button("TweqSettings")
-  settingsButton.alpha = pageButtonAlpha
-  settingsButton.backgroundColourOff = pageButtonBackgroundColourOff
-  settingsButton.backgroundColourOn = pageButtonBackgroundColourOn
-  settingsButton.textColourOff = pageButtonTextColourOff
-  settingsButton.textColourOn = pageButtonTextColourOn
-  settingsButton.displayName = "Settings"
-  settingsButton.fillColour = knobColour
-  settingsButton.size = {55,35}
-  settingsButton.x = mixerButton.x + mixerButton.width + marginX
-  settingsButton.y = synthesisButton.y
-  settingsButton.changed = function()
-    setPage(7)
-  end
 
   function resetTweakLevel()
     --tweakLevelKnob.value = 0
@@ -5433,7 +5547,7 @@ function createTwequencerPanel()
       end
 
       -- SET VALUES
-      local useDuration = durationButton.value
+      local useDuration = tweakModeMenu.value == 1
       local tweakOnEachStep = stepButton.value
       local arpOnOff = arpOnOffButton.value
       local tweakArp = tweakArpButton.value
@@ -5445,7 +5559,7 @@ function createTwequencerPanel()
       local tweakablesForTwequencer = {}
 
       -- GET DURATION
-      if currentPosition == 1 or tweakOnEachStep == true or useDuration == false then
+      if currentPosition == 1 or tweakOnEachStep == true then --  or useDuration == false
         duration = getResolution(resolution.value, tweakLevelKnob.value)
       end
 
@@ -5468,10 +5582,10 @@ function createTwequencerPanel()
           automaticSequencerRunning = false
         end
         
-        -- CHECK IF THE SEQUENCER SHOULD BE STARTED
+        -- CHECK IF THE SEQUENCER SHOULD BE STARTED OR IS ALREADY RUNNING
         if (arpOnOff == true and getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) == true) or (tweakArp == true and arpeggiatorButton.value == true) then
-          envelopeStyle = getRandom(2,4)
-          if tweakLevelKnob.value > 0 and tweakArp == true then
+          envelopeStyle = getRandom(2,3)
+          if tweakArp == true then
             doArpTweaks(arpResMenu.value)
           end
           if arpOnOff == true then
@@ -5481,7 +5595,7 @@ function createTwequencerPanel()
         end
 
         -- CHECK FOR TWEAKLEVEL
-        if tweakLevelKnob.value > 0 then
+        if tweakLevelKnob.enabled and tweakLevelKnob.value > 0 then
           tweakablesForTwequencer = getTweakables(tweakLevelKnob.value, synthesisButton, modulationButton, filterButton, mixerButton, effectsButton, true)
           if #tweakablesForTwequencer > 0 then
             -- Update snapshots menu
@@ -5539,7 +5653,8 @@ function createTwequencerPanel()
                   v.targetValue = v.widget.default
                 end
               else
-                v.targetValue = getTweakSuggestion(v, tweakLevelKnob.value, tweakSourceMenu.value, envelopeStyle, modulationStyle, tweakDuration)
+                --v.targetValue = getTweakSuggestionLegacy(v, tweakLevelKnob.value, envelopeStyle, modulationStyle, tweakDuration)
+                v.targetValue = getTweakSuggestion(v, tweakLevelKnob.value, envelopeStyle, modulationStyle, tweakDuration)
               end
             end
             -- Verify tweak suggestions
@@ -5556,8 +5671,8 @@ function createTwequencerPanel()
               end ]]
             end
           end
-        elseif tweakSourceMenu.value == 3 and #storedPatches > 1 and useDuration == true then
-          -- TODO Check if morph between snapshots is active temporarily using value from tweakSourceMenu
+        elseif tweakModeMenu.value == 3 and #storedPatches > 1 then
+          -- Morph between snapshots
           local storedPatchIndex = getRandom(#storedPatches)
           print("Morphing to snapshot at index", storedPatchIndex)
           tweaks = storedPatches[storedPatchIndex]
@@ -5852,31 +5967,25 @@ function createSettingsPanel()
   panel.width = width
   panel.height = 320
 
-  local categories = {"synthesis", "filter", "modulation", "effects", "mixer"}
-  local buttons = {}
+  local categories = {"synthesis", "filter", "modulation", "effects+mixer"}
+  local widgets = {}
+  local selectedTweakable = nil
 
-  local label = panel:Label("Twequencer Settings")
+  local label = panel:Label("TweakSynth Settings")
+  label.displayName = label.name
+  label.showLabel = true
   label.height = 25
+  label.width = 500
 
   local pageMenu = panel:Menu("SettingsPageMenu", categories)
   pageMenu.width = 100
   pageMenu.height = 25
-  pageMenu.x = 360
+  pageMenu.x = 260
   pageMenu.showLabel = false
+  pageMenu.persistent = false
   pageMenu.changed = function(self)
     changeSettingsPage(self.value)
   end
-
-  --[[ for _,v in ipairs(categories) do
-    local btn = panel:OnOffButton("Cat" .. v)
-    btn.displayName = v
-    btn.width = 75
-    btn.height = 25
-    --btn.x = pageMenu.x + pageMenu.width + 10
-    btn.changed = function(self)
-      changeSettingsPage(v)
-    end
-  end ]]
 
   local offButton = panel:Button("ExcludeAll")
   offButton.displayName = "Deactivate all"
@@ -5884,48 +5993,379 @@ function createSettingsPanel()
   offButton.height = 25
   offButton.x = pageMenu.x + pageMenu.width + 10
   offButton.changed = function()
-    for _,v in ipairs(buttons) do
-      if v.category == categories[pageMenu.value] then
+    for _,v in ipairs(widgets) do
+      local disable = false
+      if pageMenu.value == 4 then
+        disable = v.category == "effects" or v.category == "mixer"
+      else
+        disable = v.category == categories[pageMenu.value]
+      end
+      if disable then
         v.button:setValue(false)
       end
     end
   end
 
+  local onButton = panel:Button("IncludeAll")
+  onButton.displayName = "Activate all"
+  onButton.width = 100
+  onButton.height = 25
+  onButton.x = offButton.x + offButton.width + 10
+  onButton.changed = function()
+    for _,v in ipairs(widgets) do
+      local enable = false
+      if pageMenu.value == 4 then
+        enable = v.category == "effects" or v.category == "mixer"
+      else
+        enable = v.category == categories[pageMenu.value]
+      end
+      if enable then
+        v.button:setValue(true)
+      end
+    end
+  end
+
   local closeButton = panel:Button("CloseSettings")
-  closeButton.displayName = "Close"
+  closeButton.displayName = "Back"
   closeButton.width = 100
   closeButton.height = 25
-  closeButton.x = offButton.x + offButton.width + 10
+  closeButton.x = onButton.x + onButton.width + 10
   closeButton.changed = function()
-    setPage(4)
+    if type(selectedTweakable) ~= "nil" then
+      selectedTweakable = nil
+      hideSelectedTweakable()
+      pageMenu:changed()
+    else
+      setPage(4)
+    end
+  end
+
+  -- Widgets for details view
+  local probabilityKnob = panel:Knob('ProbabilityKnob', 0, 0, 100, true)
+  probabilityKnob.visible = false
+  probabilityKnob.displayName = "Probability"
+  probabilityKnob.fillColour = knobColour
+  probabilityKnob.size = {200,60}
+
+  local floorKnob = panel:Knob('FloorKnob', 0, 0, 1)
+  floorKnob.visible = false
+  floorKnob.displayName = "Range floor"
+  floorKnob.fillColour = knobColour
+  floorKnob.size = probabilityKnob.size
+
+  local ceilKnob = panel:Knob('CeilKnob', 0, 0, 1)
+  ceilKnob.visible = false
+  ceilKnob.displayName = "Range ceiling"
+  ceilKnob.fillColour = knobColour
+  ceilKnob.size = probabilityKnob.size
+
+  local defaultKnob = panel:Knob('DefaultKnob', 0, 0, 100, true)
+  defaultKnob.visible = false
+  defaultKnob.displayName = "Probability of default value"
+  defaultKnob.fillColour = knobColour
+  defaultKnob.size = probabilityKnob.size
+
+  local zeroKnob = panel:Knob('ZeroKnob', 0, 0, 100, true)
+  zeroKnob.visible = false
+  zeroKnob.displayName = "Probability of zero (0)"
+  zeroKnob.fillColour = knobColour
+  zeroKnob.size = probabilityKnob.size
+
+  local bipolarKnob = panel:Knob('BipolarKnob', 0, 0, 100, true)
+  bipolarKnob.visible = false
+  bipolarKnob.displayName = "Probability of value being negative"
+  bipolarKnob.fillColour = knobColour
+  bipolarKnob.size = probabilityKnob.size
+
+  -- Options:
+    -- widget = the widget to tweak - the only non-optional parameter
+    -- func = the function to execute for getting the value - default is getRandom
+    -- factor = a factor to multiply the random value with
+    -- floor = the lowest value
+    -- ceiling = the highest value
+    -- probability = the probability (affected by tweak level) that value is within limits (floor/ceiling) - probability is passed to any custom func
+    -- zero = the probability that the value is set to 0
+    -- excludeWithTwequencer = if ran with twequencer, this widget is excluded
+    -- useDuration = if ran with a duration, this widget will tweak it's value over the length of the given duration
+    -- defaultTweakRange = the range to use when tweaking default/stored value - if not provided, the full range is used
+    -- default = the probability that the default/stored value is used (affected by tweak level)
+    -- min = min value
+    -- max = max value
+    -- fmLevel = tweak as fm operator level if probability hits
+    -- valueFilter = a table of allowed values. Incoming values are adjusted to the closest value of the valuefilter.
+    -- absoluteLimit = the highest allowed limit - used mainly for safety resons to avoid extreme levels
+    -- category = the category the widget belongs to (synthesis, modulation, filter, mixer, effects)
+  function showSelectedTweakable(selectedWidget)
+    print("selectedTweakable", selectedTweakable.widget.name)
+
+    pageMenu.visible = false
+    offButton.visible = false
+    onButton.visible = false
+    
+    -- Show edit widgets
+    probabilityKnob.visible = true
+    floorKnob.visible = true
+    floorKnob.enabled = true
+    ceilKnob.visible = true
+    ceilKnob.enabled = true
+    defaultKnob.visible = true
+    defaultKnob.enabled = true
+    zeroKnob.visible = true
+    zeroKnob.enabled = true
+    bipolarKnob.visible = true
+    bipolarKnob.enabled = true
+    
+    -- Set page label
+    label.displayName = "Edit " .. selectedTweakable.widget.displayName .. " (" .. selectedTweakable.widget.name .. ")"
+
+    -- Toggle active button
+    selectedWidget.button.visible = true
+    selectedWidget.button.x = 50
+    selectedWidget.button.y = 50
+    selectedWidget.button.size = {120,60}
+
+    if type(selectedTweakable.widget.min) == "number" and type(selectedTweakable.widget.max) == "number" then
+      floorKnob:setRange(selectedTweakable.widget.min, selectedTweakable.widget.max)
+      ceilKnob:setRange(selectedTweakable.widget.min, selectedTweakable.widget.max)
+    end
+
+    -- table.insert(tweakables, {widget=maximizerButton,func=getRandomBoolean,probability=10,excludeWithTwequencer=true,category="effects"})
+
+    local hasProbability = type(selectedTweakable.probability) == "number" and type(selectedTweakable.func) == "nil"
+
+    if type(selectedTweakable.floor) == "number" then
+      print("floor", selectedTweakable.floor)
+      floorKnob:setValue(selectedTweakable.floor)
+    elseif hasProbability then
+      floorKnob:setValue(selectedTweakable.widget.min)
+    else
+      floorKnob:setRange(0, 1)
+      floorKnob:setValue(0)
+      floorKnob.enabled = false
+    end
+
+    if type(selectedTweakable.ceiling) == "number" then
+      print("ceil", selectedTweakable.ceiling)
+      ceilKnob:setValue(selectedTweakable.ceiling)
+    elseif hasProbability then
+      ceilKnob:setValue(selectedTweakable.widget.max)
+    else
+      ceilKnob:setRange(0, 1)
+      ceilKnob:setValue(0)
+      ceilKnob.enabled = false
+    end
+
+    if type(selectedTweakable.factor) == "number" then
+      print("factor", selectedTweakable.factor)
+    end
+
+    if type(selectedTweakable.default) == "number" then
+      print("default", selectedTweakable.default)
+      defaultKnob.enabled = true
+      defaultKnob:setValue(selectedTweakable.default)
+    else
+      defaultKnob:setValue(0)
+      defaultKnob.enabled = false
+    end
+
+    if type(selectedTweakable.zero) == "number" then
+      print("zero", selectedTweakable.zero)
+      zeroKnob.enabled = true
+      zeroKnob:setValue(selectedTweakable.zero)
+    else
+      zeroKnob:setValue(0)
+      zeroKnob.enabled = false
+    end
+
+    if type(selectedTweakable.bipolar) == "number" then
+      print("bipolar", selectedTweakable.bipolar)
+      bipolarKnob.enabled = true
+      bipolarKnob:setValue(selectedTweakable.bipolar)
+    else
+      bipolarKnob:setValue(0)
+      bipolarKnob.enabled = false
+    end
+
+    if type(selectedTweakable.useDuration) == "boolean" then
+      print("useDuration", selectedTweakable.useDuration)
+    end
+
+    if type(selectedTweakable.min) == "number" then
+      print("min", selectedTweakable.min)
+    end
+
+    if type(selectedTweakable.max) == "number" then
+      print("max", selectedTweakable.max)
+    end
+
+    if type(selectedTweakable.widget.min) == "number" then
+      print("widget.min", selectedTweakable.widget.min)
+    end
+
+    if type(selectedTweakable.widget.max) == "number" then
+      print("widget.max", selectedTweakable.widget.max)
+    end
+
+    if type(selectedTweakable.widget.default) == "number" then
+      print("widget.default", selectedTweakable.widget.default)
+    end
+
+    -- Skip probability knob
+    selectedWidget.knob1.visible = true
+    selectedWidget.knob1.x = selectedWidget.button.x + selectedWidget.button.width + 90
+    selectedWidget.knob1.y = selectedWidget.button.y
+    selectedWidget.knob1.displayName = "Skip probability"
+    selectedWidget.knob1.showLabel = true
+    selectedWidget.knob1.showValue = true
+    selectedWidget.knob1.size = probabilityKnob.size
+
+    if type(selectedTweakable.probability) == "number" then
+      probabilityKnob.enabled = true
+      probabilityKnob.value = selectedTweakable.probability
+      probabilityKnob.changed = function(self)
+        self.tooltip = "Probability that value is within limits (floor/ceiling)"
+        self.displayText = self.value .. "%"
+        selectedTweakable.probability = self.value
+      end
+      probabilityKnob:changed()
+    else
+      probabilityKnob.enabled = false
+    end
+    probabilityKnob.x = 50
+    probabilityKnob.y = selectedWidget.knob1.y + selectedWidget.knob1.height + 25
+
+    floorKnob.x = probabilityKnob.x + probabilityKnob.width + 10
+    floorKnob.y = probabilityKnob.y
+
+    ceilKnob.x = floorKnob.x + floorKnob.width + 10
+    ceilKnob.y = floorKnob.y
+
+    defaultKnob.x = 50
+    defaultKnob.y = probabilityKnob.y + probabilityKnob.height + 25
+
+    zeroKnob.x = defaultKnob.x + defaultKnob.width + 10
+    zeroKnob.y = defaultKnob.y
+
+    bipolarKnob.x = zeroKnob.x + zeroKnob.width + 10
+    bipolarKnob.y = zeroKnob.y
+
+    ceilKnob.changed = function(self)
+      selectedTweakable.ceiling = self.value
+    end
+
+    floorKnob.changed = function(self)
+      selectedTweakable.floor = self.value
+    end
+
+    defaultKnob.changed = function(self)
+      selectedTweakable.default = self.value
+    end
+
+    zeroKnob.changed = function(self)
+      selectedTweakable.zero = self.value
+    end
+
+    bipolarKnob.changed = function(self)
+      selectedTweakable.bipolar = self.value
+    end
+  end
+  
+  function hideSelectedTweakable()
+    pageMenu.visible = true
+    offButton.visible = true
+    onButton.visible = true
+
+    -- Hide edit widgets
+    probabilityKnob.visible = false
+    floorKnob.visible = false
+    ceilKnob.visible = false
+    defaultKnob.visible = false
+    zeroKnob.visible = false
+    bipolarKnob.visible = false
+
+    label.displayName = label.name
   end
 
   for i,v in ipairs(tweakables) do
+    if type(v.skipProbability) ~= "number" then
+      v.skipProbability = defaultSkipProbability
+    end
+    local knob1 = panel:Knob(v.widget.name .. 'Knob1_' .. i, v.skipProbability, 0, 100, true)
+    knob1.displayName = v.widget.name
+    knob1.tooltip = "Skip probability"
+    knob1.fillColour = knobColour
+    --knob1.outlineColour = osc1Colour
+    knob1.visible = false
+    knob1.changed = function(self)
+      self.displayText = "Skip probability: " .. self.value .. "%"
+      v.skipProbability = self.value
+    end
+    knob1:changed()
+
+    local editBtn = panel:Button('EditBtn' .. i, (exclude == false))
+    editBtn.displayName = "Edit"
+    editBtn.tooltip = "Edit details"
+    editBtn.visible = false
+    editBtn.size = {40,30}
+    editBtn.changed = function(self)
+      local isVisible = false
+      local selectedWidget = nil
+      for j,w in ipairs(widgets) do
+        w.button.visible = isVisible
+        w.knob1.visible = isVisible
+        w.editBtn.visible = isVisible
+        if j == i then
+          selectedTweakable = v
+          selectedWidget = w
+        end
+      end
+      showSelectedTweakable(selectedWidget)
+    end
+
     local exclude = type(v.excludeWithTwequencer) == "boolean" and v.excludeWithTwequencer == true
-    local btn = panel:OnOffButton(v.widget.name .. i, (exclude == false))
+    local btn = panel:OnOffButton(v.widget.name .. 'Btn' .. i, (exclude == false))
     btn.displayName = v.widget.name
+    btn.tooltip = "Activate/deactivate tweakable"
     btn.alpha = buttonAlpha
     btn.visible = false
     btn.backgroundColourOff = buttonBackgroundColourOff
     btn.backgroundColourOn = buttonBackgroundColourOn
     btn.textColourOff = buttonTextColourOff
     btn.textColourOn = buttonTextColourOn
-    btn.size = {100,30}
     btn.changed = function(self)
       v.excludeWithTwequencer = self.value == false
     end
-    table.insert(buttons, {button=btn,category=v.category})
+    btn:changed()
+
+    table.insert(widgets, {button=btn,knob1=knob1,editBtn=editBtn,category=v.category})
   end
 
   function changeSettingsPage(page)
-    local perColumn = 6
+    local perColumn = 4
     local rowCounter = 0
     local columnCounter = 0
-    for _,v in ipairs(buttons) do
-      v.button.visible = (v.category == categories[page])
-      if v.category == categories[page] then
-        v.button.x = 110 * columnCounter + 30
-        v.button.y = (40 * rowCounter) + 50
+    for _,v in ipairs(widgets) do
+      local isVisible = false
+      if page == 4 then
+        isVisible = v.category == "effects" or v.category == "mixer"
+      else
+        isVisible = (v.category == categories[page])
+      end
+      v.button.visible = isVisible
+      v.knob1.visible = isVisible
+      v.editBtn.visible = isVisible
+      if isVisible then
+        v.editBtn.x = 180 * columnCounter + 10
+        v.editBtn.y = (40 * rowCounter) + 50
+        v.button.x = v.editBtn.x + 42
+        v.button.y = v.editBtn.y
+        v.button.size = {90,30}
+        v.knob1.size = {30,30}
+        v.knob1.x = v.button.x + 93
+        v.knob1.y = v.button.y
+        v.knob1.showLabel = false
+        v.knob1.showValue = false
+        v.knob1.showPopupDisplay = true
         columnCounter = columnCounter + 1
         if columnCounter >= perColumn then
           columnCounter = 0
@@ -6384,6 +6824,7 @@ isStarting = false -- Startup complete!
 
 -- Set start page
 patchmakerPageButton.changed()
+--setPage(7) -- Twequencer Settings Page
 
 --[[ meter = AudioMeter("OutputLevel", Program, false, 0, true)
 meter.bounds = {0, 320, 720, 20}
