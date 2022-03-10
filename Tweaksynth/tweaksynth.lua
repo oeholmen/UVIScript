@@ -2736,6 +2736,7 @@ function createFilterPanel()
   end
 
   local cutoffKnob = filterPanel:Knob("Cutoff", 1, 0, 1)
+  cutoffKnob.displayName = "Cutoff"
   cutoffKnob.fillColour = knobColour
   cutoffKnob.outlineColour = filterColour
   cutoffKnob.changed = function(self)
@@ -2758,7 +2759,7 @@ function createFilterPanel()
     self.displayText = percent(self.value)
   end
   filterResonanceKnob:changed()
-  table.insert(tweakables, {widget=filterResonanceKnob,floor=0.1,ceiling=0.6,probability=60,default=30,zero=10,absoluteLimit=0.8,useDuration=true,category="filter"})
+  table.insert(tweakables, {widget=filterResonanceKnob,floor=0.1,ceiling=0.6,probability=60,default=0,zero=30,absoluteLimit=0.8,useDuration=true,category="filter"})
 
   local filterKeyTrackingKnob = filterPanel:Knob("KeyTracking", 0, 0, 1)
   filterKeyTrackingKnob.displayName = "Key Track"
@@ -4907,7 +4908,7 @@ function createTwequencerPanel()
 
   local waveformMenu
   if isAnalog or isAnalog3Osc or isAnalogStack then
-    waveformMenu = tweqPanel:Menu("AllowedWaveforms", {"All", "Saw/Square", "Triangle/Sine", "Square/Triangle", "Saw/Sq/Tri/Sine", "Saw", "Square", "Triangle", "Sine", "Noise", "Pulse"})
+    waveformMenu = tweqPanel:Menu("AllowedWaveforms", {"All", "Saw/Square", "Triangle/Sine", "Square/Triangle", "Saw/Sq/Tri/Sine"})
     waveformMenu.backgroundColour = menuBackgroundColour
     waveformMenu.textColour = menuTextColour
     waveformMenu.arrowColour = menuArrowColour
@@ -5618,18 +5619,6 @@ function createTwequencerPanel()
                 valueFilter = {2,3}
               elseif allowedWaveforms == 5 then
                 valueFilter = {1,2,3,4}
-              elseif allowedWaveforms == 6 then
-                valueFilter = {1}
-              elseif allowedWaveforms == 7 then
-                valueFilter = {2}
-              elseif allowedWaveforms == 8 then
-                valueFilter = {3}
-              elseif allowedWaveforms == 9 then
-                valueFilter = {4}
-              elseif allowedWaveforms == 10 then
-                valueFilter = {5}
-              elseif allowedWaveforms == 11 then
-                valueFilter = {6}
               end
             end
 
@@ -5980,47 +5969,52 @@ function createSettingsPanel()
   local pageMenu = panel:Menu("SettingsPageMenu", categories)
   pageMenu.width = 100
   pageMenu.height = 25
-  pageMenu.x = 260
+  pageMenu.x = 230
   pageMenu.showLabel = false
   pageMenu.persistent = false
   pageMenu.changed = function(self)
     changeSettingsPage(self.value)
   end
 
-  local offButton = panel:Button("ExcludeAll")
-  offButton.displayName = "Deactivate all"
-  offButton.width = 100
-  offButton.height = 25
-  offButton.x = pageMenu.x + pageMenu.width + 10
-  offButton.changed = function()
+  local toggleButton = panel:MultiStateButton("ToggleActive", {"Deactivate all", "Activate all"})
+  toggleButton.showLabel = false
+  toggleButton.width = 100
+  toggleButton.height = 25
+  toggleButton.x = pageMenu.x + pageMenu.width + 10
+  toggleButton.changed = function(self)
     for _,v in ipairs(widgets) do
-      local disable = false
+      local isPage = false
       if pageMenu.value == 4 then
-        disable = v.category == "effects" or v.category == "mixer"
+        isPage = v.category == "effects" or v.category == "mixer"
       else
-        disable = v.category == categories[pageMenu.value]
+        isPage = v.category == categories[pageMenu.value]
       end
-      if disable then
-        v.button:setValue(false)
+      if isPage then
+        v.button:setValue(self.value == 1)
       end
     end
   end
 
-  local onButton = panel:Button("IncludeAll")
-  onButton.displayName = "Activate all"
-  onButton.width = 100
-  onButton.height = 25
-  onButton.x = offButton.x + offButton.width + 10
-  onButton.changed = function()
+  local skipSetter = panel:NumBox("Skip", 0, 0, 100, true)
+  skipSetter.displayName = "Skip probability"
+  skipSetter.backgroundColour = menuBackgroundColour
+  skipSetter.textColour = menuTextColour
+  skipSetter.arrowColour = menuArrowColour
+  skipSetter.outlineColour = menuOutlineColour
+  skipSetter.tooltip = "Set skip probability for all tweakables on this page"
+  skipSetter.width = 150
+  skipSetter.height = 25
+  skipSetter.x = toggleButton.x + toggleButton.width + 10
+  skipSetter.changed = function(self)
     for _,v in ipairs(widgets) do
-      local enable = false
+      local isPage = false
       if pageMenu.value == 4 then
-        enable = v.category == "effects" or v.category == "mixer"
+        isPage = v.category == "effects" or v.category == "mixer"
       else
-        enable = v.category == categories[pageMenu.value]
+        isPage = v.category == categories[pageMenu.value]
       end
-      if enable then
-        v.button:setValue(true)
+      if isPage then
+        v.knob1:setValue(self.value)
       end
     end
   end
@@ -6029,7 +6023,7 @@ function createSettingsPanel()
   closeButton.displayName = "Back"
   closeButton.width = 100
   closeButton.height = 25
-  closeButton.x = onButton.x + onButton.width + 10
+  closeButton.x = skipSetter.x + skipSetter.width + 10
   closeButton.changed = function()
     if type(selectedTweakable) ~= "nil" then
       selectedTweakable = nil
@@ -6047,33 +6041,24 @@ function createSettingsPanel()
   probabilityKnob.fillColour = knobColour
   probabilityKnob.size = {200,60}
 
-  local floorKnob = panel:Knob('FloorKnob', 0, 0, 1)
-  floorKnob.visible = false
-  floorKnob.displayName = "Range floor"
-  floorKnob.fillColour = knobColour
-  floorKnob.size = probabilityKnob.size
-
-  local ceilKnob = panel:Knob('CeilKnob', 0, 0, 1)
-  ceilKnob.visible = false
-  ceilKnob.displayName = "Range ceiling"
-  ceilKnob.fillColour = knobColour
-  ceilKnob.size = probabilityKnob.size
-
   local defaultKnob = panel:Knob('DefaultKnob', 0, 0, 100, true)
   defaultKnob.visible = false
-  defaultKnob.displayName = "Probability of default value"
+  defaultKnob.displayName = "Default value probability"
+  defaultKnob.tooltip = "Probability of default value being set on the controller"
   defaultKnob.fillColour = knobColour
   defaultKnob.size = probabilityKnob.size
 
   local zeroKnob = panel:Knob('ZeroKnob', 0, 0, 100, true)
   zeroKnob.visible = false
-  zeroKnob.displayName = "Probability of zero (0)"
+  zeroKnob.displayName = "Probability of zero"
+  zeroKnob.tooltip = "Probability of zero (0) being set"
   zeroKnob.fillColour = knobColour
   zeroKnob.size = probabilityKnob.size
 
   local bipolarKnob = panel:Knob('BipolarKnob', 0, 0, 100, true)
   bipolarKnob.visible = false
-  bipolarKnob.displayName = "Probability of value being negative"
+  bipolarKnob.displayName = "Bipolar probability"
+  bipolarKnob.tooltip = "Probability of value being changed to negative for bipolar controllers"
   bipolarKnob.fillColour = knobColour
   bipolarKnob.size = probabilityKnob.size
 
@@ -6096,18 +6081,31 @@ function createSettingsPanel()
     -- absoluteLimit = the highest allowed limit - used mainly for safety resons to avoid extreme levels
     -- category = the category the widget belongs to (synthesis, modulation, filter, mixer, effects)
   function showSelectedTweakable(selectedWidget)
-    print("selectedTweakable", selectedTweakable.widget.name)
+    print("showSelectedTweakable-selectedWidget", selectedWidget.name)
+    print("showSelectedTweakable-selectedTweakable", selectedTweakable.widget.name)
+
+    if type(selectedTweakable.widget.min) == "number" then
+      print("widget.min", selectedTweakable.widget.min)
+    end
+
+    if type(selectedTweakable.widget.max) == "number" then
+      print("widget.max", selectedTweakable.widget.max)
+    end
+
+    if type(selectedTweakable.widget.default) == "number" then
+      print("widget.default", selectedTweakable.widget.default)
+    end
 
     pageMenu.visible = false
-    offButton.visible = false
-    onButton.visible = false
+    toggleButton.visible = false
+    skipSetter.visible = false
     
     -- Show edit widgets
     probabilityKnob.visible = true
-    floorKnob.visible = true
-    floorKnob.enabled = true
-    ceilKnob.visible = true
-    ceilKnob.enabled = true
+    selectedWidget.floorKnob.visible = true
+    --selectedWidget.floorKnob.enabled = true
+    selectedWidget.ceilKnob.visible = true
+    --selectedWidget.ceilKnob.enabled = true
     defaultKnob.visible = true
     defaultKnob.enabled = true
     zeroKnob.visible = true
@@ -6124,37 +6122,6 @@ function createSettingsPanel()
     selectedWidget.button.y = 50
     selectedWidget.button.size = {120,60}
 
-    if type(selectedTweakable.widget.min) == "number" and type(selectedTweakable.widget.max) == "number" then
-      floorKnob:setRange(selectedTweakable.widget.min, selectedTweakable.widget.max)
-      ceilKnob:setRange(selectedTweakable.widget.min, selectedTweakable.widget.max)
-    end
-
-    -- table.insert(tweakables, {widget=maximizerButton,func=getRandomBoolean,probability=10,excludeWithTwequencer=true,category="effects"})
-
-    local hasProbability = type(selectedTweakable.probability) == "number" and type(selectedTweakable.func) == "nil"
-
-    if type(selectedTweakable.floor) == "number" then
-      print("floor", selectedTweakable.floor)
-      floorKnob:setValue(selectedTweakable.floor)
-    elseif hasProbability then
-      floorKnob:setValue(selectedTweakable.widget.min)
-    else
-      floorKnob:setRange(0, 1)
-      floorKnob:setValue(0)
-      floorKnob.enabled = false
-    end
-
-    if type(selectedTweakable.ceiling) == "number" then
-      print("ceil", selectedTweakable.ceiling)
-      ceilKnob:setValue(selectedTweakable.ceiling)
-    elseif hasProbability then
-      ceilKnob:setValue(selectedTweakable.widget.max)
-    else
-      ceilKnob:setRange(0, 1)
-      ceilKnob:setValue(0)
-      ceilKnob.enabled = false
-    end
-
     if type(selectedTweakable.factor) == "number" then
       print("factor", selectedTweakable.factor)
     end
@@ -6162,9 +6129,9 @@ function createSettingsPanel()
     if type(selectedTweakable.default) == "number" then
       print("default", selectedTweakable.default)
       defaultKnob.enabled = true
-      defaultKnob:setValue(selectedTweakable.default)
+      defaultKnob.value = selectedTweakable.default
     else
-      defaultKnob:setValue(0)
+      defaultKnob.value = 0
       defaultKnob.enabled = false
     end
 
@@ -6173,16 +6140,16 @@ function createSettingsPanel()
       zeroKnob.enabled = true
       zeroKnob:setValue(selectedTweakable.zero)
     else
-      zeroKnob:setValue(0)
+      zeroKnob.value = 0
       zeroKnob.enabled = false
     end
 
     if type(selectedTweakable.bipolar) == "number" then
       print("bipolar", selectedTweakable.bipolar)
       bipolarKnob.enabled = true
-      bipolarKnob:setValue(selectedTweakable.bipolar)
+      bipolarKnob.value = selectedTweakable.bipolar
     else
-      bipolarKnob:setValue(0)
+      bipolarKnob.value = 0
       bipolarKnob.enabled = false
     end
 
@@ -6196,18 +6163,6 @@ function createSettingsPanel()
 
     if type(selectedTweakable.max) == "number" then
       print("max", selectedTweakable.max)
-    end
-
-    if type(selectedTweakable.widget.min) == "number" then
-      print("widget.min", selectedTweakable.widget.min)
-    end
-
-    if type(selectedTweakable.widget.max) == "number" then
-      print("widget.max", selectedTweakable.widget.max)
-    end
-
-    if type(selectedTweakable.widget.default) == "number" then
-      print("widget.default", selectedTweakable.widget.default)
     end
 
     -- Skip probability knob
@@ -6229,19 +6184,16 @@ function createSettingsPanel()
       end
       probabilityKnob:changed()
     else
+      probabilityKnob.changed = nil
+      probabilityKnob.value = 0
       probabilityKnob.enabled = false
     end
-    probabilityKnob.x = 50
-    probabilityKnob.y = selectedWidget.knob1.y + selectedWidget.knob1.height + 25
 
-    floorKnob.x = probabilityKnob.x + probabilityKnob.width + 10
-    floorKnob.y = probabilityKnob.y
+    -- POSITION THE WIDGETS
 
-    ceilKnob.x = floorKnob.x + floorKnob.width + 10
-    ceilKnob.y = floorKnob.y
-
+    -- Row 2 --
     defaultKnob.x = 50
-    defaultKnob.y = probabilityKnob.y + probabilityKnob.height + 25
+    defaultKnob.y = selectedWidget.knob1.y + selectedWidget.knob1.height + 25
 
     zeroKnob.x = defaultKnob.x + defaultKnob.width + 10
     zeroKnob.y = defaultKnob.y
@@ -6249,36 +6201,42 @@ function createSettingsPanel()
     bipolarKnob.x = zeroKnob.x + zeroKnob.width + 10
     bipolarKnob.y = zeroKnob.y
 
-    ceilKnob.changed = function(self)
-      selectedTweakable.ceiling = self.value
-    end
+    -- Row 3 --
+    probabilityKnob.x = 50
+    probabilityKnob.y = defaultKnob.y + defaultKnob.height + 25
 
-    floorKnob.changed = function(self)
-      selectedTweakable.floor = self.value
-    end
+    selectedWidget.floorKnob.x = probabilityKnob.x + probabilityKnob.width + 10
+    selectedWidget.floorKnob.y = probabilityKnob.y
+
+    selectedWidget.ceilKnob.x = selectedWidget.floorKnob.x + selectedWidget.floorKnob.width + 10
+    selectedWidget.ceilKnob.y = selectedWidget.floorKnob.y
 
     defaultKnob.changed = function(self)
+      self.displayText = self.value .. "%"
       selectedTweakable.default = self.value
     end
+    defaultKnob:changed()
 
     zeroKnob.changed = function(self)
+      self.displayText = self.value .. "%"
       selectedTweakable.zero = self.value
     end
+    zeroKnob:changed()
 
     bipolarKnob.changed = function(self)
+      self.displayText = self.value .. "%"
       selectedTweakable.bipolar = self.value
     end
+    bipolarKnob:changed()
   end
   
   function hideSelectedTweakable()
     pageMenu.visible = true
-    offButton.visible = true
-    onButton.visible = true
+    toggleButton.visible = true
+    skipSetter.visible = true
 
     -- Hide edit widgets
     probabilityKnob.visible = false
-    floorKnob.visible = false
-    ceilKnob.visible = false
     defaultKnob.visible = false
     zeroKnob.visible = false
     bipolarKnob.visible = false
@@ -6294,7 +6252,6 @@ function createSettingsPanel()
     knob1.displayName = v.widget.name
     knob1.tooltip = "Skip probability"
     knob1.fillColour = knobColour
-    --knob1.outlineColour = osc1Colour
     knob1.visible = false
     knob1.changed = function(self)
       self.displayText = "Skip probability: " .. self.value .. "%"
@@ -6302,7 +6259,7 @@ function createSettingsPanel()
     end
     knob1:changed()
 
-    local editBtn = panel:Button('EditBtn' .. i, (exclude == false))
+    local editBtn = panel:Button('EditBtn' .. i)
     editBtn.displayName = "Edit"
     editBtn.tooltip = "Edit details"
     editBtn.visible = false
@@ -6317,6 +6274,8 @@ function createSettingsPanel()
         if j == i then
           selectedTweakable = v
           selectedWidget = w
+          print("selectedTweakable", selectedTweakable.widget.name)
+          print("selectedWidget", selectedWidget.name)
         end
       end
       showSelectedTweakable(selectedWidget)
@@ -6325,7 +6284,7 @@ function createSettingsPanel()
     local exclude = type(v.excludeWithTwequencer) == "boolean" and v.excludeWithTwequencer == true
     local btn = panel:OnOffButton(v.widget.name .. 'Btn' .. i, (exclude == false))
     btn.displayName = v.widget.name
-    btn.tooltip = "Activate/deactivate tweakable"
+    btn.tooltip = "Activate/deactivate tweakable in twequencer"
     btn.alpha = buttonAlpha
     btn.visible = false
     btn.backgroundColourOff = buttonBackgroundColourOff
@@ -6337,7 +6296,84 @@ function createSettingsPanel()
     end
     btn:changed()
 
-    table.insert(widgets, {button=btn,knob1=knob1,editBtn=editBtn,category=v.category})
+    print("Starting floorKnob", v.widget.name, type(v.widget.min))
+
+    local min = 0
+    local max = 1
+    local isEnabled = false
+    if type(v.widget.default) == "number" and type(v.probability) == "number" and (type(v.floor) == "number" or type(v.ceiling) == "number") then
+      min = v.widget.min
+      max = v.widget.max
+      isEnabled = true
+    end
+
+    local floorKnob = panel:Knob('FloorKnob' .. i, min, min, max)
+    floorKnob.visible = false
+    floorKnob.enabled = isEnabled
+    floorKnob.displayName = "Floor"
+    floorKnob.fillColour = knobColour
+    floorKnob.size = probabilityKnob.size
+    if type(v.floor) == "number" then
+      print("floor", v.floor)
+      floorKnob.value = v.floor
+    else
+      floorKnob.enabled = isEnabled
+    end
+
+    if isEnabled then
+      floorKnob.changed = function(self)
+        if v.widget.displayName == "Cutoff" then
+          local value = filterMapValue(self.value)
+          if value < 1000 then
+              self.displayText = string.format("%0.1f Hz", value)
+          else
+              self.displayText = string.format("%0.1f kHz", value/1000.)
+          end
+        elseif v.widget.name:sub(-3) == "Mix" then
+          self.displayText = formatGainInDb(self.value)
+        elseif (self.min == 0 or self.min == -1) and self.max == 1 then
+          self.displayText = percent(self.value)
+        end
+        v.floor = self.value
+      end
+      floorKnob:changed()
+    end
+
+    print("Starting ceilKnob", v.widget.name, type(v.widget.default))
+
+    local ceilKnob = panel:Knob('CeilKnob' .. i, max, min, max)
+    ceilKnob.visible = false
+    ceilKnob.enabled = isEnabled
+    ceilKnob.displayName = "Ceiling"
+    ceilKnob.fillColour = knobColour
+    ceilKnob.size = probabilityKnob.size
+    if type(v.ceiling) == "number" then
+      print("ceiling", v.ceiling)
+      ceilKnob.value = v.ceiling
+    else
+      ceilKnob.enabled = isEnabled
+    end
+
+    if isEnabled then
+      ceilKnob.changed = function(self)
+        if v.widget.displayName == "Cutoff" then
+          local value = filterMapValue(self.value)
+          if value < 1000 then
+              self.displayText = string.format("%0.1f Hz", value)
+          else
+              self.displayText = string.format("%0.1f kHz", value/1000.)
+          end
+        elseif v.widget.name == "NoiseMix" then
+          self.displayText = formatGainInDb(self.value)
+        elseif (self.min == 0 or self.min == -1) and self.max == 1 then
+          self.displayText = percent(self.value)
+        end
+        v.ceiling = self.value
+      end
+      ceilKnob:changed()
+    end
+
+    table.insert(widgets, {button=btn,knob1=knob1,editBtn=editBtn,floorKnob=floorKnob,ceilKnob=ceilKnob,name=v.widget.name,category=v.category})
   end
 
   function changeSettingsPage(page)
@@ -6354,6 +6390,8 @@ function createSettingsPanel()
       v.button.visible = isVisible
       v.knob1.visible = isVisible
       v.editBtn.visible = isVisible
+      v.floorKnob.visible = false
+      v.ceilKnob.visible = false
       if isVisible then
         v.editBtn.x = 180 * columnCounter + 10
         v.editBtn.y = (40 * rowCounter) + 50
@@ -6823,7 +6861,7 @@ end
 isStarting = false -- Startup complete!
 
 -- Set start page
-patchmakerPageButton.changed()
+patchmakerPageButton:changed()
 --setPage(7) -- Twequencer Settings Page
 
 --[[ meter = AudioMeter("OutputLevel", Program, false, 0, true)
