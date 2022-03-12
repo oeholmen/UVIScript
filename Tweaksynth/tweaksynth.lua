@@ -1232,39 +1232,138 @@ function getTriplet(value)
   return value  / 3
 end
 
-local resolutions =     { 32,   24,   16,  12,    8,     6,         4,      3,       2, getTriplet(4), getDotted(1), 1, getTriplet(2), getDotted(0.5), 0.5, getTriplet(1), getDotted(0.25), 0.25,  getTriplet(0.5), getDotted(0.125), 0.125, 0}
-local resolutionNames = {"8x", "6x", "4x", "3x", "2x", "1/1 dot", "1/1", "1/2 dot", "1/2", "1/2 tri", "1/4 dot",   "1/4", "1/4 tri",   "1/8 dot",     "1/8", "1/8 tri",    "1/16 dot",      "1/16", "1/16 tri",     "1/32 dot",      "1/32", "Random", "Random even+dot", "Random even", "Random dot", "Random tri"}
+local selectedArpResolutions = {} -- Must be at the global level
+local selectedSeqResolutions = {} -- Must be at the global level
+local resolutions = {
+  32, -- "8x" -- 2
+  24, -- "6x" -- 4
+  16, -- "4x" -- 6 <---- FROM HERE - ADD +3 to index to get arp res
+  12, -- "3x" -- 7
+  8, -- "2x" -- 8
+  6, -- "1/1 dot" -- 9
+  4, -- "1/1" -- 10
+  3, -- "1/2 dot" -- 11
+  getTriplet(8), -- "1/1 tri" -- 12 -- NY - sjekk
+  2, -- "1/2" -- 13
+  getDotted(1), -- "1/4 dot", -- 14
+  getTriplet(4), -- "1/2 tri", -- 15
+  1, -- "1/4", -- 16
+  getDotted(0.5), -- "1/8 dot", -- 17
+  getTriplet(2), -- "1/4 tri", -- 18
+  0.5,  -- "1/8", -- 19
+  getDotted(0.25), -- "1/16 dot", -- 20
+  getTriplet(1), -- "1/8 tri", -- 21
+  0.25, -- "1/16", -- 22
+  getDotted(0.125), -- "1/32 dot", -- 23
+  getTriplet(0.5), -- "1/16 tri", -- 24
+  0.125 -- "1/32" -- 25
+}
+local resolutionNames = {
+  "8x", -- 2
+  "6x", -- 4
+  "4x", -- 6
+  "3x", -- 7
+  "2x", -- 8
+  "1/1 dot", -- 9 -- 6
+  "1/1", -- 10 -- 7
+  "1/2 dot", -- 11
+  "1/1 tri", -- 12 NY
+  "1/2", -- 13 -- 10
+  "1/4 dot", -- 14
+  "1/2 tri", -- 15
+  "1/4", -- 16 -- 13
+  "1/8 dot", -- 17
+  "1/4 tri", -- 18
+  "1/8", -- 19 -- 16
+  "1/16 dot", -- 20
+  "1/8 tri", -- 21
+  "1/16", -- 22
+  "1/32 dot", -- 23
+  "1/16 tri", -- 24
+  "1/32", -- 25 -- 22
+  "Random",
+  "Random even+dot",
+  "Random even",
+  "Random dot",
+  "Random tri"
+}
+local even = {}
+local dot = {}
+local tri = {}
 local waveforms = {"Saw", "Square", "Triangle", "Sine", "Noise", "Pulse"}
 
-function getResolution(i, tweakLevel)
+function setResGroups()
+  local i = 7
+  while true do
+    table.insert(even, i)
+    print("even", i)
+    i = i + 1
+    if i > #resolutions then
+      return
+    end
+    table.insert(dot, i)
+    print("dot", i)
+    i = i + 1
+    if i > #resolutions then
+      return
+    end
+    table.insert(tri, i)
+    print("tri", i)
+    i = i + 1
+    if i > #resolutions then
+      return
+    end
+  end
+end
+setResGroups()
+
+function getResolutionIndex(i, tweakLevel)
   -- Random
-  if i >= #resolutions then
+  if i > #resolutions then
     if type(tweakLevel) ~= "number" then
       tweakLevel = 50
     end
-    local even = {5,7,9,12,15,18,21} -- 7 = 1/1, 9 = 1/2
-    local dot = {6,8,11,14,17,20} -- 6 = 1/1 dot
-    local tri = {10,13,16,19} -- 10 = 1/2 tri
-    -- Rand even + dot
+    -- When Random is selected, we pick one of the selected resolutions
     if i == #resolutions + 1 then
-      if getRandomBoolean() == true then
-        i = even[getRandom(#even)]
-      else
-        i = dot[getRandom(#dot)]
+      local activeResolutions = {}
+      for j,v in ipairs(selectedSeqResolutions) do
+        if v == true then
+          table.insert(activeResolutions, j)
+        end
       end
-    -- Rand even
-    elseif i == #resolutions + 2 or (i == #resolutions and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, 50))) then
-      i = even[getRandom(#even)]
-    -- Rand dot
-    elseif i == #resolutions + 3 or (i == #resolutions and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, 50))) then
-      i = dot[getRandom(#dot)]
-    -- Rand tri
-    elseif i == #resolutions + 4 or (i == #resolutions and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, 50))) then
-      i = tri[getRandom(#tri)]
+      if #activeResolutions > 0 then
+        i = activeResolutions[getRandom(#activeResolutions)]
+        print("activeResolutions", #activeResolutions, i, resolutionNames[i])
+      else
+        i = getRandom(#resolutions)
+      end
     else
-      i = getRandom(#resolutions-1)
+      -- Rand even + dot
+      if i == #resolutions + 2 then
+        if getRandomBoolean() == true then
+          i = even[getRandom(#even)]
+        else
+          i = dot[getRandom(#dot)]
+        end
+      -- Rand even
+      elseif i == #resolutions + 3 then
+        i = even[getRandom(#even)]
+      -- Rand dot
+      elseif i == #resolutions + 4 then
+        i = dot[getRandom(#dot)]
+      -- Rand tri
+      elseif i == #resolutions + 5 then
+        i = tri[getRandom(#tri)]
+      else
+        i = getRandom(#resolutions)
+      end
     end
   end
+  return i
+end
+
+function getResolution(i, tweakLevel)
+  i = getResolutionIndex(i, tweakLevel)
   print("getResolution", resolutionNames[i])
   return resolutions[i]
 end
@@ -4835,12 +4934,12 @@ function createTwequencerPanel()
   local maxSnapshots = 500 -- TODO Make it possible to set in UI?
   local automaticSequencerRunning = false
   local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
-  local noteNumberToNames = {} -- Used for labels
+  --local noteNumberToNames = {} -- Used for labels
   local noteNumberToNoteName = {} -- Used for mapping - does not unclude octave, only name of note (C, C#...)
   local notenamePos = 1
   for i=0,127 do
     local name = notenames[notenamePos] .. (math.floor(i/12)-2) .. " (" .. i .. ")"
-    table.insert(noteNumberToNames, name)
+    --table.insert(noteNumberToNames, name)
     table.insert(noteNumberToNoteName, notenames[notenamePos])
     notenamePos = notenamePos + 1
     if notenamePos > #notenames then
@@ -4873,7 +4972,7 @@ function createTwequencerPanel()
   sequencerPlayMenu.y = tweakLevelKnob.y + tweakLevelKnob.height + 6
   sequencerPlayMenu.width = tweakLevelKnob.width
 
-  local tweakModeMenu = tweqPanel:Menu("TweakMode", {"Tweak over time", "Tweak", "Morph between stored snapshots", "Off"})
+  local tweakModeMenu = tweqPanel:Menu("TweakMode", {"Off", "Tweak over time", "Tweak", "Morph between stored snapshots"})
   tweakModeMenu.backgroundColour = menuBackgroundColour
   tweakModeMenu.textColour = menuTextColour
   tweakModeMenu.arrowColour = menuArrowColour
@@ -4883,8 +4982,9 @@ function createTwequencerPanel()
   tweakModeMenu.y = sequencerPlayMenu.y + sequencerPlayMenu.height + 6
   tweakModeMenu.width = sequencerPlayMenu.width
   tweakModeMenu.changed = function (self)
-    tweakLevelKnob.enabled = self.value < 3
+    tweakLevelKnob.enabled = self.value > 1
   end
+  tweakModeMenu:changed()
 
   local envStyleMenu = tweqPanel:Menu("SeqEnvStyle", {"Automatic", "Very short", "Short", "Medium short", "Medium", "Medium long", "Long", "Very long"})
   envStyleMenu.backgroundColour = menuBackgroundColour
@@ -5026,7 +5126,7 @@ function createTwequencerPanel()
   arpResMenu.width = (numStepsBox.width/2) - 4
 
   local resolution = tweqPanel:Menu("Resolution", getResolutionNames())
-  resolution.selected = 15
+  resolution.selected = 16
   resolution.x = gateKnob.x
   resolution.y = sequencerPlayMenu.y
   resolution.backgroundColour = menuBackgroundColour
@@ -5189,6 +5289,7 @@ function createTwequencerPanel()
   droneMenu.width = 75
 
   local generateMin = tweqPanel:Slider("GenerateMin", 21, 0, 127, true)
+  generateMin.unit = Unit.MidiKey
   generateMin.showPopupDisplay = true
   generateMin.showLabel = true
   generateMin.fillStyle = "gloss"
@@ -5211,6 +5312,7 @@ function createTwequencerPanel()
   droneHighMenu.width = droneMenu.width
 
   local generateMax = tweqPanel:Slider("GenerateMax", 108, 0, 127, true)
+  generateMax.unit = Unit.MidiKey
   generateMax.showPopupDisplay = true
   generateMax.showLabel = true
   generateMax.fillStyle = "gloss"
@@ -5310,15 +5412,15 @@ function createTwequencerPanel()
 
   generateMin.changed = function(self)
     filteredScale = createFilteredScale()
-    local pos = self.value + 1
-    self.displayText = noteNumberToNames[pos]
+    --local pos = self.value + 1
+    --self.displayText = noteNumberToNames[pos]
   end
   generateMin:changed()
 
   generateMax.changed = function(self)
     filteredScale = createFilteredScale()
-    local pos = self.value + 1
-    self.displayText = noteNumberToNames[pos]
+    --local pos = self.value + 1
+    --self.displayText = noteNumberToNames[pos]
   end
   generateMax:changed()
 
@@ -5548,7 +5650,7 @@ function createTwequencerPanel()
       end
 
       -- SET VALUES
-      local useDuration = tweakModeMenu.value == 1
+      local useDuration = tweakModeMenu.value == 2
       local tweakOnEachStep = stepButton.value
       local arpOnOff = arpOnOffButton.value
       local tweakArp = tweakArpButton.value
@@ -5660,7 +5762,7 @@ function createTwequencerPanel()
               end ]]
             end
           end
-        elseif tweakModeMenu.value == 3 and #storedPatches > 1 then
+        elseif tweakModeMenu.value == 4 and #storedPatches > 1 then
           -- Morph between snapshots
           local storedPatchIndex = getRandom(#storedPatches)
           print("Morphing to snapshot at index", storedPatchIndex)
@@ -5812,18 +5914,21 @@ function createTwequencerPanel()
   -- 29 = 1/64 tri
   ----------------
   -- default 22
-  function getArpResolution(resolutions)
-    if resolutions == 1 then
-      local min = 16 -- 1/4
-      local max = 25 -- 1/32
-      if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 20)) then
-        min = 13 -- 1/2
-        max = 28 -- 1/64
+  function getArpResolution(resolutionOption)
+    if resolutionOption == 1 then
+      local activeResolutions = {}
+      for i,v in ipairs(selectedArpResolutions) do
+        if v == true then
+          table.insert(activeResolutions, i)
+        end
       end
-      print("getArpResolution:", resolutions, min, max)
-      return getRandom(min,max)
+      if #activeResolutions > 0 then
+        return activeResolutions[getRandom(#activeResolutions)] + 3
+      else
+        return getRandom(28)
+      end
     end
-    local position = resolutions + 14 -- resolutions will be 2 = even, 3 = dot, 4 = tri, so default starts at 16 (1/4)
+    local position = resolutionOption + 14 -- resolutionOption will be 2 = even, 3 = dot, 4 = tri, so default starts at 16 (1/4)
     local resMax = 25 -- Max 1/32
     local resOptions = {}
     if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 25)) then
@@ -5842,15 +5947,20 @@ function createTwequencerPanel()
     return resOptions[index]
   end
 
-  function doArpTweaks(resolutions)
-    if type(resolutions) ~= "number" then
-      resolutions = 1
+  function doArpTweaks(resolutionOption)
+    if type(resolutionOption) ~= "number" then
+      resolutionOption = 1
     end
-    local arp = Program.eventProcessors[2] -- get the arpeggiator
+    local pos = 2 -- Start search for arpeggiator at this position (tweaksynth will be first)
+    local arp = Program.eventProcessors[pos] -- get the event processor at the current position
+    while arp.type ~= "Arpeggiator" do
+      pos = pos + 1 -- increment pos
+      arp = Program.eventProcessors[pos] -- get the event processor at the current position
+    end
     local arpNumSteps = getArpNumSteps() -- get the number of steps to set for the arpeggiator
     arp:setParameter("NumSteps", arpNumSteps)
-    if resolutions < 5 then -- 5 = lock - no change
-      arp:setParameter("Resolution", getArpResolution(resolutions))
+    if resolutionOption < 5 then -- 5 = lock - no change
+      arp:setParameter("Resolution", getArpResolution(resolutionOption))
     end
     arp:setParameter("Mode", getArpMode())
     arp:setParameter("NumStrike", getArpNumStrike())
@@ -5858,7 +5968,7 @@ function createTwequencerPanel()
     arp:setParameter("ArpVelocityBlend", getRandom())
     arp:setParameter("StepLength", 1)
     for i=0,arpNumSteps do
-      if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 30)) then
+      if i > 0 and getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 30)) then
         arp:setParameter("Step"..i.."State", getRandom(0,3)) -- 0-3 def 0
       else
         arp:setParameter("Step"..i.."State", 1) -- 0-3 def 0
@@ -5948,46 +6058,52 @@ end
 -- Settings Panel
 --------------------------------------------------------------------------------
 
-function createSettingsPanel()
-  local panel = Panel("Settings")
-  panel.backgroundColour = bgColor
-  panel.x = marginX
-  panel.y = 10
-  panel.width = width
-  panel.height = 320
+local settingsPanel = Panel("Settings")
+local seqResPanel = Panel("TwequencerResolutions")
+local arpResPanel = Panel("ArpeggiatorResolutions")
+local settingsPageMenu = settingsPanel:Menu("SettingsPageMenu", {"synthesis", "filter", "modulation", "effects+mixer", "arp+seq"})
 
-  local categories = {"synthesis", "filter", "modulation", "effects+mixer"}
+function createSettingsPanel()
+  settingsPanel.backgroundColour = bgColor
+  settingsPanel.x = marginX
+  settingsPanel.y = 10
+  settingsPanel.width = width
+  settingsPanel.height = 320
+
+  local categories = settingsPageMenu.items
   local widgets = {}
   local selectedTweakable = nil
 
-  local label = panel:Label("TweakSynth Settings")
+  local label = settingsPanel:Label("TweakSynth Settings")
   label.displayName = label.name
   label.showLabel = true
+  label.x = 0
+  label.y = 0
   label.height = 25
-  label.width = 500
+  label.width = 200
 
-  local pageMenu = panel:Menu("SettingsPageMenu", categories)
-  pageMenu.width = 100
-  pageMenu.height = 25
-  pageMenu.x = 230
-  pageMenu.showLabel = false
-  pageMenu.persistent = false
-  pageMenu.changed = function(self)
+  settingsPageMenu.width = 100
+  settingsPageMenu.height = 25
+  settingsPageMenu.x = 230
+  settingsPageMenu.showLabel = false
+  settingsPageMenu.persistent = false
+  settingsPageMenu.changed = function(self)
     changeSettingsPage(self.value)
   end
 
-  local toggleButton = panel:MultiStateButton("ToggleActive", {"Deactivate all", "Activate all"})
+  local toggleButton = settingsPanel:MultiStateButton("ToggleActive", {"Deactivate all", "Activate all"})
+  toggleButton.persistent = false
   toggleButton.showLabel = false
   toggleButton.width = 100
   toggleButton.height = 25
-  toggleButton.x = pageMenu.x + pageMenu.width + 10
+  toggleButton.x = settingsPageMenu.x + settingsPageMenu.width + 10
   toggleButton.changed = function(self)
     for _,v in ipairs(widgets) do
       local isPage = false
-      if pageMenu.value == 4 then
+      if settingsPageMenu.value == 4 then
         isPage = v.category == "effects" or v.category == "mixer"
       else
-        isPage = v.category == categories[pageMenu.value]
+        isPage = v.category == categories[settingsPageMenu.value]
       end
       if isPage then
         v.button:setValue(self.value == 1)
@@ -5995,8 +6111,9 @@ function createSettingsPanel()
     end
   end
 
-  local skipSetter = panel:NumBox("Skip", 0, 0, 100, true)
+  local skipSetter = settingsPanel:NumBox("Skip", 0, 0, 100, true)
   skipSetter.displayName = "Skip probability"
+  skipSetter.persistent = false
   skipSetter.backgroundColour = menuBackgroundColour
   skipSetter.textColour = menuTextColour
   skipSetter.arrowColour = menuArrowColour
@@ -6008,10 +6125,10 @@ function createSettingsPanel()
   skipSetter.changed = function(self)
     for _,v in ipairs(widgets) do
       local isPage = false
-      if pageMenu.value == 4 then
+      if settingsPageMenu.value == 4 then
         isPage = v.category == "effects" or v.category == "mixer"
       else
-        isPage = v.category == categories[pageMenu.value]
+        isPage = v.category == categories[settingsPageMenu.value]
       end
       if isPage then
         v.knob1:setValue(self.value)
@@ -6019,7 +6136,8 @@ function createSettingsPanel()
     end
   end
 
-  local closeButton = panel:Button("CloseSettings")
+  local closeButton = settingsPanel:Button("CloseSettings")
+  closeButton.persistent = false
   closeButton.displayName = "Back"
   closeButton.width = 100
   closeButton.height = 25
@@ -6027,35 +6145,34 @@ function createSettingsPanel()
   closeButton.changed = function()
     if type(selectedTweakable) ~= "nil" then
       selectedTweakable = nil
-      hideSelectedTweakable()
-      pageMenu:changed()
+      settingsPageMenu:changed()
     else
       setPage(4)
     end
   end
 
   -- Widgets for details view
-  local probabilityKnob = panel:Knob('ProbabilityKnob', 0, 0, 100, true)
+  local probabilityKnob = settingsPanel:Knob('ProbabilityKnob', 0, 0, 100, true)
   probabilityKnob.visible = false
   probabilityKnob.displayName = "Probability"
   probabilityKnob.fillColour = knobColour
   probabilityKnob.size = {200,60}
 
-  local defaultKnob = panel:Knob('DefaultKnob', 0, 0, 100, true)
+  local defaultKnob = settingsPanel:Knob('DefaultKnob', 0, 0, 100, true)
   defaultKnob.visible = false
   defaultKnob.displayName = "Default value probability"
   defaultKnob.tooltip = "Probability of default value being set on the controller"
   defaultKnob.fillColour = knobColour
   defaultKnob.size = probabilityKnob.size
 
-  local zeroKnob = panel:Knob('ZeroKnob', 0, 0, 100, true)
+  local zeroKnob = settingsPanel:Knob('ZeroKnob', 0, 0, 100, true)
   zeroKnob.visible = false
   zeroKnob.displayName = "Probability of zero"
   zeroKnob.tooltip = "Probability of zero (0) being set"
   zeroKnob.fillColour = knobColour
   zeroKnob.size = probabilityKnob.size
 
-  local bipolarKnob = panel:Knob('BipolarKnob', 0, 0, 100, true)
+  local bipolarKnob = settingsPanel:Knob('BipolarKnob', 0, 0, 100, true)
   bipolarKnob.visible = false
   bipolarKnob.displayName = "Bipolar probability"
   bipolarKnob.tooltip = "Probability of value being changed to negative for bipolar controllers"
@@ -6096,16 +6213,14 @@ function createSettingsPanel()
       print("widget.default", selectedTweakable.widget.default)
     end
 
-    pageMenu.visible = false
+    settingsPageMenu.visible = false
     toggleButton.visible = false
     skipSetter.visible = false
     
     -- Show edit widgets
     probabilityKnob.visible = true
     selectedWidget.floorKnob.visible = true
-    --selectedWidget.floorKnob.enabled = true
     selectedWidget.ceilKnob.visible = true
-    --selectedWidget.ceilKnob.enabled = true
     defaultKnob.visible = true
     defaultKnob.enabled = true
     zeroKnob.visible = true
@@ -6231,7 +6346,7 @@ function createSettingsPanel()
   end
   
   function hideSelectedTweakable()
-    pageMenu.visible = true
+    settingsPageMenu.visible = true
     toggleButton.visible = true
     skipSetter.visible = true
 
@@ -6248,7 +6363,7 @@ function createSettingsPanel()
     if type(v.skipProbability) ~= "number" then
       v.skipProbability = defaultSkipProbability
     end
-    local knob1 = panel:Knob(v.widget.name .. 'Knob1_' .. i, v.skipProbability, 0, 100, true)
+    local knob1 = settingsPanel:Knob(v.widget.name .. 'Knob1_' .. i, v.skipProbability, 0, 100, true)
     knob1.displayName = v.widget.name
     knob1.tooltip = "Skip probability"
     knob1.fillColour = knobColour
@@ -6259,9 +6374,10 @@ function createSettingsPanel()
     end
     knob1:changed()
 
-    local editBtn = panel:Button('EditBtn' .. i)
+    local editBtn = settingsPanel:Button('EditBtn' .. i)
     editBtn.displayName = "Edit"
     editBtn.tooltip = "Edit details"
+    editBtn.persistent = false
     editBtn.visible = false
     editBtn.size = {40,30}
     editBtn.changed = function(self)
@@ -6282,7 +6398,7 @@ function createSettingsPanel()
     end
 
     local exclude = type(v.excludeWithTwequencer) == "boolean" and v.excludeWithTwequencer == true
-    local btn = panel:OnOffButton(v.widget.name .. 'Btn' .. i, (exclude == false))
+    local btn = settingsPanel:OnOffButton(v.widget.name .. 'Btn' .. i, (exclude == false))
     btn.displayName = v.widget.name
     btn.tooltip = "Activate/deactivate tweakable in twequencer"
     btn.alpha = buttonAlpha
@@ -6307,7 +6423,7 @@ function createSettingsPanel()
       isEnabled = true
     end
 
-    local floorKnob = panel:Knob('FloorKnob' .. i, min, min, max)
+    local floorKnob = settingsPanel:Knob('FloorKnob' .. i, min, min, max)
     floorKnob.visible = false
     floorKnob.enabled = isEnabled
     floorKnob.displayName = "Floor"
@@ -6341,7 +6457,7 @@ function createSettingsPanel()
 
     print("Starting ceilKnob", v.widget.name, type(v.widget.default))
 
-    local ceilKnob = panel:Knob('CeilKnob' .. i, max, min, max)
+    local ceilKnob = settingsPanel:Knob('CeilKnob' .. i, max, min, max)
     ceilKnob.visible = false
     ceilKnob.enabled = isEnabled
     ceilKnob.displayName = "Ceiling"
@@ -6376,16 +6492,171 @@ function createSettingsPanel()
     table.insert(widgets, {button=btn,knob1=knob1,editBtn=editBtn,floorKnob=floorKnob,ceilKnob=ceilKnob,name=v.widget.name,category=v.category})
   end
 
+  -- Create twequencer resolution buttons
+  local resolutionButtons = {}
+  seqResPanel.x = 0
+  seqResPanel.y = 50
+  seqResPanel.width = width
+  seqResPanel.height = 100
+  seqResPanel.visible = false
+
+  local seqResLabel = seqResPanel:Label("Twequencer resolutions")
+  seqResLabel.showLabel = true
+
+  local selectEvenResBtn = seqResPanel:Button("SelectEvenResBtn")
+  selectEvenResBtn.persistent = false
+  selectEvenResBtn.displayName = "Select even"
+  selectEvenResBtn.size = {80,20}
+  selectEvenResBtn.x = 420
+  selectEvenResBtn.changed = function(self)
+    for _,e in ipairs(even) do
+      resolutionButtons[e].value = true
+    end
+  end
+
+  local selectDotResBtn = seqResPanel:Button("SelectDotResBtn")
+  selectDotResBtn.persistent = false
+  selectDotResBtn.displayName = "Select dotted"
+  selectDotResBtn.size = selectEvenResBtn.size
+  selectDotResBtn.x = selectEvenResBtn.x + selectEvenResBtn.width + 3
+  selectDotResBtn.changed = function(self)
+    for _,e in ipairs(dot) do
+      resolutionButtons[e].value = true
+    end
+  end
+
+  local selectTriResBtn = seqResPanel:Button("SelectTriResBtn")
+  selectTriResBtn.displayName = "Select tri"
+  selectTriResBtn.persistent = false
+  selectTriResBtn.size = selectDotResBtn.size
+  selectTriResBtn.x = selectDotResBtn.x + selectDotResBtn.width + 3
+  selectTriResBtn.changed = function(self)
+    for _,e in ipairs(tri) do
+      resolutionButtons[e].value = true
+    end
+  end
+
+  local toggleResBtn = seqResPanel:MultiStateButton("ToggleResBtn", {"All off", "All on"})
+  toggleResBtn.persistent = false
+  toggleResBtn.showLabel = false
+  toggleResBtn.size = {40,20}
+  toggleResBtn.x = selectTriResBtn.x + selectTriResBtn.width + 3
+  toggleResBtn.changed = function(self)
+    for _,btn in ipairs(resolutionButtons) do
+      btn.value = self.value == 1
+    end
+  end
+
+  for i=1, #resolutions do
+    local resBtnIsSelected = i > 2 and (i > #selectedSeqResolutions or selectedSeqResolutions[i])
+    local btn = seqResPanel:OnOffButton("ResBtn" .. i, resBtnIsSelected)
+    btn.displayName = resolutionNames[i]
+    btn.tooltip = "Activate/deactivate resolution in twequencer"
+    btn.alpha = buttonAlpha
+    btn.backgroundColourOff = buttonBackgroundColourOff
+    btn.backgroundColourOn = buttonBackgroundColourOn
+    btn.textColourOff = buttonTextColourOff
+    btn.textColourOn = buttonTextColourOn
+    btn.size = {64,30}
+    btn.changed = function(self)
+      if i > #selectedSeqResolutions then
+        table.insert(selectedSeqResolutions, self.value)
+      else
+        selectedSeqResolutions[i] = self.value
+      end
+    end
+    btn:changed()
+    table.insert(resolutionButtons, btn)
+  end
+
+  -- Create arpeggiator resolution buttons
+  local arpResolutionButtons = {}
+  arpResPanel.x = 0
+  arpResPanel.y = seqResPanel.y + seqResPanel.height
+  arpResPanel.width = width
+  arpResPanel.height = 100
+  arpResPanel.visible = false
+
+  local arpResLabel = arpResPanel:Label("Arpeggiator resolutions")
+  arpResLabel.showLabel = true
+
+  local selectEvenArpResBtn = arpResPanel:Button("SelectEvenArpResBtn")
+  selectEvenArpResBtn.persistent = false
+  selectEvenArpResBtn.displayName = "Select even"
+  selectEvenArpResBtn.size = {80,20}
+  selectEvenArpResBtn.x = 420
+  selectEvenArpResBtn.changed = function(self)
+    for _,e in ipairs(even) do
+      arpResolutionButtons[e].value = true
+    end
+  end
+
+  local selectDotArpResBtn = arpResPanel:Button("SelectDotArpResBtn")
+  selectDotArpResBtn.persistent = false
+  selectDotArpResBtn.displayName = "Select dotted"
+  selectDotArpResBtn.size = selectEvenArpResBtn.size
+  selectDotArpResBtn.x = selectEvenArpResBtn.x + selectEvenArpResBtn.width + 3
+  selectDotArpResBtn.changed = function(self)
+    for _,e in ipairs(dot) do
+      arpResolutionButtons[e].value = true
+    end
+  end
+
+  local selectTriArpResBtn = arpResPanel:Button("SelectTriArpResBtn")
+  selectTriArpResBtn.persistent = false
+  selectTriArpResBtn.displayName = "Select tri"
+  selectTriArpResBtn.size = selectDotArpResBtn.size
+  selectTriArpResBtn.x = selectDotArpResBtn.x + selectDotArpResBtn.width + 3
+  selectTriArpResBtn.changed = function(self)
+    for _,e in ipairs(tri) do
+      arpResolutionButtons[e].value = true
+    end
+  end
+
+  local toggleArpResBtn = arpResPanel:MultiStateButton("ToggleArpResBtn", {"All off", "All on"})
+  toggleArpResBtn.persistent = false
+  toggleArpResBtn.showLabel = false
+  toggleArpResBtn.size = {40,20}
+  toggleArpResBtn.x = selectTriArpResBtn.x + selectTriArpResBtn.width + 3
+  toggleArpResBtn.changed = function(self)
+    for _,btn in ipairs(arpResolutionButtons) do
+      btn.value = self.value == 1
+    end
+  end
+
+  for i=1, #resolutions do
+    local resBtnIsSelected = i > 2 and (i > #selectedArpResolutions or selectedArpResolutions[i])
+    local btn = arpResPanel:OnOffButton("ArpResBtn" .. i, resBtnIsSelected)
+    btn.displayName = resolutionNames[i]
+    btn.tooltip = "Activate/deactivate resolution in twequencer"
+    btn.alpha = buttonAlpha
+    btn.backgroundColourOff = buttonBackgroundColourOff
+    btn.backgroundColourOn = buttonBackgroundColourOn
+    btn.textColourOff = buttonTextColourOff
+    btn.textColourOn = buttonTextColourOn
+    btn.size = {64,30}
+    btn.changed = function(self)
+      if i > #selectedArpResolutions then
+        table.insert(selectedArpResolutions, self.value)
+      else
+        selectedArpResolutions[i] = self.value
+      end
+    end
+    btn:changed()
+    table.insert(arpResolutionButtons, btn)
+  end
+
   function changeSettingsPage(page)
     local perColumn = 4
     local rowCounter = 0
     local columnCounter = 0
+    hideSelectedTweakable()
     for _,v in ipairs(widgets) do
       local isVisible = false
       if page == 4 then
         isVisible = v.category == "effects" or v.category == "mixer"
       else
-        isVisible = (v.category == categories[page])
+        isVisible = v.category == categories[page]
       end
       v.button.visible = isVisible
       v.knob1.visible = isVisible
@@ -6411,12 +6682,43 @@ function createSettingsPanel()
         end
       end
     end
+    -- Arp+seq
+    if page == 5 then
+      seqResPanel.visible = true
+      arpResPanel.visible = true
+      settingsPanel.height = seqResPanel.y
+      perColumn = 11
+      for _,btn in ipairs(resolutionButtons) do
+        btn.x = btn.width * columnCounter + 10
+        btn.y = (btn.height * rowCounter) + 30
+        columnCounter = columnCounter + 1
+        if columnCounter >= perColumn then
+          columnCounter = 0
+          rowCounter = rowCounter + 1
+        end
+      end
+      rowCounter = 0
+      columnCounter = 0
+      for _,btn in ipairs(arpResolutionButtons) do
+        btn.x = btn.width * columnCounter + 10
+        btn.y = (btn.height * rowCounter) + 30
+        columnCounter = columnCounter + 1
+        if columnCounter >= perColumn then
+          columnCounter = 0
+          rowCounter = rowCounter + 1
+        end
+      end
+    else
+      seqResPanel.visible = false
+      arpResPanel.visible = false
+      settingsPanel.height = 320
+    end
   end
 
-  pageMenu:changed()
-
-  return panel
+  settingsPageMenu:changed()
 end
+
+createSettingsPanel()
 
 --------------------------------------------------------------------------------
 -- Set up pages
@@ -6542,8 +6844,6 @@ setupEffectsPage()
 local tweqPanel = createTwequencerPanel()
 
 local tweakPanel = createPatchMakerPanel()
-
-local settingsPanel = createSettingsPanel()
 
 --------------------------------------------------------------------------------
 -- Map Midi CC for HW (Minilogue)
@@ -6801,7 +7101,14 @@ function setPage(page)
 
   effectsPanel.visible = page == 6
 
-  settingsPanel.visible = page == 7
+  if page == 7 then
+    settingsPanel.visible = true
+    settingsPageMenu:changed()
+  else
+    settingsPanel.visible = false
+    seqResPanel.visible = false
+    arpResPanel.visible = false
+  end
 end
 
 synthesisPageButton.changed = function(self)
