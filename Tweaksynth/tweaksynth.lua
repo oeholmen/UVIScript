@@ -3034,7 +3034,7 @@ function createFilterEnvPanel()
     self.displayText = formatTimeInSeconds(self.value)
   end
   filterDecayKnob:changed()
-  table.insert(tweakables, {widget=filterDecayKnob,factor=3,floor=0.01,ceiling=0.75,probability=50,default=10,useDuration=false,category="filter"})
+  table.insert(tweakables, {widget=filterDecayKnob,factor=3,decay=true,floor=0.01,ceiling=0.75,probability=50,default=10,useDuration=false,category="filter"})
 
   local filterSustainKnob = filterEnvPanel:Knob("FSustain", 1, 0, 1)
   filterSustainKnob.displayName="Sustain"
@@ -4314,7 +4314,7 @@ function createAmpEnvPanel()
     self.displayText = formatTimeInSeconds(self.value)
   end
   ampDecayKnob:changed()
-  table.insert(tweakables, {widget=ampDecayKnob,factor=3,floor=0.01,ceiling=0.5,probability=50,default=25,useDuration=false,category="synthesis"})
+  table.insert(tweakables, {widget=ampDecayKnob,factor=3,decay=true,floor=0.01,ceiling=0.5,probability=50,default=25,useDuration=false,category="synthesis"})
 
   local ampSustainKnob = ampEnvPanel:Knob("Sustain", 1, 0, 1)
   ampSustainKnob.fillColour = knobColour
@@ -6151,34 +6151,6 @@ function createSettingsPanel()
     end
   end
 
-  -- Widgets for details view
-  local probabilityKnob = settingsPanel:Knob('ProbabilityKnob', 0, 0, 100, true)
-  probabilityKnob.visible = false
-  probabilityKnob.displayName = "Probability"
-  probabilityKnob.fillColour = knobColour
-  probabilityKnob.size = {200,60}
-
-  local defaultKnob = settingsPanel:Knob('DefaultKnob', 0, 0, 100, true)
-  defaultKnob.visible = false
-  defaultKnob.displayName = "Default value probability"
-  defaultKnob.tooltip = "Probability of default value being set on the controller"
-  defaultKnob.fillColour = knobColour
-  defaultKnob.size = probabilityKnob.size
-
-  local zeroKnob = settingsPanel:Knob('ZeroKnob', 0, 0, 100, true)
-  zeroKnob.visible = false
-  zeroKnob.displayName = "Probability of zero"
-  zeroKnob.tooltip = "Probability of zero (0) being set"
-  zeroKnob.fillColour = knobColour
-  zeroKnob.size = probabilityKnob.size
-
-  local bipolarKnob = settingsPanel:Knob('BipolarKnob', 0, 0, 100, true)
-  bipolarKnob.visible = false
-  bipolarKnob.displayName = "Bipolar probability"
-  bipolarKnob.tooltip = "Probability of value being changed to negative for bipolar controllers"
-  bipolarKnob.fillColour = knobColour
-  bipolarKnob.size = probabilityKnob.size
-
   -- Options:
     -- widget = the widget to tweak - the only non-optional parameter
     -- func = the function to execute for getting the value - default is getRandom
@@ -6218,15 +6190,15 @@ function createSettingsPanel()
     skipSetter.visible = false
     
     -- Show edit widgets
-    probabilityKnob.visible = true
+    selectedWidget.probabilityKnob.visible = true
     selectedWidget.floorKnob.visible = true
     selectedWidget.ceilKnob.visible = true
-    defaultKnob.visible = true
-    defaultKnob.enabled = true
-    zeroKnob.visible = true
-    zeroKnob.enabled = true
-    bipolarKnob.visible = true
-    bipolarKnob.enabled = true
+    selectedWidget.defaultKnob.visible = true
+    selectedWidget.defaultKnob.enabled = true
+    selectedWidget.zeroKnob.visible = true
+    selectedWidget.zeroKnob.enabled = true
+    selectedWidget.bipolarKnob.visible = true
+    selectedWidget.bipolarKnob.enabled = true
     
     -- Set page label
     label.displayName = "Edit " .. selectedTweakable.widget.displayName .. " (" .. selectedTweakable.widget.name .. ")"
@@ -6243,29 +6215,29 @@ function createSettingsPanel()
 
     if type(selectedTweakable.default) == "number" then
       print("default", selectedTweakable.default)
-      defaultKnob.enabled = true
-      defaultKnob.value = selectedTweakable.default
+      selectedWidget.defaultKnob.enabled = true
+      selectedWidget.defaultKnob.value = selectedTweakable.default
     else
-      defaultKnob.value = 0
-      defaultKnob.enabled = false
+      selectedWidget.defaultKnob.value = 0
+      selectedWidget.defaultKnob.enabled = false
     end
 
     if type(selectedTweakable.zero) == "number" then
       print("zero", selectedTweakable.zero)
-      zeroKnob.enabled = true
-      zeroKnob:setValue(selectedTweakable.zero)
+      selectedWidget.zeroKnob.enabled = true
+      selectedWidget.zeroKnob:setValue(selectedTweakable.zero)
     else
-      zeroKnob.value = 0
-      zeroKnob.enabled = false
+      selectedWidget.zeroKnob.value = 0
+      selectedWidget.zeroKnob.enabled = false
     end
 
     if type(selectedTweakable.bipolar) == "number" then
       print("bipolar", selectedTweakable.bipolar)
-      bipolarKnob.enabled = true
-      bipolarKnob.value = selectedTweakable.bipolar
+      selectedWidget.bipolarKnob.enabled = true
+      selectedWidget.bipolarKnob.value = selectedTweakable.bipolar
     else
-      bipolarKnob.value = 0
-      bipolarKnob.enabled = false
+      selectedWidget.bipolarKnob.value = 0
+      selectedWidget.bipolarKnob.enabled = false
     end
 
     if type(selectedTweakable.useDuration) == "boolean" then
@@ -6287,75 +6259,35 @@ function createSettingsPanel()
     selectedWidget.knob1.displayName = "Skip probability"
     selectedWidget.knob1.showLabel = true
     selectedWidget.knob1.showValue = true
-    selectedWidget.knob1.size = probabilityKnob.size
-
-    if type(selectedTweakable.probability) == "number" then
-      probabilityKnob.enabled = true
-      probabilityKnob.value = selectedTweakable.probability
-      probabilityKnob.changed = function(self)
-        self.tooltip = "Probability that value is within limits (floor/ceiling)"
-        self.displayText = self.value .. "%"
-        selectedTweakable.probability = self.value
-      end
-      probabilityKnob:changed()
-    else
-      probabilityKnob.changed = nil
-      probabilityKnob.value = 0
-      probabilityKnob.enabled = false
-    end
+    selectedWidget.knob1.size = selectedWidget.probabilityKnob.size
 
     -- POSITION THE WIDGETS
 
     -- Row 2 --
-    defaultKnob.x = 50
-    defaultKnob.y = selectedWidget.knob1.y + selectedWidget.knob1.height + 25
+    selectedWidget.defaultKnob.x = 50
+    selectedWidget.defaultKnob.y = selectedWidget.knob1.y + selectedWidget.knob1.height + 25
 
-    zeroKnob.x = defaultKnob.x + defaultKnob.width + 10
-    zeroKnob.y = defaultKnob.y
+    selectedWidget.zeroKnob.x = selectedWidget.defaultKnob.x + selectedWidget.defaultKnob.width + 10
+    selectedWidget.zeroKnob.y = selectedWidget.defaultKnob.y
 
-    bipolarKnob.x = zeroKnob.x + zeroKnob.width + 10
-    bipolarKnob.y = zeroKnob.y
+    selectedWidget.bipolarKnob.x = selectedWidget.zeroKnob.x + selectedWidget.zeroKnob.width + 10
+    selectedWidget.bipolarKnob.y = selectedWidget.zeroKnob.y
 
     -- Row 3 --
-    probabilityKnob.x = 50
-    probabilityKnob.y = defaultKnob.y + defaultKnob.height + 25
+    selectedWidget.probabilityKnob.x = 50
+    selectedWidget.probabilityKnob.y = selectedWidget.defaultKnob.y + selectedWidget.defaultKnob.height + 25
 
-    selectedWidget.floorKnob.x = probabilityKnob.x + probabilityKnob.width + 10
-    selectedWidget.floorKnob.y = probabilityKnob.y
+    selectedWidget.floorKnob.x = selectedWidget.probabilityKnob.x + selectedWidget.probabilityKnob.width + 10
+    selectedWidget.floorKnob.y = selectedWidget.probabilityKnob.y
 
     selectedWidget.ceilKnob.x = selectedWidget.floorKnob.x + selectedWidget.floorKnob.width + 10
     selectedWidget.ceilKnob.y = selectedWidget.floorKnob.y
-
-    defaultKnob.changed = function(self)
-      self.displayText = self.value .. "%"
-      selectedTweakable.default = self.value
-    end
-    defaultKnob:changed()
-
-    zeroKnob.changed = function(self)
-      self.displayText = self.value .. "%"
-      selectedTweakable.zero = self.value
-    end
-    zeroKnob:changed()
-
-    bipolarKnob.changed = function(self)
-      self.displayText = self.value .. "%"
-      selectedTweakable.bipolar = self.value
-    end
-    bipolarKnob:changed()
   end
   
   function hideSelectedTweakable()
     settingsPageMenu.visible = true
     toggleButton.visible = true
     skipSetter.visible = true
-
-    -- Hide edit widgets
-    probabilityKnob.visible = false
-    defaultKnob.visible = false
-    zeroKnob.visible = false
-    bipolarKnob.visible = false
-
     label.displayName = label.name
   end
 
@@ -6412,18 +6344,74 @@ function createSettingsPanel()
     end
     btn:changed()
 
+    -- Widgets for details view
+    local probabilityKnob = settingsPanel:Knob('ProbabilityKnob' .. i, 0, 0, 100, true)
+    probabilityKnob.visible = false
+    probabilityKnob.displayName = "Probability"
+    probabilityKnob.fillColour = knobColour
+    probabilityKnob.size = {200,60}
+
+    local defaultKnob = settingsPanel:Knob('DefaultKnob' .. i, 0, 0, 100, true)
+    defaultKnob.visible = false
+    defaultKnob.displayName = "Default value probability"
+    defaultKnob.tooltip = "Probability of default value being set on the controller"
+    defaultKnob.fillColour = knobColour
+    defaultKnob.size = probabilityKnob.size
+    defaultKnob.changed = function(self)
+      self.displayText = self.value .. "%"
+      v.default = self.value
+    end
+    defaultKnob:changed()
+
+    local zeroKnob = settingsPanel:Knob('ZeroKnob' .. i, 0, 0, 100, true)
+    zeroKnob.visible = false
+    zeroKnob.displayName = "Probability of zero"
+    zeroKnob.tooltip = "Probability of zero (0) being set"
+    zeroKnob.fillColour = knobColour
+    zeroKnob.size = probabilityKnob.size
+    zeroKnob.changed = function(self)
+      self.displayText = self.value .. "%"
+      v.zero = self.value
+    end
+    zeroKnob:changed()
+
+    local bipolarKnob = settingsPanel:Knob('BipolarKnob' .. i, 0, 0, 100, true)
+    bipolarKnob.visible = false
+    bipolarKnob.displayName = "Bipolar probability"
+    bipolarKnob.tooltip = "Probability of value being changed to negative for bipolar controllers"
+    bipolarKnob.fillColour = knobColour
+    bipolarKnob.size = probabilityKnob.size
+    bipolarKnob.changed = function(self)
+      self.displayText = self.value .. "%"
+      v.bipolar = self.value
+    end
+    bipolarKnob:changed()
+
     print("Starting floorKnob", v.widget.name, type(v.widget.min))
 
     local min = 0
     local max = 1
+    local default = 0
     local isEnabled = false
     if type(v.widget.default) == "number" and type(v.probability) == "number" and (type(v.floor) == "number" or type(v.ceiling) == "number") then
+      default = v.widget.default
       min = v.widget.min
       max = v.widget.max
       isEnabled = true
     end
 
-    local floorKnob = settingsPanel:Knob('FloorKnob' .. i, min, min, max)
+    probabilityKnob.enabled = isEnabled
+    if isEnabled then
+      probabilityKnob.value = v.probability
+      probabilityKnob.changed = function(self)
+        self.tooltip = "Probability that value is within limits (floor/ceiling)"
+        self.displayText = self.value .. "%"
+        v.probability = self.value
+      end
+      probabilityKnob:changed()
+    end
+
+    local floorKnob = settingsPanel:Knob('FloorKnob' .. i, default, min, max)
     floorKnob.visible = false
     floorKnob.enabled = isEnabled
     floorKnob.displayName = "Floor"
@@ -6437,6 +6425,7 @@ function createSettingsPanel()
     end
 
     if isEnabled then
+      floorKnob.mapper = v.widget.mapper
       floorKnob.changed = function(self)
         if v.widget.displayName == "Cutoff" then
           local value = filterMapValue(self.value)
@@ -6447,6 +6436,8 @@ function createSettingsPanel()
           end
         elseif v.widget.name:sub(-3) == "Mix" then
           self.displayText = formatGainInDb(self.value)
+        elseif v.attack == true or v.release == true or v.decay == true then
+          self.displayText = formatTimeInSeconds(self.value)
         elseif (self.min == 0 or self.min == -1) and self.max == 1 then
           self.displayText = percent(self.value)
         end
@@ -6471,6 +6462,7 @@ function createSettingsPanel()
     end
 
     if isEnabled then
+      ceilKnob.mapper = v.widget.mapper
       ceilKnob.changed = function(self)
         if v.widget.displayName == "Cutoff" then
           local value = filterMapValue(self.value)
@@ -6479,8 +6471,10 @@ function createSettingsPanel()
           else
               self.displayText = string.format("%0.1f kHz", value/1000.)
           end
-        elseif v.widget.name == "NoiseMix" then
+        elseif v.widget.name:sub(-3) == "Mix" then
           self.displayText = formatGainInDb(self.value)
+        elseif v.attack == true or v.release == true or v.decay == true then
+          self.displayText = formatTimeInSeconds(self.value)
         elseif (self.min == 0 or self.min == -1) and self.max == 1 then
           self.displayText = percent(self.value)
         end
@@ -6489,7 +6483,19 @@ function createSettingsPanel()
       ceilKnob:changed()
     end
 
-    table.insert(widgets, {button=btn,knob1=knob1,editBtn=editBtn,floorKnob=floorKnob,ceilKnob=ceilKnob,name=v.widget.name,category=v.category})
+    table.insert(widgets, {
+      button=btn,
+      knob1=knob1,
+      editBtn=editBtn,
+      floorKnob=floorKnob,
+      ceilKnob=ceilKnob,
+      probabilityKnob=probabilityKnob,
+      defaultKnob=defaultKnob,
+      zeroKnob=zeroKnob,
+      bipolarKnob=bipolarKnob,
+      name=v.widget.name,
+      category=v.category,
+    })
   end
 
   -- Create twequencer resolution buttons
@@ -6663,6 +6669,10 @@ function createSettingsPanel()
       v.editBtn.visible = isVisible
       v.floorKnob.visible = false
       v.ceilKnob.visible = false
+      v.defaultKnob.visible = false
+      v.zeroKnob.visible = false
+      v.probabilityKnob.visible = false
+      v.bipolarKnob.visible = false
       if isVisible then
         v.editBtn.x = 180 * columnCounter + 10
         v.editBtn.y = (40 * rowCounter) + 50
