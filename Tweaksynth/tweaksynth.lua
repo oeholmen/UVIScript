@@ -487,14 +487,8 @@ function tweakValue(options, value, tweakLevel)
   end
   print("Tweaking value:", value)
   -- Get range limits
-  local floor = options.widget.min -- Default floor is min
-  local ceiling = options.widget.max -- Default ceiling is max
-  if type(options.min) == "number" then
-    floor = options.min
-  end
-  if type(options.max) == "number" then
-    ceiling = options.max
-  end
+  local floor = options.widget.min -- Default floor is widget min
+  local ceiling = options.widget.max -- Default ceiling is widget max
   -- Adjust value to within set range if probability hits
   if type(options.probability) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.probability)) == true then
     if type(options.floor) == "number" then
@@ -589,21 +583,24 @@ function getValueForTweaking(options, tweakLevel)
 end
 
 function getEnvelopeTimeForDuration(options, duration)
-  local min = options.widget.default * 10000
-  local max = duration * 1000 -- 0.25 = 1/16, 0.5 = 1/8, 1 = 1/4
+  local min = options.widget.default * 10000 -- 0,001*10000 = 10
+  local max = duration * 1000 -- 0.25 = 1/16, 0.5 = 1/8, 1 = 1/4 -- 0,25 * 1000 = 250
 
   if min > max then
+    print("getEnvelopeTimeForDuration using default value:", options.widget.default)
     return options.widget.default
   end
 
-  print("Env value min/max:", min/10000, max/10000)
+  print("getEnvelopeTimeForDuration value min/max:", min/10000, max/10000)
 
   return getRandom(min, max) / 10000
 end
 
 function getEnvelopeTimeByStyle(options, style)
   local index = style - 1
+  -- {"Automatic", "Very short", "Short", "Medium short", "Medium", "Medium long", "Long", "Very long"}
   local attackTimes = {{0.00025,0.0025},{0.001,0.0075},{0.005,0.025},{0.01,0.25},{0.1,0.75},{0.5,2},{1,3}}
+  local decayTimes = {{0.025,0.25},{0.1,0.5},{0.2,0.6},{0.4,1.2},{0.9,2.5},{1.5,3.5},{2.5,5.5}}
   local releaseTimes = {{0.0025,0.01},{0.01,0.075},{0.05,0.125},{0.075,0.35},{0.1,0.75},{0.5,2},{1,3}}
   local min = attackTimes[index][1]
   local max = attackTimes[index][2]
@@ -611,6 +608,9 @@ function getEnvelopeTimeByStyle(options, style)
   if options.release == true then
     min = releaseTimes[index][1]
     max = releaseTimes[index][2]
+  elseif options.decay == true then
+    min = decayTimes[index][1]
+    max = decayTimes[index][2]
   end
   
   print("getEnvelopeTimeByStyle min/max:", min, max)
@@ -823,18 +823,13 @@ function getTweakSuggestion(options, tweakLevel, envelopeStyle, modulationStyle,
     print("Default:", options.default)
   elseif modulationStyle > 1 and (options.widget.name == 'LfoFreq') then
     endValue = getModulationFreqByStyle(options, modulationStyle)
-    print("getEnvelopeTimeByStyle:", endValue)
-  elseif envelopeStyle > 1 and (options.attack == true or options.release == true) then
+    print("getModulationFreqByStyle:", endValue)
+  elseif envelopeStyle > 1 and (options.attack == true or options.decay == true or options.release == true) then
     endValue = getEnvelopeTimeByStyle(options, envelopeStyle)
     print("getEnvelopeTimeByStyle:", endValue)
-  elseif duration > 0 and (options.attack == true or options.release == true) then
-    if envelopeStyle > 1 then
-      endValue = getEnvelopeTimeByStyle(options, envelopeStyle)
-      print("getEnvelopeTimeByStyle:", endValue)
-    else
-      endValue = getEnvelopeTimeForDuration(options, duration)
-      print("getEnvelopeTimeForDuration:", endValue)
-    end
+  elseif duration > 0 and envelopeStyle == 1 and (options.attack == true or options.decay == true or options.release == true) then
+    endValue = getEnvelopeTimeForDuration(options, duration)
+    print("getEnvelopeTimeForDuration:", endValue)
   elseif type(options.fmLevel) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.fmLevel)) == true then
     endValue = getRandom(nil, nil, options.widget.max)
     print("FM Operator Level: (max/endValue)", options.widget.max, endValue)
@@ -860,7 +855,7 @@ function getTweakSuggestion(options, tweakLevel, envelopeStyle, modulationStyle,
   return endValue
 end
 
-function getTweakSuggestionLegacy(options, tweakLevel, envelopeStyle, modulationStyle, duration)
+--[[ function getTweakSuggestionLegacy(options, tweakLevel, envelopeStyle, modulationStyle, duration)
   if type(tweakLevel) ~= "number" then
     tweakLevel = 50
   end
@@ -940,7 +935,7 @@ function getTweakSuggestionLegacy(options, tweakLevel, envelopeStyle, modulation
   end
   print("Tweak endValue:", endValue)
   return endValue
-end
+end ]]
 
 -- Verify the suggested settings to avoid unwanted side effects
 function verifySettings(tweakLevel, selectedTweakables, synthesisButton, modulationButton, filterButton, mixerButton, effectsButton, automaticSequencerRunning)
@@ -1142,7 +1137,7 @@ function verifyFilterSettings(selectedTweakables)
   print("Filter EnvelopeAmt:", envelopeAmtValue)
   print("Filter HpfCutoff:", HpfCutoff.targetValue)
   print("Filter HpfEnvelopeAmt:", hpfEnvelopeAmtValue)
-  print("Filter FAttack:", FAttack.targetValue)
+  print("Filter FAttack:", attackValue)
 
   -- Reduce cutoff if env amount is high
   if cutoffValue == 1 and envelopeAmtValue > 0.3 then
@@ -3291,7 +3286,7 @@ function createFilterEnvOscTargetsPanel()
         self.displayText = percent(self.value)
       end
       filterEnvToHardsync1Knob:changed()
-      table.insert(tweakables, {widget=filterEnvToHardsync1Knob,zero=50,default=70,ceiling=0.5,probability=30,useDuration=true,category="filter"})
+      table.insert(tweakables, {widget=filterEnvToHardsync1Knob,zero=50,default=70,ceiling=0.5,probability=80,useDuration=true,category="filter"})
     elseif isWavetable then
       local filterEnvToWT1Knob = filterEnvOscTargetsPanel:Knob("Osc1FilterEnvToIndex", 0, -1, 1)
       filterEnvToWT1Knob.displayName = "Waveindex"
@@ -3343,7 +3338,7 @@ function createFilterEnvOscTargetsPanel()
         self.displayText = percent(self.value)
       end
       filterEnvToHardsync2Knob:changed()
-      table.insert(tweakables, {widget=filterEnvToHardsync2Knob,zero=50,default=70,floor=0.3,ceiling=0.6,probability=10,useDuration=true,category="filter"})
+      table.insert(tweakables, {widget=filterEnvToHardsync2Knob,zero=50,default=70,floor=0.1,ceiling=0.4,probability=90,useDuration=true,category="filter"})
     elseif isWavetable then
       local filterEnvToWT2Knob = filterEnvOscTargetsPanel:Knob("Osc2FilterEnvToIndex", 0, -1, 1)
       filterEnvToWT2Knob.displayName = "Waveindex"
@@ -3951,7 +3946,7 @@ function createLfoTargetPanel1()
         self.displayText = percent(self.value)
       end
       lfoToHardsync1Knob:changed()
-      table.insert(tweakables, {widget=lfoToHardsync1Knob,zero=50,default=70,floor=0.1,ceiling=0.6,probability=20,useDuration=true,category="modulation"})
+      table.insert(tweakables, {widget=lfoToHardsync1Knob,zero=50,default=70,floor=0.1,ceiling=0.6,probability=80,useDuration=true,category="modulation"})
     elseif isAdditive then
       local lfoToEvenOdd1Knob = lfoTargetPanel1:Knob("LfoToEvenOdd1", 0, 0, 1)
       lfoToEvenOdd1Knob.displayName = "Even/Odd"
@@ -6194,11 +6189,11 @@ function createSettingsPanel()
     selectedWidget.floorKnob.visible = true
     selectedWidget.ceilKnob.visible = true
     selectedWidget.defaultKnob.visible = true
-    selectedWidget.defaultKnob.enabled = true
+    --selectedWidget.defaultKnob.enabled = true
     selectedWidget.zeroKnob.visible = true
-    selectedWidget.zeroKnob.enabled = true
+    --selectedWidget.zeroKnob.enabled = true
     selectedWidget.bipolarKnob.visible = true
-    selectedWidget.bipolarKnob.enabled = true
+    --selectedWidget.bipolarKnob.enabled = true
     
     -- Set page label
     label.displayName = "Edit " .. selectedTweakable.widget.displayName .. " (" .. selectedTweakable.widget.name .. ")"
@@ -6209,7 +6204,7 @@ function createSettingsPanel()
     selectedWidget.button.y = 50
     selectedWidget.button.size = {120,60}
 
-    if type(selectedTweakable.factor) == "number" then
+    --[[ if type(selectedTweakable.factor) == "number" then
       print("factor", selectedTweakable.factor)
     end
 
@@ -6250,7 +6245,7 @@ function createSettingsPanel()
 
     if type(selectedTweakable.max) == "number" then
       print("max", selectedTweakable.max)
-    end
+    end ]]
 
     -- Skip probability knob
     selectedWidget.knob1.visible = true
@@ -6357,6 +6352,10 @@ function createSettingsPanel()
     defaultKnob.tooltip = "Probability of default value being set on the controller"
     defaultKnob.fillColour = knobColour
     defaultKnob.size = probabilityKnob.size
+    print("default", v.default)
+    if type(v.default) == "number" then
+      defaultKnob.value = v.default
+    end
     defaultKnob.changed = function(self)
       self.displayText = self.value .. "%"
       v.default = self.value
@@ -6369,11 +6368,17 @@ function createSettingsPanel()
     zeroKnob.tooltip = "Probability of zero (0) being set"
     zeroKnob.fillColour = knobColour
     zeroKnob.size = probabilityKnob.size
-    zeroKnob.changed = function(self)
-      self.displayText = self.value .. "%"
-      v.zero = self.value
+    if type(v.zero) == "number" then
+      print("zero", v.zero)
+      zeroKnob.value = v.zero
+      zeroKnob.changed = function(self)
+        self.displayText = self.value .. "%"
+        v.zero = self.value
+      end
+      zeroKnob:changed()
+    else
+      zeroKnob.enabled = false
     end
-    zeroKnob:changed()
 
     local bipolarKnob = settingsPanel:Knob('BipolarKnob' .. i, 0, 0, 100, true)
     bipolarKnob.visible = false
@@ -6381,11 +6386,17 @@ function createSettingsPanel()
     bipolarKnob.tooltip = "Probability of value being changed to negative for bipolar controllers"
     bipolarKnob.fillColour = knobColour
     bipolarKnob.size = probabilityKnob.size
-    bipolarKnob.changed = function(self)
-      self.displayText = self.value .. "%"
-      v.bipolar = self.value
+    if type(v.bipolar) == "number" then
+      print("bipolar", v.bipolar)
+      bipolarKnob.value = v.bipolar
+      bipolarKnob.changed = function(self)
+        self.displayText = self.value .. "%"
+        v.bipolar = self.value
+      end
+      bipolarKnob:changed()
+    else
+      bipolarKnob.enabled = false
     end
-    bipolarKnob:changed()
 
     print("Starting floorKnob", v.widget.name, type(v.widget.min))
 
