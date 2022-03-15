@@ -319,7 +319,7 @@ function onLoad(data)
   for _,v in ipairs(storedPatch) do
     print("Loaded: ", v.widget, v.value)
   end
-  if #data > 1 then
+  if type(data[2]) ~= "nil" then
     storedPatches = data[2]
     populatePatchesMenu()
     print("Loaded stored patches: ", #storedPatches)
@@ -362,14 +362,14 @@ function getMaxFromTopology(op, topology)
 end
 
 function initPatch()
-  print("Setting default values...")
+  --print("Setting default values...")
   for _,v in ipairs(tweakables) do
     if v.widget.name == "NoiseType" then
       v.widget.value = 7
     else
       v.widget.value = v.widget.default
     end
-    print("Set default value for widget", v.widget.name, v.widget.value)
+    --print("Set default value for widget", v.widget.name, v.widget.value)
   end
 end
 
@@ -398,9 +398,6 @@ end
 function populatePatchesMenu()
   for i=1,#storedPatches do
     local itemName = "Snapshot "..i
-    --[[ if i == 1 then
-      itemName = itemName.." (initial)"
-    end ]]
     patchesMenu:addItem(itemName)
   end
 end
@@ -408,18 +405,18 @@ end
 function getRandom(min, max, factor)
   if type(min) == "number" and type(max) == "number" then
     local value = math.random(min, max)
-    print("Random - value, min, max:", value, min, max)
+    --print("Random - value, min, max:", value, min, max)
     return value
   elseif type(min) == "number" then
     local value = math.random(min)
-    print("Random - value, min:", value, min)
+    --print("Random - value, min:", value, min)
     return value
   end
   local value = math.random()
-  print("Random:", value)
+  --print("Random:", value)
   if type(factor) == "number" then
     value = value * factor
-    print("Random by factor:", value, factor)
+    --print("Random by factor:", value, factor)
   end
   return value
 end
@@ -430,56 +427,98 @@ function getRandomBoolean(probability)
     probability = 50
   end
   local value = getRandom(100) <= probability
-  print("RandomBoolean:", value, probability)
+  --print("RandomBoolean:", value, probability)
   return value
 end
 
--- Takes a level of uncertanty, a probability and a weight.
+-- Returns a probability that is derived from the given tweaklevel. The probability returned is reduced less the higher the tweak level is.
+-- *NOTE* Use this when you want something to be more likely to occur on high tweak levels.
+-- Tweaklevel 90 gives a probability of 81: 90 * 0.9 = 81 (reduced by 9)
+-- Tweaklevel 30 gives a probability of 9: 30 * 0.3 = 9 (reduced by 21)
+function getProbabilityFromTweakLevel(tweakLevel)
+  return tweakLevel * (tweakLevel / 100)
+end
+
+-- Takes a level of uncertanty, a probability and an optional weight.
+-- *NOTE* Use this when you want something to be more likely to occur on low tweak levels.
 -- The given probability is adjusted according to the following rules:
 -- The level of uncertanty (tweaklevel) is between 0 and 100 (0=no uncertanty,100=totaly random)
 -- The given probability is between 0 and 100 (0=no chance, 100=always)
--- The given weight is above -0.5 and below 0.5, 0 is nutral weight (<0=lighter weight, probability less affected by tweaklevel, >0=stronger weight - probability more affected by tweaklevel)
+-- The given weight is above -50 and below 50, 0 is nutral weight (<0=lighter weight, probability less affected by tweaklevel, >0=stronger weight - probability more affected by tweaklevel)
 -- If uncertanty level is high, the probability gets lower, adjusted by the weight
 -- If uncertanty level is low, the probability gets higher, adjusted by the weight
 -- At uncertanty level 50, no change is made
 -- Should return a probability between 0 and 100
-function getProbabilityByTweakLevel(tweakLevel, probability, weight)
-  print("Probability/TweakLevel-in:", probability, tweakLevel)
+-- probility = p, tweaklevel = l:
+  -- p + (0.5 - l/100) * p
+-- A tweaklevel of 90 will adjust a probability of 80 like so (when no weight is given):
+  -- factor = 0.5 - (90/100) = 0.5 - 0.9 = -0.4
+  -- probability = 80 + (-0.4 * 80) = 80 + -32 = 48
+-- A tweaklevel of 100 will adjust a probability of 50 in half:
+  -- factor = 0.5 - (100/100) = 0.5 - 1 = -0.5
+  -- probability = 50 + (-0.5 * 50) = 50 + -25 = 25
+-- A tweaklevel of 30 will adjust a probability of 80 like so (when no weight is given):
+  -- factor = 0.5 - (30/100) = 0.5 - 0.3 = 0.2
+  -- probability = 80 + (0.2 * 80) = 80 + 16 = 96
+-- A tweaklevel of 30 will adjust a probability of 80 with a weight of 25 like so:
+  -- factor = 0.5 - (30/100) = 0.5 - 0.3 = 0.2
+  -- factor = 0.2 + 0.025 = 0.225
+  -- probability = 80 + (0.225 * 80) = 80 + 18 = 98
+-- A tweaklevel of 30 will adjust a probability of 80 with a weight of 50 like so:
+  -- factor = 0.5 - (30/100) = 0.5 - 0.3 = 0.2
+  -- factor = 0.2 + 0.05 = 0.25
+  -- probability = 80 + (0.25 * 80) = 80 + 20 = 100
+-- A tweaklevel of 30 will adjust a probability of 80 with a weight of 0.1 like so:
+  -- factor = 0.5 - (30/100) = 0.5 - 0.3 = 0.2
+  -- factor = 0.2 + 0.01 = 0.21
+  -- probability = 80 + (0.21 * 80) = 80 + 16.8 = 96.8 = 97
+  -- x+(0.5-(y/100))
+function adjustProbabilityByTweakLevel(tweakLevel, probability, weight)
+  print("Probability/TweakLevel/Weight-in:", probability, tweakLevel, weight)
 
-  if probability == 100 or probability == 0 or tweakLevel == 50 then
-    print("Probability is 100 or 0 or tweak level is 50:", probability)
+  -- If probability is 100, no adjustments are made
+  if probability == 100 then
+    --print("Probability is 100")
     return probability
   end
 
+  -- Set default weight if not provided
   if type(weight) ~= "number" then
     weight = 0
   end
 
+  -- Set the factor
   local factor = 0.5 - (tweakLevel / 100)
+
+  -- Adjust for weight
   if factor > 0 then
-    factor = factor + weight
+    factor = factor + (weight / 1000)
   else
-    factor = factor - weight
+    factor = factor - (weight / 1000)
   end
+
+  -- Calculate adjusted probability
   probability = math.floor(probability + (factor * probability))
 
-  if probability > 99 then
-    probability = 99
+  -- Ensure not above max
+  if probability > 100 then
+    probability = 100
   end
 
-  if probability < 1 then
-    probability = 1
+  -- Ensure not below min
+  if probability < 0 then
+    probability = 0
   end
 
-  print("Probability-weight:", weight)
-  print("Probability-factor:", factor)
-  print("Probability-out:", probability)
+  --print("Probability-weight:", weight)
+  --print("Probability-factor:", factor)
+  --print("Probability-out:", probability)
 
   return probability
 end
 
 function tweakValue(options, value, tweakLevel)
-  if type(options.widget.default) ~= "number" or (type(options.default) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.default))) then
+  if type(options.widget.default) ~= "number" or (type(options.default) == "number" and getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevel, options.default))) then
     if options.widget.name == "NoiseType" then
       value = 7
     end
@@ -490,7 +529,7 @@ function tweakValue(options, value, tweakLevel)
   local floor = options.widget.min -- Default floor is widget min
   local ceiling = options.widget.max -- Default ceiling is widget max
   -- Adjust value to within set range if probability hits
-  if type(options.probability) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.probability)) == true then
+  if type(options.probability) == "number" and getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevel, options.probability)) then
     if type(options.floor) == "number" then
       floor = options.floor
     end
@@ -504,10 +543,13 @@ function tweakValue(options, value, tweakLevel)
   local forceRange = type(options.probability) == "number" and options.probability == 100
 
   -- If probability hits, we get a random value within the limits
-  if getRandomBoolean(tweakLevel) then
+  if getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevel, 30, 15)) then
     print("Random limited range")
     return getValueBetween(floor, ceiling, value, options)
-  elseif getRandomBoolean(tweakLevel) and forceRange == false then
+  end
+  
+  -- If probability hits, we get a random value within the full range
+  if getRandomBoolean(getProbabilityFromTweakLevel(tweakLevel)) and forceRange == false then
     print("Random full range")
     return getRandom(options.min, options.max, options.factor)
   end
@@ -542,10 +584,10 @@ function tweakValue(options, value, tweakLevel)
 end
 
 -- Deprecated - only used by getTweakSuggestionLegacy
-function getValueForTweaking(options, tweakLevel)
+--[[ function getValueForTweaking(options, tweakLevel)
   local tweakSource = 1
   -- Tweak the value from the stored patch (the patch that was stored the last time user saved the program)
-  if tweakSource == 2 or (tweakSource == 1 and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, 50)) == true) then
+  if tweakSource == 2 or (tweakSource == 1 and getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevel, 50))) then
     for _,v in ipairs(storedPatch) do
       if v.widget == options.widget.name then
         print("Tweaking value from the last stored patch:", v.widget, v.value)
@@ -573,25 +615,31 @@ function getValueForTweaking(options, tweakLevel)
   if options.widget.name == "NoiseType" then
     value = 7
   end
-  if tweakSource == 5 or (tweakSource == 1 and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, 25))) == true then
+  if tweakSource == 5 or (tweakSource == 1 and getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevel, 25))) then
     print("Tweaking the default value:", value)
     return tweakValue(options, value, tweakLevel)
   end
   -- Or use the default value as is
   print("Using the default value without any tweaks:", value)
   return value
-end
+end ]]
 
 function getEnvelopeTimeForDuration(options, duration)
   local min = options.widget.default * 10000 -- 0,001*10000 = 10
-  local max = duration * 1000 -- 0.25 = 1/16, 0.5 = 1/8, 1 = 1/4 -- 0,25 * 1000 = 250
+  local max = duration -- Duration is 0.25 = 1/16, 0.5 = 1/8, 1 = 1/4
+
+  if options.release == true or options.decay == true then
+    max = duration * 2
+  end
+
+  max = max * 1000 -- 0,25 * 1000 = 250
 
   if min > max then
     print("getEnvelopeTimeForDuration using default value:", options.widget.default)
     return options.widget.default
   end
 
-  print("getEnvelopeTimeForDuration value min/max:", min/10000, max/10000)
+  print("getEnvelopeTimeForDuration duration/min/max:", duration, min/10000, max/10000)
 
   return getRandom(min, max) / 10000
 end
@@ -685,7 +733,7 @@ function getTweakables(tweakLevel, synthesisButton, modulationButton, filterButt
     if type(v.skipProbability) ~= "number" then
       v.skipProbability = defaultSkipProbability
     end
-    local probability = getProbabilityByTweakLevel(tweakLevel, v.skipProbability, 0.15) -- Used for random skip
+    local probability = adjustProbabilityByTweakLevel(tweakLevel, v.skipProbability, 5) -- Used for random skip
     if skip == false and twequencer == true then
       skip = getRandomBoolean(probability)
     end
@@ -813,11 +861,11 @@ function getTweakSuggestion(options, tweakLevel, envelopeStyle, modulationStyle,
   if type(options.func) == "function" then
     endValue = options.func(options.probability)
     print("From func:", endValue, options.probability)
-  elseif type(options.zero) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.zero)) == true then
+  elseif type(options.zero) == "number" and getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevel, options.zero)) then
     -- Set to zero if probability hits
     endValue = 0
     print("Zero:", options.zero)
-  elseif type(options.default) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.default)) == true then
+  elseif type(options.default) == "number" and getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevel, options.default)) then
     -- Set to the default value if probability hits
     endValue = options.widget.default
     print("Default:", options.default)
@@ -830,7 +878,7 @@ function getTweakSuggestion(options, tweakLevel, envelopeStyle, modulationStyle,
   elseif duration > 0 and envelopeStyle == 1 and (options.attack == true or options.decay == true or options.release == true) then
     endValue = getEnvelopeTimeForDuration(options, duration)
     print("getEnvelopeTimeForDuration:", endValue)
-  elseif type(options.fmLevel) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.fmLevel)) == true then
+  elseif type(options.fmLevel) == "number" and getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevel, options.fmLevel)) then
     endValue = getRandom(nil, nil, options.widget.max)
     print("FM Operator Level: (max/endValue)", options.widget.max, endValue)
   else
@@ -841,7 +889,7 @@ function getTweakSuggestion(options, tweakLevel, envelopeStyle, modulationStyle,
     print("Applying valueFilter to:", endValue)
     endValue = applyValueFilter(options.valueFilter, endValue)
   end
-  if type(options.bipolar) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.bipolar)) == true then
+  if type(options.bipolar) == "number" and getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevel, options.bipolar)) then
     if getRandom(100) <= options.bipolar then
       endValue = -endValue
       print("Value converted to negative", options.bipolar)
@@ -877,7 +925,7 @@ end
   if type(options.func) == "function" then
     endValue = options.func(options.probability)
     print("From func:", endValue, options.probability)
-  elseif type(options.zero) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.zero)) == true then
+  elseif type(options.zero) == "number" and getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevel, options.zero)) == true then
     -- Set to zero if probability hits
     endValue = 0
     print("Zero:", options.zero)
@@ -895,18 +943,18 @@ end
       endValue = getEnvelopeTimeForDuration(options, duration)
       print("getEnvelopeTimeForDuration:", endValue)
     end
-  elseif getRandomBoolean(tweakLevel) == false or (type(options.default) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.default)) == true) then
+  elseif getRandomBoolean(tweakLevel) == false or (type(options.default) == "number" and getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevel, options.default)) == true) then
     -- Get value from tweaksource or default
     endValue = getValueForTweaking(options, tweakLevel)
     print("getValueForTweaking:", endValue)
-  elseif type(options.fmLevel) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.fmLevel)) == true then
+  elseif type(options.fmLevel) == "number" and getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevel, options.fmLevel)) == true then
     endValue = getRandom(nil, nil, options.widget.max)
     print("FM Operator Level: (max/endValue)", options.widget.max, endValue)
   else
     -- Get a random value within min/max limit
     endValue = getRandom(options.min, options.max, options.factor)
     -- Adjust value to within range if probability hits
-    if type(options.probability) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.probability)) == true then
+    if type(options.probability) == "number" and getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevel, options.probability)) == true then
       local floor = options.widget.min -- Default floor is min
       local ceiling = options.widget.max -- Default ceiling is max
       if type(options.floor) == "number" then
@@ -918,7 +966,7 @@ end
       print("Probability/floor/ceiling:", options.probability, floor, ceiling)
       endValue = getValueBetween(floor, ceiling, endValue, options)
     end
-    if type(options.bipolar) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.bipolar)) == true then
+    if type(options.bipolar) == "number" and getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevel, options.bipolar)) == true then
       if getRandom(100) <= options.bipolar then
         endValue = -endValue
         print("Value converted to negative", options.bipolar)
@@ -943,7 +991,7 @@ function verifySettings(tweakLevel, selectedTweakables, synthesisButton, modulat
     automaticSequencerRunning = false
   end
   if modulationButton.value == true then
-    if (automaticSequencerRunning and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, 75))) or getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, 20)) then
+    if (automaticSequencerRunning and getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevel, 75))) or getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevel, 20)) then
       for _,v in ipairs(selectedTweakables) do
         if v.category == "modulation" then
           if automaticSequencerRunning then
@@ -1291,19 +1339,16 @@ function setResGroups()
   local i = 7
   while true do
     table.insert(even, i)
-    print("even", i)
     i = i + 1
     if i > #resolutions then
       return
     end
     table.insert(dot, i)
-    print("dot", i)
     i = i + 1
     if i > #resolutions then
       return
     end
     table.insert(tri, i)
-    print("tri", i)
     i = i + 1
     if i > #resolutions then
       return
@@ -2918,7 +2963,7 @@ function createHpFilterPanel()
     end
   end
   hpfCutoffKnob:changed()
-  table.insert(tweakables, {widget=hpfCutoffKnob,ceiling=0.5,probability=90,zero=60,useDuration=true,category="filter"})
+  table.insert(tweakables, {widget=hpfCutoffKnob,ceiling=0.4,probability=90,zero=60,default=20,useDuration=true,category="filter"})
 
   local hpfResonanceKnob = hpFilterPanel:Knob("HpfResonance", 0, 0, 1)
   hpfResonanceKnob.displayName = "Resonance"
@@ -3048,7 +3093,7 @@ function createFilterEnvPanel()
     self.displayText = percent(self.value)
   end
   filterSustainKnob:changed()
-  table.insert(tweakables, {widget=filterSustainKnob,floor=0.1,ceil=0.9,probability=90,default=12,zero=2,useDuration=false,category="filter"})
+  table.insert(tweakables, {widget=filterSustainKnob,floor=0.1,ceil=0.7,probability=80,default=5,zero=15,useDuration=false,category="filter"})
 
   local filterReleaseKnob = filterEnvPanel:Knob("FRelease", 0.010, 0, 10)
   filterReleaseKnob.displayName="Release"
@@ -3144,7 +3189,7 @@ function createFilterEnvTargetsPanel()
     self.displayText = percent(self.value)
   end
   envAmtKnob:changed()
-  table.insert(tweakables, {widget=envAmtKnob,bipolar=25,floor=0.3,ceiling=0.9,probability=50,useDuration=true,category="filter"})
+  table.insert(tweakables, {widget=envAmtKnob,bipolar=5,floor=0.3,ceiling=0.9,probability=60,default=3,zero=3,useDuration=true,category="filter"})
 
   local hpfEnvAmtKnob = filterEnvTargetsPanel:Knob("HpfEnvelopeAmt", 0, -1, 1)
   hpfEnvAmtKnob.displayName = "HP-Filter"
@@ -3156,7 +3201,7 @@ function createFilterEnvTargetsPanel()
     self.displayText = percent(self.value)
   end
   hpfEnvAmtKnob:changed()
-  table.insert(tweakables, {widget=hpfEnvAmtKnob,absoluteLimit=0.85,floor=0.1,ceiling=0.6,probability=50,bipolar=25,useDuration=true,category="filter"})
+  table.insert(tweakables, {widget=hpfEnvAmtKnob,absoluteLimit=0.8,floor=0.1,ceiling=0.3,probability=90,zero=25,default=25,bipolar=25,useDuration=true,category="filter"})
 
   return filterEnvTargetsPanel
 end
@@ -4621,12 +4666,12 @@ local envStyleMenu
 
 function storeNewSnapshot()
   print("Storing patch tweaks...")
-  local snapshot = {}
+  local patch = {}
   for i,v in ipairs(tweakables) do
-    table.insert(snapshot, {index=i,widget=v.widget.name,value=v.widget.value})
+    table.insert(patch, {index=i,widget=v.widget.name,value=v.widget.value})
   end
-  table.insert(storedPatches, snapshot)
-  print("Storing snapshot")
+  table.insert(storedPatches, patch)
+  print("Storing patch")
   patchesMenu:clear()
   populatePatchesMenu()
   print("Adding to patchesMenu", index)
@@ -4674,7 +4719,7 @@ function createPatchMakerPanel()
     end
     if index > #storedPatches then
       print("No patch at index")
-      index = #snapshots
+      index = #storedPatches
     end
     tweaks = storedPatches[index]
     for _,v in ipairs(tweaks) do
@@ -4929,12 +4974,10 @@ function createTwequencerPanel()
   local maxSnapshots = 500 -- TODO Make it possible to set in UI?
   local automaticSequencerRunning = false
   local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
-  --local noteNumberToNames = {} -- Used for labels
   local noteNumberToNoteName = {} -- Used for mapping - does not unclude octave, only name of note (C, C#...)
   local notenamePos = 1
   for i=0,127 do
     local name = notenames[notenamePos] .. (math.floor(i/12)-2) .. " (" .. i .. ")"
-    --table.insert(noteNumberToNames, name)
     table.insert(noteNumberToNoteName, notenames[notenamePos])
     notenamePos = notenamePos + 1
     if notenamePos > #notenames then
@@ -4955,7 +4998,6 @@ function createTwequencerPanel()
   tweakLevelKnob.displayName = "Tweak Level"
   tweakLevelKnob.width = 120
   tweakLevelKnob.y = 20
-  --tweakLevelKnob:setStripImage("resources/knob.png", 1)
 
   local sequencerPlayMenu = tweqPanel:Menu("SequencerPlay", {"Off", "Mono", "As played", "Random", "Chord", "Random Chord", "Alternate", "Generate"})
   sequencerPlayMenu.backgroundColour = menuBackgroundColour
@@ -4977,7 +5019,7 @@ function createTwequencerPanel()
   tweakModeMenu.y = sequencerPlayMenu.y + sequencerPlayMenu.height + 6
   tweakModeMenu.width = sequencerPlayMenu.width
   tweakModeMenu.changed = function (self)
-    tweakLevelKnob.enabled = self.value > 1
+    tweakLevelKnob.enabled = self.value == 2 or self.value == 3
   end
   tweakModeMenu:changed()
 
@@ -5213,10 +5255,15 @@ function createTwequencerPanel()
       value = 1
     end
     snapshotsMenu:setValue(value)
-  end  
+  end
 
-  function storeSnapshot()
-    local index = snapshotsMenu.value
+  function storeAllSnapshots()
+    for i=1,#snapshots do
+      storeSnapshot(i)
+    end
+  end
+
+  function storeSnapshot(index)
     if #snapshots == 0 then
       print("No snapshots")
       return
@@ -5225,14 +5272,14 @@ function createTwequencerPanel()
       print("No snapshot at index")
       return
     end
-    if #storedPatches == 0 then
+    --[[ if #storedPatches == 0 then
       table.insert(storedPatches, storedPatch)
-    end
-    local snapshot = {}
+    end ]]
+    local patch = {}
     for i,v in ipairs(snapshots[index]) do
-      table.insert(snapshot, {index=i,widget=v.widget.name,value=v.widget.value})
+      table.insert(patch, {index=i,widget=v.widget.name,value=v.widget.value})
     end
-    table.insert(storedPatches, snapshot)
+    table.insert(storedPatches, patch)
     print("Storing snapshot")
     patchesMenu:clear()
     populatePatchesMenu()
@@ -5245,7 +5292,7 @@ function createTwequencerPanel()
     snapshotPosition = 1
   end
 
-  local actions = {"Choose...", "Store selected snapshot", "Recall saved patch", "Initialize patch", "Clear rounds"}
+  local actions = {"Choose...", "Store selected snapshot", "Store all snapshots", "Recall saved patch", "Initialize patch", "Clear rounds"}
   local manageSnapshotsMenu = tweqPanel:Menu("ManageSnapshotsMenu", actions)
   manageSnapshotsMenu.persistent = false
   manageSnapshotsMenu.backgroundColour = menuBackgroundColour
@@ -5261,18 +5308,20 @@ function createTwequencerPanel()
       return
     end
     if self.value == 2 then
-      storeSnapshot()
+      storeSnapshot(snapshotsMenu.value)
     elseif self.value == 3 then
-      recallStoredPatch()
+      storeAllSnapshots()
     elseif self.value == 4 then
-      initPatch()
+      recallStoredPatch()
     elseif self.value == 5 then
+      initPatch()
+    elseif self.value == 6 then
       clearSnapshots()
     end
     self:setValue(1)
   end
 
-  local droneMenu = tweqPanel:Menu("DroneMenu", {"Off", "Lowest note", "Lowest root", "Lowest held"})
+  local droneMenu = tweqPanel:Menu("DroneMenu", {"Off", "Lowest note", "Lowest root", "Lowest held", "Random"})
   droneMenu.backgroundColour = menuBackgroundColour
   droneMenu.textColour = menuTextColour
   droneMenu.arrowColour = menuArrowColour
@@ -5295,7 +5344,7 @@ function createTwequencerPanel()
   generateMin.y = droneMenu.y
   generateMin.width = 125
 
-  local droneHighMenu = tweqPanel:Menu("DroneHighMenu", {"Off", "Highest note", "Highest root", "Highest held"})
+  local droneHighMenu = tweqPanel:Menu("DroneHighMenu", {"Off", "Highest note", "Highest root", "Highest held", "Auto"})
   droneHighMenu.backgroundColour = menuBackgroundColour
   droneHighMenu.textColour = menuTextColour
   droneHighMenu.arrowColour = menuArrowColour
@@ -5333,8 +5382,8 @@ function createTwequencerPanel()
   -- Handle scales
   local scale = {}
   local filteredScale = {}
-  local scaleDefinitions = {{1},{2,2,1,2,2,2,1}, {2,1,2,2,1,2,2}, {2,1,2,2,2,1,2}, {2}, {2,2,3,2,3}}
-  local generateScale = tweqPanel:Menu("GenerateScale", {"12 tone", "Major", "Minor", "Dorian", "Whole tone", "Pentatonic"})
+  local scaleDefinitions = {{1},{2,2,1,2,2,2,1}, {2,1,2,2,1,2,2}, {2,1,2,2,2,1,2}, {2}, {2,2,3,2,3}, {3,2,2,3,2}}
+  local generateScale = tweqPanel:Menu("GenerateScale", {"12 tone", "Major", "Minor", "Dorian", "Whole tone", "Major Pentatonic", "Minor Pentatonic"})
   generateScale.displayName = "Scale"
   generateScale.visible = false
   generateScale.width = manageSnapshotsMenu.width / 2
@@ -5355,7 +5404,7 @@ function createTwequencerPanel()
       for i=1,#scale do
         if scale[i] >= minNote and scale[i] <= maxNote then
           table.insert(filtered, scale[i])
-          print("Insert to filtered scale note", scale[i])
+          --print("Insert to filtered scale note", scale[i])
         end
       end
     end
@@ -5376,7 +5425,7 @@ function createTwequencerPanel()
     local pos = 0
     while root < 128 do
       table.insert(scaleTable, root)
-      print("Insert to scale:", root)
+      --print("Insert to scale:", root)
       pos = pos + 1
       root = root + definition[pos]
       if pos == #definition then
@@ -5419,7 +5468,7 @@ function createTwequencerPanel()
   end
   generateMax:changed()
 
-  local generatePolyphony = tweqPanel:Slider("GeneratePolyphony", 1, 1, 16, true)
+  local generatePolyphony = tweqPanel:Slider("GeneratePolyphony", 1, 0, 16, true)
   generatePolyphony.showPopupDisplay = true
   generatePolyphony.showLabel = true
   generatePolyphony.fillStyle = "gloss"
@@ -5436,7 +5485,6 @@ function createTwequencerPanel()
     seqPitchTable.length = self.value
     seqVelTable.length = self.value
     positionTable.length = self.value
-    --populateSnapshots()
   end
   numStepsBox:changed()
 
@@ -5681,7 +5729,7 @@ function createTwequencerPanel()
         end
         
         -- CHECK IF THE SEQUENCER SHOULD BE STARTED OR IS ALREADY RUNNING
-        if (arpOnOff == true and getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) == true) or (tweakArp == true and arpeggiatorButton.value == true) then
+        if (arpOnOff == true and getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 50))) or (tweakArp == true and arpeggiatorButton.value == true) then
           envelopeStyle = getRandom(2,3)
           if tweakArp == true then
             doArpTweaks(arpResMenu.value)
@@ -5730,8 +5778,8 @@ function createTwequencerPanel()
               if v.widget.name == "Lfo2Trigger" then
                 -- Lfo2Trigger should always be on to avoid noise when LfoFreq changes
                 v.targetValue = true
-              elseif v.category == "modulation" and v.widget.name ~= "LfoFreq" and v.widget.name ~= "LfoToCutoff" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) == true then
-                if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) == getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
+              elseif v.category == "modulation" and v.widget.name ~= "LfoFreq" and v.widget.name ~= "LfoToCutoff" and getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
+                if getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 50)) == getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
                   -- Do not change the value of modulation parameters so often for twequencer
                   v.targetValue = v.widget.value
                 else
@@ -5739,8 +5787,8 @@ function createTwequencerPanel()
                   v.targetValue = v.widget.default
                 end
               else
-                --v.targetValue = getTweakSuggestionLegacy(v, tweakLevelKnob.value, envelopeStyle, modulationStyle, tweakDuration)
-                v.targetValue = getTweakSuggestion(v, tweakLevelKnob.value, envelopeStyle, modulationStyle, tweakDuration)
+                --v.targetValue = getTweakSuggestionLegacy(v, tweakLevelKnob.value, envelopeStyle, modulationStyle, duration)
+                v.targetValue = getTweakSuggestion(v, tweakLevelKnob.value, envelopeStyle, modulationStyle, duration)
               end
             end
             -- Verify tweak suggestions
@@ -5781,6 +5829,7 @@ function createTwequencerPanel()
         local maxNote = math.max(generateMin.value, generateMax.value)
         
         -- PLAY LOW DRONE ---
+        -- Options: {"Off", "Lowest note", "Lowest root", "Lowest held", "Auto"}
         local droneNoteLow = minNote -- default lowest
         if isLowDroneActive then
           if droneMenu.value == 3 then
@@ -5793,6 +5842,39 @@ function createTwequencerPanel()
             -- Get the lowest held note
             if #heldNotes > 0 then
               droneNoteLow = heldNotes[1].note
+            end
+          elseif droneMenu.value == 5 then
+            -- Random - play a random drone from the created scale
+            -- If no scale is created, we use the default (lowest note)
+            if #scale > 0 then
+              -- Get lowest root note in scale, searching from the lowest note
+              local min = 12 -- No note lower than this!
+              droneNoteLow = min * getRandom(3,4) -- Random octave
+              while(isRootNote(droneNoteLow) == false and droneNoteLow >= min)
+              do
+                droneNoteLow = droneNoteLow - 1 -- decrement note
+              end
+              -- Hopefully found a note to use...
+              -- Now find the index in the scale
+              local scaleIndex = 1
+              for i=1,#scale do
+                print("i, scale[i], droneNoteLow", i, scale[i], droneNoteLow)
+                if scale[i] == droneNoteLow then
+                  scaleIndex = i
+                  break
+                end
+              end
+              -- Found a scale index - now adjust and get note from scale
+              if getRandomBoolean(75) then
+                droneNoteLow = scale[scaleIndex] -- Mostly use the root note
+                print("Root note drone", droneNoteLow, noteNumberToNoteName[droneNoteLow+1])
+              else
+              -- Ensure index is within scale
+              -- TODO Set preferred degrees
+              scaleIndex = getRandom(math.max(1,(scaleIndex-3)), math.min(#scale, (scaleIndex+5)))
+              droneNoteLow = scale[scaleIndex]
+              print("Random drone note", droneNoteLow, noteNumberToNoteName[droneNoteLow+1])
+              end
             end
           end
           print("Playing low drone", droneNoteLow, droneDuration)
@@ -5835,40 +5917,40 @@ function createTwequencerPanel()
   end
 
   function getArpOctave()
-    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 40)) then
+    if getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 40)) then
       return getRandom(-1,1)
     end
     return 0 -- default
   end
 
   function getArpNumStrike()
-    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 25)) then
+    if getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 25)) then
       return getRandom(4)
     end
     return 1 -- default
   end
 
   function getArpMode()
-    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 20)) then
+    if getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 20)) then
       return getRandom(0,26)
     end
     return 0 -- default
   end
 
   function getArpNumSteps()
-    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 10)) then
+    if getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 10)) then
       return getRandom(128)
     end
-    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 20)) then
+    if getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 20)) then
       return getRandom(32)
     end
-    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
+    if getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
       return 16
     end
-    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
+    if getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
       return 8
     end
-    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
+    if getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
       return 4
     end
     return getRandom(16) -- default 16
@@ -5926,7 +6008,7 @@ function createTwequencerPanel()
     local position = resolutionOption + 14 -- resolutionOption will be 2 = even, 3 = dot, 4 = tri, so default starts at 16 (1/4)
     local resMax = 25 -- Max 1/32
     local resOptions = {}
-    if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 25)) then
+    if getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 25)) then
       position = position - 6
       resMax = 28
     end
@@ -5963,17 +6045,17 @@ function createTwequencerPanel()
     arp:setParameter("ArpVelocityBlend", getRandom())
     arp:setParameter("StepLength", 1)
     for i=0,arpNumSteps do
-      if i > 0 and getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 30)) then
+      if i > 0 and getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 30)) then
         arp:setParameter("Step"..i.."State", getRandom(0,3)) -- 0-3 def 0
       else
         arp:setParameter("Step"..i.."State", 1) -- 0-3 def 0
       end
-      if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
+      if getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
         arp:setParameter("Step"..i.."Size", getRandom()) -- 0-1 def 1
       else
         arp:setParameter("Step"..i.."Size", 1) -- 0-1 def 1
       end
-      if getRandomBoolean(getProbabilityByTweakLevel(tweakLevelKnob.value, 30)) then
+      if getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 30)) then
         arp:setParameter("Step"..i.."Level", getRandom()) -- 0-1 def 1
       else
         arp:setParameter("Step"..i.."Level", getRandom(60,100) / 100) -- 0-1 def 1
@@ -6086,7 +6168,7 @@ function createSettingsPanel()
     changeSettingsPage(self.value)
   end
 
-  local toggleButton = settingsPanel:MultiStateButton("ToggleActive", {"Deactivate all", "Activate all"})
+  local toggleButton = settingsPanel:MultiStateButton("ToggleActive", {"Deactivate all", "Activate all", "Randomize active"})
   toggleButton.persistent = false
   toggleButton.showLabel = false
   toggleButton.width = 100
@@ -6101,7 +6183,13 @@ function createSettingsPanel()
         isPage = v.category == categories[settingsPageMenu.value]
       end
       if isPage then
-        v.button:setValue(self.value == 1)
+        if self.value == 2 then
+          v.button:setValue(false)
+        elseif self.value == 3 then
+          v.button:setValue(true)
+        else
+          v.button:setValue(getRandomBoolean())
+        end
       end
     end
   end
@@ -6352,7 +6440,7 @@ function createSettingsPanel()
     defaultKnob.tooltip = "Probability of default value being set on the controller"
     defaultKnob.fillColour = knobColour
     defaultKnob.size = probabilityKnob.size
-    print("default", v.default)
+    --print("default", v.default)
     if type(v.default) == "number" then
       defaultKnob.value = v.default
     end
@@ -6369,7 +6457,7 @@ function createSettingsPanel()
     zeroKnob.fillColour = knobColour
     zeroKnob.size = probabilityKnob.size
     if type(v.zero) == "number" then
-      print("zero", v.zero)
+      --print("zero", v.zero)
       zeroKnob.value = v.zero
       zeroKnob.changed = function(self)
         self.displayText = self.value .. "%"
@@ -6387,7 +6475,7 @@ function createSettingsPanel()
     bipolarKnob.fillColour = knobColour
     bipolarKnob.size = probabilityKnob.size
     if type(v.bipolar) == "number" then
-      print("bipolar", v.bipolar)
+      --print("bipolar", v.bipolar)
       bipolarKnob.value = v.bipolar
       bipolarKnob.changed = function(self)
         self.displayText = self.value .. "%"
@@ -6398,7 +6486,7 @@ function createSettingsPanel()
       bipolarKnob.enabled = false
     end
 
-    print("Starting floorKnob", v.widget.name, type(v.widget.min))
+    --print("Starting floorKnob", v.widget.name, type(v.widget.min))
 
     local min = 0
     local max = 1
@@ -6429,7 +6517,7 @@ function createSettingsPanel()
     floorKnob.fillColour = knobColour
     floorKnob.size = probabilityKnob.size
     if type(v.floor) == "number" then
-      print("floor", v.floor)
+      --print("floor", v.floor)
       floorKnob.value = v.floor
     else
       floorKnob.enabled = isEnabled
@@ -6457,7 +6545,7 @@ function createSettingsPanel()
       floorKnob:changed()
     end
 
-    print("Starting ceilKnob", v.widget.name, type(v.widget.default))
+    --print("Starting ceilKnob", v.widget.name, type(v.widget.default))
 
     local ceilKnob = settingsPanel:Knob('CeilKnob' .. i, max, min, max)
     ceilKnob.visible = false
@@ -6466,7 +6554,7 @@ function createSettingsPanel()
     ceilKnob.fillColour = knobColour
     ceilKnob.size = probabilityKnob.size
     if type(v.ceiling) == "number" then
-      print("ceiling", v.ceiling)
+      --print("ceiling", v.ceiling)
       ceilKnob.value = v.ceiling
     else
       ceilKnob.enabled = isEnabled
