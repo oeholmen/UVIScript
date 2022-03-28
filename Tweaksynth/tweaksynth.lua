@@ -1374,7 +1374,8 @@ pagePanel.y = 340
 pagePanel.width = 720
 pagePanel.height = 38
 
-local pageButtonSize = {111,27}
+local pageButtonSize = {97,27}
+local spacing = 3
 local pageButtonAlpha = 1
 local pageButtonBackgroundColourOff = "#9f4A053B"
 local pageButtonBackgroundColourOn = "#cfC722AF"
@@ -1390,6 +1391,7 @@ patchmakerPageButton.textColourOn = pageButtonTextColourOn
 patchmakerPageButton.displayName = "Patchmaker"
 patchmakerPageButton.persistent = false
 patchmakerPageButton.size = pageButtonSize
+patchmakerPageButton.x = spacing
 
 local twequencerPageButton = pagePanel:OnOffButton("TwequencerPage", false)
 twequencerPageButton.alpha = pageButtonAlpha
@@ -1400,6 +1402,7 @@ twequencerPageButton.textColourOn = pageButtonTextColourOn
 twequencerPageButton.displayName = "Twequencer"
 twequencerPageButton.persistent = false
 twequencerPageButton.size = pageButtonSize
+twequencerPageButton.x = patchmakerPageButton.x + patchmakerPageButton.width + spacing
 
 local synthesisPageButton = pagePanel:OnOffButton("SynthesisPage", false)
 synthesisPageButton.alpha = pageButtonAlpha
@@ -1410,6 +1413,7 @@ synthesisPageButton.textColourOn = pageButtonTextColourOn
 synthesisPageButton.displayName = "Synthesis"
 synthesisPageButton.persistent = false
 synthesisPageButton.size = pageButtonSize
+synthesisPageButton.x = twequencerPageButton.x + twequencerPageButton.width + spacing
 
 local filterPageButton = pagePanel:OnOffButton("FilterPage", false)
 filterPageButton.alpha = pageButtonAlpha
@@ -1420,6 +1424,7 @@ filterPageButton.textColourOn = pageButtonTextColourOn
 filterPageButton.displayName = "Filters"
 filterPageButton.persistent = false
 filterPageButton.size = pageButtonSize
+filterPageButton.x = synthesisPageButton.x + synthesisPageButton.width + spacing
 
 local modulationPageButton = pagePanel:OnOffButton("ModulationPage", false)
 modulationPageButton.alpha = pageButtonAlpha
@@ -1430,6 +1435,7 @@ modulationPageButton.textColourOn = pageButtonTextColourOn
 modulationPageButton.displayName = "Modulation"
 modulationPageButton.persistent = false
 modulationPageButton.size = pageButtonSize
+modulationPageButton.x = filterPageButton.x + filterPageButton.width + spacing
 
 local effectsPageButton = pagePanel:OnOffButton("EffectsPage", false)
 effectsPageButton.alpha = pageButtonAlpha
@@ -1440,6 +1446,18 @@ effectsPageButton.textColourOn = pageButtonTextColourOn
 effectsPageButton.displayName = "Effects"
 effectsPageButton.persistent = false
 effectsPageButton.size = pageButtonSize
+effectsPageButton.x = modulationPageButton.x + modulationPageButton.width + spacing
+
+local settingsPageButton = pagePanel:OnOffButton("SettingsPage", false)
+settingsPageButton.alpha = pageButtonAlpha
+settingsPageButton.backgroundColourOff = pageButtonBackgroundColourOff
+settingsPageButton.backgroundColourOn = pageButtonBackgroundColourOn
+settingsPageButton.textColourOff = pageButtonTextColourOff
+settingsPageButton.textColourOn = pageButtonTextColourOn
+settingsPageButton.displayName = "Settings"
+settingsPageButton.persistent = false
+settingsPageButton.size = pageButtonSize
+settingsPageButton.x = effectsPageButton.x + effectsPageButton.width + spacing
 
 --------------------------------------------------------------------------------
 -- Osc Panel Functions
@@ -5195,7 +5213,7 @@ function createTwequencerPanel()
   arpOnOffButton.textColourOn = buttonTextColourOn
   arpOnOffButton.displayName = "Arp on/off"
   arpOnOffButton.fillColour = knobColour
-  arpOnOffButton.size = {rightMenuWidth,22}
+  arpOnOffButton.size = {rightMenuWidth,25}
 
   local tweakArpButton = tweqPanel:OnOffButton("TweakArpOnOff", false)
   tweakArpButton.alpha = buttonAlpha
@@ -5229,13 +5247,13 @@ function createTwequencerPanel()
     end
   end
 
-  local settingsButton = tweqPanel:Button("TweqSettings")
+  --[[ local settingsButton = tweqPanel:Button("TweqSettings")
   settingsButton.displayName = "Settings"
   settingsButton.fillColour = knobColour
   settingsButton.size = {rightMenuWidth,arpOnOffButton.height}
   settingsButton.changed = function()
     setPage(7)
-  end
+  end ]]
 
   local seqPitchTable = tweqPanel:Table("Pitch", numStepsBox.value, 0, -12, 12, true)
   seqPitchTable.showPopupDisplay = true
@@ -5505,19 +5523,19 @@ function createTwequencerPanel()
   end
 
   arpOnOffButton.x = resolution.x
-  arpOnOffButton.y = numStepsBox.y + numStepsBox.height + 4
+  arpOnOffButton.y = numStepsBox.y + numStepsBox.height + 5
 
   tweakArpButton.x = arpOnOffButton.x
-  tweakArpButton.y = arpOnOffButton.y + arpOnOffButton.height + 4
+  tweakArpButton.y = arpOnOffButton.y + arpOnOffButton.height + 5
 
-  arpResMenu.x = tweakArpButton.x + (rightMenuWidth/2) + 4
+  arpResMenu.x = tweakArpButton.x + (rightMenuWidth/2) + 5
   arpResMenu.y = tweakArpButton.y
 
   holdButton.x = tweakArpButton.x
-  holdButton.y = tweakArpButton.y + tweakArpButton.height + 4
+  holdButton.y = tweakArpButton.y + tweakArpButton.height + 5
 
-  settingsButton.x = holdButton.x
-  settingsButton.y = holdButton.y + holdButton.height + 4
+  --settingsButton.x = holdButton.x
+  --settingsButton.y = holdButton.y + holdButton.height + 4
 
   sequencerPlayMenu.changed = function(self)
     -- Stop sequencer if turned off
@@ -5641,6 +5659,7 @@ function createTwequencerPanel()
 
   function arpeg(arpId_)
     local index = 0
+    local stepCounter = 0 -- Counts the nuber of steps that has been played
     local notes = {} -- Holds the playing notes - notes are removed when they are finished playing
     local heldNoteIndex = 0
     local tweakablesIndex = 0
@@ -5666,27 +5685,30 @@ function createTwequencerPanel()
       local tweakablesForTwequencer = {}
       local sequencerMode = sequencerPlayMenu.value
 
+      -- Increment step counter
+      stepCounter = stepCounter + 1
+      if stepCounter > numSteps then
+        stepCounter = 1
+      end
 
       -- Check if we are at the start of a part
-      if index % numStepsPerPart == 0 then
+      if index % numStepsPerPart == 0 and partRandomizationAmount > 0 then
         print("Start of part!")
         -- Randomize parts within the set limit
-        if partRandomizationAmount > 0 then
-          print("currentPartPosition before", currentPartPosition)
-          print("currentPosition before", currentPosition)
-          print("index before", index)
-          currentPartPosition = getRandom(numParts)
-          -- Find the current pos and index
-          currentPosition = (numStepsPerPart * currentPartPosition) - (numStepsPerPart - 1)
-          index = currentPosition - 1
-          print("currentPartPosition after", currentPartPosition)
-          print("currentPosition after", currentPosition)
-          print("index after", index)
-        end
+        print("currentPartPosition before", currentPartPosition)
+        print("currentPosition before", currentPosition)
+        print("index before", index)
+        currentPartPosition = getRandom(numParts)
+        -- Find the current pos and index
+        currentPosition = (numStepsPerPart * currentPartPosition) - (numStepsPerPart - 1)
+        index = currentPosition - 1
+        print("currentPartPosition after", currentPartPosition)
+        print("currentPosition after", currentPosition)
+        print("index after", index)
       end
 
       -- Randomize gate and velocity at pos 1
-      if currentPosition == 1 then
+      if stepCounter == 1 then
         -- Get step duration
         local i = getResolutionIndex(resolution.value)
         stepDuration = resolutions[i]
@@ -5866,7 +5888,7 @@ function createTwequencerPanel()
       end
 
       -- ACTIONS FOR POSITION 1
-      if currentPosition == 1 then
+      if stepCounter == 1 then
 
         -- STOP THE AUTOMATIC SEQUENCER IF RUNNING
         if automaticSequencerRunning == true then
@@ -5968,7 +5990,7 @@ function createTwequencerPanel()
       -- PLAY DRONE(S) ON POS 1 HOLDING ALL STEPS
       local isLowDroneActive = droneMenu.visible and droneMenu.value > 1
       local isHighDroneActive = droneHighMenu.visible and droneHighMenu.value > 1
-      if currentPosition == 1 and (isLowDroneActive or isHighDroneActive) then
+      if stepCounter == 1 and (isLowDroneActive or isHighDroneActive) then
         -- 2 = lowest, 3 = lowest in scale, 4 = lowest held
         local droneDuration = beat2ms(roundDuration)
         local minNote = generateMin.value
@@ -6037,14 +6059,10 @@ function createTwequencerPanel()
         end
       end
 
-      -- UPDATE POSITION TABLE
-      --positionTable:setValue((index - 1 + numSteps) % numSteps + 1, 0)
-      --positionTable:setValue(currentPosition, 1)
-      -- UPDATE PART TABLE
-      --partsTable:setValue((math.floor(index / numStepsPerPart) - 1 + numParts) % numParts + 1, 0)
-      --partsTable:setValue(currentPartPosition, 1)
       clearPosition()
+      -- UPDATE POSITION TABLE
       positionTable:setValue(currentPosition, 1)
+      -- UPDATE PART TABLE
       partsTable:setValue(currentPartPosition, 1)
       -- INCREMENT POSITION
       index = (index + 1) % numSteps -- increment position
@@ -7499,6 +7517,7 @@ synthesisPageButton.changed = function(self)
   modulationPageButton:setValue(false, false)
   twequencerPageButton:setValue(false, false)
   patchmakerPageButton:setValue(false, false)
+  settingsPageButton:setValue(false, false)
   setPage(1)
 end
 
@@ -7508,6 +7527,7 @@ filterPageButton.changed = function(self)
   effectsPageButton:setValue(false, false)
   twequencerPageButton:setValue(false, false)
   patchmakerPageButton:setValue(false, false)
+  settingsPageButton:setValue(false, false)
   setPage(2)
 end
 
@@ -7517,6 +7537,7 @@ modulationPageButton.changed = function(self)
   effectsPageButton:setValue(false, false)
   twequencerPageButton:setValue(false, false)
   patchmakerPageButton:setValue(false, false)
+  settingsPageButton:setValue(false, false)
   setPage(3)
 end
 
@@ -7526,6 +7547,7 @@ twequencerPageButton.changed = function(self)
   modulationPageButton:setValue(false, false)
   effectsPageButton:setValue(false, false)
   patchmakerPageButton:setValue(false, false)
+  settingsPageButton:setValue(false, false)
   setPage(4)
 end
 
@@ -7535,6 +7557,7 @@ patchmakerPageButton.changed = function(self)
   modulationPageButton:setValue(false, false)
   effectsPageButton:setValue(false, false)
   twequencerPageButton:setValue(false, false)
+  settingsPageButton:setValue(false, false)
   setPage(5)
 end
 
@@ -7544,7 +7567,18 @@ effectsPageButton.changed = function(self)
   modulationPageButton:setValue(false, false)
   twequencerPageButton:setValue(false, false)
   patchmakerPageButton:setValue(false, false)
+  settingsPageButton:setValue(false, false)
   setPage(6)
+end
+
+settingsPageButton.changed = function(self)
+  synthesisPageButton:setValue(false, false)
+  filterPageButton:setValue(false, false)
+  modulationPageButton:setValue(false, false)
+  twequencerPageButton:setValue(false, false)
+  patchmakerPageButton:setValue(false, false)
+  effectsPageButton:setValue(false, false)
+  setPage(7)
 end
 
 isStarting = false -- Startup complete!
