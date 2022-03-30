@@ -5063,12 +5063,6 @@ function createTwequencerPanel()
     snapshotsMenu:setValue(value)
   end
 
-  function storeAllSnapshots()
-    for i=1,#snapshots do
-      storeSnapshot(i)
-    end
-  end
-
   function storeSnapshot(index)
     if #snapshots == 0 then
       print("No snapshots")
@@ -5098,7 +5092,7 @@ function createTwequencerPanel()
     snapshotPosition = 1
   end
 
-  local actions = {"Choose...", "Store selected snapshot", "Store all snapshots", "Recall saved patch", "Initialize patch", "Clear rounds"}
+  local actions = {"Choose...", "Store selected snapshot", "Recall saved patch", "Initialize patch", "Clear rounds"}
   local manageSnapshotsMenu = tweqPanel:Menu("ManageSnapshotsMenu", actions)
   manageSnapshotsMenu.persistent = false
   manageSnapshotsMenu.backgroundColour = menuBackgroundColour
@@ -5116,12 +5110,10 @@ function createTwequencerPanel()
     if self.value == 2 then
       storeSnapshot(snapshotsMenu.value)
     elseif self.value == 3 then
-      storeAllSnapshots()
-    elseif self.value == 4 then
       recallStoredPatch()
-    elseif self.value == 5 then
+    elseif self.value == 4 then
       initPatch()
-    elseif self.value == 6 then
+    elseif self.value == 5 then
       clearSnapshots()
     end
     self:setValue(1)
@@ -5287,7 +5279,7 @@ function createTwequencerPanel()
   seqVelTable.x = tieStepTable.x
   seqVelTable.y = tieStepTable.y + tieStepTable.height + 5
 
-  local seqGateTable = tweqPanel:Table("Gate", numStepsBox.value, 90, 0, 100, true)
+  local seqGateTable = tweqPanel:Table("Gate", numStepsBox.value, 100, 0, 100, true)
   seqGateTable.tooltip = "Set step gate length. Randomization available in settings."
   seqGateTable.showPopupDisplay = true
   seqGateTable.showLabel = true
@@ -5458,8 +5450,8 @@ function createTwequencerPanel()
   generateMax:changed()
 
   local generatePolyphony = tweqPanel:NumBox("GeneratePolyphony", 1, 0, 16, true)
-  generatePolyphony.displayName = "Max Polyphony"
-  generatePolyphony.tooltip = "How many notes can be played at once"
+  generatePolyphony.displayName = "Polyphony"
+  generatePolyphony.tooltip = "How many notes are played at once"
   generatePolyphony.backgroundColour = menuBackgroundColour
   generatePolyphony.textColour = menuTextColour
   generatePolyphony.arrowColour = menuArrowColour
@@ -5659,7 +5651,7 @@ function createTwequencerPanel()
 
   function arpeg(arpId_)
     local index = 0
-    local stepCounter = 0 -- Counts the nuber of steps that has been played
+    local currentStep = 0 -- Holds the current step in the round that is being played
     local notes = {} -- Holds the playing notes - notes are removed when they are finished playing
     local heldNoteIndex = 0
     local tweakablesIndex = 0
@@ -5686,9 +5678,9 @@ function createTwequencerPanel()
       local sequencerMode = sequencerPlayMenu.value
 
       -- Increment step counter
-      stepCounter = stepCounter + 1
-      if stepCounter > numSteps then
-        stepCounter = 1
+      currentStep = currentStep + 1
+      if currentStep > numSteps then
+        currentStep = 1
       end
 
       -- Check if we are at the start of a part
@@ -5708,7 +5700,7 @@ function createTwequencerPanel()
       end
 
       -- Randomize gate and velocity at pos 1
-      if stepCounter == 1 then
+      if currentStep == 1 then
         -- Get step duration
         local i = getResolutionIndex(resolution.value)
         stepDuration = resolutions[i]
@@ -5865,30 +5857,36 @@ function createTwequencerPanel()
           -- GENERATE plays random notes from the selected scale
           -- Number of simultainious notes are set by generatePolyphony
           local numberOfNotes = generatePolyphony.value -- Default is "mono"
-          if numberOfNotes > 1 then
+          if numberOfNotes > 1 and generateMaxNoteSteps.value > 1 then
             numberOfNotes = getRandom(generatePolyphony.value)
           end
+          -- Use arp polyphony setting if arpeggiator is running
           if arpeggiatorButton.value == true then
             numberOfNotes = polyphonyWhenArp
+          end
+          -- On step one, always add the base note first (unless low drone is active) (setting for this?)
+          local isLowDroneActive = droneMenu.visible and droneMenu.value > 1
+          if currentStep == 1 and isLowDroneActive == false and notesInclude(notes, generateMin.value) == false then
+            noteSteps = getRandom(generateMinNoteSteps.value,generateMaxNoteSteps.value)
+            table.insert(notes, {note=generateMin.value,gate=gate,vel=vel,steps=noteSteps,stepCounter=0})
           end
           -- Check how many notes are already playing, and remove number from numberOfNotes if more than max polyphony
           if numberOfNotes + #notes > generatePolyphony.value then
             numberOfNotes = numberOfNotes - #notes
           end
           for i=1,numberOfNotes do
-            -- TODO Randomize/humanize gate and velocity
             local noteToPlay = generateNoteToPlay()
             if notesInclude(notes, noteToPlay) == false then
               noteSteps = getRandom(generateMinNoteSteps.value,generateMaxNoteSteps.value)
               table.insert(notes, {note=noteToPlay,gate=gate,vel=vel,steps=noteSteps,stepCounter=0})
-              print("Insert to notes note/steps", noteToPlay, noteSteps)
+              print("Insert to notes note/steps/gate", noteToPlay, noteSteps, gate)
             end
           end
         end
       end
 
       -- ACTIONS FOR POSITION 1
-      if stepCounter == 1 then
+      if currentStep == 1 then
 
         -- STOP THE AUTOMATIC SEQUENCER IF RUNNING
         if automaticSequencerRunning == true then
@@ -5990,7 +5988,7 @@ function createTwequencerPanel()
       -- PLAY DRONE(S) ON POS 1 HOLDING ALL STEPS
       local isLowDroneActive = droneMenu.visible and droneMenu.value > 1
       local isHighDroneActive = droneHighMenu.visible and droneHighMenu.value > 1
-      if stepCounter == 1 and (isLowDroneActive or isHighDroneActive) then
+      if currentStep == 1 and (isLowDroneActive or isHighDroneActive) then
         -- 2 = lowest, 3 = lowest in scale, 4 = lowest held
         local droneDuration = beat2ms(roundDuration)
         local minNote = generateMin.value
@@ -6042,7 +6040,9 @@ function createTwequencerPanel()
       end
 
       -- PLAY NOTE(S)
-      for noteIndex,note in ipairs(notes) do
+      print("Ready to play notes", #notes)
+      for _,note in ipairs(notes) do
+        print("Check note/stepCounter", note.note, note.stepCounter)
         -- Start playing when step counter is 0 (add an extra check for gate even though no notes should be added when gate is zero)
         if note.stepCounter == 0 and note.gate > 0 then
           -- Play the note for the number of steps that are set
@@ -6052,12 +6052,17 @@ function createTwequencerPanel()
         -- Increment step counter
         note.stepCounter = note.stepCounter + 1
         print("Increment note step counter", note.stepCounter)
-        if note.stepCounter == note.steps then
-          -- Remove note from table when finished playing
-          table.remove(notes, noteIndex)
-          print("Removing note/index", note.note, noteIndex)
+      end
+
+      -- REMOVE COMPLETED NOTES
+      local keep = {}
+      for _,note in ipairs(notes) do
+        if note.steps > note.stepCounter then
+          -- Keep note if more steps than counter is currently on
+          table.insert(keep, note)
         end
       end
+      notes = keep -- Refresh notes table
 
       clearPosition()
       -- UPDATE POSITION TABLE
