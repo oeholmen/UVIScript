@@ -2,9 +2,6 @@
 -- GENEREATIVE SEQUENCER
 --------------------------------------------------------------------------------
 
--- Colours and margins
-
-local buttonAlpha = 0.9
 local buttonBackgroundColourOff = "#ff084486"
 local buttonBackgroundColourOn = "#ff02ACFE"
 local buttonTextColourOff = "#ff22FFFF"
@@ -171,14 +168,13 @@ end
 -- Sequencer Panel
 --------------------------------------------------------------------------------
 
-local velocityRandomizationAmount = 0
-local gateRandomizationAmount = 0
-local tieRandomizationAmount = 0
-local partRandomizationAmount = 0
-local baseNoteProbability = 0
-
 function createSequencerPanel()
   local arpId = 0
+  local velocityRandomizationAmount = 0
+  local gateRandomizationAmount = 0
+  local partRandomizationAmount = 0
+  local baseNoteProbability = 0
+  local totalNumSteps = 0
   local heldNotes = {}
   local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
   local noteNumberToNoteName = {} -- Used for mapping - does not include octave, only name of note (C, C#...)
@@ -205,7 +201,7 @@ function createSequencerPanel()
   partsTable.fillStyle = "solid"
   partsTable.backgroundColour = menuArrowColour
   partsTable.sliderColour = outlineColour
-  partsTable.width = 540
+  partsTable.width = 700
   partsTable.height = 10
   partsTable.x = 0
   partsTable.y = 0
@@ -221,106 +217,35 @@ function createSequencerPanel()
   positionTable.x = partsTable.x
   positionTable.y = partsTable.y + partsTable.height
 
-  local rightMenuWidth = 140
-  local rightMenuX = 560
-
-  local roundResolution = sequencerPanel:Menu("RoundDuration", getResolutionNames({"Follow Step"}))
-  local resolution = sequencerPanel:Menu("Resolution", getResolutionNames({"Random"}))
-
-  local numStepsBox = sequencerPanel:NumBox("Steps", 4, 1, 128, true)
-  numStepsBox.tooltip = "The Number of steps in each round"
-  numStepsBox.backgroundColour = menuBackgroundColour
-  numStepsBox.textColour = menuTextColour
-  numStepsBox.arrowColour = menuArrowColour
-  numStepsBox.outlineColour = menuOutlineColour
-  numStepsBox.width = rightMenuWidth
-
   local numPartsBox = sequencerPanel:NumBox("Parts", 1, 1, 8, true)
   numPartsBox.tooltip = "The Number of parts in the sequence"
   numPartsBox.backgroundColour = menuBackgroundColour
   numPartsBox.textColour = menuTextColour
   numPartsBox.arrowColour = menuArrowColour
   numPartsBox.outlineColour = menuOutlineColour
-  numPartsBox.width = rightMenuWidth
+  numPartsBox.size = {120,30}
+  numPartsBox.x = 500
+  numPartsBox.y = 290
 
   function clearPosition()
-    for i = 1, numStepsBox.value * numPartsBox.value do
+    for i=1, totalNumSteps do
       positionTable:setValue(i, 0)
     end
-    for i = 1, numPartsBox.value do
+    for i=1, numPartsBox.value do
       partsTable:setValue(i, 0)
     end
   end
 
-  function setNumSteps(stepDuration)
-    -- If follow step is selected, we do not need to do anything - no num step change
-    if roundResolution.value > #resolutions then
-      return
-    end
-
-    if type(stepDuration) == "nil" then
-      stepDuration = getResolution(resolution.value)
-    end
-
-    local roundDuration = getResolution(roundResolution.value)
-    local numSteps = roundDuration / stepDuration
-    print("stepDuration/roundDuration/numSteps", stepDuration,roundDuration,numSteps)
-    if numSteps > numStepsBox.max then
-      numStepsBox:setRange(1, numSteps)
-    end
-    numStepsBox:setValue(numSteps)
-  end
-
-  local sequencerPlayMenu = sequencerPanel:Menu("SequencerPlay", {"Generate", "Mono", "As played", "Random", "Chord", "Random Chord", "Off"})
-  sequencerPlayMenu.backgroundColour = menuBackgroundColour
-  sequencerPlayMenu.textColour = menuTextColour
-  sequencerPlayMenu.arrowColour = menuArrowColour
-  sequencerPlayMenu.outlineColour = menuOutlineColour
-  sequencerPlayMenu.displayName = "Sequencer Mode"
-  sequencerPlayMenu.y = 0
-  sequencerPlayMenu.x = rightMenuX
-  sequencerPlayMenu.width = rightMenuWidth
-
-  roundResolution.displayName = "Part Duration"
-  roundResolution.tooltip = "Set the duration of a part."
-  roundResolution.selected = #resolutions + 1
-  roundResolution.x = sequencerPlayMenu.x
-  roundResolution.y = sequencerPlayMenu.y + sequencerPlayMenu.height + 10
-  roundResolution.width = rightMenuWidth
-  roundResolution.backgroundColour = menuBackgroundColour
-  roundResolution.textColour = menuTextColour
-  roundResolution.arrowColour = menuArrowColour
-  roundResolution.outlineColour = menuOutlineColour
-  roundResolution.changed = function(self)
-    if self.value > #resolutions then
-      numStepsBox.enabled = true
-    else
-      numStepsBox.enabled = false
-      setNumSteps()
-    end
-  end
-
-  resolution.displayName = "Step Resolution"
-  resolution.selected = 20
-  resolution.x = roundResolution.x
-  resolution.y = roundResolution.y + roundResolution.height + 10
-  resolution.width = rightMenuWidth
-  resolution.backgroundColour = menuBackgroundColour
-  resolution.arrowColour = menuArrowColour
-  resolution.outlineColour = menuOutlineColour
-  resolution.changed = function(self)
-    setNumSteps()
-  end
-
   local holdButton = sequencerPanel:OnOffButton("HoldOnOff", false)
-  holdButton.alpha = buttonAlpha
   holdButton.backgroundColourOff = buttonBackgroundColourOff
   holdButton.backgroundColourOn = buttonBackgroundColourOn
   holdButton.textColourOff = buttonTextColourOff
   holdButton.textColourOn = buttonTextColourOn
   holdButton.displayName = "Hold"
   holdButton.fillColour = knobColour
-  holdButton.size = {rightMenuWidth,50}
+  holdButton.size = {50,30}
+  holdButton.x = 650
+  holdButton.y = 290
   holdButton.changed = function(self)
     if self.value == false then
       heldNotes = {}
@@ -329,45 +254,24 @@ function createSequencerPanel()
     end
   end
 
-  local seqPitchTable = sequencerPanel:Table("Pitch", numStepsBox.value, 0, -12, 12, true)
-  seqPitchTable.showPopupDisplay = true
-  seqPitchTable.showLabel = true
-  seqPitchTable.fillStyle = "solid"
-  seqPitchTable.sliderColour = menuArrowColour
-  seqPitchTable.width = positionTable.width
-  seqPitchTable.height = 90
-  seqPitchTable.x = positionTable.x
-  seqPitchTable.y = positionTable.y + positionTable.height + 5
-
-  local tieStepTable = sequencerPanel:Table("TieStep", numStepsBox.value, 0, 0, 1, true)
-  tieStepTable.tooltip = "Tie with next step"
-  tieStepTable.fillStyle = "solid"
-  tieStepTable.backgroundColour = "black"
-  tieStepTable.showLabel = false
-  tieStepTable.sliderColour = menuTextColour
-  tieStepTable.width = positionTable.width
-  tieStepTable.height = 8
-  tieStepTable.x = seqPitchTable.x
-  tieStepTable.y = seqPitchTable.y + seqPitchTable.height + 2
-
-  local seqVelTable = sequencerPanel:Table("Velocity", numStepsBox.value, 100, 1, 127, true)
+  local seqVelTable = sequencerPanel:Table("Velocity", totalNumSteps, 100, 1, 127, true)
   seqVelTable.tooltip = "Set step velocity. Randomization available in settings."
   seqVelTable.showPopupDisplay = true
   seqVelTable.showLabel = true
   seqVelTable.fillStyle = "solid"
   seqVelTable.sliderColour = menuArrowColour
-  seqVelTable.width = tieStepTable.width
+  seqVelTable.width = positionTable.width
   seqVelTable.height = 70
-  seqVelTable.x = tieStepTable.x
-  seqVelTable.y = tieStepTable.y + tieStepTable.height + 5
+  seqVelTable.x = positionTable.x
+  seqVelTable.y = 130
 
-  local seqGateTable = sequencerPanel:Table("Gate", numStepsBox.value, 100, 0, 100, true)
+  local seqGateTable = sequencerPanel:Table("Gate", totalNumSteps, 100, 0, 100, true)
   seqGateTable.tooltip = "Set step gate length. Randomization available in settings."
   seqGateTable.showPopupDisplay = true
   seqGateTable.showLabel = true
   seqGateTable.fillStyle = "solid"
   seqGateTable.sliderColour = menuArrowColour
-  seqGateTable.width = seqPitchTable.width
+  seqGateTable.width = seqVelTable.width
   seqGateTable.height = 70
   seqGateTable.x = seqVelTable.x
   seqGateTable.y = seqVelTable.y + seqVelTable.height + 5
@@ -391,6 +295,7 @@ function createSequencerPanel()
   for i=1,numPartsBox.value do
     table.insert(partSelect, "Part " .. i)
   end
+
   local editPartMenu = sequencerPanel:Menu("EditPart", partSelect)
   editPartMenu.backgroundColour = menuBackgroundColour
   editPartMenu.textColour = menuTextColour
@@ -398,14 +303,16 @@ function createSequencerPanel()
   editPartMenu.outlineColour = menuOutlineColour
   editPartMenu.displayName = "Edit part"
   editPartMenu.showLabel = false
-  editPartMenu.y = positionTable.y + positionTable.height + 5
+  editPartMenu.y = positionTable.y + positionTable.height + 10
   editPartMenu.x = 0
-  editPartMenu.width = 180
+  editPartMenu.width = 190
   editPartMenu.height = 20
   editPartMenu.changed = function(self)
     for i,v in ipairs(paramsPerPart) do
       local isVisible = self.value == i
       v.polyphony.visible = isVisible
+      v.partResolution.visible = isVisible
+      v.stepResolution.visible = isVisible
       v.minNoteSteps.visible = isVisible
       v.maxNoteSteps.visible = isVisible
       v.minNote.visible = isVisible
@@ -418,29 +325,10 @@ function createSequencerPanel()
     end
   end
 
-  numStepsBox.x = resolution.x
-  numStepsBox.y = resolution.y + resolution.height + 10
-  numStepsBox.changed = function(self)
-    seqPitchTable.length = self.value * numPartsBox.value
-    tieStepTable.length = self.value * numPartsBox.value
-    seqVelTable.length = self.value * numPartsBox.value
-    seqGateTable.length = self.value * numPartsBox.value
-    positionTable.length = self.value * numPartsBox.value
-    for _,v in ipairs(paramsPerPart) do
-      v.noteStartStep:setRange(1, math.ceil(self.value / 2))
-    end
-    clearPosition()
-  end
-  numStepsBox:changed()
-
-  numPartsBox.x = numStepsBox.x
-  numPartsBox.y = numStepsBox.y + numStepsBox.height + 10
   numPartsBox.changed = function(self)
-    seqPitchTable.length = self.value * numStepsBox.value
-    tieStepTable.length = self.value * numStepsBox.value
-    seqVelTable.length = self.value * numStepsBox.value
-    seqGateTable.length = self.value * numStepsBox.value
-    positionTable.length = self.value * numStepsBox.value
+    for i=1, self.value do
+      setNumSteps(i)
+    end
     partsTable.length = self.value
 
     local partSelect = {}
@@ -460,18 +348,18 @@ function createSequencerPanel()
         paramsPerPart[i].minNoteSteps.value = prev.minNoteSteps.value
         paramsPerPart[i].maxNoteSteps.value = prev.maxNoteSteps.value
         paramsPerPart[i].noteStartStep.value = prev.noteStartStep.value
+        paramsPerPart[i].partResolution.value = prev.partResolution.value
+        paramsPerPart[i].stepResolution.value = prev.stepResolution.value
+        paramsPerPart[i].numSteps = prev.numSteps
         paramsPerPart[i].fullScale = prev.fullScale
         paramsPerPart[i].filteredScale = prev.filteredScale
-        paramsPerPart[i].init = true
+        paramsPerPart[i].init = prev.init
       end
     end
     editPartMenu.items = partSelect
 
     clearPosition()
   end
-
-  holdButton.x = numPartsBox.x
-  holdButton.y = numPartsBox.y + numPartsBox.height + 10
 
   local velRandKnob = sequencerPanel:Knob("VelocityRandomization", 0, 0, 1)
   velRandKnob.displayName = "Velocity"
@@ -495,23 +383,12 @@ function createSequencerPanel()
     gateRandomizationAmount = self.value
   end
 
-  local tieRandKnob = sequencerPanel:Knob("TieRandomization", 0, 0, 100, true)
-  tieRandKnob.displayName = "Tie"
-  tieRandKnob.tooltip = "Amount of radomization applied to ties"
-  tieRandKnob.unit = Unit.Percent
-  tieRandKnob.width = 75
-  tieRandKnob.x = gateRandKnob.x + gateRandKnob.width + 20
-  tieRandKnob.y = seqGateTable.y + seqGateTable.height + 5
-  tieRandKnob.changed = function(self)
-    tieRandomizationAmount = self.value
-  end
-
   local partRandKnob = sequencerPanel:Knob("PartRandomization", 0, 0, 100, true)
   partRandKnob.displayName = "Part"
   partRandKnob.tooltip = "Amount of radomization applied to parts"
   partRandKnob.unit = Unit.Percent
   partRandKnob.width = 90
-  partRandKnob.x = tieRandKnob.x + tieRandKnob.width + 20
+  partRandKnob.x = gateRandKnob.x + gateRandKnob.width + 20
   partRandKnob.y = seqGateTable.y + seqGateTable.height + 5
   partRandKnob.changed = function(self)
     partRandomizationAmount = self.value
@@ -528,21 +405,29 @@ function createSequencerPanel()
     baseNoteProbability = self.value
   end
 
-  -- {"Generate", "Mono", "As played", "Random", "Chord", "Random Chord", "Off"}
-  sequencerPlayMenu.changed = function(self)
-    -- Stop sequencer if turned off
-    if self.value == 7 then
-      heldNotes = {}
-      clearPosition()
-      arpId = arpId + 1
+  function setNumSteps(index)
+    local partDuration = getResolution(paramsPerPart[index].partResolution.value)
+    local stepDuration = getResolution(paramsPerPart[index].stepResolution.value)
+    paramsPerPart[index].numSteps = partDuration / stepDuration
+    print("stepDuration/partDuration/numSteps", stepDuration,partDuration,paramsPerPart[index].numSteps)
+    for i=1, numPartsBox.value do
+      -- Set resolution and num steps on all parts for now
+      if i ~= index then
+        paramsPerPart[i].numSteps = paramsPerPart[index].numSteps
+        paramsPerPart[i].partResolution.value = paramsPerPart[index].partResolution.value
+        paramsPerPart[i].stepResolution.value = paramsPerPart[index].stepResolution.value
+      end
     end
-    -- If generate is active, hide the pitch table
-    local showGenerate = self.value == 1
-    seqPitchTable.visible = showGenerate == false
-    tieStepTable.visible = showGenerate == false
-    tieRandKnob.enabled = showGenerate == false
+    totalNumSteps = 0
+    for i=1, numPartsBox.value do
+      paramsPerPart[i].noteStartStep:setRange(1, math.ceil(paramsPerPart[i].numSteps / 2))
+      totalNumSteps = totalNumSteps + paramsPerPart[i].numSteps
+    end
+    seqVelTable.length = totalNumSteps
+    seqGateTable.length = totalNumSteps
+    positionTable.length = totalNumSteps
+    clearPosition()
   end
-  sequencerPlayMenu:changed()
 
   -- Add params that are to be editable per part
   for i=1,numPartsBox.max do
@@ -587,7 +472,7 @@ function createSequencerPanel()
       generateMinNoteStepsPart.enabled = self.value > 1
     end
   
-    local generateNoteStartStepPart = sequencerPanel:NumBox("GenerateNoteStartStep" .. i, 1, 1, (numStepsBox.value / 2), true) -- UPDATE ON numStepsBox change
+    local generateNoteStartStepPart = sequencerPanel:NumBox("GenerateNoteStartStep" .. i, 1, 1, 1, true) -- UPDATE ON numStepsBox change
     generateNoteStartStepPart.displayName = "Start notes every n-th step"
     generateNoteStartStepPart.tooltip = "The steps a note can start on"
     generateNoteStartStepPart.backgroundColour = menuBackgroundColour
@@ -604,7 +489,7 @@ function createSequencerPanel()
     generateKeyPart.visible = false
     generateKeyPart.width = 150
     generateKeyPart.x = 200
-    generateKeyPart.y = positionTable.y + positionTable.height + 5
+    generateKeyPart.y = positionTable.y + positionTable.height + 10
     generateKeyPart.backgroundColour = menuBackgroundColour
     generateKeyPart.textColour = menuTextColour
     generateKeyPart.arrowColour = menuArrowColour
@@ -643,9 +528,9 @@ function createSequencerPanel()
     local generateScalePart = sequencerPanel:Menu("GenerateScale" .. i, {"12 tone", "Major", "Minor", "Dorian", "Whole tone", "Major Pentatonic", "Minor Pentatonic", "1-4-5", "1-5", "Dim", "Fours", "Fives"})
     generateScalePart.displayName = "Scale"
     generateScalePart.visible = false
-    generateScalePart.width = 180
+    generateScalePart.width = 185
     generateScalePart.x = 360
-    generateScalePart.y = positionTable.y + positionTable.height + 5
+    generateScalePart.y = positionTable.y + positionTable.height + 10
     generateScalePart.backgroundColour = menuBackgroundColour
     generateScalePart.textColour = menuTextColour
     generateScalePart.arrowColour = menuArrowColour
@@ -654,7 +539,38 @@ function createSequencerPanel()
       createFullScale(i)
       createFilteredScale(i)
     end
+
+    local partResolution = sequencerPanel:Menu("PartDuration" .. i, getResolutionNames())
+    local stepResolution = sequencerPanel:Menu("StepResolution" .. i, getResolutionNames())
+
+    partResolution.displayName = "Part Duration"
+    partResolution.tooltip = "Set the duration of a part."
+    partResolution.selected = 11
+    partResolution.visible = false
+    partResolution.x = generateScalePart.x + generateScalePart.width + 10
+    partResolution.y = generateScalePart.y
+    partResolution.width = 140
+    partResolution.backgroundColour = menuBackgroundColour
+    partResolution.textColour = menuTextColour
+    partResolution.arrowColour = menuArrowColour
+    partResolution.outlineColour = menuOutlineColour
+    partResolution.changed = function(self)
+      setNumSteps(i)
+    end
   
+    stepResolution.displayName = "Step Resolution"
+    stepResolution.selected = 20
+    stepResolution.visible = false
+    stepResolution.x = partResolution.x
+    stepResolution.y = partResolution.y + partResolution.height + 5
+    stepResolution.width = partResolution.width
+    stepResolution.backgroundColour = menuBackgroundColour
+    stepResolution.arrowColour = menuArrowColour
+    stepResolution.outlineColour = menuOutlineColour
+    stepResolution.changed = function(self)
+      setNumSteps(i)
+    end
+
     local generateMinPart = sequencerPanel:NumBox("GenerateMin" .. i, 24, 0, 127, true)
     generateMinPart.unit = Unit.MidiKey
     generateMinPart.showPopupDisplay = true
@@ -689,7 +605,9 @@ function createSequencerPanel()
       generateMinPart:setRange(0, self.value-1)
     end
 
-    table.insert(paramsPerPart, {polyphony=generatePolyphonyPart,fullScale={},filteredScale={},scale=generateScalePart,key=generateKeyPart,droneLow=droneLowPart,droneHigh=droneHighPart,minNote=generateMinPart,maxNote=generateMaxPart,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,noteStartStep=generateNoteStartStepPart,init=i==1})
+    table.insert(paramsPerPart, {polyphony=generatePolyphonyPart,partResolution=partResolution,stepResolution=stepResolution,numSteps=0,fullScale={},filteredScale={},scale=generateScalePart,key=generateKeyPart,droneLow=droneLowPart,droneHigh=droneHighPart,minNote=generateMinPart,maxNote=generateMaxPart,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,noteStartStep=generateNoteStartStepPart,init=i==1})
+
+    stepResolution:changed()
   end
 
   editPartMenu:changed()
@@ -753,63 +671,40 @@ function createSequencerPanel()
     local currentStep = 0 -- Holds the current step in the round that is being played
     local notes = {} -- Holds the playing notes - notes are removed when they are finished playing
     local heldNoteIndex = 0
-    local stepDuration = getResolution(resolution.value)
-    local roundDuration = stepDuration * numStepsBox.value * numPartsBox.value
-    -- If a fixed round duration is selected, get the resolution
-    if roundResolution.value <= #resolutions then
-      roundDuration = getResolution(roundResolution.value) * numPartsBox.value
-    end
     -- START ARP LOOP
     while arpId_ == arpId do
       -- SET VALUES
       local numParts = numPartsBox.value
-      local numStepsPerPart = numStepsBox.value
-      local numSteps = numStepsPerPart * numParts
-      local currentPosition = (index % numSteps) + 1 -- 11 % 4 = 3
-      local currentPartPosition = math.floor(index / numStepsPerPart) + 1 -- 5 / 4 = 1.25 = 1 + 1 = 2
-      local sequencerMode = sequencerPlayMenu.value
+      local currentPosition = (index % totalNumSteps) + 1 -- 11 % 4 = 3
+      local numStepsInPart = paramsPerPart[1].numSteps -- GET FROM FIRST
+      local currentPartPosition = math.floor(index / numStepsInPart) + 1 -- 5 / 4 = 1.25 = 1 + 1 = 2
 
       -- Increment step counter
       currentStep = currentStep + 1
-      if currentStep > numSteps then
+      if currentStep > totalNumSteps then
         currentStep = 1
       end
 
       -- Check if we are at the start of a part
-      local startOfPart = index % numStepsPerPart == 0
-      if startOfPart then
-        print("Start of part!")
-        if partRandomizationAmount > 0 then
-          -- Randomize parts within the set limit
-          print("currentPartPosition before", currentPartPosition)
-          print("currentPosition before", currentPosition)
-          print("index before", index)
-          currentPartPosition = getRandom(numParts)
-          -- Find the current pos and index
-          currentPosition = (numStepsPerPart * currentPartPosition) - (numStepsPerPart - 1)
-          index = currentPosition - 1
-          print("currentPartPosition after", currentPartPosition)
-          print("currentPosition after", currentPosition)
-          print("index after", index)
-        end
+      local startOfPart = index % numStepsInPart == 0
+      if startOfPart and partRandomizationAmount > 0 then
+        -- Randomize parts within the set limit
+        print("currentPartPosition before", currentPartPosition)
+        print("currentPosition before", currentPosition)
+        print("index before", index)
+        currentPartPosition = getRandom(numParts)
+        -- Find the current pos and index
+        currentPosition = (numStepsInPart * currentPartPosition) - (numStepsInPart - 1)
+        index = currentPosition - 1
+        print("currentPartPosition after", currentPartPosition)
+        print("currentPosition after", currentPosition)
+        print("index after", index)
       end
 
-      -- Randomize gate and velocity for each round
-      if currentStep == 1 then
-        -- Get step duration
-        local i = getResolutionIndex(resolution.value)
-        stepDuration = resolutions[i]
-        
-        -- Set numsteps for the current duration (if follow step is not selected - checked in the function)
-        setNumSteps(stepDuration)
-        numStepsPerPart = numStepsBox.value
-        numSteps = numStepsPerPart * numParts
-        
-        -- Display the randomly selected resolution that is currently selected
-        if resolution.value > #resolutions then
-          resolution:setItem(#resolutions+1, "Random (".. getResolutionName(i) ..")")
-        end
+      local stepDuration = getResolution(paramsPerPart[currentPartPosition].stepResolution.value)
 
+      -- Randomize select parameters for each round
+      if currentStep == 1 then
         -- Randomize gate within the set limit
         if gateRandomizationAmount > 0 then
           print("gateRandomizationAmount", gateRandomizationAmount)
@@ -817,7 +712,7 @@ function createSequencerPanel()
           print("seqGateTable.min", seqGateTable.min)
           print("seqGateTable.max", seqGateTable.max)
           print("changeMax", changeMax)
-          for i=1,numSteps do
+          for i=1,numStepsInPart do
             if getRandomBoolean() then
               local currentVal = seqGateTable:getValue(i)
               print("currentVal", currentVal)
@@ -841,7 +736,7 @@ function createSequencerPanel()
           print("seqVelTable.min", seqVelTable.min)
           print("seqVelTable.max", seqVelTable.max)
           print("changeMax", changeMax)
-          for i=1,numSteps do
+          for i=1,numStepsInPart do
             if getRandomBoolean() then
               local currentVal = seqVelTable:getValue(i)
               print("currentVal", currentVal)
@@ -858,39 +753,13 @@ function createSequencerPanel()
             end
           end
         end
-        -- Randomize ties within the set limit
-        if tieRandomizationAmount > 0 then
-          for i=1,numSteps do
-            if getRandomBoolean(tieRandomizationAmount) then
-              tieStepTable:setValue(i,1)
-            else
-              tieStepTable:setValue(i,0)
-            end
-          end
-        end
       end
 
       -- Set values pt 2
       local vel = seqVelTable:getValue(currentPosition) -- get velocity
       local gate = seqGateTable:getValue(currentPosition) / 100 -- get gate
-      local pitchAdjustment = seqPitchTable:getValue(currentPosition)
-      local tieNext = tieStepTable:getValue(currentPosition)
 
-      --[[ print("Current index:", index)
-      print("Steps:", numSteps)
-      print("Steps per part:", numStepsPerPart)
-      print("Current step pos:", currentPosition)
-      print("Parts:", numParts)
-      print("Current part pos:", currentPartPosition)
-      print("Step duration:", stepDuration)
-      print("Round duration:", roundDuration) ]]
-
-      -- Check prevoius step for tie - do not play note if tied from prev note!
-      local shouldAddNote = tieStepTable:getValue(currentPosition - 1) ~= 1
-
-      if sequencerMode == 1 then
-        shouldAddNote = (currentPosition - 1) % paramsPerPart[currentPartPosition].noteStartStep.value == 0
-      end
+      local shouldAddNote = (currentPosition - 1) % paramsPerPart[currentPartPosition].noteStartStep.value == 0
 
       -- If gate is zero no notes will play on this step
       if gate > 0 and shouldAddNote == true then
@@ -901,88 +770,45 @@ function createSequencerPanel()
         -- steps: the duration of the note in steps
         -- stepCounter: the counter for how many steps the note has lasted so far
 
-        local noteSteps = 1
-        -- Check tie to next step -- not used in generate
-        if tieNext == 1 then
-          local tmp = currentPosition
-          while tieStepTable:getValue(tmp) == 1 and tmp < numSteps do
-            noteSteps = noteSteps + 1
-            tmp = tmp + 1
-          end
+        -- Number of simultainious notes are set by polyphony
+        local polyphony = paramsPerPart[currentPartPosition].polyphony.value
+        local minNote = paramsPerPart[currentPartPosition].minNote.value
+        local maxNote = paramsPerPart[currentPartPosition].maxNote.value
+        local minNoteSteps = paramsPerPart[currentPartPosition].minNoteSteps.value
+        local maxNoteSteps = paramsPerPart[currentPartPosition].maxNoteSteps.value
+        local numberOfNotes = polyphony -- Default is "mono"
+        if numberOfNotes > 1 and maxNoteSteps > 1 then
+          numberOfNotes = getRandom(polyphony)
         end
-        -- {"Generate", "Mono", "As played", "Random", "Chord", "Random Chord", "Off"}
-        if sequencerMode == 2 then -- MONO
-          -- MONO plays the last note in held notes
-          heldNoteIndex = #heldNotes
-          table.insert(notes, {note=heldNotes[heldNoteIndex].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps,stepCounter=0})
-        elseif sequencerMode == 3 then -- AS PLAYED
-          -- AS PLAYED plays one note at a time in the order they where held down
-          heldNoteIndex = heldNoteIndex + 1 -- Increment
-          if heldNoteIndex > #heldNotes then
-            heldNoteIndex = 1
-          end
-          table.insert(notes, {note=heldNotes[heldNoteIndex].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps,stepCounter=0})
-        elseif sequencerMode == 4 then -- RANDOM
-          -- RANDOM plays a random note from the held notes
-          heldNoteIndex = getRandom(#heldNotes)
-          table.insert(notes, {note=heldNotes[heldNoteIndex].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps,stepCounter=0})
-        elseif sequencerMode == 5 then -- CHORD
-          -- CHORD plays all the held notes at once
-          for i=1,#heldNotes do
-            table.insert(notes, {note=heldNotes[i].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps,stepCounter=0})
-          end
-        elseif sequencerMode == 6 then -- RANDOM CHORD
-          -- RANDOM CHORD plays a random chord using notes from held noted
-          local numberOfNotes = getRandom(math.min(6, #heldNotes))
-          if numberOfNotes == #heldNotes then
-            for i=1,#heldNotes do
-              table.insert(notes, {note=heldNotes[i].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps,stepCounter=0})
-            end
-          else
-            while #notes < numberOfNotes do
-              local noteToPlay = getRandom(#heldNotes)
-              if notesInclude(notes, noteToPlay) == false then
-                table.insert(notes, {note=heldNotes[noteToPlay].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps,stepCounter=0})
-              end
-            end
-          end
-        elseif sequencerMode == 1 then -- GENERATE
-          -- GENERATE plays random notes from the selected scale
-          -- Number of simultainious notes are set by generatePolyphony
-          local polyphony = paramsPerPart[currentPartPosition].polyphony.value
-          local minNote = paramsPerPart[currentPartPosition].minNote.value
-          local maxNote = paramsPerPart[currentPartPosition].maxNote.value
-          local minNoteSteps = paramsPerPart[currentPartPosition].minNoteSteps.value
-          local maxNoteSteps = paramsPerPart[currentPartPosition].maxNoteSteps.value
-          local numberOfNotes = polyphony -- Default is "mono"
-          if numberOfNotes > 1 and maxNoteSteps > 1 then
-            numberOfNotes = getRandom(polyphony)
-          end
-          -- On step one, always add the base note first (unless low drone is active) (setting for this?)
-          if currentStep == 1 and notesInclude(notes, minNote) == false and getRandomBoolean(baseNoteProbability) then
-            noteSteps = getRandom(minNoteSteps,maxNoteSteps)
-            table.insert(notes, {note=minNote,gate=gate,vel=vel,steps=noteSteps,stepCounter=0})
-          end
-          -- Check how many notes are already playing, and remove number from numberOfNotes if more than max polyphony
-          if numberOfNotes + #notes > polyphony then
-            numberOfNotes = numberOfNotes - #notes
-          end
 
-          function generateNoteToPlay(currentPartPosition)
-            if #paramsPerPart[currentPartPosition].filteredScale > 0 then
-              local pos = getRandom(#paramsPerPart[currentPartPosition].filteredScale)
-              return paramsPerPart[currentPartPosition].filteredScale[pos]
-            end
-            return getRandom(minNote, maxNote)
-          end      
+        -- On step one, always the base note if probability hits (unless low drone is active)
+        local isLowDroneActive = paramsPerPart[currentPartPosition].droneLow.visible and paramsPerPart[currentPartPosition].droneLow.value > 1
+        if currentStep == 1 and isLowDroneActive == false and notesInclude(notes, minNote) == false and getRandomBoolean(baseNoteProbability) then
+          local noteSteps = getRandom(minNoteSteps,maxNoteSteps)
+          table.insert(notes, {note=minNote,gate=gate,vel=vel,steps=noteSteps,stepCounter=0})
+        end
 
-          for i=1,numberOfNotes do
-            local noteToPlay = generateNoteToPlay(currentPartPosition)
-            if notesInclude(notes, noteToPlay) == false then
-              noteSteps = getRandom(minNoteSteps,maxNoteSteps)
-              table.insert(notes, {note=noteToPlay,gate=gate,vel=vel,steps=noteSteps,stepCounter=0})
-              print("Insert to notes note/steps/gate", noteToPlay, noteSteps, gate)
-            end
+        -- Check how many notes are already playing, and remove number from numberOfNotes if more than max polyphony
+        if numberOfNotes + #notes > polyphony then
+          numberOfNotes = numberOfNotes - #notes
+        end
+
+        -- Note generate function
+        function generateNoteToPlay(currentPartPosition)
+          if #paramsPerPart[currentPartPosition].filteredScale > 0 then
+            local pos = getRandom(#paramsPerPart[currentPartPosition].filteredScale)
+            return paramsPerPart[currentPartPosition].filteredScale[pos]
+          end
+          return getRandom(minNote, maxNote)
+        end      
+
+        -- Add notes to play
+        for i=1,numberOfNotes do
+          local noteToPlay = generateNoteToPlay(currentPartPosition)
+          if notesInclude(notes, noteToPlay) == false then
+            local noteSteps = getRandom(minNoteSteps,maxNoteSteps)
+            table.insert(notes, {note=noteToPlay,gate=gate,vel=vel,steps=noteSteps,stepCounter=0})
+            print("Insert to notes note/steps/gate", noteToPlay, noteSteps, gate)
           end
         end
       end
@@ -992,7 +818,7 @@ function createSequencerPanel()
       local isHighDroneActive = paramsPerPart[currentPartPosition].droneHigh.visible and paramsPerPart[currentPartPosition].droneHigh.value > 1
       if startOfPart and (isLowDroneActive or isHighDroneActive) then
         -- 2 = lowest, 3 = lowest in scale, 4 = lowest held
-        local droneDuration = beat2ms(roundDuration / numParts)
+        local droneDuration = beat2ms(getResolution(paramsPerPart[currentPartPosition].partResolution.value))
         local minNote = paramsPerPart[currentPartPosition].minNote.value
         local maxNote = paramsPerPart[currentPartPosition].maxNote.value
       
@@ -1072,7 +898,7 @@ function createSequencerPanel()
       -- UPDATE PART TABLE
       partsTable:setValue(currentPartPosition, 1)
       -- INCREMENT POSITION
-      index = (index + 1) % numSteps -- increment position
+      index = (index + 1) % totalNumSteps -- increment position
 
       -- WAIT FOR NEXT BEAT
       waitBeat(stepDuration)
@@ -1080,23 +906,19 @@ function createSequencerPanel()
   end
 
   function onNote(e)
-    if sequencerPlayMenu.value < 7 then
-      if holdButton.value == true then
-        for i,v in ipairs(heldNotes) do
-          if v.note == e.note then
-            if #heldNotes > 1 then
-              table.remove(heldNotes, i)
-            end
-            return
+    if holdButton.value == true then
+      for i,v in ipairs(heldNotes) do
+        if v.note == e.note then
+          if #heldNotes > 1 then
+            table.remove(heldNotes, i)
           end
+          return
         end
       end
-      table.insert(heldNotes, e)
-      if #heldNotes == 1 then
-          arpeg(arpId)
-      end
-    else
-      postEvent(e)
+    end
+    table.insert(heldNotes, e)
+    if #heldNotes == 1 then
+        arpeg(arpId)
     end
   end
 
