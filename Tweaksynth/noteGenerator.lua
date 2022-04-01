@@ -1,12 +1,8 @@
 --------------------------------------------------------------------------------
--- NOTE GENERATOR
+-- GENEREATIVE SEQUENCER
 --------------------------------------------------------------------------------
 
-local isStarting = true
-
---------------------------------------------------------------------------------
 -- Colours and margins
---------------------------------------------------------------------------------
 
 local buttonAlpha = 0.9
 local buttonBackgroundColourOff = "#ff084486"
@@ -22,12 +18,7 @@ local menuTextColour = "#9f02ACFE"
 local menuArrowColour = "#9f09A3F4"
 local menuOutlineColour = bgColor
 
-local marginX = 3 -- left/right
-local width = 714
-
---------------------------------------------------------------------------------
 -- Helper functions
---------------------------------------------------------------------------------
 
 function getRandom(min, max, factor)
   if type(min) == "number" and type(max) == "number" then
@@ -129,33 +120,8 @@ local resolutionNames = {
   "1/64", -- 28
   "1/64 tri" -- 29
 }
-local even = {}
-local dot = {}
-local tri = {}
 
-function setResGroups()
-  local i = 11 -- Start at 1/1 (pos 11)
-  while true do
-    table.insert(even, i)
-    i = i + 1
-    if i >= #resolutions then
-      return
-    end
-    table.insert(dot, i)
-    i = i + 1
-    if i >= #resolutions then
-      return
-    end
-    table.insert(tri, i)
-    i = i + 1
-    if i >= #resolutions then
-      return
-    end
-  end
-end
-setResGroups()
-
-function getResolutionIndex(i)
+ function getResolutionIndex(i)
   if i > #resolutions then
     -- If Random is selected, we pick one of the selected resolutions
     local activeResolutions = {}
@@ -202,21 +168,18 @@ function getResolutionNames(options)
 end
 
 --------------------------------------------------------------------------------
--- Twequencer Panel
+-- Sequencer Panel
 --------------------------------------------------------------------------------
 
 local velocityRandomizationAmount = 0
 local gateRandomizationAmount = 0
 local tieRandomizationAmount = 0
 local partRandomizationAmount = 0
+local baseNoteProbability = 0
 
-function createTwequencerPanel()
+function createSequencerPanel()
   local arpId = 0
   local heldNotes = {}
-  local snapshots = {}
-  local snapshotPosition = 1
-  local maxSnapshots = 500 -- TODO Make it possible to set in UI?
-  local automaticSequencerRunning = false
   local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
   local noteNumberToNoteName = {} -- Used for mapping - does not include octave, only name of note (C, C#...)
   local notenamePos = 1
@@ -229,14 +192,14 @@ function createTwequencerPanel()
     end
   end
   
-  local tweqPanel = Panel("Sequencer")
-  tweqPanel.backgroundColour = bgColor
-  tweqPanel.x = marginX
-  tweqPanel.y = 10
-  tweqPanel.width = width
-  tweqPanel.height = 320
+  local sequencerPanel = Panel("Sequencer")
+  sequencerPanel.backgroundColour = bgColor
+  sequencerPanel.x = 10
+  sequencerPanel.y = 10
+  sequencerPanel.width = 700
+  sequencerPanel.height = 330
 
-  local partsTable = tweqPanel:Table("Parts", 1, 0, 0, 1, true)
+  local partsTable = sequencerPanel:Table("Parts", 1, 0, 0, 1, true)
   partsTable.enabled = false
   partsTable.persistent = false
   partsTable.fillStyle = "solid"
@@ -247,7 +210,7 @@ function createTwequencerPanel()
   partsTable.x = 0
   partsTable.y = 0
 
-  local positionTable = tweqPanel:Table("Position", 4, 0, 0, 1, true)
+  local positionTable = sequencerPanel:Table("Position", 4, 0, 0, 1, true)
   positionTable.enabled = false
   positionTable.persistent = false
   positionTable.fillStyle = "solid"
@@ -259,26 +222,26 @@ function createTwequencerPanel()
   positionTable.y = partsTable.y + partsTable.height
 
   local rightMenuWidth = 140
-  local rightMenuX = 565
+  local rightMenuX = 560
 
-  local roundResolution = tweqPanel:Menu("RoundDuration", getResolutionNames({"Follow Step"}))
-  local resolution = tweqPanel:Menu("Resolution", getResolutionNames({"Random"}))
+  local roundResolution = sequencerPanel:Menu("RoundDuration", getResolutionNames({"Follow Step"}))
+  local resolution = sequencerPanel:Menu("Resolution", getResolutionNames({"Random"}))
 
-  local numStepsBox = tweqPanel:NumBox("Steps", 4, 1, 256, true)
+  local numStepsBox = sequencerPanel:NumBox("Steps", 4, 1, 128, true)
   numStepsBox.tooltip = "The Number of steps in each round"
   numStepsBox.backgroundColour = menuBackgroundColour
   numStepsBox.textColour = menuTextColour
   numStepsBox.arrowColour = menuArrowColour
   numStepsBox.outlineColour = menuOutlineColour
-  numStepsBox.width = rightMenuWidth - 65
+  numStepsBox.width = rightMenuWidth
 
-  local numPartsBox = tweqPanel:NumBox("Parts", 1, 1, 16, true)
+  local numPartsBox = sequencerPanel:NumBox("Parts", 1, 1, 8, true)
   numPartsBox.tooltip = "The Number of parts in the sequence"
   numPartsBox.backgroundColour = menuBackgroundColour
   numPartsBox.textColour = menuTextColour
   numPartsBox.arrowColour = menuArrowColour
   numPartsBox.outlineColour = menuOutlineColour
-  numPartsBox.width = rightMenuWidth - numStepsBox.width
+  numPartsBox.width = rightMenuWidth
 
   function clearPosition()
     for i = 1, numStepsBox.value * numPartsBox.value do
@@ -308,7 +271,7 @@ function createTwequencerPanel()
     numStepsBox:setValue(numSteps)
   end
 
-  local sequencerPlayMenu = tweqPanel:Menu("SequencerPlay", {"Off", "Mono", "As played", "Random", "Chord", "Random Chord", "Alternate", "Generate"})
+  local sequencerPlayMenu = sequencerPanel:Menu("SequencerPlay", {"Generate", "Mono", "As played", "Random", "Chord", "Random Chord", "Off"})
   sequencerPlayMenu.backgroundColour = menuBackgroundColour
   sequencerPlayMenu.textColour = menuTextColour
   sequencerPlayMenu.arrowColour = menuArrowColour
@@ -349,7 +312,7 @@ function createTwequencerPanel()
     setNumSteps()
   end
 
-  local holdButton = tweqPanel:OnOffButton("HoldOnOff", false)
+  local holdButton = sequencerPanel:OnOffButton("HoldOnOff", false)
   holdButton.alpha = buttonAlpha
   holdButton.backgroundColourOff = buttonBackgroundColourOff
   holdButton.backgroundColourOn = buttonBackgroundColourOn
@@ -363,14 +326,10 @@ function createTwequencerPanel()
       heldNotes = {}
       clearPosition()
       arpId = arpId + 1
-      if automaticSequencerRunning == true then
-        arpeggiatorButton.value = false
-        automaticSequencerRunning = false
-      end
     end
   end
 
-  local seqPitchTable = tweqPanel:Table("Pitch", numStepsBox.value, 0, -12, 12, true)
+  local seqPitchTable = sequencerPanel:Table("Pitch", numStepsBox.value, 0, -12, 12, true)
   seqPitchTable.showPopupDisplay = true
   seqPitchTable.showLabel = true
   seqPitchTable.fillStyle = "solid"
@@ -380,7 +339,7 @@ function createTwequencerPanel()
   seqPitchTable.x = positionTable.x
   seqPitchTable.y = positionTable.y + positionTable.height + 5
 
-  local tieStepTable = tweqPanel:Table("TieStep", numStepsBox.value, 0, 0, 1, true)
+  local tieStepTable = sequencerPanel:Table("TieStep", numStepsBox.value, 0, 0, 1, true)
   tieStepTable.tooltip = "Tie with next step"
   tieStepTable.fillStyle = "solid"
   tieStepTable.backgroundColour = "black"
@@ -391,7 +350,7 @@ function createTwequencerPanel()
   tieStepTable.x = seqPitchTable.x
   tieStepTable.y = seqPitchTable.y + seqPitchTable.height + 2
 
-  local seqVelTable = tweqPanel:Table("Velocity", numStepsBox.value, 100, 1, 127, true)
+  local seqVelTable = sequencerPanel:Table("Velocity", numStepsBox.value, 100, 1, 127, true)
   seqVelTable.tooltip = "Set step velocity. Randomization available in settings."
   seqVelTable.showPopupDisplay = true
   seqVelTable.showLabel = true
@@ -402,7 +361,7 @@ function createTwequencerPanel()
   seqVelTable.x = tieStepTable.x
   seqVelTable.y = tieStepTable.y + tieStepTable.height + 5
 
-  local seqGateTable = tweqPanel:Table("Gate", numStepsBox.value, 100, 0, 100, true)
+  local seqGateTable = sequencerPanel:Table("Gate", numStepsBox.value, 100, 0, 100, true)
   seqGateTable.tooltip = "Set step gate length. Randomization available in settings."
   seqGateTable.showPopupDisplay = true
   seqGateTable.showLabel = true
@@ -414,11 +373,11 @@ function createTwequencerPanel()
   seqGateTable.y = seqVelTable.y + seqVelTable.height + 5
 
   -- Handle keys
-  local generateKey = tweqPanel:Menu("GenerateKey", notenames)
+  local generateKey = sequencerPanel:Menu("GenerateKey", notenames)
   generateKey.displayName = "Key"
   generateKey.visible = false
   generateKey.width = 150
-  generateKey.x = positionTable.x
+  generateKey.x = 200
   generateKey.y = positionTable.y + positionTable.height + 5
   generateKey.backgroundColour = menuBackgroundColour
   generateKey.textColour = menuTextColour
@@ -426,182 +385,37 @@ function createTwequencerPanel()
   generateKey.outlineColour = menuOutlineColour
 
   -- Handle scales
-  local scale = {}
-  local filteredScale = {}
-  local scaleDefinitions = {{1},{2,2,1,2,2,2,1}, {2,1,2,2,1,2,2}, {2,1,2,2,2,1,2}, {2}, {2,2,3,2,3}, {3,2,2,3,2}}
-  local generateScale = tweqPanel:Menu("GenerateScale", {"12 tone", "Major", "Minor", "Dorian", "Whole tone", "Major Pentatonic", "Minor Pentatonic"})
-  generateScale.displayName = "Scale"
-  generateScale.visible = false
-  generateScale.width = 180
-  generateScale.x = generateKey.x + generateKey.width + 15
-  generateScale.y = generateKey.y
-  generateScale.backgroundColour = menuBackgroundColour
-  generateScale.textColour = menuTextColour
-  generateScale.arrowColour = menuArrowColour
-  generateScale.outlineColour = menuOutlineColour
-
-  local droneMenu = tweqPanel:Menu("DroneMenu", {"No drone", "Lowest note", "Lowest root", "Lowest held", "Random held"})
-  droneMenu.showLabel = false
-  droneMenu.backgroundColour = menuBackgroundColour
-  droneMenu.textColour = menuTextColour
-  droneMenu.arrowColour = menuArrowColour
-  droneMenu.outlineColour = menuOutlineColour
-  droneMenu.tooltip = "Set a low drone"
-  droneMenu.visible = false
-  droneMenu.x = positionTable.x
-  droneMenu.y = generateKey.y + generateKey.height + 3
-  droneMenu.width = generateKey.width
-
-  local generateMin = tweqPanel:NumBox("GenerateMin", 21, 0, 127, true)
-  generateMin.unit = Unit.MidiKey
-  generateMin.showPopupDisplay = true
-  generateMin.showLabel = true
-  generateMin.fillStyle = "solid"
-  generateMin.sliderColour = menuArrowColour
-  generateMin.displayName = "Lowest note"
-  generateMin.visible = false
-  generateMin.x = droneMenu.x + droneMenu.width + 15
-  generateMin.y = droneMenu.y
-  generateMin.width = generateScale.width
-
-  droneMenu.height = generateMin.height
-
-  local droneHighMenu = tweqPanel:Menu("DroneHighMenu", {"No drone", "Highest note", "Highest root", "Highest held"})
-  droneHighMenu.showLabel = false
-  droneHighMenu.backgroundColour = menuBackgroundColour
-  droneHighMenu.textColour = menuTextColour
-  droneHighMenu.arrowColour = menuArrowColour
-  droneHighMenu.outlineColour = menuOutlineColour
-  droneHighMenu.tooltip = "Set a high drone"
-  droneHighMenu.visible = false
-  droneHighMenu.x = droneMenu.x
-  droneHighMenu.y = droneMenu.y + droneMenu.height + 3
-  droneHighMenu.width = droneMenu.width
-  droneHighMenu.height = droneMenu.height
-
-  local generateMax = tweqPanel:NumBox("GenerateMax", 108, 0, 127, true)
-  generateMax.unit = Unit.MidiKey
-  generateMax.showPopupDisplay = true
-  generateMax.showLabel = true
-  generateMax.fillStyle = "solid"
-  generateMax.sliderColour = menuArrowColour
-  generateMax.displayName = "Highest note"
-  generateMax.visible = false
-  generateMax.x = droneHighMenu.x + droneHighMenu.width + 15
-  generateMax.y = droneHighMenu.y
-  generateMax.width = generateMin.width
-
-  function createFilteredScale()
-    local filtered = {}
-    if #scale > 0 then
-      -- TODO Check that low notes are root / five
-      -- Filter out notes outside min/max
-      local minNote = math.min(generateMin.value, generateMax.value)
-      local maxNote = math.max(generateMin.value, generateMax.value)  
-      for i=1,#scale do
-        if scale[i] >= minNote and scale[i] <= maxNote then
-          table.insert(filtered, scale[i])
-          --print("Insert to filtered scale note", scale[i])
-        end
-      end
+  local scaleDefinitions = {{1},{2,2,1,2,2,2,1}, {2,1,2,2,1,2,2}, {2,1,2,2,2,1,2}, {2}, {2,2,3,2,3}, {3,2,2,3,2}, {5,2,5}, {7,5}, {3}, {5}, {7}}
+  local paramsPerPart = {}
+  local partSelect = {}
+  for i=1,numPartsBox.value do
+    table.insert(partSelect, "Part " .. i)
+  end
+  local editPartMenu = sequencerPanel:Menu("EditPart", partSelect)
+  editPartMenu.backgroundColour = menuBackgroundColour
+  editPartMenu.textColour = menuTextColour
+  editPartMenu.arrowColour = menuArrowColour
+  editPartMenu.outlineColour = menuOutlineColour
+  editPartMenu.displayName = "Edit part"
+  editPartMenu.showLabel = false
+  editPartMenu.y = positionTable.y + positionTable.height + 5
+  editPartMenu.x = 0
+  editPartMenu.width = 180
+  editPartMenu.height = 20
+  editPartMenu.changed = function(self)
+    for i,v in ipairs(paramsPerPart) do
+      local isVisible = self.value == i
+      v.polyphony.visible = isVisible
+      v.minNoteSteps.visible = isVisible
+      v.maxNoteSteps.visible = isVisible
+      v.minNote.visible = isVisible
+      v.maxNote.visible = isVisible
+      v.key.visible = isVisible
+      v.scale.visible = isVisible
+      v.droneLow.visible = isVisible
+      v.droneHigh.visible = isVisible
+      v.noteStartStep.visible = isVisible
     end
-    print("Filtered scale contains notes:", #filtered)
-    return filtered
-  end
-
-  function createScale()
-    local scaleTable = {}
-    if generateScale.value == 1 then
-      return scaleTable
-    end
-    -- Find scale definition
-    local definition = scaleDefinitions[generateScale.value]
-    -- Find root note
-    local root = generateKey.value - 1
-    -- Find notes for scale
-    local pos = 0
-    while root < 128 do
-      table.insert(scaleTable, root)
-      --print("Insert to scale:", root)
-      pos = pos + 1
-      root = root + definition[pos]
-      if pos == #definition then
-        pos = 0
-      end
-    end
-    print("Generated scale contains notes:", #scaleTable)
-    return scaleTable
-  end
-
-  function isRootNote(note)
-    -- Find root note index
-    local rootIndex = generateKey.value
-    local noteIndex = note + 1 -- note index is 1 higher than note number
-    print("Check isRootNote", rootIndex-1, note, noteNumberToNoteName[rootIndex], noteNumberToNoteName[noteIndex])
-    return noteNumberToNoteName[rootIndex] == noteNumberToNoteName[noteIndex]
-  end
-
-  generateScale.changed = function(self)
-    scale = createScale()
-    filteredScale = createFilteredScale()
-  end
-
-  generateKey.changed = function(self)
-    scale = createScale()
-    filteredScale = createFilteredScale()
-  end
-
-  generateMin.changed = function(self)
-    filteredScale = createFilteredScale()
-    generateMax:setRange(self.value+1, 127)
-  end
-  generateMin:changed()
-
-  generateMax.changed = function(self)
-    filteredScale = createFilteredScale()
-    generateMin:setRange(0, self.value-1)
-  end
-  generateMax:changed()
-
-  local generatePolyphony = tweqPanel:NumBox("GeneratePolyphony", 1, 0, 16, true)
-  generatePolyphony.displayName = "Polyphony"
-  generatePolyphony.tooltip = "How many notes are played at once"
-  generatePolyphony.backgroundColour = menuBackgroundColour
-  generatePolyphony.textColour = menuTextColour
-  generatePolyphony.arrowColour = menuArrowColour
-  generatePolyphony.outlineColour = menuOutlineColour
-  generatePolyphony.visible = false
-  generatePolyphony.width = 180
-  generatePolyphony.x = 360
-  generatePolyphony.y = generateKey.y + 27
-
-  local generateMinNoteSteps = tweqPanel:NumBox("GenerateMinNoteSteps", 1, 1, 1, true)
-  generateMinNoteSteps.displayName = "Min Note Steps"
-  generateMinNoteSteps.tooltip = "The minimum number of steps can a note last"
-  generateMinNoteSteps.backgroundColour = menuBackgroundColour
-  generateMinNoteSteps.textColour = menuTextColour
-  generateMinNoteSteps.arrowColour = menuArrowColour
-  generateMinNoteSteps.outlineColour = menuOutlineColour
-  generateMinNoteSteps.visible = false
-  generateMinNoteSteps.enabled = false
-  generateMinNoteSteps.width = generatePolyphony.width
-  generateMinNoteSteps.x = generatePolyphony.x
-  generateMinNoteSteps.y = generatePolyphony.y + generatePolyphony.height + 10
-
-  local generateMaxNoteSteps = tweqPanel:NumBox("GenerateMaxNoteSteps", 1, 1, 128, true)
-  generateMaxNoteSteps.displayName = "Max Note Steps"
-  generateMaxNoteSteps.tooltip = "The maximium number of steps can a note last"
-  generateMaxNoteSteps.backgroundColour = menuBackgroundColour
-  generateMaxNoteSteps.textColour = menuTextColour
-  generateMaxNoteSteps.arrowColour = menuArrowColour
-  generateMaxNoteSteps.outlineColour = menuOutlineColour
-  generateMaxNoteSteps.visible = false
-  generateMaxNoteSteps.width = generatePolyphony.width
-  generateMaxNoteSteps.x = generateMinNoteSteps.x
-  generateMaxNoteSteps.y = generateMinNoteSteps.y + generateMinNoteSteps.height + 10
-  generateMaxNoteSteps.changed = function(self)
-    generateMinNoteSteps:setRange(1, self.value)
-    generateMinNoteSteps.enabled = self.value > 1
   end
 
   numStepsBox.x = resolution.x
@@ -612,12 +426,15 @@ function createTwequencerPanel()
     seqVelTable.length = self.value * numPartsBox.value
     seqGateTable.length = self.value * numPartsBox.value
     positionTable.length = self.value * numPartsBox.value
+    for _,v in ipairs(paramsPerPart) do
+      v.noteStartStep:setRange(1, math.ceil(self.value / 2))
+    end
     clearPosition()
   end
   numStepsBox:changed()
 
-  numPartsBox.x = numStepsBox.x + numStepsBox.width
-  numPartsBox.y = numStepsBox.y
+  numPartsBox.x = numStepsBox.x
+  numPartsBox.y = numStepsBox.y + numStepsBox.height + 10
   numPartsBox.changed = function(self)
     seqPitchTable.length = self.value * numStepsBox.value
     tieStepTable.length = self.value * numStepsBox.value
@@ -625,39 +442,38 @@ function createTwequencerPanel()
     seqGateTable.length = self.value * numStepsBox.value
     positionTable.length = self.value * numStepsBox.value
     partsTable.length = self.value
+
+    local partSelect = {}
+    for i=1,self.value do
+      -- Add item to part select table
+      table.insert(partSelect, "Part " .. i)
+      if paramsPerPart[i].init == false then
+        -- Copy initial settings from prev part
+        local prev = paramsPerPart[i-1]
+        paramsPerPart[i].polyphony.value = prev.polyphony.value
+        paramsPerPart[i].scale.value = prev.scale.value
+        paramsPerPart[i].key.value = prev.key.value
+        paramsPerPart[i].droneLow.value = prev.droneLow.value
+        paramsPerPart[i].droneHigh.value = prev.droneHigh.value
+        paramsPerPart[i].minNote.value = prev.minNote.value
+        paramsPerPart[i].maxNote.value = prev.maxNote.value
+        paramsPerPart[i].minNoteSteps.value = prev.minNoteSteps.value
+        paramsPerPart[i].maxNoteSteps.value = prev.maxNoteSteps.value
+        paramsPerPart[i].noteStartStep.value = prev.noteStartStep.value
+        paramsPerPart[i].fullScale = prev.fullScale
+        paramsPerPart[i].filteredScale = prev.filteredScale
+        paramsPerPart[i].init = true
+      end
+    end
+    editPartMenu.items = partSelect
+
     clearPosition()
   end
 
-  holdButton.x = numStepsBox.x
-  holdButton.y = numStepsBox.y + numStepsBox.height + 15
+  holdButton.x = numPartsBox.x
+  holdButton.y = numPartsBox.y + numPartsBox.height + 10
 
-  sequencerPlayMenu.changed = function(self)
-    -- Stop sequencer if turned off
-    if self.value == 1 then
-      heldNotes = {}
-      clearPosition()
-      arpId = arpId + 1
-      if automaticSequencerRunning == true then
-        arpeggiatorButton.value = false
-        automaticSequencerRunning = false
-      end
-    end
-    -- If generate is active, hide the pitch table
-    local showGenerate = self.value == 8
-    seqPitchTable.visible = showGenerate == false
-    tieStepTable.visible = showGenerate == false
-    generateMin.visible = showGenerate
-    droneMenu.visible = showGenerate
-    droneHighMenu.visible = showGenerate
-    generateMax.visible = showGenerate
-    generateKey.visible = showGenerate
-    generateScale.visible = showGenerate
-    generatePolyphony.visible = showGenerate
-    generateMinNoteSteps.visible = showGenerate
-    generateMaxNoteSteps.visible = showGenerate
-  end
-
-  local velRandKnob = tweqPanel:Knob("VelocityRandomization", 0, 0, 1)
+  local velRandKnob = sequencerPanel:Knob("VelocityRandomization", 0, 0, 1)
   velRandKnob.displayName = "Velocity"
   velRandKnob.tooltip = "Amount of radomization applied to sequencer velocity"
   velRandKnob.unit = Unit.PercentNormalized
@@ -668,37 +484,259 @@ function createTwequencerPanel()
     velocityRandomizationAmount = self.value
   end
 
-  local gateRandKnob = tweqPanel:Knob("GateRandomization", 0, 0, 1)
+  local gateRandKnob = sequencerPanel:Knob("GateRandomization", 0, 0, 1)
   gateRandKnob.displayName = "Gate"
   gateRandKnob.tooltip = "Amount of radomization applied to sequencer gate"
   gateRandKnob.unit = Unit.PercentNormalized
   gateRandKnob.width = 100
-  gateRandKnob.x = velRandKnob.x + velRandKnob.width + 50
+  gateRandKnob.x = velRandKnob.x + velRandKnob.width + 20
   gateRandKnob.y = seqGateTable.y + seqGateTable.height + 5
   gateRandKnob.changed = function(self)
     gateRandomizationAmount = self.value
   end
 
-  local tieRandKnob = tweqPanel:Knob("TieRandomization", 0, 0, 100, true)
+  local tieRandKnob = sequencerPanel:Knob("TieRandomization", 0, 0, 100, true)
   tieRandKnob.displayName = "Tie"
   tieRandKnob.tooltip = "Amount of radomization applied to ties"
   tieRandKnob.unit = Unit.Percent
-  tieRandKnob.width = 100
-  tieRandKnob.x = gateRandKnob.x + gateRandKnob.width + 50
+  tieRandKnob.width = 75
+  tieRandKnob.x = gateRandKnob.x + gateRandKnob.width + 20
   tieRandKnob.y = seqGateTable.y + seqGateTable.height + 5
   tieRandKnob.changed = function(self)
     tieRandomizationAmount = self.value
   end
 
-  local partRandKnob = tweqPanel:Knob("PartRandomization", 0, 0, 100, true)
+  local partRandKnob = sequencerPanel:Knob("PartRandomization", 0, 0, 100, true)
   partRandKnob.displayName = "Part"
   partRandKnob.tooltip = "Amount of radomization applied to parts"
   partRandKnob.unit = Unit.Percent
-  partRandKnob.width = 100
-  partRandKnob.x = tieRandKnob.x + tieRandKnob.width + 50
+  partRandKnob.width = 90
+  partRandKnob.x = tieRandKnob.x + tieRandKnob.width + 20
   partRandKnob.y = seqGateTable.y + seqGateTable.height + 5
   partRandKnob.changed = function(self)
     partRandomizationAmount = self.value
+  end
+
+  local baseNoteRandKnob = sequencerPanel:Knob("BaseNoteProbability", 0, 0, 100, true)
+  baseNoteRandKnob.displayName = "Base note"
+  baseNoteRandKnob.tooltip = "Probability that first note in part will be the base note"
+  baseNoteRandKnob.unit = Unit.Percent
+  baseNoteRandKnob.width = 100
+  baseNoteRandKnob.x = partRandKnob.x + partRandKnob.width + 20
+  baseNoteRandKnob.y = seqGateTable.y + seqGateTable.height + 5
+  baseNoteRandKnob.changed = function(self)
+    baseNoteProbability = self.value
+  end
+
+  -- {"Generate", "Mono", "As played", "Random", "Chord", "Random Chord", "Off"}
+  sequencerPlayMenu.changed = function(self)
+    -- Stop sequencer if turned off
+    if self.value == 7 then
+      heldNotes = {}
+      clearPosition()
+      arpId = arpId + 1
+    end
+    -- If generate is active, hide the pitch table
+    local showGenerate = self.value == 1
+    seqPitchTable.visible = showGenerate == false
+    tieStepTable.visible = showGenerate == false
+    tieRandKnob.enabled = showGenerate == false
+  end
+  sequencerPlayMenu:changed()
+
+  -- Add params that are to be editable per part
+  for i=1,numPartsBox.max do
+    local generatePolyphonyPart = sequencerPanel:NumBox("GeneratePolyphony" .. i, 1, 0, 16, true)
+    generatePolyphonyPart.displayName = "Polyphony"
+    generatePolyphonyPart.tooltip = "How many notes are played at once"
+    generatePolyphonyPart.backgroundColour = menuBackgroundColour
+    generatePolyphonyPart.textColour = menuTextColour
+    generatePolyphonyPart.arrowColour = menuArrowColour
+    generatePolyphonyPart.outlineColour = menuOutlineColour
+    generatePolyphonyPart.visible = false
+    generatePolyphonyPart.width = editPartMenu.width
+    generatePolyphonyPart.x = editPartMenu.x
+    generatePolyphonyPart.y = editPartMenu.y + editPartMenu.height + 5
+
+    local generateMinNoteStepsPart = sequencerPanel:NumBox("GenerateMinNoteSteps" .. i, 1, 1, 1, true)
+    generateMinNoteStepsPart.displayName = "Min Steps"
+    generateMinNoteStepsPart.tooltip = "The minimum number of steps can a note last"
+    generateMinNoteStepsPart.backgroundColour = menuBackgroundColour
+    generateMinNoteStepsPart.textColour = menuTextColour
+    generateMinNoteStepsPart.arrowColour = menuArrowColour
+    generateMinNoteStepsPart.outlineColour = menuOutlineColour
+    generateMinNoteStepsPart.visible = false
+    generateMinNoteStepsPart.enabled = false
+    generateMinNoteStepsPart.width = (generatePolyphonyPart.width / 2) - 2
+    generateMinNoteStepsPart.x = generatePolyphonyPart.x
+    generateMinNoteStepsPart.y = generatePolyphonyPart.y + generatePolyphonyPart.height + 5
+  
+    local generateMaxNoteStepsPart = sequencerPanel:NumBox("GenerateMaxNoteSteps" .. i, 1, 1, 16, true)
+    generateMaxNoteStepsPart.displayName = "Max Steps"
+    generateMaxNoteStepsPart.tooltip = "The maximium number of steps can a note last"
+    generateMaxNoteStepsPart.backgroundColour = menuBackgroundColour
+    generateMaxNoteStepsPart.textColour = menuTextColour
+    generateMaxNoteStepsPart.arrowColour = menuArrowColour
+    generateMaxNoteStepsPart.outlineColour = menuOutlineColour
+    generateMaxNoteStepsPart.visible = false
+    generateMaxNoteStepsPart.width = generateMinNoteStepsPart.width
+    generateMaxNoteStepsPart.x = generateMinNoteStepsPart.x + generateMinNoteStepsPart.width + 4
+    generateMaxNoteStepsPart.y = generateMinNoteStepsPart.y
+    generateMaxNoteStepsPart.changed = function(self)
+      generateMinNoteStepsPart:setRange(1, self.value)
+      generateMinNoteStepsPart.enabled = self.value > 1
+    end
+  
+    local generateNoteStartStepPart = sequencerPanel:NumBox("GenerateNoteStartStep" .. i, 1, 1, (numStepsBox.value / 2), true) -- UPDATE ON numStepsBox change
+    generateNoteStartStepPart.displayName = "Start notes every n-th step"
+    generateNoteStartStepPart.tooltip = "The steps a note can start on"
+    generateNoteStartStepPart.backgroundColour = menuBackgroundColour
+    generateNoteStartStepPart.textColour = menuTextColour
+    generateNoteStartStepPart.arrowColour = menuArrowColour
+    generateNoteStartStepPart.outlineColour = menuOutlineColour
+    generateNoteStartStepPart.visible = false
+    generateNoteStartStepPart.width = generatePolyphonyPart.width
+    generateNoteStartStepPart.x = generatePolyphonyPart.x
+    generateNoteStartStepPart.y = generateMinNoteStepsPart.y + generateMinNoteStepsPart.height + 5
+
+    local generateKeyPart = sequencerPanel:Menu("GenerateKey" .. i, notenames)
+    generateKeyPart.displayName = "Key"
+    generateKeyPart.visible = false
+    generateKeyPart.width = 150
+    generateKeyPart.x = 200
+    generateKeyPart.y = positionTable.y + positionTable.height + 5
+    generateKeyPart.backgroundColour = menuBackgroundColour
+    generateKeyPart.textColour = menuTextColour
+    generateKeyPart.arrowColour = menuArrowColour
+    generateKeyPart.outlineColour = menuOutlineColour
+    generateKeyPart.changed = function (self)
+      createFullScale(i)
+      createFilteredScale(i)
+    end
+
+    local droneLowPart = sequencerPanel:Menu("DroneLow" .. i, {"No drone", "Lowest note", "Lowest root", "Lowest held", "Random held"})
+    droneLowPart.showLabel = false
+    droneLowPart.backgroundColour = menuBackgroundColour
+    droneLowPart.textColour = menuTextColour
+    droneLowPart.arrowColour = menuArrowColour
+    droneLowPart.outlineColour = menuOutlineColour
+    droneLowPart.tooltip = "Set a low drone"
+    droneLowPart.visible = false
+    droneLowPart.x = generateKeyPart.x
+    droneLowPart.y = generateKeyPart.y + generateKeyPart.height + 5
+    droneLowPart.width = generateKeyPart.width
+    droneLowPart.height = 20
+
+    local droneHighPart = sequencerPanel:Menu("DroneHigh" .. i, {"No drone", "Highest note", "Highest root", "Highest held"})
+    droneHighPart.showLabel = false
+    droneHighPart.backgroundColour = menuBackgroundColour
+    droneHighPart.textColour = menuTextColour
+    droneHighPart.arrowColour = menuArrowColour
+    droneHighPart.outlineColour = menuOutlineColour
+    droneHighPart.tooltip = "Set a high drone"
+    droneHighPart.visible = false
+    droneHighPart.x = droneLowPart.x
+    droneHighPart.y = droneLowPart.y + droneLowPart.height + 5
+    droneHighPart.width = droneLowPart.width
+    droneHighPart.height = droneLowPart.height
+  
+    local generateScalePart = sequencerPanel:Menu("GenerateScale" .. i, {"12 tone", "Major", "Minor", "Dorian", "Whole tone", "Major Pentatonic", "Minor Pentatonic", "1-4-5", "1-5", "Dim", "Fours", "Fives"})
+    generateScalePart.displayName = "Scale"
+    generateScalePart.visible = false
+    generateScalePart.width = 180
+    generateScalePart.x = 360
+    generateScalePart.y = positionTable.y + positionTable.height + 5
+    generateScalePart.backgroundColour = menuBackgroundColour
+    generateScalePart.textColour = menuTextColour
+    generateScalePart.arrowColour = menuArrowColour
+    generateScalePart.outlineColour = menuOutlineColour
+    generateScalePart.changed = function (self)
+      createFullScale(i)
+      createFilteredScale(i)
+    end
+  
+    local generateMinPart = sequencerPanel:NumBox("GenerateMin" .. i, 24, 0, 127, true)
+    generateMinPart.unit = Unit.MidiKey
+    generateMinPart.showPopupDisplay = true
+    generateMinPart.showLabel = true
+    generateMinPart.fillStyle = "solid"
+    generateMinPart.sliderColour = menuArrowColour
+    generateMinPart.displayName = "Lowest note"
+    generateMinPart.visible = false
+    generateMinPart.x = generateScalePart.x
+    generateMinPart.y = generateScalePart.y + generateScalePart.height + 5
+    generateMinPart.width = generateScalePart.width
+
+    local generateMaxPart = sequencerPanel:NumBox("GenerateMax" .. i, 84, 0, 127, true)
+    generateMaxPart.unit = Unit.MidiKey
+    generateMaxPart.showPopupDisplay = true
+    generateMaxPart.showLabel = true
+    generateMaxPart.fillStyle = "solid"
+    generateMaxPart.sliderColour = menuArrowColour
+    generateMaxPart.displayName = "Highest note"
+    generateMaxPart.visible = false
+    generateMaxPart.x = generateMinPart.x
+    generateMaxPart.y = generateMinPart.y + generateMinPart.height + 5
+    generateMaxPart.width = generateMinPart.width
+
+    generateMinPart.changed = function(self)
+      createFilteredScale(i)
+      generateMaxPart:setRange(self.value+1, 127)
+    end
+
+    generateMaxPart.changed = function(self)
+      createFilteredScale(i)
+      generateMinPart:setRange(0, self.value-1)
+    end
+
+    table.insert(paramsPerPart, {polyphony=generatePolyphonyPart,fullScale={},filteredScale={},scale=generateScalePart,key=generateKeyPart,droneLow=droneLowPart,droneHigh=droneHighPart,minNote=generateMinPart,maxNote=generateMaxPart,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,noteStartStep=generateNoteStartStepPart,init=i==1})
+  end
+
+  editPartMenu:changed()
+
+  function createFilteredScale(part)
+    paramsPerPart[part].filteredScale = {}
+    if #paramsPerPart[part].fullScale > 0 then
+      -- Filter out notes outside min/max
+      local minNote = paramsPerPart[part].minNote.value
+      local maxNote = paramsPerPart[part].maxNote.value  
+      for i=1,#paramsPerPart[part].fullScale do
+        if paramsPerPart[part].fullScale[i] >= minNote and paramsPerPart[part].fullScale[i] <= maxNote then
+          table.insert(paramsPerPart[part].filteredScale, paramsPerPart[part].fullScale[i])
+        end
+      end
+    end
+    print("Filtered scale contains notes:", #paramsPerPart[part].filteredScale)
+  end
+
+  function createFullScale(part)
+    paramsPerPart[part].fullScale = {}
+    if paramsPerPart[part].scale.value == 1 then
+      return
+    end
+    -- Find scale definition
+    local definition = scaleDefinitions[paramsPerPart[part].scale.value]
+    -- Find root note
+    local root = paramsPerPart[part].key.value - 1
+    -- Find notes for scale
+    local pos = 0
+    while root < 128 do
+      table.insert(paramsPerPart[part].fullScale, root)
+      pos = pos + 1
+      root = root + definition[pos]
+      if pos == #definition then
+        pos = 0
+      end
+    end
+    print("Full scale contains notes:", #paramsPerPart[part].fullScale)
+  end
+
+  function isRootNote(note, currentPartPosition)
+    -- Find root note index
+    local rootIndex = paramsPerPart[currentPartPosition].key.value
+    local noteIndex = note + 1 -- note index is 1 higher than note number
+    print("Check isRootNote", rootIndex-1, note, noteNumberToNoteName[rootIndex], noteNumberToNoteName[noteIndex])
+    return noteNumberToNoteName[rootIndex] == noteNumberToNoteName[noteIndex]
   end
 
   function notesInclude(notesTable, note)
@@ -710,23 +748,11 @@ function createTwequencerPanel()
     return false
   end
 
-  function generateNoteToPlay()
-    if #filteredScale > 0 then
-      local pos = getRandom(#filteredScale)
-      return filteredScale[pos]
-    end
-
-    local minNote = math.min(generateMin.value, generateMax.value)
-    local maxNote = math.max(generateMin.value, generateMax.value)
-    return getRandom(minNote, maxNote)
-  end
-
   function arpeg(arpId_)
     local index = 0
     local currentStep = 0 -- Holds the current step in the round that is being played
     local notes = {} -- Holds the playing notes - notes are removed when they are finished playing
     local heldNoteIndex = 0
-    local tweakablesIndex = 0
     local stepDuration = getResolution(resolution.value)
     local roundDuration = stepDuration * numStepsBox.value * numPartsBox.value
     -- If a fixed round duration is selected, get the resolution
@@ -741,7 +767,6 @@ function createTwequencerPanel()
       local numSteps = numStepsPerPart * numParts
       local currentPosition = (index % numSteps) + 1 -- 11 % 4 = 3
       local currentPartPosition = math.floor(index / numStepsPerPart) + 1 -- 5 / 4 = 1.25 = 1 + 1 = 2
-      local tweakablesForTwequencer = {}
       local sequencerMode = sequencerPlayMenu.value
 
       -- Increment step counter
@@ -751,22 +776,25 @@ function createTwequencerPanel()
       end
 
       -- Check if we are at the start of a part
-      if index % numStepsPerPart == 0 and partRandomizationAmount > 0 then
+      local startOfPart = index % numStepsPerPart == 0
+      if startOfPart then
         print("Start of part!")
-        -- Randomize parts within the set limit
-        print("currentPartPosition before", currentPartPosition)
-        print("currentPosition before", currentPosition)
-        print("index before", index)
-        currentPartPosition = getRandom(numParts)
-        -- Find the current pos and index
-        currentPosition = (numStepsPerPart * currentPartPosition) - (numStepsPerPart - 1)
-        index = currentPosition - 1
-        print("currentPartPosition after", currentPartPosition)
-        print("currentPosition after", currentPosition)
-        print("index after", index)
+        if partRandomizationAmount > 0 then
+          -- Randomize parts within the set limit
+          print("currentPartPosition before", currentPartPosition)
+          print("currentPosition before", currentPosition)
+          print("index before", index)
+          currentPartPosition = getRandom(numParts)
+          -- Find the current pos and index
+          currentPosition = (numStepsPerPart * currentPartPosition) - (numStepsPerPart - 1)
+          index = currentPosition - 1
+          print("currentPartPosition after", currentPartPosition)
+          print("currentPosition after", currentPosition)
+          print("index after", index)
+        end
       end
 
-      -- Randomize gate and velocity at pos 1
+      -- Randomize gate and velocity for each round
       if currentStep == 1 then
         -- Get step duration
         local i = getResolutionIndex(resolution.value)
@@ -847,21 +875,22 @@ function createTwequencerPanel()
       local gate = seqGateTable:getValue(currentPosition) / 100 -- get gate
       local pitchAdjustment = seqPitchTable:getValue(currentPosition)
       local tieNext = tieStepTable:getValue(currentPosition)
-      local tweakDuration = stepDuration * (numSteps - 1)
 
-      print("Current index:", index)
+      --[[ print("Current index:", index)
       print("Steps:", numSteps)
       print("Steps per part:", numStepsPerPart)
       print("Current step pos:", currentPosition)
       print("Parts:", numParts)
       print("Current part pos:", currentPartPosition)
-      print("Snapshot pos:", snapshotPosition)
       print("Step duration:", stepDuration)
-      print("Round duration:", roundDuration)
-      print("Tweak duration:", tweakDuration)
+      print("Round duration:", roundDuration) ]]
 
       -- Check prevoius step for tie - do not play note if tied from prev note!
-      local shouldAddNote = tieStepTable:getValue(currentPosition - 1) ~= 1 or sequencerMode == 8 -- ALways true in generate mode
+      local shouldAddNote = tieStepTable:getValue(currentPosition - 1) ~= 1
+
+      if sequencerMode == 1 then
+        shouldAddNote = (currentPosition - 1) % paramsPerPart[currentPartPosition].noteStartStep.value == 0
+      end
 
       -- If gate is zero no notes will play on this step
       if gate > 0 and shouldAddNote == true then
@@ -881,10 +910,7 @@ function createTwequencerPanel()
             tmp = tmp + 1
           end
         end
-        -- ALTERNATE alternates between the other sequencer modes, except generate
-        if sequencerMode == 7 then
-          sequencerMode = getRandom(2,6)
-        end
+        -- {"Generate", "Mono", "As played", "Random", "Chord", "Random Chord", "Off"}
         if sequencerMode == 2 then -- MONO
           -- MONO plays the last note in held notes
           heldNoteIndex = #heldNotes
@@ -920,27 +946,40 @@ function createTwequencerPanel()
               end
             end
           end
-        elseif sequencerMode == 8 then -- GENERATE
+        elseif sequencerMode == 1 then -- GENERATE
           -- GENERATE plays random notes from the selected scale
           -- Number of simultainious notes are set by generatePolyphony
-          local numberOfNotes = generatePolyphony.value -- Default is "mono"
-          if numberOfNotes > 1 and generateMaxNoteSteps.value > 1 then
-            numberOfNotes = getRandom(generatePolyphony.value)
+          local polyphony = paramsPerPart[currentPartPosition].polyphony.value
+          local minNote = paramsPerPart[currentPartPosition].minNote.value
+          local maxNote = paramsPerPart[currentPartPosition].maxNote.value
+          local minNoteSteps = paramsPerPart[currentPartPosition].minNoteSteps.value
+          local maxNoteSteps = paramsPerPart[currentPartPosition].maxNoteSteps.value
+          local numberOfNotes = polyphony -- Default is "mono"
+          if numberOfNotes > 1 and maxNoteSteps > 1 then
+            numberOfNotes = getRandom(polyphony)
           end
           -- On step one, always add the base note first (unless low drone is active) (setting for this?)
-          local isLowDroneActive = droneMenu.visible and droneMenu.value > 1
-          if currentStep == 1 and isLowDroneActive == false and notesInclude(notes, generateMin.value) == false then
-            noteSteps = getRandom(generateMinNoteSteps.value,generateMaxNoteSteps.value)
-            table.insert(notes, {note=generateMin.value,gate=gate,vel=vel,steps=noteSteps,stepCounter=0})
+          if currentStep == 1 and notesInclude(notes, minNote) == false and getRandomBoolean(baseNoteProbability) then
+            noteSteps = getRandom(minNoteSteps,maxNoteSteps)
+            table.insert(notes, {note=minNote,gate=gate,vel=vel,steps=noteSteps,stepCounter=0})
           end
           -- Check how many notes are already playing, and remove number from numberOfNotes if more than max polyphony
-          if numberOfNotes + #notes > generatePolyphony.value then
+          if numberOfNotes + #notes > polyphony then
             numberOfNotes = numberOfNotes - #notes
           end
+
+          function generateNoteToPlay(currentPartPosition)
+            if #paramsPerPart[currentPartPosition].filteredScale > 0 then
+              local pos = getRandom(#paramsPerPart[currentPartPosition].filteredScale)
+              return paramsPerPart[currentPartPosition].filteredScale[pos]
+            end
+            return getRandom(minNote, maxNote)
+          end      
+
           for i=1,numberOfNotes do
-            local noteToPlay = generateNoteToPlay()
+            local noteToPlay = generateNoteToPlay(currentPartPosition)
             if notesInclude(notes, noteToPlay) == false then
-              noteSteps = getRandom(generateMinNoteSteps.value,generateMaxNoteSteps.value)
+              noteSteps = getRandom(minNoteSteps,maxNoteSteps)
               table.insert(notes, {note=noteToPlay,gate=gate,vel=vel,steps=noteSteps,stepCounter=0})
               print("Insert to notes note/steps/gate", noteToPlay, noteSteps, gate)
             end
@@ -948,31 +987,31 @@ function createTwequencerPanel()
         end
       end
 
-      -- PLAY DRONE(S) ON POS 1 HOLDING ALL STEPS
-      local isLowDroneActive = droneMenu.visible and droneMenu.value > 1
-      local isHighDroneActive = droneHighMenu.visible and droneHighMenu.value > 1
-      if currentStep == 1 and (isLowDroneActive or isHighDroneActive) then
+      -- PLAY DRONE(S) ON START OF PART HOLDING ALL PART
+      local isLowDroneActive = paramsPerPart[currentPartPosition].droneLow.visible and paramsPerPart[currentPartPosition].droneLow.value > 1
+      local isHighDroneActive = paramsPerPart[currentPartPosition].droneHigh.visible and paramsPerPart[currentPartPosition].droneHigh.value > 1
+      if startOfPart and (isLowDroneActive or isHighDroneActive) then
         -- 2 = lowest, 3 = lowest in scale, 4 = lowest held
-        local droneDuration = beat2ms(roundDuration)
-        local minNote = generateMin.value
-        local maxNote = generateMax.value
-        
+        local droneDuration = beat2ms(roundDuration / numParts)
+        local minNote = paramsPerPart[currentPartPosition].minNote.value
+        local maxNote = paramsPerPart[currentPartPosition].maxNote.value
+      
         -- PLAY LOW DRONE ---
         -- Options: {"Off", "Lowest note", "Lowest root", "Lowest held", "Random held"}
         local droneNoteLow = minNote -- default lowest
         if isLowDroneActive then
-          if droneMenu.value == 3 then
+          if paramsPerPart[currentPartPosition].droneLow.value == 3 then
             -- Get lowest root note in scale
-            while(isRootNote(droneNoteLow) == false and droneNoteLow <= maxNote)
+            while(isRootNote(droneNoteLow, currentPartPosition) == false and droneNoteLow <= maxNote)
             do
               droneNoteLow = droneNoteLow + 1 -- increment note
             end
-          elseif droneMenu.value == 4 then
+          elseif paramsPerPart[currentPartPosition].droneLow.value == 4 then
             -- Get the lowest held note
             if #heldNotes > 0 then
               droneNoteLow = heldNotes[1].note
             end
-          elseif droneMenu.value == 5 then
+          elseif paramsPerPart[currentPartPosition].droneLow.value == 5 then
             -- Random - get a random note from held notes
             if #heldNotes > 0 then
               droneNoteLow = heldNotes[getRandom(#heldNotes)].note
@@ -985,13 +1024,13 @@ function createTwequencerPanel()
         -- PLAY HIGH DRONE ---
         local droneNoteHigh = maxNote -- default highest
         if isHighDroneActive then
-          if droneHighMenu.value == 3 then
+          if paramsPerPart[currentPartPosition].droneHigh.value == 3 then
             -- Get highest root note in scale
-            while(isRootNote(droneNoteHigh) == false and droneNoteHigh >= minNote)
+            while(isRootNote(droneNoteHigh, currentPartPosition) == false and droneNoteHigh >= minNote)
             do
               droneNoteHigh = droneNoteHigh - 1 -- decrement note
             end
-          elseif droneHighMenu.value == 4 then
+          elseif paramsPerPart[currentPartPosition].droneHigh.value == 4 then
             -- Get the highest held note
             droneNoteHigh = heldNotes[#heldNotes].note
           end
@@ -1041,7 +1080,7 @@ function createTwequencerPanel()
   end
 
   function onNote(e)
-    if sequencerPlayMenu.value > 1 then
+    if sequencerPlayMenu.value < 7 then
       if holdButton.value == true then
         for i,v in ipairs(heldNotes) do
           if v.note == e.note then
@@ -1054,7 +1093,6 @@ function createTwequencerPanel()
       end
       table.insert(heldNotes, e)
       if #heldNotes == 1 then
-          -- wait(10) -- Short delay to ensure all notes are included before starting the arpeggiator
           arpeg(arpId)
       end
     else
@@ -1074,20 +1112,13 @@ function createTwequencerPanel()
           break
         end
       end
-      if automaticSequencerRunning == true then
-        arpeggiatorButton.value = false
-        automaticSequencerRunning = false
-      end
     end
     postEvent(e)
   end
 
-  return tweqPanel
+  return sequencerPanel
 end
 
-local tweqPanel = createTwequencerPanel()
-
+createSequencerPanel()
 setBackgroundColour("#4f4f4f")
---setBackground("./resources/conchillos.jpg")
-
 makePerformanceView()
