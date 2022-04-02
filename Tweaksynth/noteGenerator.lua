@@ -170,6 +170,7 @@ end
 
 function createSequencerPanel()
   local arpId = 0
+  local partToStepMap = {1} -- Holds the starting step for each part
   local velocityRandomizationAmount = 0
   local gateRandomizationAmount = 0
   local partRandomizationAmount = 0
@@ -206,7 +207,7 @@ function createSequencerPanel()
   partsTable.x = 0
   partsTable.y = 0
 
-  local positionTable = sequencerPanel:Table("Position", 4, 0, 0, 1, true)
+  local positionTable = sequencerPanel:Table("Position", 1, 0, 0, 1, true)
   positionTable.enabled = false
   positionTable.persistent = false
   positionTable.fillStyle = "solid"
@@ -231,7 +232,7 @@ function createSequencerPanel()
     for i=1, totalNumSteps do
       positionTable:setValue(i, 0)
     end
-    for i=1, numPartsBox.value do
+    for i=1, totalNumSteps do
       partsTable:setValue(i, 0)
     end
   end
@@ -329,7 +330,7 @@ function createSequencerPanel()
     for i=1, self.value do
       setNumSteps(i)
     end
-    partsTable.length = self.value
+    --partsTable.length = self.value
 
     local partSelect = {}
     for i=1,self.value do
@@ -410,22 +411,18 @@ function createSequencerPanel()
     local stepDuration = getResolution(paramsPerPart[index].stepResolution.value)
     paramsPerPart[index].numSteps = partDuration / stepDuration
     print("stepDuration/partDuration/numSteps", stepDuration,partDuration,paramsPerPart[index].numSteps)
-    for i=1, numPartsBox.value do
-      -- Set resolution and num steps on all parts for now
-      if i ~= index then
-        paramsPerPart[i].numSteps = paramsPerPart[index].numSteps
-        paramsPerPart[i].partResolution.value = paramsPerPart[index].partResolution.value
-        paramsPerPart[i].stepResolution.value = paramsPerPart[index].stepResolution.value
-      end
-    end
+    partToStepMap = {} -- Reset
     totalNumSteps = 0
     for i=1, numPartsBox.value do
       paramsPerPart[i].noteStartStep:setRange(1, math.ceil(paramsPerPart[i].numSteps / 2))
+      table.insert(partToStepMap, (totalNumSteps + 1))
+      print("Updated partToStepMap part/step", i, (totalNumSteps + 1))
       totalNumSteps = totalNumSteps + paramsPerPart[i].numSteps
     end
     seqVelTable.length = totalNumSteps
     seqGateTable.length = totalNumSteps
     positionTable.length = totalNumSteps
+    partsTable.length = totalNumSteps
     clearPosition()
   end
 
@@ -669,6 +666,7 @@ function createSequencerPanel()
   function arpeg(arpId_)
     local index = 0
     local currentStep = 0 -- Holds the current step in the round that is being played
+    local currentPartPosition = 0 -- Holds the currently playing part
     local notes = {} -- Holds the playing notes - notes are removed when they are finished playing
     local heldNoteIndex = 0
     -- START ARP LOOP
@@ -676,8 +674,19 @@ function createSequencerPanel()
       -- SET VALUES
       local numParts = numPartsBox.value
       local currentPosition = (index % totalNumSteps) + 1 -- 11 % 4 = 3
-      local numStepsInPart = paramsPerPart[1].numSteps -- GET FROM FIRST
-      local currentPartPosition = math.floor(index / numStepsInPart) + 1 -- 5 / 4 = 1.25 = 1 + 1 = 2
+      print("currentPosition", currentPosition)
+      -- Set part position
+      local startOfPart = false
+      for pp,sp in ipairs(partToStepMap) do
+        if sp == currentPosition then
+          currentPartPosition = pp
+          print("Set currentPartPosition", currentPartPosition)
+          startOfPart = true
+          break
+        end
+      end
+      local numStepsInPart = paramsPerPart[currentPartPosition].numSteps
+      --local currentPartPosition = math.floor(index / numStepsInPart) + 1 -- 5 / 4 = 1.25 = 1 + 1 = 2
 
       -- Increment step counter
       currentStep = currentStep + 1
@@ -686,7 +695,6 @@ function createSequencerPanel()
       end
 
       -- Check if we are at the start of a part
-      local startOfPart = index % numStepsInPart == 0
       if startOfPart and partRandomizationAmount > 0 then
         -- Randomize parts within the set limit
         print("currentPartPosition before", currentPartPosition)
@@ -694,7 +702,7 @@ function createSequencerPanel()
         print("index before", index)
         currentPartPosition = getRandom(numParts)
         -- Find the current pos and index
-        currentPosition = (numStepsInPart * currentPartPosition) - (numStepsInPart - 1)
+        currentPosition = partToStepMap[currentPartPosition]
         index = currentPosition - 1
         print("currentPartPosition after", currentPartPosition)
         print("currentPosition after", currentPosition)
@@ -707,15 +715,15 @@ function createSequencerPanel()
       if currentStep == 1 then
         -- Randomize gate within the set limit
         if gateRandomizationAmount > 0 then
-          print("gateRandomizationAmount", gateRandomizationAmount)
+          --print("gateRandomizationAmount", gateRandomizationAmount)
           local changeMax = math.ceil(seqGateTable.max * gateRandomizationAmount)
-          print("seqGateTable.min", seqGateTable.min)
-          print("seqGateTable.max", seqGateTable.max)
-          print("changeMax", changeMax)
+          --print("seqGateTable.min", seqGateTable.min)
+          --print("seqGateTable.max", seqGateTable.max)
+          --print("changeMax", changeMax)
           for i=1,numStepsInPart do
             if getRandomBoolean() then
               local currentVal = seqGateTable:getValue(i)
-              print("currentVal", currentVal)
+              --print("currentVal", currentVal)
               local min = currentVal - changeMax
               local max = currentVal + changeMax
               if min < seqGateTable.min then
@@ -724,22 +732,22 @@ function createSequencerPanel()
               if max > seqGateTable.max then
                 max = seqGateTable.max
               end
-              print("seqGateTable:setValue(i, getRandom(min, max))", i, min, max)
+              --print("seqGateTable:setValue(i, getRandom(min, max))", i, min, max)
               seqGateTable:setValue(i, getRandom(min, max))
             end
           end
         end
         -- Randomize vel within the set limit
         if velocityRandomizationAmount > 0 then
-          print("velocityRandomizationAmount", velocityRandomizationAmount)
+          --print("velocityRandomizationAmount", velocityRandomizationAmount)
           local changeMax = math.ceil(seqVelTable.max * velocityRandomizationAmount)
-          print("seqVelTable.min", seqVelTable.min)
-          print("seqVelTable.max", seqVelTable.max)
-          print("changeMax", changeMax)
+          --print("seqVelTable.min", seqVelTable.min)
+          --print("seqVelTable.max", seqVelTable.max)
+          --print("changeMax", changeMax)
           for i=1,numStepsInPart do
             if getRandomBoolean() then
               local currentVal = seqVelTable:getValue(i)
-              print("currentVal", currentVal)
+              --print("currentVal", currentVal)
               local min = currentVal - changeMax
               local max = currentVal + changeMax
               if min < seqVelTable.min then
@@ -748,7 +756,7 @@ function createSequencerPanel()
               if max > seqVelTable.max then
                 max = seqVelTable.max
               end
-              print("seqVelTable:setValue(i, getRandom(min, max))", i, min, max)
+              --print("seqVelTable:setValue(i, getRandom(min, max))", i, min, max)
               seqVelTable:setValue(i, getRandom(min, max))
             end
           end
@@ -808,7 +816,7 @@ function createSequencerPanel()
           if notesInclude(notes, noteToPlay) == false then
             local noteSteps = getRandom(minNoteSteps,maxNoteSteps)
             table.insert(notes, {note=noteToPlay,gate=gate,vel=vel,steps=noteSteps,stepCounter=0})
-            print("Insert to notes note/steps/gate", noteToPlay, noteSteps, gate)
+            --print("Insert to notes note/steps/gate", noteToPlay, noteSteps, gate)
           end
         end
       end
@@ -868,18 +876,18 @@ function createSequencerPanel()
       end
 
       -- PLAY NOTE(S)
-      print("Ready to play notes", #notes)
+      --print("Ready to play notes", #notes)
       for _,note in ipairs(notes) do
-        print("Check note/stepCounter", note.note, note.stepCounter)
+        --print("Check note/stepCounter", note.note, note.stepCounter)
         -- Start playing when step counter is 0 (add an extra check for gate even though no notes should be added when gate is zero)
         if note.stepCounter == 0 and note.gate > 0 then
           -- Play the note for the number of steps that are set
           playNote(note.note, note.vel, beat2ms(stepDuration * note.gate * note.steps))
-          print("Playing note/stepDuration/steps", note.note, stepDuration * note.gate, note.steps)
+          --print("Playing note/stepDuration/steps", note.note, stepDuration * note.gate, note.steps)
         end
         -- Increment step counter
         note.stepCounter = note.stepCounter + 1
-        print("Increment note step counter", note.stepCounter)
+        --print("Increment note step counter", note.stepCounter)
       end
 
       -- REMOVE COMPLETED NOTES
@@ -892,11 +900,26 @@ function createSequencerPanel()
       end
       notes = keep -- Refresh notes table
 
-      clearPosition()
-      -- UPDATE POSITION TABLE
-      positionTable:setValue(currentPosition, 1)
-      -- UPDATE PART TABLE
-      partsTable:setValue(currentPartPosition, 1)
+      -- UPDATE STEP POSITION TABLE
+      for i=1, totalNumSteps do
+        local val = 0
+        if i == currentPosition then
+          val = 1
+        end
+        positionTable:setValue(i, val)
+      end
+      -- UPDATE PART POSITION TABLE
+      if startOfPart then
+        local startStep = partToStepMap[currentPartPosition]
+        local endStep = startStep + numStepsInPart
+        for i=1, totalNumSteps do
+          local val = 0
+          if i >= startStep and i < endStep then
+            val = 1
+          end
+          partsTable:setValue(i, val)
+        end
+      end
       -- INCREMENT POSITION
       index = (index + 1) % totalNumSteps -- increment position
 
