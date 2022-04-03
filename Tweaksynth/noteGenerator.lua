@@ -2,18 +2,11 @@
 -- GENEREATIVE SEQUENCER
 --------------------------------------------------------------------------------
 
-local buttonBackgroundColourOff = "#ff084486"
-local buttonBackgroundColourOn = "#ff02ACFE"
-local buttonTextColourOff = "#ff22FFFF"
-local buttonTextColourOn = "#efFFFFFF"
-
 local outlineColour = "#FFB5FF"
-local bgColor = "00000000"
-local knobColour = "#dd000061"
 local menuBackgroundColour = "#bf01011F"
 local menuTextColour = "#9f02ACFE"
 local menuArrowColour = "#9f09A3F4"
-local menuOutlineColour = bgColor
+local menuOutlineColour = "00000000"
 
 -- Helper functions
 
@@ -51,8 +44,6 @@ function getTriplet(value)
   return value  / 3
 end
 
-local selectedArpResolutions = {} -- Must be at the global level
-local selectedSeqResolutions = {} -- Must be at the global level
 local resolutions = {
   128, -- "32x" -- 0
   64, -- "16x" -- 1
@@ -60,7 +51,7 @@ local resolutions = {
   28, -- "7x" -- 3
   24, -- "6x" -- 4
   20, -- "5x" -- 5
-  16, -- "4x" -- 6 <---- FROM HERE: ADD 1 to index to get arp res
+  16, -- "4x" -- 6
   12, -- "3x" -- 7
   8, -- "2x" -- 8
   6, -- "1/1 dot" -- 9
@@ -118,50 +109,8 @@ local resolutionNames = {
   "1/64 tri" -- 29
 }
 
- function getResolutionIndex(i)
-  if i > #resolutions then
-    -- If Random is selected, we pick one of the selected resolutions
-    local activeResolutions = {}
-    for j,v in ipairs(selectedSeqResolutions) do
-      if v == true then
-        table.insert(activeResolutions, j)
-      end
-    end
-    if #activeResolutions > 0 then
-      i = activeResolutions[getRandom(#activeResolutions)]
-      print("activeResolutions", #activeResolutions, i, resolutionNames[i])
-    else
-      i = getRandom(#resolutions)
-    end
-  end
-  return i
-end
-
 function getResolution(i)
-  i = getResolutionIndex(i)
-  print("getResolution", resolutionNames[i])
   return resolutions[i]
-end
-
-function getResolutionName(i)
-  return resolutionNames[i]
-end
-
-function getResolutionNames(options)
-  local res = {}
-
-  for _,r in ipairs(resolutionNames) do
-    table.insert(res, r)
-  end
-
-  -- Add any options
-  if type(options) == "table" then
-    for _,o in ipairs(options) do
-      table.insert(res, o)
-    end
-  end
-
-  return res
 end
 
 --------------------------------------------------------------------------------
@@ -190,7 +139,7 @@ function createSequencerPanel()
   end
   
   local sequencerPanel = Panel("Sequencer")
-  sequencerPanel.backgroundColour = bgColor
+  sequencerPanel.backgroundColour = menuOutlineColour
   sequencerPanel.x = 10
   sequencerPanel.y = 10
   sequencerPanel.width = 700
@@ -200,8 +149,8 @@ function createSequencerPanel()
   partsTable.enabled = false
   partsTable.persistent = false
   partsTable.fillStyle = "solid"
-  partsTable.backgroundColour = menuArrowColour
-  partsTable.sliderColour = outlineColour
+  partsTable.backgroundColour = "#1f09A3F4"
+  partsTable.sliderColour = "#5FB5FF"
   partsTable.width = 700
   partsTable.height = 10
   partsTable.x = 0
@@ -238,12 +187,12 @@ function createSequencerPanel()
   end
 
   local holdButton = sequencerPanel:OnOffButton("HoldOnOff", false)
-  holdButton.backgroundColourOff = buttonBackgroundColourOff
-  holdButton.backgroundColourOn = buttonBackgroundColourOn
-  holdButton.textColourOff = buttonTextColourOff
-  holdButton.textColourOn = buttonTextColourOn
+  holdButton.backgroundColourOff = "#ff084486"
+  holdButton.backgroundColourOn = "#ff02ACFE"
+  holdButton.textColourOff = "#ff22FFFF"
+  holdButton.textColourOn = "#efFFFFFF"
   holdButton.displayName = "Hold"
-  holdButton.fillColour = knobColour
+  holdButton.fillColour = "#dd000061"
   holdButton.size = {50,30}
   holdButton.x = 650
   holdButton.y = 290
@@ -266,7 +215,7 @@ function createSequencerPanel()
   seqVelTable.x = positionTable.x
   seqVelTable.y = 130
 
-  local seqGateTable = sequencerPanel:Table("Gate", totalNumSteps, 100, 0, 100, true)
+  local seqGateTable = sequencerPanel:Table("Gate", totalNumSteps, 100, 0, 110, true)
   seqGateTable.tooltip = "Set step gate length. Randomization available in settings."
   seqGateTable.showPopupDisplay = true
   seqGateTable.showLabel = true
@@ -290,7 +239,7 @@ function createSequencerPanel()
   generateKey.outlineColour = menuOutlineColour
 
   -- Handle scales
-  local scaleDefinitions = {{1},{2,2,1,2,2,2,1}, {2,1,2,2,1,2,2}, {2,1,2,2,2,1,2}, {2}, {2,2,3,2,3}, {3,2,2,3,2}, {5,2,5}, {7,5}, {3}, {5}, {7}}
+  local scaleDefinitions = {{1},{2,2,1,2,2,2,1}, {2,1,2,2,1,2,2}, {2,1,2,2,2,1,2}, {2}, {2,2,3,2,3}, {3,2,2,3,2}, {5,2,5}, {7,5}, {12}, {3}, {5}, {7}}
   local paramsPerPart = {}
   local partSelect = {}
   for i=1,numPartsBox.value do
@@ -322,7 +271,6 @@ function createSequencerPanel()
       v.scale.visible = isVisible
       v.droneLow.visible = isVisible
       v.droneHigh.visible = isVisible
-      v.noteStartStep.visible = isVisible
     end
   end
 
@@ -330,7 +278,6 @@ function createSequencerPanel()
     for i=1, self.value do
       setNumSteps(i)
     end
-    --partsTable.length = self.value
 
     local partSelect = {}
     for i=1,self.value do
@@ -348,7 +295,6 @@ function createSequencerPanel()
         paramsPerPart[i].maxNote.value = prev.maxNote.value
         paramsPerPart[i].minNoteSteps.value = prev.minNoteSteps.value
         paramsPerPart[i].maxNoteSteps.value = prev.maxNoteSteps.value
-        paramsPerPart[i].noteStartStep.value = prev.noteStartStep.value
         paramsPerPart[i].partResolution.value = prev.partResolution.value
         paramsPerPart[i].stepResolution.value = prev.stepResolution.value
         paramsPerPart[i].numSteps = prev.numSteps
@@ -378,7 +324,7 @@ function createSequencerPanel()
   gateRandKnob.tooltip = "Amount of radomization applied to sequencer gate"
   gateRandKnob.unit = Unit.PercentNormalized
   gateRandKnob.width = 100
-  gateRandKnob.x = velRandKnob.x + velRandKnob.width + 20
+  gateRandKnob.x = velRandKnob.x + velRandKnob.width + 25
   gateRandKnob.y = seqGateTable.y + seqGateTable.height + 5
   gateRandKnob.changed = function(self)
     gateRandomizationAmount = self.value
@@ -389,7 +335,7 @@ function createSequencerPanel()
   partRandKnob.tooltip = "Amount of radomization applied to parts"
   partRandKnob.unit = Unit.Percent
   partRandKnob.width = 90
-  partRandKnob.x = gateRandKnob.x + gateRandKnob.width + 20
+  partRandKnob.x = gateRandKnob.x + gateRandKnob.width + 25
   partRandKnob.y = seqGateTable.y + seqGateTable.height + 5
   partRandKnob.changed = function(self)
     partRandomizationAmount = self.value
@@ -399,8 +345,8 @@ function createSequencerPanel()
   baseNoteRandKnob.displayName = "Base note"
   baseNoteRandKnob.tooltip = "Probability that first note in part will be the base note"
   baseNoteRandKnob.unit = Unit.Percent
-  baseNoteRandKnob.width = 100
-  baseNoteRandKnob.x = partRandKnob.x + partRandKnob.width + 20
+  baseNoteRandKnob.width = 110
+  baseNoteRandKnob.x = partRandKnob.x + partRandKnob.width + 25
   baseNoteRandKnob.y = seqGateTable.y + seqGateTable.height + 5
   baseNoteRandKnob.changed = function(self)
     baseNoteProbability = self.value
@@ -409,14 +355,14 @@ function createSequencerPanel()
   function setNumSteps(index)
     local partDuration = getResolution(paramsPerPart[index].partResolution.value)
     local stepDuration = getResolution(paramsPerPart[index].stepResolution.value)
-    paramsPerPart[index].numSteps = partDuration / stepDuration
-    print("stepDuration/partDuration/numSteps", stepDuration,partDuration,paramsPerPart[index].numSteps)
+    local numSteps = partDuration / stepDuration
+    paramsPerPart[index].numSteps = numSteps
+    --print("part/stepDuration/partDuration/numSteps", index, stepDuration, partDuration, numSteps)
     partToStepMap = {} -- Reset
     totalNumSteps = 0
     for i=1, numPartsBox.value do
-      paramsPerPart[i].noteStartStep:setRange(1, math.ceil(paramsPerPart[i].numSteps / 2))
       table.insert(partToStepMap, (totalNumSteps + 1))
-      print("Updated partToStepMap part/step", i, (totalNumSteps + 1))
+      --print("Updated partToStepMap part/step/numSteps", i, (totalNumSteps + 1), paramsPerPart[i].numSteps)
       totalNumSteps = totalNumSteps + paramsPerPart[i].numSteps
     end
     seqVelTable.length = totalNumSteps
@@ -449,7 +395,7 @@ function createSequencerPanel()
     generateMinNoteStepsPart.outlineColour = menuOutlineColour
     generateMinNoteStepsPart.visible = false
     generateMinNoteStepsPart.enabled = false
-    generateMinNoteStepsPart.width = (generatePolyphonyPart.width / 2) - 2
+    generateMinNoteStepsPart.width = generatePolyphonyPart.width
     generateMinNoteStepsPart.x = generatePolyphonyPart.x
     generateMinNoteStepsPart.y = generatePolyphonyPart.y + generatePolyphonyPart.height + 5
   
@@ -462,24 +408,12 @@ function createSequencerPanel()
     generateMaxNoteStepsPart.outlineColour = menuOutlineColour
     generateMaxNoteStepsPart.visible = false
     generateMaxNoteStepsPart.width = generateMinNoteStepsPart.width
-    generateMaxNoteStepsPart.x = generateMinNoteStepsPart.x + generateMinNoteStepsPart.width + 4
-    generateMaxNoteStepsPart.y = generateMinNoteStepsPart.y
+    generateMaxNoteStepsPart.x = generateMinNoteStepsPart.x
+    generateMaxNoteStepsPart.y = generateMinNoteStepsPart.y + generateMinNoteStepsPart.height + 5
     generateMaxNoteStepsPart.changed = function(self)
       generateMinNoteStepsPart:setRange(1, self.value)
       generateMinNoteStepsPart.enabled = self.value > 1
     end
-  
-    local generateNoteStartStepPart = sequencerPanel:NumBox("GenerateNoteStartStep" .. i, 1, 1, 1, true) -- UPDATE ON numStepsBox change
-    generateNoteStartStepPart.displayName = "Start notes every n-th step"
-    generateNoteStartStepPart.tooltip = "The steps a note can start on"
-    generateNoteStartStepPart.backgroundColour = menuBackgroundColour
-    generateNoteStartStepPart.textColour = menuTextColour
-    generateNoteStartStepPart.arrowColour = menuArrowColour
-    generateNoteStartStepPart.outlineColour = menuOutlineColour
-    generateNoteStartStepPart.visible = false
-    generateNoteStartStepPart.width = generatePolyphonyPart.width
-    generateNoteStartStepPart.x = generatePolyphonyPart.x
-    generateNoteStartStepPart.y = generateMinNoteStepsPart.y + generateMinNoteStepsPart.height + 5
 
     local generateKeyPart = sequencerPanel:Menu("GenerateKey" .. i, notenames)
     generateKeyPart.displayName = "Key"
@@ -522,7 +456,7 @@ function createSequencerPanel()
     droneHighPart.width = droneLowPart.width
     droneHighPart.height = droneLowPart.height
   
-    local generateScalePart = sequencerPanel:Menu("GenerateScale" .. i, {"12 tone", "Major", "Minor", "Dorian", "Whole tone", "Major Pentatonic", "Minor Pentatonic", "1-4-5", "1-5", "Dim", "Fours", "Fives"})
+    local generateScalePart = sequencerPanel:Menu("GenerateScale" .. i, {"12 tone", "Major", "Minor", "Dorian", "Whole tone", "Major Pentatonic", "Minor Pentatonic", "1-4-5", "1-5", "1", "Dim", "Fours", "Fives"})
     generateScalePart.displayName = "Scale"
     generateScalePart.visible = false
     generateScalePart.width = 185
@@ -537,12 +471,12 @@ function createSequencerPanel()
       createFilteredScale(i)
     end
 
-    local partResolution = sequencerPanel:Menu("PartDuration" .. i, getResolutionNames())
-    local stepResolution = sequencerPanel:Menu("StepResolution" .. i, getResolutionNames())
+    local partResolution = sequencerPanel:Menu("PartDuration" .. i, resolutionNames)
+    local stepResolution = sequencerPanel:Menu("StepResolution" .. i, resolutionNames)
 
     partResolution.displayName = "Part Duration"
     partResolution.tooltip = "Set the duration of a part."
-    partResolution.selected = 11
+    partResolution.selected = 9
     partResolution.visible = false
     partResolution.x = generateScalePart.x + generateScalePart.width + 10
     partResolution.y = generateScalePart.y
@@ -602,7 +536,7 @@ function createSequencerPanel()
       generateMinPart:setRange(0, self.value-1)
     end
 
-    table.insert(paramsPerPart, {polyphony=generatePolyphonyPart,partResolution=partResolution,stepResolution=stepResolution,numSteps=0,fullScale={},filteredScale={},scale=generateScalePart,key=generateKeyPart,droneLow=droneLowPart,droneHigh=droneHighPart,minNote=generateMinPart,maxNote=generateMaxPart,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,noteStartStep=generateNoteStartStepPart,init=i==1})
+    table.insert(paramsPerPart, {polyphony=generatePolyphonyPart,partResolution=partResolution,stepResolution=stepResolution,numSteps=0,fullScale={},filteredScale={},scale=generateScalePart,key=generateKeyPart,droneLow=droneLowPart,droneHigh=droneHighPart,minNote=generateMinPart,maxNote=generateMaxPart,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
 
     stepResolution:changed()
   end
@@ -685,8 +619,6 @@ function createSequencerPanel()
           break
         end
       end
-      local numStepsInPart = paramsPerPart[currentPartPosition].numSteps
-      --local currentPartPosition = math.floor(index / numStepsInPart) + 1 -- 5 / 4 = 1.25 = 1 + 1 = 2
 
       -- Increment step counter
       currentStep = currentStep + 1
@@ -710,16 +642,13 @@ function createSequencerPanel()
       end
 
       local stepDuration = getResolution(paramsPerPart[currentPartPosition].stepResolution.value)
+      local numStepsInPart = paramsPerPart[currentPartPosition].numSteps
 
       -- Randomize select parameters for each round
       if currentStep == 1 then
         -- Randomize gate within the set limit
         if gateRandomizationAmount > 0 then
-          --print("gateRandomizationAmount", gateRandomizationAmount)
           local changeMax = math.ceil(seqGateTable.max * gateRandomizationAmount)
-          --print("seqGateTable.min", seqGateTable.min)
-          --print("seqGateTable.max", seqGateTable.max)
-          --print("changeMax", changeMax)
           for i=1,numStepsInPart do
             if getRandomBoolean() then
               local currentVal = seqGateTable:getValue(i)
@@ -732,7 +661,6 @@ function createSequencerPanel()
               if max > seqGateTable.max then
                 max = seqGateTable.max
               end
-              --print("seqGateTable:setValue(i, getRandom(min, max))", i, min, max)
               seqGateTable:setValue(i, getRandom(min, max))
             end
           end
@@ -741,13 +669,9 @@ function createSequencerPanel()
         if velocityRandomizationAmount > 0 then
           --print("velocityRandomizationAmount", velocityRandomizationAmount)
           local changeMax = math.ceil(seqVelTable.max * velocityRandomizationAmount)
-          --print("seqVelTable.min", seqVelTable.min)
-          --print("seqVelTable.max", seqVelTable.max)
-          --print("changeMax", changeMax)
           for i=1,numStepsInPart do
             if getRandomBoolean() then
               local currentVal = seqVelTable:getValue(i)
-              --print("currentVal", currentVal)
               local min = currentVal - changeMax
               local max = currentVal + changeMax
               if min < seqVelTable.min then
@@ -756,7 +680,6 @@ function createSequencerPanel()
               if max > seqVelTable.max then
                 max = seqVelTable.max
               end
-              --print("seqVelTable:setValue(i, getRandom(min, max))", i, min, max)
               seqVelTable:setValue(i, getRandom(min, max))
             end
           end
@@ -767,10 +690,8 @@ function createSequencerPanel()
       local vel = seqVelTable:getValue(currentPosition) -- get velocity
       local gate = seqGateTable:getValue(currentPosition) / 100 -- get gate
 
-      local shouldAddNote = (currentPosition - 1) % paramsPerPart[currentPartPosition].noteStartStep.value == 0
-
       -- If gate is zero no notes will play on this step
-      if gate > 0 and shouldAddNote == true then
+      if gate > 0 then
 
         -- note: the note to play
         -- gate: gate length
