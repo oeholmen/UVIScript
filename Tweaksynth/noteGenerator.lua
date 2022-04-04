@@ -226,18 +226,6 @@ function createSequencerPanel()
   seqGateTable.x = seqVelTable.x
   seqGateTable.y = seqVelTable.y + seqVelTable.height + 5
 
-  -- Handle keys
-  local generateKey = sequencerPanel:Menu("GenerateKey", notenames)
-  generateKey.displayName = "Key"
-  generateKey.visible = false
-  generateKey.width = 150
-  generateKey.x = 200
-  generateKey.y = positionTable.y + positionTable.height + 5
-  generateKey.backgroundColour = menuBackgroundColour
-  generateKey.textColour = menuTextColour
-  generateKey.arrowColour = menuArrowColour
-  generateKey.outlineColour = menuOutlineColour
-
   -- Handle scales
   local scaleDefinitions = {{1},{2,2,1,2,2,2,1}, {2,1,2,2,1,2,2}, {2,1,2,2,2,1,2}, {2}, {2,2,3,2,3}, {3,2,2,3,2}, {5,2,5}, {7,5}, {12}, {3}, {5}, {7}}
   local paramsPerPart = {}
@@ -887,4 +875,3 @@ end
 
 createSequencerPanel()
 setBackgroundColour("#4f4f4f")
-makePerformanceView()
