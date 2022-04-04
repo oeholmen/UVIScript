@@ -30,8 +30,7 @@ function getRandomBoolean(probability)
   if type(probability) ~= "number" then
     probability = 50
   end
-  local value = getRandom(100) <= probability
-  return value
+  return getRandom(100) <= probability
 end
 
 function getDotted(value)
@@ -39,7 +38,7 @@ function getDotted(value)
 end
 
 function getTriplet(value)
-  return value  / 3
+  return value / 3
 end
 
 local resolutions = {
@@ -323,7 +322,7 @@ function createSequencerPanel()
   local pitchProbRandKnob = sequencerPanel:Knob("PitchProbabilityRandomization", 0, 0, 100, true)
   pitchProbRandKnob.displayName = "Rand"
   --pitchProbRandKnob.showLabel = false
-  pitchProbRandKnob.tooltip = "How much radomization should be appied to pitch probability"
+  pitchProbRandKnob.tooltip = "Amount of radomization applied to pitch change probability"
   pitchProbRandKnob.unit = Unit.Percent
   pitchProbRandKnob.height = 30
   pitchProbRandKnob.width = 70
@@ -361,7 +360,7 @@ function createSequencerPanel()
 
   local partRandKnob = sequencerPanel:Knob("PartRandomization", 0, 0, 100, true)
   partRandKnob.displayName = "Part"
-  partRandKnob.tooltip = "Amount of radomization applied to parts"
+  partRandKnob.tooltip = "Amount of radomization applied to the playing order of parts"
   partRandKnob.unit = Unit.Percent
   partRandKnob.height = 40
   partRandKnob.width = 90
@@ -584,7 +583,7 @@ function createSequencerPanel()
           end
         end
 
-        -- MONO plays the last note in held notes
+        -- Check for pitch change randomization
         if getRandomBoolean(pitchChangeProbability) then
           local pitchPos = currentPosition
           if pitchChangeProbability > 50 and getRandomBoolean() then
@@ -599,7 +598,11 @@ function createSequencerPanel()
           pitchAdjustment = seqPitchTable:getValue(pitchPos)
           print("Playing pitch from other pos - currentPosition/pitchPos", currentPosition, pitchPos)
         end
-        table.insert(notes, {note=heldNotes[#heldNotes].note+pitchAdjustment,gate=(gate/100),vel=vel,steps=noteSteps,stepCounter=0})
+
+        -- Add notes to play
+        for i=1,#heldNotes do
+          table.insert(notes, {note=heldNotes[i].note+pitchAdjustment,gate=(gate/100),vel=vel,steps=noteSteps,stepCounter=0})
+        end
       end
 
       -- PLAY NOTE
