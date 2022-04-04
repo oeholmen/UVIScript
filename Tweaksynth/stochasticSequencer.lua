@@ -241,6 +241,24 @@ function createSequencerPanel()
   evolveButton.x = 640
   evolveButton.y = 0
 
+  local randomizePitchButton = sequencerPanel:Button("RandomizePitch")
+  randomizePitchButton.persistent = false
+  randomizePitchButton.backgroundColourOff = "#ff084486"
+  randomizePitchButton.backgroundColourOn = "#ff02ACFE"
+  randomizePitchButton.textColourOff = "#ff22FFFF"
+  randomizePitchButton.textColourOn = "#efFFFFFF"
+  randomizePitchButton.displayName = "Randomize"
+  randomizePitchButton.tooltip = "Randomize Pitch - NOTE: Changes all pitch settings!"
+  randomizePitchButton.fillColour = "#dd000061"
+  randomizePitchButton.size = {60,20}
+  randomizePitchButton.x = 640
+  randomizePitchButton.y = evolveButton.y + evolveButton.height + 30
+  randomizePitchButton.changed = function()
+    for i=1,totalNumSteps do
+      seqPitchTable:setValue(i, getRandom(seqPitchTable.min, seqPitchTable.max))
+    end
+  end
+
   local holdButton = sequencerPanel:OnOffButton("HoldOnOff", false)
   holdButton.backgroundColourOff = "#ff084486"
   holdButton.backgroundColourOn = "#ff02ACFE"
@@ -274,13 +292,14 @@ function createSequencerPanel()
   --editPartMenu.showLabel = false
   editPartMenu.y = seqGateTable.y + seqGateTable.height + 5
   editPartMenu.x = 0
-  editPartMenu.width = 150
+  editPartMenu.width = 80
   --editPartMenu.height = 20
   editPartMenu.changed = function(self)
     for i,v in ipairs(paramsPerPart) do
       local isVisible = self.value == i
       v.partResolution.visible = isVisible
       v.stepResolution.visible = isVisible
+      v.playMode.visible = isVisible
     end
   end
 
@@ -404,7 +423,7 @@ function createSequencerPanel()
     partResolution.visible = false
     partResolution.x = editPartMenu.x + editPartMenu.width + 5
     partResolution.y = editPartMenu.y
-    partResolution.width = 120
+    partResolution.width = 100
     partResolution.backgroundColour = menuBackgroundColour
     partResolution.textColour = menuTextColour
     partResolution.arrowColour = menuArrowColour
@@ -420,13 +439,25 @@ function createSequencerPanel()
     stepResolution.y = partResolution.y
     stepResolution.width = partResolution.width
     stepResolution.backgroundColour = menuBackgroundColour
+    stepResolution.textColour = menuTextColour
     stepResolution.arrowColour = menuArrowColour
     stepResolution.outlineColour = menuOutlineColour
     stepResolution.changed = function(self)
       setNumSteps(i)
     end
+  
+    local playMode = sequencerPanel:Menu("PlayMode" .. i, {"Mono", "Poly"})
+    playMode.displayName = "Play Mode"
+    playMode.visible = false
+    playMode.x = stepResolution.x + stepResolution.width + 5
+    playMode.y = stepResolution.y
+    playMode.width = stepResolution.width
+    playMode.backgroundColour = menuBackgroundColour
+    playMode.textColour = menuTextColour
+    playMode.arrowColour = menuArrowColour
+    playMode.outlineColour = menuOutlineColour
 
-    table.insert(paramsPerPart, {partResolution=partResolution,stepResolution=stepResolution,numSteps=0,init=i==1})
+    table.insert(paramsPerPart, {partResolution=partResolution,stepResolution=stepResolution,playMode=playMode,numSteps=0,init=i==1})
 
     stepResolution:changed()
   end
@@ -438,6 +469,7 @@ function createSequencerPanel()
     local currentStep = 0 -- Holds the current step in the round that is being played
     local currentPartPosition = 0 -- Holds the currently playing part
     local notes = {} -- Holds the playing notes - notes are removed when they are finished playing
+    local randomTieCounter = 0 -- Used for holding random ties
     -- START ARP LOOP
     while arpId_ == arpId do
       -- SET VALUES
@@ -478,6 +510,7 @@ function createSequencerPanel()
 
       local evolve = evolveButton.value -- If evolve is true, the randomization is written back to the table
       local stepDuration = getResolution(paramsPerPart[currentPartPosition].stepResolution.value)
+      local playMode = paramsPerPart[currentPartPosition].playMode.value
       local numStepsInPart = paramsPerPart[currentPartPosition].numSteps
       local vel = seqVelTable:getValue(currentPosition) -- get velocity
       local gate = seqGateTable:getValue(currentPosition) -- get gate
@@ -487,7 +520,7 @@ function createSequencerPanel()
 
       -- Randomize gate
       if gateRandomizationAmount > 0 then
-        if getRandomBoolean() then
+        if getRandomBoolean(gateRandomizationAmount) then
           local changeMax = math.ceil(seqGateTable.max * (gateRandomizationAmount/100)) -- 110 * 0,15 = 16,5 = 17
           local min = gate - changeMax -- 100 - 17 = 83
           local max = gate + changeMax -- 100 + 17 = 117 = 110
@@ -507,7 +540,7 @@ function createSequencerPanel()
       end
       -- Randomize vel
       if velocityRandomizationAmount > 0 then
-        if getRandomBoolean() then
+        if getRandomBoolean(velocityRandomizationAmount) then
           local changeMax = math.ceil(seqVelTable.max * (velocityRandomizationAmount/100))
           local min = vel - changeMax
           local max = vel + changeMax
@@ -527,7 +560,7 @@ function createSequencerPanel()
       end
       -- Randomize pitch probaility
       if pitchProbabilityRandomizationAmount > 0 then
-        if getRandomBoolean() then
+        if getRandomBoolean(pitchProbabilityRandomizationAmount) then
           local changeMax = math.ceil(seqPitchChangeProbabilityTable.max * (pitchProbabilityRandomizationAmount/100))
           local min = pitchChangeProbability - changeMax
           local max = pitchChangeProbability + changeMax
@@ -546,22 +579,30 @@ function createSequencerPanel()
         end
       end
 
-      local shouldAddNote = tieStepTable:getValue(currentPosition - 1) ~= 1
-
       -- Randomize ties
-      if tieRandomizationAmount > 0 then
-        --print("Before randomized tieNext", tieNext)
+      if tieRandomizationAmount > 0 and randomTieCounter == 0 then
+        print("Before randomized tieNext", tieNext)
         if getRandomBoolean(tieRandomizationAmount) then
           tieNext = 1
-          shouldAddNote = false
+          randomTieCounter = 2
+          --shouldAddNote = false
         else
           tieNext = 0
-          shouldAddNote = true
+          randomTieCounter = 0
+          --shouldAddNote = true
         end
-        --print("After randomize tieNext", tieNext)
+        print("After randomize tieNext", tieNext)
         if evolve == true then
           tieStepTable:setValue(currentPosition, tieNext)
         end
+      end
+
+      local shouldAddNote = tieStepTable:getValue(currentPosition - 1) ~= 1 and randomTieCounter ~= 1
+
+      -- Reset tie counter
+      if randomTieCounter == 1 then
+        randomTieCounter = 0
+        print("Reset tie")
       end
 
       -- If gate is zero no notes will play on this step
@@ -583,6 +624,12 @@ function createSequencerPanel()
           end
         end
 
+        if randomTieCounter == 2 then
+          noteSteps = randomTieCounter
+          randomTieCounter = 1
+          print("Set automatic tie", noteSteps)
+        end
+
         -- Check for pitch change randomization
         if getRandomBoolean(pitchChangeProbability) then
           local pitchPos = currentPosition
@@ -600,8 +647,14 @@ function createSequencerPanel()
         end
 
         -- Add notes to play
-        for i=1,#heldNotes do
-          table.insert(notes, {note=heldNotes[i].note+pitchAdjustment,gate=(gate/100),vel=vel,steps=noteSteps,stepCounter=0})
+        if playMode == 1 then
+          -- MONO
+          table.insert(notes, {note=heldNotes[#heldNotes].note+pitchAdjustment,gate=(gate/100),vel=vel,steps=noteSteps,stepCounter=0})
+        else
+          -- CHORD
+          for i=1,#heldNotes do
+            table.insert(notes, {note=heldNotes[i].note+pitchAdjustment,gate=(gate/100),vel=vel,steps=noteSteps,stepCounter=0})
+          end
         end
       end
 
