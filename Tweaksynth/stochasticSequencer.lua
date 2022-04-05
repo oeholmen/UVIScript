@@ -125,13 +125,15 @@ function createSequencerPanel()
   local pitchProbabilityRandomizationAmount = 0
   local totalNumSteps = 8
   local heldNotes = {}
-  
+  local paramsPerPart = {}
+  local partSelect = {}
+
   local sequencerPanel = Panel("Sequencer")
   sequencerPanel.backgroundColour = menuOutlineColour
   sequencerPanel.x = 10
   sequencerPanel.y = 10
   sequencerPanel.width = 700
-  sequencerPanel.height = 400
+  sequencerPanel.height = 460
 
   local partsTable = sequencerPanel:Table("Parts", totalNumSteps, 0, 0, 1, true)
   partsTable.enabled = false
@@ -216,9 +218,11 @@ function createSequencerPanel()
   numPartsBox.textColour = menuTextColour
   numPartsBox.arrowColour = menuArrowColour
   numPartsBox.outlineColour = menuOutlineColour
-  numPartsBox.size = {120,30}
-  numPartsBox.x = 500
-  numPartsBox.y = seqGateTable.y + seqGateTable.height + 20
+  numPartsBox.size = {90,20}
+
+  for i=1,numPartsBox.value do
+    table.insert(partSelect, "Part " .. i)
+  end
 
   function clearPosition()
     for i=1, totalNumSteps do
@@ -229,80 +233,18 @@ function createSequencerPanel()
     end
   end
 
-  local evolveButton = sequencerPanel:OnOffButton("EvolveOnOff", false)
-  evolveButton.backgroundColourOff = "#ff084486"
-  evolveButton.backgroundColourOn = "#ff02ACFE"
-  evolveButton.textColourOff = "#ff22FFFF"
-  evolveButton.textColourOn = "#efFFFFFF"
-  evolveButton.displayName = "Evolve"
-  evolveButton.tooltip = "When evolve is active, randomization is written back to the corresponding table, allowing the table to evolve with the changes"
-  evolveButton.fillColour = "#dd000061"
-  evolveButton.size = {60,20}
-  evolveButton.x = 640
-  evolveButton.y = 0
-
-  local randomizePitchButton = sequencerPanel:Button("RandomizePitch")
-  randomizePitchButton.persistent = false
-  randomizePitchButton.backgroundColourOff = "#ff084486"
-  randomizePitchButton.backgroundColourOn = "#ff02ACFE"
-  randomizePitchButton.textColourOff = "#ff22FFFF"
-  randomizePitchButton.textColourOn = "#efFFFFFF"
-  randomizePitchButton.displayName = "Randomize"
-  randomizePitchButton.tooltip = "Randomize Pitch - NOTE: Changes all pitch settings!"
-  randomizePitchButton.fillColour = "#dd000061"
-  randomizePitchButton.size = {60,20}
-  randomizePitchButton.x = 640
-  randomizePitchButton.y = evolveButton.y + evolveButton.height + 30
-  randomizePitchButton.changed = function()
-    for i=1,totalNumSteps do
-      seqPitchTable:setValue(i, getRandom(seqPitchTable.min, seqPitchTable.max))
-    end
-  end
-
-  local holdButton = sequencerPanel:OnOffButton("HoldOnOff", false)
-  holdButton.backgroundColourOff = "#ff084486"
-  holdButton.backgroundColourOn = "#ff02ACFE"
-  holdButton.textColourOff = "#ff22FFFF"
-  holdButton.textColourOn = "#efFFFFFF"
-  holdButton.displayName = "Hold"
-  holdButton.fillColour = "#dd000061"
-  holdButton.size = {65,30}
-  holdButton.x = 635
-  holdButton.y = numPartsBox.y
-  holdButton.changed = function(self)
-    if self.value == false then
-      heldNotes = {}
-      clearPosition()
-      arpId = arpId + 1
-    end
-  end
-
-  local paramsPerPart = {}
-  local partSelect = {}
-  for i=1,numPartsBox.value do
-    table.insert(partSelect, "Part " .. i)
-  end
-
   local editPartMenu = sequencerPanel:Menu("EditPart", partSelect)
   editPartMenu.backgroundColour = menuBackgroundColour
   editPartMenu.textColour = menuTextColour
   editPartMenu.arrowColour = menuArrowColour
   editPartMenu.outlineColour = menuOutlineColour
   editPartMenu.displayName = "Edit part"
-  --editPartMenu.showLabel = false
   editPartMenu.y = seqGateTable.y + seqGateTable.height + 5
   editPartMenu.x = 0
-  editPartMenu.width = 80
-  --editPartMenu.height = 20
-  editPartMenu.changed = function(self)
-    for i,v in ipairs(paramsPerPart) do
-      local isVisible = self.value == i
-      v.partResolution.visible = isVisible
-      v.stepResolution.visible = isVisible
-      v.playMode.visible = isVisible
-    end
-  end
+  editPartMenu.width = 120
 
+  numPartsBox.x = editPartMenu.x + editPartMenu.width + 20
+  numPartsBox.y = seqGateTable.y + seqGateTable.height + 30
   numPartsBox.changed = function(self)
     for i=1, self.value do
       setNumSteps(i)
@@ -325,11 +267,88 @@ function createSequencerPanel()
     clearPosition()
   end
 
+  local randomizePitchButton = sequencerPanel:Button("RandomizePitch")
+  randomizePitchButton.persistent = false
+  randomizePitchButton.backgroundColourOff = "#33084486"
+  randomizePitchButton.backgroundColourOn = "#9902ACFE"
+  randomizePitchButton.textColourOff = "#cc22FFFF"
+  randomizePitchButton.textColourOn = "#ccFFFFFF"
+  randomizePitchButton.displayName = "Randomize"
+  randomizePitchButton.tooltip = "Randomize Pitch - NOTE: Changes all pitch settings!"
+  randomizePitchButton.fillColour = "#dd000061"
+  randomizePitchButton.size = {60,20}
+  randomizePitchButton.x = 640
+  randomizePitchButton.y = 47
+  randomizePitchButton.changed = function()
+    for i=1,totalNumSteps do
+      seqPitchTable:setValue(i, getRandom(seqPitchTable.min, seqPitchTable.max))
+    end
+  end
+
+  local clearPitchButton = sequencerPanel:Button("ClearPitch")
+  clearPitchButton.persistent = false
+  clearPitchButton.backgroundColourOff = "#33084486"
+  clearPitchButton.backgroundColourOn = "#9902ACFE"
+  clearPitchButton.textColourOff = "#cc22FFFF"
+  clearPitchButton.textColourOn = "#ccFFFFFF"
+  clearPitchButton.displayName = "Clear"
+  clearPitchButton.tooltip = "Clear Pitch - NOTE: Resets all pitch settings!"
+  clearPitchButton.fillColour = "#dd000061"
+  clearPitchButton.size = {60,20}
+  clearPitchButton.x = 640
+  clearPitchButton.y = randomizePitchButton.y + randomizePitchButton.height + 3
+  clearPitchButton.changed = function()
+    for i=1,totalNumSteps do
+      seqPitchTable:setValue(i, 0)
+    end
+  end
+
+  local evolveButton = sequencerPanel:OnOffButton("EvolveOnOff", false)
+  evolveButton.backgroundColourOff = "#ff084486"
+  evolveButton.backgroundColourOn = "#ff02ACFE"
+  evolveButton.textColourOff = "#ff22FFFF"
+  evolveButton.textColourOn = "#efFFFFFF"
+  evolveButton.displayName = "Evolve"
+  evolveButton.tooltip = "When evolve is active, randomization is written back to the corresponding table, allowing the table to evolve with the changes"
+  evolveButton.fillColour = "#dd000061"
+  evolveButton.size = {85,30}
+  evolveButton.x = 450
+  evolveButton.y = editPartMenu.y + 15
+
+  local holdButton = sequencerPanel:OnOffButton("HoldOnOff", false)
+  holdButton.backgroundColourOff = "#ff084486"
+  holdButton.backgroundColourOn = "#ff02ACFE"
+  holdButton.textColourOff = "#ff22FFFF"
+  holdButton.textColourOn = "#efFFFFFF"
+  holdButton.displayName = "Hold"
+  holdButton.fillColour = "#dd000061"
+  holdButton.size = evolveButton.size
+  holdButton.x = evolveButton.x + evolveButton.width + 10
+  holdButton.y = editPartMenu.y + 15
+  holdButton.changed = function(self)
+    if self.value == false then
+      heldNotes = {}
+      clearPosition()
+      arpId = arpId + 1
+    end
+  end
+
+  editPartMenu.changed = function(self)
+    for i,v in ipairs(paramsPerPart) do
+      local isVisible = self.value == i
+      v.partResolution.visible = isVisible
+      v.stepResolution.visible = isVisible
+      v.playMode.visible = isVisible
+      v.playProbability.visible = isVisible
+      v.repeatProbability.visible = isVisible
+      v.directionProbability.visible = isVisible
+    end
+  end
+
   local tieRandKnob = sequencerPanel:Knob("TieRandomization", 0, 0, 100, true)
   tieRandKnob.displayName = "Rand"
   tieRandKnob.tooltip = "Amount of radomization applied to ties"
   tieRandKnob.unit = Unit.Percent
-  --tieRandKnob.width = 100
   tieRandKnob.height = 30
   tieRandKnob.width = 70
   tieRandKnob.x = tieStepTable.x + tieStepTable.width + 5
@@ -340,7 +359,6 @@ function createSequencerPanel()
 
   local pitchProbRandKnob = sequencerPanel:Knob("PitchProbabilityRandomization", 0, 0, 100, true)
   pitchProbRandKnob.displayName = "Rand"
-  --pitchProbRandKnob.showLabel = false
   pitchProbRandKnob.tooltip = "Amount of radomization applied to pitch change probability"
   pitchProbRandKnob.unit = Unit.Percent
   pitchProbRandKnob.height = 30
@@ -353,7 +371,6 @@ function createSequencerPanel()
 
   local velRandKnob = sequencerPanel:Knob("VelocityRandomization", 0, 0, 100, true)
   velRandKnob.displayName = "Rand"
-  --velRandKnob.showLabel = false
   velRandKnob.tooltip = "Amount of radomization applied to sequencer velocity"
   velRandKnob.unit = Unit.Percent
   velRandKnob.height = 30
@@ -366,7 +383,6 @@ function createSequencerPanel()
 
   local gateRandKnob = sequencerPanel:Knob("GateRandomization", 0, 0, 100, true)
   gateRandKnob.displayName = "Rand"
-  --gateRandKnob.showLabel = false
   gateRandKnob.tooltip = "Amount of radomization applied to sequencer gate"
   gateRandKnob.unit = Unit.Percent
   gateRandKnob.height = 30
@@ -378,12 +394,12 @@ function createSequencerPanel()
   end
 
   local partRandKnob = sequencerPanel:Knob("PartRandomization", 0, 0, 100, true)
-  partRandKnob.displayName = "Part"
+  partRandKnob.displayName = "Part Order Randomization"
   partRandKnob.tooltip = "Amount of radomization applied to the playing order of parts"
   partRandKnob.unit = Unit.Percent
   partRandKnob.height = 40
-  partRandKnob.width = 90
-  partRandKnob.x = 410
+  partRandKnob.width = 200
+  partRandKnob.x = numPartsBox.x + numPartsBox.width + 20
   partRandKnob.y = editPartMenu.y + 10
   partRandKnob.changed = function(self)
     partRandomizationAmount = self.value
@@ -421,9 +437,9 @@ function createSequencerPanel()
     partResolution.tooltip = "Set the duration of a part."
     partResolution.selected = 11
     partResolution.visible = false
-    partResolution.x = editPartMenu.x + editPartMenu.width + 5
-    partResolution.y = editPartMenu.y
-    partResolution.width = 100
+    partResolution.x = 0
+    partResolution.y = editPartMenu.y + editPartMenu.height + 10
+    partResolution.width = 80
     partResolution.backgroundColour = menuBackgroundColour
     partResolution.textColour = menuTextColour
     partResolution.arrowColour = menuArrowColour
@@ -437,7 +453,7 @@ function createSequencerPanel()
     stepResolution.visible = false
     stepResolution.x = partResolution.x + partResolution.width + 5
     stepResolution.y = partResolution.y
-    stepResolution.width = partResolution.width
+    stepResolution.width = 90
     stepResolution.backgroundColour = menuBackgroundColour
     stepResolution.textColour = menuTextColour
     stepResolution.arrowColour = menuArrowColour
@@ -451,13 +467,43 @@ function createSequencerPanel()
     playMode.visible = false
     playMode.x = stepResolution.x + stepResolution.width + 5
     playMode.y = stepResolution.y
-    playMode.width = stepResolution.width
+    playMode.width = 60
     playMode.backgroundColour = menuBackgroundColour
     playMode.textColour = menuTextColour
     playMode.arrowColour = menuArrowColour
     playMode.outlineColour = menuOutlineColour
 
-    table.insert(paramsPerPart, {partResolution=partResolution,stepResolution=stepResolution,playMode=playMode,numSteps=0,init=i==1})
+    local playProbabilityKnob = sequencerPanel:Knob("PartPlayProbabilityKnob" .. i, 100, 0, 100, true)
+    playProbabilityKnob.displayName = "Play Probability"
+    playProbabilityKnob.tooltip = "Set the probability that the part will be played when randomizing part order. When set to 0, the part is never played."
+    playProbabilityKnob.visible = false
+    playProbabilityKnob.unit = Unit.Percent
+    playProbabilityKnob.x = playMode.x + playMode.width + 15
+    playProbabilityKnob.y = playMode.y + 8
+    playProbabilityKnob.height = 40
+    playProbabilityKnob.width = 140
+
+    local repeatProbabilityKnob = sequencerPanel:Knob("PartRepeatProbabilityKnob" .. i, 50, 0, 100, true)
+    repeatProbabilityKnob.displayName = "Repeat Probability"
+    repeatProbabilityKnob.tooltip = "Set the probability of that the part will be repeated when randomizing part order. When set to 0, the part is never repeated."
+    repeatProbabilityKnob.visible = false
+    repeatProbabilityKnob.unit = Unit.Percent
+    repeatProbabilityKnob.x = playProbabilityKnob.x + playProbabilityKnob.width + 5
+    repeatProbabilityKnob.y = playProbabilityKnob.y
+    repeatProbabilityKnob.height = playProbabilityKnob.height
+    repeatProbabilityKnob.width = 140
+
+    local directionProbabilityKnob = sequencerPanel:Knob("PartDirectionProbabilityKnob" .. i, 0, 0, 100, true)
+    directionProbabilityKnob.displayName = "Backward Probability"
+    directionProbabilityKnob.tooltip = "Set the probability that the part will play backwards"
+    directionProbabilityKnob.visible = false
+    directionProbabilityKnob.unit = Unit.Percent
+    directionProbabilityKnob.x = repeatProbabilityKnob.x + repeatProbabilityKnob.width + 5
+    directionProbabilityKnob.y = repeatProbabilityKnob.y
+    directionProbabilityKnob.height = repeatProbabilityKnob.height
+    directionProbabilityKnob.width = 155
+
+    table.insert(paramsPerPart, {partResolution=partResolution,stepResolution=stepResolution,playMode=playMode,playProbability=playProbabilityKnob,directionProbability=directionProbabilityKnob,repeatProbability=repeatProbabilityKnob,numSteps=0,init=i==1})
 
     stepResolution:changed()
   end
@@ -470,11 +516,14 @@ function createSequencerPanel()
     local currentPartPosition = 0 -- Holds the currently playing part
     local notes = {} -- Holds the playing notes - notes are removed when they are finished playing
     local randomTieCounter = 0 -- Used for holding random ties
+    local partRepeat = 0 -- Used for holding part repeat info
+    local partDirectionBackward = false -- Used for holding part direction
     -- START ARP LOOP
     while arpId_ == arpId do
       -- SET VALUES
       local numParts = numPartsBox.value
       local currentPosition = (index % totalNumSteps) + 1 -- 11 % 4 = 3
+      currentPosition = (index % totalNumSteps) + 1 -- 11 % 4 = 3
       --print("currentPosition", currentPosition)
       -- Set part position
       local startOfPart = false
@@ -495,23 +544,56 @@ function createSequencerPanel()
 
       -- Check if we are at the start of a part
       if startOfPart and partRandomizationAmount > 0 then
-        -- Randomize parts within the set limit
-        print("currentPartPosition before", currentPartPosition)
-        --print("currentPosition before", currentPosition)
-        --print("index before", index)
-        currentPartPosition = getRandom(numParts)
-        -- Find the current pos and index
+        if partRepeat > 0 then
+          currentPartPosition = partRepeat
+          partRepeat = 0 -- Reset repeat  
+        else
+          -- Randomize parts within the set limit
+          print("currentPartPosition before", currentPartPosition)
+          -- Suggest a part by random
+          local suggestedPartPosition = getRandom(numParts)
+          -- Check play probability
+          if getRandomBoolean(paramsPerPart[suggestedPartPosition].playProbability.value) then
+            currentPartPosition = suggestedPartPosition
+            print("playProbability was used", playProbability)
+          end
+          -- Check if part should be repeated next time
+          if getRandomBoolean(paramsPerPart[currentPartPosition].repeatProbability.value) then
+            partRepeat = currentPartPosition
+            print("Part is set for repeating", partRepeat)
+          end
+        end
+        -- Set the current pos and index from the selected part
         currentPosition = partToStepMap[currentPartPosition]
         index = currentPosition - 1
         print("currentPartPosition after", currentPartPosition)
-        --print("currentPosition after", currentPosition)
-        --print("index after", index)
       end
 
-      local evolve = evolveButton.value -- If evolve is true, the randomization is written back to the table
+      if startOfPart then
+        -- Set direction for this part
+        local directionProbability = paramsPerPart[currentPartPosition].directionProbability.value
+        partDirectionBackward = getRandomBoolean(directionProbability)
+        print("directionProbability/currentPartPosition/partDirectionBackward", directionProbability, currentPartPosition, partDirectionBackward)
+      end
+
+      -- If evolve is true, the randomization is written back to the table
+      local evolve = evolveButton.value
+
+      -- Params for current part position
       local stepDuration = getResolution(paramsPerPart[currentPartPosition].stepResolution.value)
       local playMode = paramsPerPart[currentPartPosition].playMode.value
       local numStepsInPart = paramsPerPart[currentPartPosition].numSteps
+
+      -- Flip position if playing backwards
+      if partDirectionBackward == true then
+        local startStep = partToStepMap[currentPartPosition]
+        local endStep = startStep + numStepsInPart - 1
+        local diff = currentPosition - startStep
+        currentPosition = endStep - diff
+        print("startStep/endStep/diff/currentPosition", startStep, endStep, diff, currentPosition)
+      end
+
+      -- Params for current step position
       local vel = seqVelTable:getValue(currentPosition) -- get velocity
       local gate = seqGateTable:getValue(currentPosition) -- get gate
       local pitchAdjustment = seqPitchTable:getValue(currentPosition) -- get pitch adjustment
@@ -538,6 +620,7 @@ function createSequencerPanel()
           end
         end
       end
+
       -- Randomize vel
       if velocityRandomizationAmount > 0 then
         if getRandomBoolean(velocityRandomizationAmount) then
@@ -558,6 +641,7 @@ function createSequencerPanel()
           end
         end
       end
+
       -- Randomize pitch probaility
       if pitchProbabilityRandomizationAmount > 0 then
         if getRandomBoolean(pitchProbabilityRandomizationAmount) then
@@ -585,11 +669,9 @@ function createSequencerPanel()
         if getRandomBoolean(tieRandomizationAmount) then
           tieNext = 1
           randomTieCounter = 2
-          --shouldAddNote = false
         else
           tieNext = 0
           randomTieCounter = 0
-          --shouldAddNote = true
         end
         print("After randomize tieNext", tieNext)
         if evolve == true then
@@ -597,7 +679,11 @@ function createSequencerPanel()
         end
       end
 
-      local shouldAddNote = tieStepTable:getValue(currentPosition - 1) ~= 1 and randomTieCounter ~= 1
+      local tieStepPos = currentPosition - 1
+      if partDirectionBackward == true then
+        tieStepPos = currentPosition + 1
+      end
+      local shouldAddNote = tieStepTable:getValue(tieStepPos) ~= 1 and randomTieCounter ~= 1
 
       -- Reset tie counter
       if randomTieCounter == 1 then
@@ -618,9 +704,14 @@ function createSequencerPanel()
         -- Check tie to next step
         if tieNext == 1 then
           local tmp = currentPosition
-          while tieStepTable:getValue(tmp) == 1 and tmp < numStepsInPart do
+          local startStep = partToStepMap[currentPartPosition]
+          while tieStepTable:getValue(tmp) == 1 and tmp < numStepsInPart and tmp > startStep do
             noteSteps = noteSteps + 1
-            tmp = tmp + 1
+            if partDirectionBackward == true then
+              tmp = tmp - 1
+            else
+              tmp = tmp + 1
+            end
           end
         end
 

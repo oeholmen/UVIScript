@@ -173,9 +173,21 @@ function createSequencerPanel()
   numPartsBox.textColour = menuTextColour
   numPartsBox.arrowColour = menuArrowColour
   numPartsBox.outlineColour = menuOutlineColour
-  numPartsBox.size = {120,30}
-  numPartsBox.x = 500
+  numPartsBox.size = {80,30}
+  numPartsBox.x = 490
   numPartsBox.y = 290
+
+  local evolveButton = sequencerPanel:OnOffButton("EvolveOnOff", false)
+  evolveButton.backgroundColourOff = "#ff084486"
+  evolveButton.backgroundColourOn = "#ff02ACFE"
+  evolveButton.textColourOff = "#ff22FFFF"
+  evolveButton.textColourOn = "#efFFFFFF"
+  evolveButton.displayName = "Evolve"
+  evolveButton.tooltip = "When evolve is active, randomization is written back to the corresponding table, allowing the table to evolve with the changes"
+  evolveButton.fillColour = "#dd000061"
+  evolveButton.size = {60,30}
+  evolveButton.x = numPartsBox.x + numPartsBox.width + 10
+  evolveButton.y = numPartsBox.y
 
   function clearPosition()
     for i=1, totalNumSteps do
@@ -194,8 +206,8 @@ function createSequencerPanel()
   holdButton.displayName = "Hold"
   holdButton.fillColour = "#dd000061"
   holdButton.size = {50,30}
-  holdButton.x = 650
-  holdButton.y = 290
+  holdButton.x = evolveButton.x + evolveButton.width + 10
+  holdButton.y = evolveButton.y
   holdButton.changed = function(self)
     if self.value == false then
       heldNotes = {}
@@ -296,10 +308,10 @@ function createSequencerPanel()
     clearPosition()
   end
 
-  local velRandKnob = sequencerPanel:Knob("VelocityRandomization", 0, 0, 1)
+  local velRandKnob = sequencerPanel:Knob("VelocityRandomization", 0, 0, 100, true)
   velRandKnob.displayName = "Velocity"
   velRandKnob.tooltip = "Amount of radomization applied to sequencer velocity"
-  velRandKnob.unit = Unit.PercentNormalized
+  velRandKnob.unit = Unit.Percent
   velRandKnob.width = 100
   velRandKnob.x = 0
   velRandKnob.y = seqGateTable.y + seqGateTable.height + 5
@@ -307,10 +319,10 @@ function createSequencerPanel()
     velocityRandomizationAmount = self.value
   end
 
-  local gateRandKnob = sequencerPanel:Knob("GateRandomization", 0, 0, 1)
+  local gateRandKnob = sequencerPanel:Knob("GateRandomization", 0, 0, 100, true)
   gateRandKnob.displayName = "Gate"
   gateRandKnob.tooltip = "Amount of radomization applied to sequencer gate"
-  gateRandKnob.unit = Unit.PercentNormalized
+  gateRandKnob.unit = Unit.Percent
   gateRandKnob.width = 100
   gateRandKnob.x = velRandKnob.x + velRandKnob.width + 25
   gateRandKnob.y = seqGateTable.y + seqGateTable.height + 5
@@ -632,51 +644,54 @@ function createSequencerPanel()
       local stepDuration = getResolution(paramsPerPart[currentPartPosition].stepResolution.value)
       local numStepsInPart = paramsPerPart[currentPartPosition].numSteps
 
-      -- Randomize select parameters for each round
-      if currentStep == 1 then
-        -- Randomize gate within the set limit
-        if gateRandomizationAmount > 0 then
-          local changeMax = math.ceil(seqGateTable.max * gateRandomizationAmount)
-          for i=1,numStepsInPart do
-            if getRandomBoolean() then
-              local currentVal = seqGateTable:getValue(i)
-              --print("currentVal", currentVal)
-              local min = currentVal - changeMax
-              local max = currentVal + changeMax
-              if min < seqGateTable.min then
-                min = seqGateTable.min
-              end
-              if max > seqGateTable.max then
-                max = seqGateTable.max
-              end
-              seqGateTable:setValue(i, getRandom(min, max))
-            end
+      -- If evolve is true, the randomization is written back to the table
+      local evolve = evolveButton.value
+
+      -- Params for current step position
+      local vel = seqVelTable:getValue(currentPosition) -- get velocity
+      local gate = seqGateTable:getValue(currentPosition) -- get gate
+
+      -- Randomize gate
+      if gateRandomizationAmount > 0 then
+        if getRandomBoolean(gateRandomizationAmount) then
+          local changeMax = math.ceil(seqGateTable.max * (gateRandomizationAmount/100)) -- 110 * 0,15 = 16,5 = 17
+          local min = gate - changeMax -- 100 - 17 = 83
+          local max = gate + changeMax -- 100 + 17 = 117 = 110
+          if min < seqGateTable.min then
+            min = seqGateTable.min
           end
-        end
-        -- Randomize vel within the set limit
-        if velocityRandomizationAmount > 0 then
-          --print("velocityRandomizationAmount", velocityRandomizationAmount)
-          local changeMax = math.ceil(seqVelTable.max * velocityRandomizationAmount)
-          for i=1,numStepsInPart do
-            if getRandomBoolean() then
-              local currentVal = seqVelTable:getValue(i)
-              local min = currentVal - changeMax
-              local max = currentVal + changeMax
-              if min < seqVelTable.min then
-                min = seqVelTable.min
-              end
-              if max > seqVelTable.max then
-                max = seqVelTable.max
-              end
-              seqVelTable:setValue(i, getRandom(min, max))
-            end
+          if max > seqGateTable.max then
+            max = seqGateTable.max
+          end
+          --print("Before randomize gate", gate)
+          gate = getRandom(min, max)
+          --print("After randomize gate/changeMax/min/max", gate, changeMax, min, max)
+          if evolve == true then
+            seqGateTable:setValue(currentPosition, gate)
           end
         end
       end
 
-      -- Set values pt 2
-      local vel = seqVelTable:getValue(currentPosition) -- get velocity
-      local gate = seqGateTable:getValue(currentPosition) / 100 -- get gate
+      -- Randomize vel
+      if velocityRandomizationAmount > 0 then
+        if getRandomBoolean(velocityRandomizationAmount) then
+          local changeMax = math.ceil(seqVelTable.max * (velocityRandomizationAmount/100))
+          local min = vel - changeMax
+          local max = vel + changeMax
+          if min < seqVelTable.min then
+            min = seqVelTable.min
+          end
+          if max > seqVelTable.max then
+            max = seqVelTable.max
+          end
+          --print("Before randomize vel", vel)
+          vel = getRandom(min, max)
+          --print("After randomize vel/changeMax/min/max", vel, changeMax, min, max)
+          if evolve == true then
+            seqVelTable:setValue(currentPosition, vel)
+          end
+        end
+      end
 
       -- If gate is zero no notes will play on this step
       if gate > 0 then
@@ -724,7 +739,7 @@ function createSequencerPanel()
           local noteToPlay = generateNoteToPlay(currentPartPosition)
           if notesInclude(notes, noteToPlay) == false then
             local noteSteps = getRandom(minNoteSteps,maxNoteSteps)
-            table.insert(notes, {note=noteToPlay,gate=gate,vel=vel,steps=noteSteps,stepCounter=0})
+            table.insert(notes, {note=noteToPlay,gate=(gate/100),vel=vel,steps=noteSteps,stepCounter=0})
             --print("Insert to notes note/steps/gate", noteToPlay, noteSteps, gate)
           end
         end
