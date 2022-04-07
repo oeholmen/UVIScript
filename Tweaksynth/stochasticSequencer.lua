@@ -111,6 +111,23 @@ function getResolution(i)
   return resolutions[i]
 end
 
+function getResolutionNames(options)
+  local res = {}
+
+  for _,r in ipairs(resolutionNames) do
+    table.insert(res, r)
+  end
+
+  -- Add any options
+  if type(options) == "table" then
+    for _,o in ipairs(options) do
+      table.insert(res, o)
+    end
+  end
+
+  return res
+end
+
 --------------------------------------------------------------------------------
 -- Sequencer Panel
 --------------------------------------------------------------------------------
@@ -133,7 +150,7 @@ function createSequencerPanel()
   sequencerPanel.x = 10
   sequencerPanel.y = 10
   sequencerPanel.width = 700
-  sequencerPanel.height = 460
+  sequencerPanel.height = 480
 
   local partsTable = sequencerPanel:Table("Parts", totalNumSteps, 0, 0, 1, true)
   partsTable.enabled = false
@@ -163,7 +180,7 @@ function createSequencerPanel()
   seqPitchTable.fillStyle = "solid"
   seqPitchTable.sliderColour = menuArrowColour
   seqPitchTable.width = positionTable.width
-  seqPitchTable.height = 110
+  seqPitchTable.height = 120
   seqPitchTable.x = positionTable.x
   seqPitchTable.y = positionTable.y + positionTable.height + 2
 
@@ -186,7 +203,7 @@ function createSequencerPanel()
   seqPitchChangeProbabilityTable.fillStyle = "solid"
   seqPitchChangeProbabilityTable.sliderColour = menuArrowColour
   seqPitchChangeProbabilityTable.width = tieStepTable.width
-  seqPitchChangeProbabilityTable.height = 65
+  seqPitchChangeProbabilityTable.height = 68
   seqPitchChangeProbabilityTable.x = tieStepTable.x
   seqPitchChangeProbabilityTable.y = tieStepTable.y + tieStepTable.height + 2
 
@@ -249,7 +266,6 @@ function createSequencerPanel()
     for i=1, self.value do
       setNumSteps(i)
     end
-
     local partSelect = {}
     for i=1,self.value do
       -- Add item to part select table
@@ -259,10 +275,12 @@ function createSequencerPanel()
         local prev = paramsPerPart[i-1]
         paramsPerPart[i].partResolution.value = prev.partResolution.value
         paramsPerPart[i].stepResolution.value = prev.stepResolution.value
+        paramsPerPart[i].numStepsBox.value = prev.numStepsBox.value
         paramsPerPart[i].init = prev.init
       end
     end
     editPartMenu.items = partSelect
+    editPartMenu:setValue(#partSelect)
 
     clearPosition()
   end
@@ -337,6 +355,7 @@ function createSequencerPanel()
     for i,v in ipairs(paramsPerPart) do
       local isVisible = self.value == i
       v.partResolution.visible = isVisible
+      v.numStepsBox.visible = isVisible
       v.stepResolution.visible = isVisible
       v.playMode.visible = isVisible
       v.playProbability.visible = isVisible
@@ -406,17 +425,28 @@ function createSequencerPanel()
   end
 
   function setNumSteps(index)
-    local partDuration = getResolution(paramsPerPart[index].partResolution.value)
-    local stepDuration = getResolution(paramsPerPart[index].stepResolution.value)
-    local numSteps = partDuration / stepDuration
-    paramsPerPart[index].numSteps = numSteps
-    --print("part/stepDuration/partDuration/numSteps", index, stepDuration, partDuration, numSteps)
+    local numSteps = paramsPerPart[index].numStepsBox.value
+    -- If follow step is selected, we use the value from numStepsBox
+    if paramsPerPart[index].partResolution.value > #resolutions then
+      paramsPerPart[index].numStepsBox.enabled = true
+    else
+      local partDuration = getResolution(paramsPerPart[index].partResolution.value)
+      local stepDuration = getResolution(paramsPerPart[index].stepResolution.value)
+      numSteps = partDuration / stepDuration
+      paramsPerPart[index].numStepsBox.enabled = false
+
+      -- Set value in numsteps box
+      if numSteps > paramsPerPart[index].numStepsBox.max then
+        paramsPerPart[index].numStepsBox:setRange(1, numSteps)
+      end
+      paramsPerPart[index].numStepsBox:setValue(numSteps)
+    end
+
     partToStepMap = {} -- Reset
     totalNumSteps = 0
     for i=1, numPartsBox.value do
       table.insert(partToStepMap, (totalNumSteps + 1))
-      --print("Updated partToStepMap part/step/numSteps", i, (totalNumSteps + 1), paramsPerPart[i].numSteps)
-      totalNumSteps = totalNumSteps + paramsPerPart[i].numSteps
+      totalNumSteps = totalNumSteps + paramsPerPart[i].numStepsBox.value
     end
     seqPitchTable.length = totalNumSteps
     tieStepTable.length = totalNumSteps
@@ -430,12 +460,12 @@ function createSequencerPanel()
 
   -- Add params that are to be editable per part
   for i=1,numPartsBox.max do
-    local partResolution = sequencerPanel:Menu("PartDuration" .. i, resolutionNames)
-    local stepResolution = sequencerPanel:Menu("StepResolution" .. i, resolutionNames)
+    local partResolution = sequencerPanel:Menu("PartDuration" .. i, getResolutionNames({"Follow Step"}))
+    local stepResolution = sequencerPanel:Menu("StepResolution" .. i, getResolutionNames())
 
     partResolution.displayName = "Part Duration"
     partResolution.tooltip = "Set the duration of a part."
-    partResolution.selected = 11
+    partResolution.selected = #resolutions + 1
     partResolution.visible = false
     partResolution.x = 0
     partResolution.y = editPartMenu.y + editPartMenu.height + 10
@@ -447,11 +477,26 @@ function createSequencerPanel()
     partResolution.changed = function(self)
       setNumSteps(i)
     end
-  
+    
+    local numStepsBox = sequencerPanel:NumBox("Steps" .. i, totalNumSteps, 1, 32, true)
+    numStepsBox.displayName = "Steps"
+    numStepsBox.tooltip = "The Number of steps in the part"
+    numStepsBox.visible = false
+    numStepsBox.backgroundColour = menuBackgroundColour
+    numStepsBox.textColour = menuTextColour
+    numStepsBox.arrowColour = menuArrowColour
+    numStepsBox.outlineColour = menuOutlineColour
+    numStepsBox.width = 70
+    numStepsBox.x = partResolution.x + partResolution.width + 10
+    numStepsBox.y = partResolution.y + 25
+    numStepsBox.changed = function(self)
+      setNumSteps(i)
+    end
+
     stepResolution.displayName = "Step Resolution"
     stepResolution.selected = 20
     stepResolution.visible = false
-    stepResolution.x = partResolution.x + partResolution.width + 5
+    stepResolution.x = numStepsBox.x + numStepsBox.width + 10
     stepResolution.y = partResolution.y
     stepResolution.width = 90
     stepResolution.backgroundColour = menuBackgroundColour
@@ -465,7 +510,7 @@ function createSequencerPanel()
     local playMode = sequencerPanel:Menu("PlayMode" .. i, {"Mono", "Poly"})
     playMode.displayName = "Play Mode"
     playMode.visible = false
-    playMode.x = stepResolution.x + stepResolution.width + 5
+    playMode.x = stepResolution.x + stepResolution.width + 10
     playMode.y = stepResolution.y
     playMode.width = 60
     playMode.backgroundColour = menuBackgroundColour
@@ -474,41 +519,40 @@ function createSequencerPanel()
     playMode.outlineColour = menuOutlineColour
 
     local playProbabilityKnob = sequencerPanel:Knob("PartPlayProbabilityKnob" .. i, 100, 0, 100, true)
-    playProbabilityKnob.displayName = "Play Probability"
-    playProbabilityKnob.tooltip = "Set the probability that the part will be played when randomizing part order. When set to 0, the part is never played."
+    playProbabilityKnob.displayName = "Play"
+    playProbabilityKnob.tooltip = "Set the probability that the part will be played when randomizing part order."
     playProbabilityKnob.visible = false
     playProbabilityKnob.unit = Unit.Percent
-    playProbabilityKnob.x = playMode.x + playMode.width + 15
+    playProbabilityKnob.x = playMode.x + playMode.width + 20
     playProbabilityKnob.y = playMode.y + 8
     playProbabilityKnob.height = 40
-    playProbabilityKnob.width = 140
+    playProbabilityKnob.width = 100
 
     local repeatProbabilityKnob = sequencerPanel:Knob("PartRepeatProbabilityKnob" .. i, 50, 0, 100, true)
-    repeatProbabilityKnob.displayName = "Repeat Probability"
+    repeatProbabilityKnob.displayName = "Repeat"
     repeatProbabilityKnob.tooltip = "Set the probability of that the part will be repeated when randomizing part order. When set to 0, the part is never repeated."
     repeatProbabilityKnob.visible = false
     repeatProbabilityKnob.unit = Unit.Percent
-    repeatProbabilityKnob.x = playProbabilityKnob.x + playProbabilityKnob.width + 5
+    repeatProbabilityKnob.x = playProbabilityKnob.x + playProbabilityKnob.width + 10
     repeatProbabilityKnob.y = playProbabilityKnob.y
     repeatProbabilityKnob.height = playProbabilityKnob.height
-    repeatProbabilityKnob.width = 140
+    repeatProbabilityKnob.width = playProbabilityKnob.width
 
     local directionProbabilityKnob = sequencerPanel:Knob("PartDirectionProbabilityKnob" .. i, 0, 0, 100, true)
-    directionProbabilityKnob.displayName = "Backward Probability"
+    directionProbabilityKnob.displayName = "Backward"
     directionProbabilityKnob.tooltip = "Set the probability that the part will play backwards"
     directionProbabilityKnob.visible = false
     directionProbabilityKnob.unit = Unit.Percent
-    directionProbabilityKnob.x = repeatProbabilityKnob.x + repeatProbabilityKnob.width + 5
+    directionProbabilityKnob.x = repeatProbabilityKnob.x + repeatProbabilityKnob.width + 10
     directionProbabilityKnob.y = repeatProbabilityKnob.y
     directionProbabilityKnob.height = repeatProbabilityKnob.height
-    directionProbabilityKnob.width = 155
+    directionProbabilityKnob.width = playProbabilityKnob.width
 
-    table.insert(paramsPerPart, {partResolution=partResolution,stepResolution=stepResolution,playMode=playMode,playProbability=playProbabilityKnob,directionProbability=directionProbabilityKnob,repeatProbability=repeatProbabilityKnob,numSteps=0,init=i==1})
-
-    stepResolution:changed()
+    table.insert(paramsPerPart, {partResolution=partResolution,stepResolution=stepResolution,playMode=playMode,playProbability=playProbabilityKnob,directionProbability=directionProbabilityKnob,repeatProbability=repeatProbabilityKnob,numStepsBox=numStepsBox,init=i==1})
   end
 
   editPartMenu:changed()
+  numPartsBox:changed()
 
   function arpeg(arpId_)
     local index = 0
@@ -542,8 +586,8 @@ function createSequencerPanel()
         currentStep = 1
       end
 
-      -- Check if we are at the start of a part
-      if startOfPart and partRandomizationAmount > 0 then
+      -- If we are at the start of a part (and there is more than one part), check for part order randomization (or an active repeat)
+      if startOfPart and numParts > 1 and (getRandomBoolean(partRandomizationAmount) or partRepeat > 0) then
         if partRepeat > 0 then
           currentPartPosition = partRepeat
           partRepeat = 0 -- Reset repeat  
@@ -582,7 +626,7 @@ function createSequencerPanel()
       -- Params for current part position
       local stepDuration = getResolution(paramsPerPart[currentPartPosition].stepResolution.value)
       local playMode = paramsPerPart[currentPartPosition].playMode.value
-      local numStepsInPart = paramsPerPart[currentPartPosition].numSteps
+      local numStepsInPart = paramsPerPart[currentPartPosition].numStepsBox.value
 
       -- Flip position if playing backwards
       if partDirectionBackward == true then
@@ -683,12 +727,15 @@ function createSequencerPanel()
       if partDirectionBackward == true then
         tieStepPos = currentPosition + 1
       end
-      local shouldAddNote = tieStepTable:getValue(tieStepPos) ~= 1 and randomTieCounter ~= 1
 
-      -- Reset tie counter
-      if randomTieCounter == 1 then
-        randomTieCounter = 0
-        print("Reset tie")
+      local shouldAddNote = tieStepTable:getValue(tieStepPos) ~= 1
+      if randomTieCounter > 0 then
+        shouldAddNote = randomTieCounter == 2
+        -- Reset tie counter
+        if randomTieCounter == 1 then
+          randomTieCounter = 0
+          print("Reset tie")
+        end
       end
 
       -- If gate is zero no notes will play on this step
@@ -703,22 +750,26 @@ function createSequencerPanel()
         local noteSteps = 1
         -- Check tie to next step
         if tieNext == 1 then
-          local tmp = currentPosition
-          local startStep = partToStepMap[currentPartPosition]
-          while tieStepTable:getValue(tmp) == 1 and tmp < numStepsInPart and tmp > startStep do
-            noteSteps = noteSteps + 1
-            if partDirectionBackward == true then
-              tmp = tmp - 1
-            else
-              tmp = tmp + 1
+          if randomTieCounter == 2 then
+            noteSteps = randomTieCounter
+            randomTieCounter = 1
+            print("Set automatic tie", noteSteps)
+          else
+            local tmp = currentPosition
+            local startStep = partToStepMap[currentPartPosition]
+            local endStep = startStep + numStepsInPart - 1
+            print("Find tie length startStep/endStep/currentPosition", startStep, endStep, currentPosition)
+
+            while (tieStepTable:getValue(tmp) == 1 or randomTieCounter == 2) and tmp < endStep and tmp >= startStep do
+              noteSteps = noteSteps + 1
+              if partDirectionBackward == true then
+                tmp = tmp - 1
+              else
+                tmp = tmp + 1
+              end
             end
           end
-        end
-
-        if randomTieCounter == 2 then
-          noteSteps = randomTieCounter
-          randomTieCounter = 1
-          print("Set automatic tie", noteSteps)
+          print("Set tie steps currentPosition/noteSteps", currentPosition, noteSteps)
         end
 
         -- Check for pitch change randomization
