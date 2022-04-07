@@ -911,7 +911,7 @@ end
 --------------------------------------------------------------------------------
 
 function onSave()
-  local data = {totalNumSteps,numParts}
+  local data = {}
   local pitchTableData = {}
   local tieStepTableData = {}
   local seqPitchChangeProbabilityTableData = {}
@@ -936,13 +936,13 @@ function onSave()
 end
 
 function onLoad(data)
-  totalNumSteps = data[1]
-  numParts = data[2]
-  local seqPitchTableData = data[3]
-  local tieStepTableData = data[4]
-  local seqPitchChangeProbabilityTableData = data[5]
-  local seqVelTableData = data[6]
-  local seqGateTableData = data[7]
+  local seqPitchTableData = data[1]
+  local tieStepTableData = data[2]
+  local seqPitchChangeProbabilityTableData = data[3]
+  local seqVelTableData = data[4]
+  local seqGateTableData = data[5]
+
+  totalNumSteps = #seqPitchTableData
 
   seqPitchTable.length = totalNumSteps
   tieStepTable.length = totalNumSteps
@@ -957,6 +957,4 @@ function onLoad(data)
     seqVelTable:setValue(i, seqVelTableData[i])
     seqGateTable:setValue(i, seqGateTableData[i])
   end
-
-  print("Loading totalNumSteps/numParts", totalNumSteps, numParts)
 end
