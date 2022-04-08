@@ -20,7 +20,7 @@ local heldNotes = {}
 local paramsPerPart = {}
 local partSelect = {}
 
-setBackgroundColour("#4f4f4f")
+setBackgroundColour("#3f3f3f")
 
 --------------------------------------------------------------------------------
 -- Functions
@@ -446,7 +446,7 @@ function setNumSteps(index)
     if numSteps > paramsPerPart[index].numStepsBox.max then
       paramsPerPart[index].numStepsBox:setRange(1, numSteps)
     end
-    paramsPerPart[index].numStepsBox:setValue(numSteps)
+    paramsPerPart[index].numStepsBox:setValue(numSteps, false)
   end
 
   partToStepMap = {} -- Reset
@@ -500,7 +500,7 @@ for i=1,numPartsBox.max do
   numStepsBox.x = partResolution.x + partResolution.width + 10
   numStepsBox.y = partResolution.y + 25
   numStepsBox.changed = function(self)
-    print("numStepsBox.changed", i)
+    print("numStepsBox.changed index/value", i, self.value)
     setNumSteps(i)
   end
 
@@ -911,7 +911,6 @@ end
 --------------------------------------------------------------------------------
 
 function onSave()
-  local data = {}
   local pitchTableData = {}
   local tieStepTableData = {}
   local seqPitchChangeProbabilityTableData = {}
@@ -926,11 +925,18 @@ function onSave()
     table.insert(seqGateTableData, seqGateTable:getValue(i))
   end
 
+  local numStepsData = {}
+  for i=1,numParts do
+    table.insert(numStepsData, paramsPerPart[i].numStepsBox.value)
+  end
+
+  local data = {}
   table.insert(data, pitchTableData)
   table.insert(data, tieStepTableData)
   table.insert(data, seqPitchChangeProbabilityTableData)
   table.insert(data, seqVelTableData)
   table.insert(data, seqGateTableData)
+  table.insert(data, numStepsData)
 
   return data
 end
@@ -941,8 +947,13 @@ function onLoad(data)
   local seqPitchChangeProbabilityTableData = data[3]
   local seqVelTableData = data[4]
   local seqGateTableData = data[5]
+  local numStepsData = data[6]
 
-  totalNumSteps = #seqPitchTableData
+  numPartsBox:setValue(#numStepsData)
+
+  for i,v in ipairs(numStepsData) do
+    paramsPerPart[i].numStepsBox:setValue(v)
+  end
 
   seqPitchTable.length = totalNumSteps
   tieStepTable.length = totalNumSteps

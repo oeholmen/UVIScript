@@ -6,7 +6,6 @@ local tweakables = {}
 local storedPatches = {}
 local storedPatch = {}
 local patchesMenu = nil
-local isStarting = true
 
 --------------------------------------------------------------------------------
 -- Synth engine elements
@@ -7585,8 +7584,6 @@ settingsPageButton.changed = function(self)
   effectsPageButton:setValue(false, false)
   setPage(7)
 end
-
-isStarting = false -- Startup complete!
 
 -- Set start page
 patchmakerPageButton:changed()

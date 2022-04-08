@@ -7,8 +7,30 @@ local menuBackgroundColour = "#bf01011F"
 local menuTextColour = "#9f02ACFE"
 local menuArrowColour = "#9f09A3F4"
 local menuOutlineColour = "00000000"
+local arpId = 0
+local partToStepMap = {1} -- Holds the starting step for each part
+local velocityRandomizationAmount = 0
+local gateRandomizationAmount = 0
+local partRandomizationAmount = 0
+local baseNoteProbability = 0
+local totalNumSteps = 0
+local scaleDefinitions = {{1},{2,2,1,2,2,2,1}, {2,1,2,2,1,2,2}, {2,1,2,2,2,1,2}, {2}, {2,2,3,2,3}, {3,2,2,3,2}, {5,2,5}, {7,5}, {12}, {3}, {5}, {7}}
+local paramsPerPart = {}
+local partSelect = {}
+local heldNotes = {}
+local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
+local noteNumberToNoteName = {} -- Used for mapping - does not include octave, only name of note (C, C#...)
+local notenamePos = 1
+for i=0,127 do
+  local name = notenames[notenamePos] .. (math.floor(i/12)-2) .. " (" .. i .. ")"
+  table.insert(noteNumberToNoteName, notenames[notenamePos])
+  notenamePos = notenamePos + 1
+  if notenamePos > #notenames then
+    notenamePos = 1
+  end
+end
 
-setBackgroundColour("#4f4f4f")
+setBackgroundColour("#5f5f5f")
 
 --------------------------------------------------------------------------------
 -- Functions
@@ -121,26 +143,6 @@ end
 -- Sequencer Panel
 --------------------------------------------------------------------------------
 
-local arpId = 0
-local partToStepMap = {1} -- Holds the starting step for each part
-local velocityRandomizationAmount = 0
-local gateRandomizationAmount = 0
-local partRandomizationAmount = 0
-local baseNoteProbability = 0
-local totalNumSteps = 0
-local heldNotes = {}
-local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
-local noteNumberToNoteName = {} -- Used for mapping - does not include octave, only name of note (C, C#...)
-local notenamePos = 1
-for i=0,127 do
-  local name = notenames[notenamePos] .. (math.floor(i/12)-2) .. " (" .. i .. ")"
-  table.insert(noteNumberToNoteName, notenames[notenamePos])
-  notenamePos = notenamePos + 1
-  if notenamePos > #notenames then
-    notenamePos = 1
-  end
-end
-
 local sequencerPanel = Panel("Sequencer")
 sequencerPanel.backgroundColour = menuOutlineColour
 sequencerPanel.x = 10
@@ -170,6 +172,34 @@ positionTable.height = partsTable.height
 positionTable.x = partsTable.x
 positionTable.y = partsTable.y + partsTable.height
 
+local editPartMenu = sequencerPanel:Menu("EditPart", partSelect)
+editPartMenu.backgroundColour = menuBackgroundColour
+editPartMenu.textColour = menuTextColour
+editPartMenu.arrowColour = menuArrowColour
+editPartMenu.outlineColour = menuOutlineColour
+editPartMenu.displayName = "Edit part"
+editPartMenu.showLabel = false
+editPartMenu.y = positionTable.y + positionTable.height + 10
+editPartMenu.x = 0
+editPartMenu.width = 190
+editPartMenu.height = 20
+editPartMenu.changed = function(self)
+  for i,v in ipairs(paramsPerPart) do
+    local isVisible = self.value == i
+    v.polyphony.visible = isVisible
+    v.partResolution.visible = isVisible
+    v.stepResolution.visible = isVisible
+    v.minNoteSteps.visible = isVisible
+    v.maxNoteSteps.visible = isVisible
+    v.minNote.visible = isVisible
+    v.maxNote.visible = isVisible
+    v.key.visible = isVisible
+    v.scale.visible = isVisible
+    v.droneLow.visible = isVisible
+    v.droneHigh.visible = isVisible
+  end
+end
+
 local numPartsBox = sequencerPanel:NumBox("Parts", 1, 1, 8, true)
 numPartsBox.tooltip = "The Number of parts in the sequence"
 numPartsBox.backgroundColour = menuBackgroundColour
@@ -179,6 +209,39 @@ numPartsBox.outlineColour = menuOutlineColour
 numPartsBox.size = {80,30}
 numPartsBox.x = 490
 numPartsBox.y = 290
+numPartsBox.changed = function(self)
+  for i=1, self.value do
+    setNumSteps(i)
+  end
+
+  local partSelect = {}
+  for i=1,self.value do
+    -- Add item to part select table
+    table.insert(partSelect, "Part " .. i)
+    if paramsPerPart[i].init == false then
+      -- Copy initial settings from prev part
+      local prev = paramsPerPart[i-1]
+      paramsPerPart[i].polyphony.value = prev.polyphony.value
+      paramsPerPart[i].scale.value = prev.scale.value
+      paramsPerPart[i].key.value = prev.key.value
+      paramsPerPart[i].droneLow.value = prev.droneLow.value
+      paramsPerPart[i].droneHigh.value = prev.droneHigh.value
+      paramsPerPart[i].minNote.value = prev.minNote.value
+      paramsPerPart[i].maxNote.value = prev.maxNote.value
+      paramsPerPart[i].minNoteSteps.value = prev.minNoteSteps.value
+      paramsPerPart[i].maxNoteSteps.value = prev.maxNoteSteps.value
+      paramsPerPart[i].partResolution.value = prev.partResolution.value
+      paramsPerPart[i].stepResolution.value = prev.stepResolution.value
+      paramsPerPart[i].numSteps = prev.numSteps
+      paramsPerPart[i].fullScale = prev.fullScale
+      paramsPerPart[i].filteredScale = prev.filteredScale
+      paramsPerPart[i].init = prev.init
+    end
+  end
+  editPartMenu.items = partSelect
+
+  clearPosition()
+end
 
 local evolveButton = sequencerPanel:OnOffButton("EvolveOnOff", false)
 evolveButton.backgroundColourOff = "#ff084486"
@@ -219,7 +282,7 @@ holdButton.changed = function(self)
   end
 end
 
-local seqVelTable = sequencerPanel:Table("Velocity", totalNumSteps, 100, 1, 127, true)
+local seqVelTable = sequencerPanel:Table("Velocity", 1, 100, 1, 127, true)
 seqVelTable.tooltip = "Set step velocity. Randomization available in settings."
 seqVelTable.showPopupDisplay = true
 seqVelTable.showLabel = true
@@ -230,7 +293,7 @@ seqVelTable.height = 70
 seqVelTable.x = positionTable.x
 seqVelTable.y = 130
 
-local seqGateTable = sequencerPanel:Table("Gate", totalNumSteps, 100, 0, 110, true)
+local seqGateTable = sequencerPanel:Table("Gate", 1, 100, 0, 110, true)
 seqGateTable.tooltip = "Set step gate length. Randomization available in settings."
 seqGateTable.showPopupDisplay = true
 seqGateTable.showLabel = true
@@ -240,76 +303,6 @@ seqGateTable.width = seqVelTable.width
 seqGateTable.height = 70
 seqGateTable.x = seqVelTable.x
 seqGateTable.y = seqVelTable.y + seqVelTable.height + 5
-
--- Handle scales
-local scaleDefinitions = {{1},{2,2,1,2,2,2,1}, {2,1,2,2,1,2,2}, {2,1,2,2,2,1,2}, {2}, {2,2,3,2,3}, {3,2,2,3,2}, {5,2,5}, {7,5}, {12}, {3}, {5}, {7}}
-local paramsPerPart = {}
-local partSelect = {}
-for i=1,numPartsBox.value do
-  table.insert(partSelect, "Part " .. i)
-end
-
-local editPartMenu = sequencerPanel:Menu("EditPart", partSelect)
-editPartMenu.backgroundColour = menuBackgroundColour
-editPartMenu.textColour = menuTextColour
-editPartMenu.arrowColour = menuArrowColour
-editPartMenu.outlineColour = menuOutlineColour
-editPartMenu.displayName = "Edit part"
-editPartMenu.showLabel = false
-editPartMenu.y = positionTable.y + positionTable.height + 10
-editPartMenu.x = 0
-editPartMenu.width = 190
-editPartMenu.height = 20
-editPartMenu.changed = function(self)
-  for i,v in ipairs(paramsPerPart) do
-    local isVisible = self.value == i
-    v.polyphony.visible = isVisible
-    v.partResolution.visible = isVisible
-    v.stepResolution.visible = isVisible
-    v.minNoteSteps.visible = isVisible
-    v.maxNoteSteps.visible = isVisible
-    v.minNote.visible = isVisible
-    v.maxNote.visible = isVisible
-    v.key.visible = isVisible
-    v.scale.visible = isVisible
-    v.droneLow.visible = isVisible
-    v.droneHigh.visible = isVisible
-  end
-end
-
-numPartsBox.changed = function(self)
-  for i=1, self.value do
-    setNumSteps(i)
-  end
-
-  local partSelect = {}
-  for i=1,self.value do
-    -- Add item to part select table
-    table.insert(partSelect, "Part " .. i)
-    if paramsPerPart[i].init == false then
-      -- Copy initial settings from prev part
-      local prev = paramsPerPart[i-1]
-      paramsPerPart[i].polyphony.value = prev.polyphony.value
-      paramsPerPart[i].scale.value = prev.scale.value
-      paramsPerPart[i].key.value = prev.key.value
-      paramsPerPart[i].droneLow.value = prev.droneLow.value
-      paramsPerPart[i].droneHigh.value = prev.droneHigh.value
-      paramsPerPart[i].minNote.value = prev.minNote.value
-      paramsPerPart[i].maxNote.value = prev.maxNote.value
-      paramsPerPart[i].minNoteSteps.value = prev.minNoteSteps.value
-      paramsPerPart[i].maxNoteSteps.value = prev.maxNoteSteps.value
-      paramsPerPart[i].partResolution.value = prev.partResolution.value
-      paramsPerPart[i].stepResolution.value = prev.stepResolution.value
-      paramsPerPart[i].numSteps = prev.numSteps
-      paramsPerPart[i].fullScale = prev.fullScale
-      paramsPerPart[i].filteredScale = prev.filteredScale
-      paramsPerPart[i].init = prev.init
-    end
-  end
-  editPartMenu.items = partSelect
-
-  clearPosition()
-end
 
 local velRandKnob = sequencerPanel:Knob("VelocityRandomization", 0, 0, 100, true)
 velRandKnob.displayName = "Velocity"
@@ -544,6 +537,7 @@ for i=1,numPartsBox.max do
   stepResolution:changed()
 end
 
+numPartsBox:changed()
 editPartMenu:changed()
 
 function createFilteredScale(part)
@@ -599,6 +593,10 @@ function notesInclude(notesTable, note)
   end
   return false
 end
+
+--------------------------------------------------------------------------------
+-- Sequencer
+--------------------------------------------------------------------------------
 
 function arpeg(arpId_)
   local index = 0
@@ -854,6 +852,10 @@ function arpeg(arpId_)
     waitBeat(stepDuration)
   end
 end
+
+--------------------------------------------------------------------------------
+-- Handle note events
+--------------------------------------------------------------------------------
 
 function onNote(e)
   if holdButton.value == true then
