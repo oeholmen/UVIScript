@@ -181,6 +181,7 @@ editPartMenu.width = 120
 
 local randomizePitchButton = sequencerPanel:Button("RandomizePitch")
 randomizePitchButton.persistent = false
+randomizePitchButton.visible = false
 randomizePitchButton.backgroundColourOff = "#33084486"
 randomizePitchButton.backgroundColourOn = "#9902ACFE"
 randomizePitchButton.textColourOff = "#cc22FFFF"
@@ -192,13 +193,14 @@ randomizePitchButton.size = {60,20}
 randomizePitchButton.x = 640
 randomizePitchButton.y = 47
 randomizePitchButton.changed = function()
-  for i=1,totalNumSteps do
-    seqPitchTable:setValue(i, getRandom(seqPitchTable.min, seqPitchTable.max))
+  for i=1,paramsPerPart[editPartMenu.value].numStepsBox.value do
+    paramsPerPart[editPartMenu.value].seqPitchTable:setValue(i, getRandom(paramsPerPart[editPartMenu.value].seqPitchTable.min, paramsPerPart[editPartMenu.value].seqPitchTable.max))
   end
 end
 
 local clearPitchButton = sequencerPanel:Button("ClearPitch")
 clearPitchButton.persistent = false
+clearPitchButton.visible = false
 clearPitchButton.backgroundColourOff = "#33084486"
 clearPitchButton.backgroundColourOn = "#9902ACFE"
 clearPitchButton.textColourOff = "#cc22FFFF"
@@ -210,9 +212,26 @@ clearPitchButton.size = {60,20}
 clearPitchButton.x = 640
 clearPitchButton.y = randomizePitchButton.y + randomizePitchButton.height + 3
 clearPitchButton.changed = function()
-  for i=1,totalNumSteps do
-    seqPitchTable:setValue(i, 0)
+  for i=1,paramsPerPart[editPartMenu.value].numStepsBox.value do
+    paramsPerPart[editPartMenu.value].seqPitchTable:setValue(i, 0)
   end
+end
+
+local focusButton = sequencerPanel:OnOffButton("FocusPartOnOff", false)
+focusButton.backgroundColourOff = "#ff084486"
+focusButton.backgroundColourOn = "#ff02ACFE"
+focusButton.textColourOff = "#ff22FFFF"
+focusButton.textColourOn = "#efFFFFFF"
+focusButton.displayName = "Focus Part"
+focusButton.tooltip = "When focus is active, only the selected part is shown"
+focusButton.fillColour = "#dd000061"
+focusButton.size = {75,30}
+focusButton.x = 450
+focusButton.y = editPartMenu.y + 15
+focusButton.changed = function(self)
+  randomizePitchButton.visible = self.value
+  clearPitchButton.visible = self.value
+  setTableWidths()
 end
 
 local evolveButton = sequencerPanel:OnOffButton("EvolveOnOff", false)
@@ -223,8 +242,8 @@ evolveButton.textColourOn = "#efFFFFFF"
 evolveButton.displayName = "Evolve"
 evolveButton.tooltip = "When evolve is active, randomization is written back to the corresponding table, allowing the table to evolve with the changes"
 evolveButton.fillColour = "#dd000061"
-evolveButton.size = {85,30}
-evolveButton.x = 450
+evolveButton.size = focusButton.size
+evolveButton.x = focusButton.x + focusButton.width + 10
 evolveButton.y = editPartMenu.y + 15
 
 local holdButton = sequencerPanel:OnOffButton("HoldOnOff", false)
@@ -266,6 +285,7 @@ editPartMenu.changed = function(self)
     v.repeatProbability.visible = isVisible
     v.directionProbability.visible = isVisible
   end
+  setTableWidths()
 end
 
 local tieRandKnob = sequencerPanel:Knob("TieRandomization", 0, 0, 100, true)
@@ -397,41 +417,51 @@ function setNumSteps(index)
     totalNumSteps = totalNumSteps + paramsPerPart[i].numStepsBox.value
   end
 
+  setTableWidths()
+end
+
+function setTableWidths()
+  local focusSelectedPart = focusButton.value
   local widthPerStep = tableWidth / totalNumSteps
   local x = 0
   for i=1, numPartsBox.value do
+    local isVisible = (focusSelectedPart == true and i == editPartMenu.value) or focusSelectedPart == false
     local partTableWidth = paramsPerPart[i].numStepsBox.value * widthPerStep
-    paramsPerPart[i].partsTable.visible = true
+    if focusSelectedPart then
+      partTableWidth = tableWidth
+      x = 0
+    end
+    paramsPerPart[i].partsTable.visible = isVisible
     paramsPerPart[i].partsTable.width = partTableWidth
     paramsPerPart[i].partsTable.x = x
 
     paramsPerPart[i].positionTable.length = paramsPerPart[i].numStepsBox.value
-    paramsPerPart[i].positionTable.visible = true
+    paramsPerPart[i].positionTable.visible = isVisible
     paramsPerPart[i].positionTable.width = partTableWidth
     paramsPerPart[i].positionTable.x = x
 
     paramsPerPart[i].seqPitchTable.length = paramsPerPart[i].numStepsBox.value
-    paramsPerPart[i].seqPitchTable.visible = true
+    paramsPerPart[i].seqPitchTable.visible = isVisible
     paramsPerPart[i].seqPitchTable.width = partTableWidth
     paramsPerPart[i].seqPitchTable.x = x
 
     paramsPerPart[i].tieStepTable.length = paramsPerPart[i].numStepsBox.value
-    paramsPerPart[i].tieStepTable.visible = true
+    paramsPerPart[i].tieStepTable.visible = isVisible
     paramsPerPart[i].tieStepTable.width = partTableWidth
     paramsPerPart[i].tieStepTable.x = x
 
     paramsPerPart[i].seqPitchChangeProbabilityTable.length = paramsPerPart[i].numStepsBox.value
-    paramsPerPart[i].seqPitchChangeProbabilityTable.visible = true
+    paramsPerPart[i].seqPitchChangeProbabilityTable.visible = isVisible
     paramsPerPart[i].seqPitchChangeProbabilityTable.width = partTableWidth
     paramsPerPart[i].seqPitchChangeProbabilityTable.x = x
 
     paramsPerPart[i].seqVelTable.length = paramsPerPart[i].numStepsBox.value
-    paramsPerPart[i].seqVelTable.visible = true
+    paramsPerPart[i].seqVelTable.visible = isVisible
     paramsPerPart[i].seqVelTable.width = partTableWidth
     paramsPerPart[i].seqVelTable.x = x
 
     paramsPerPart[i].seqGateTable.length = paramsPerPart[i].numStepsBox.value
-    paramsPerPart[i].seqGateTable.visible = true
+    paramsPerPart[i].seqGateTable.visible = isVisible
     paramsPerPart[i].seqGateTable.width = partTableWidth
     paramsPerPart[i].seqGateTable.x = x
 
@@ -693,8 +723,10 @@ function arpeg(arpId_)
     end
 
     -- If we are at the start of a part (and there is more than one part), check for part order randomization (or an active repeat)
-    if startOfPart and numParts > 1 and (getRandomBoolean(partRandomizationAmount) or partRepeat > 0) then
-      if partRepeat > 0 then
+    if startOfPart and numParts > 1 and (getRandomBoolean(partRandomizationAmount) or partRepeat > 0 or focusButton.value == true) then
+      if focusButton.value == true then
+        currentPartPosition = editPartMenu.value
+      elseif partRepeat > 0 then
         currentPartPosition = partRepeat
         partRepeat = 0 -- Reset repeat  
       else
@@ -940,7 +972,6 @@ function arpeg(arpId_)
     notes = keep -- Refresh notes table
 
     -- UPDATE STEP POSITION TABLE
-    --local startStep = partToStepMap[currentPartPosition]
     for i=1, numParts do
       for j=1, paramsPerPart[i].numStepsBox.value do
         if i == currentPartPosition and j == currentPosition - startStep + 1 then
@@ -1008,25 +1039,24 @@ end
 --------------------------------------------------------------------------------
 -- Save / Load
 --------------------------------------------------------------------------------
---[[ 
+
 function onSave()
   local pitchTableData = {}
   local tieStepTableData = {}
   local seqPitchChangeProbabilityTableData = {}
   local seqVelTableData = {}
   local seqGateTableData = {}
-
-  for i=1,totalNumSteps do
-    table.insert(pitchTableData, seqPitchTable:getValue(i))
-    table.insert(tieStepTableData, tieStepTable:getValue(i))
-    table.insert(seqPitchChangeProbabilityTableData, seqPitchChangeProbabilityTable:getValue(i))
-    table.insert(seqVelTableData, seqVelTable:getValue(i))
-    table.insert(seqGateTableData, seqGateTable:getValue(i))
-  end
-
   local numStepsData = {}
-  for i=1,numParts do
+
+  for i=1, numParts do
     table.insert(numStepsData, paramsPerPart[i].numStepsBox.value)
+    for j=1, paramsPerPart[i].numStepsBox.value do
+      table.insert(pitchTableData, paramsPerPart[i].seqPitchTable:getValue(j))
+      table.insert(tieStepTableData, paramsPerPart[i].tieStepTable:getValue(j))
+      table.insert(seqPitchChangeProbabilityTableData, paramsPerPart[i].seqPitchChangeProbabilityTable:getValue(j))
+      table.insert(seqVelTableData, paramsPerPart[i].seqVelTable:getValue(j))
+      table.insert(seqGateTableData, paramsPerPart[i].seqGateTable:getValue(j))
+    end
   end
 
   local data = {}
@@ -1050,22 +1080,21 @@ function onLoad(data)
 
   numPartsBox:setValue(#numStepsData)
 
+  local dataCounter = 1
   for i,v in ipairs(numStepsData) do
     paramsPerPart[i].numStepsBox:setValue(v)
-  end
-
-  seqPitchTable.length = totalNumSteps
-  tieStepTable.length = totalNumSteps
-  seqPitchChangeProbabilityTable.length = totalNumSteps
-  seqVelTable.length = totalNumSteps
-  seqGateTable.length = totalNumSteps
-
-  for i=1,totalNumSteps do
-    seqPitchTable:setValue(i, seqPitchTableData[i])
-    tieStepTable:setValue(i, tieStepTableData[i])
-    seqPitchChangeProbabilityTable:setValue(i, seqPitchChangeProbabilityTableData[i])
-    seqVelTable:setValue(i, seqVelTableData[i])
-    seqGateTable:setValue(i, seqGateTableData[i])
+    paramsPerPart[i].seqPitchTable.length = v
+    paramsPerPart[i].tieStepTable.length = v
+    paramsPerPart[i].seqPitchChangeProbabilityTable.length = v
+    paramsPerPart[i].seqVelTable.length = v
+    paramsPerPart[i].seqGateTable.length = v
+    for j=1, v do
+      paramsPerPart[i].seqPitchTable:setValue(j, seqPitchTableData[dataCounter])
+      paramsPerPart[i].tieStepTable:setValue(j, tieStepTableData[dataCounter])
+      paramsPerPart[i].seqPitchChangeProbabilityTable:setValue(j, seqPitchChangeProbabilityTableData[dataCounter])
+      paramsPerPart[i].seqVelTable:setValue(j, seqVelTableData[dataCounter])
+      paramsPerPart[i].seqGateTable:setValue(j, seqGateTableData[dataCounter])
+      dataCounter = dataCounter + 1
+    end
   end
 end
- ]]
