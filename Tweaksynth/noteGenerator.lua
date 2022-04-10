@@ -586,8 +586,9 @@ function isRootNote(note, currentPartPosition)
 end
 
 function notesInclude(notesTable, note)
-  for _,value in pairs(notesTable) do
-    if value.note == note then
+  for _,v in pairs(notesTable) do
+    if v.note == note then
+      print("Note already included", note)
       return true
     end
   end
@@ -609,13 +610,13 @@ function arpeg(arpId_)
     -- SET VALUES
     local numParts = numPartsBox.value
     local currentPosition = (index % totalNumSteps) + 1 -- 11 % 4 = 3
-    print("currentPosition", currentPosition)
+    --print("currentPosition", currentPosition)
     -- Set part position
     local startOfPart = false
     for pp,sp in ipairs(partToStepMap) do
       if sp == currentPosition then
         currentPartPosition = pp
-        print("Set currentPartPosition", currentPartPosition)
+        --print("Set currentPartPosition", currentPartPosition)
         startOfPart = true
         break
       end
@@ -714,11 +715,12 @@ function arpeg(arpId_)
         numberOfNotes = getRandom(polyphony)
       end
 
-      -- On step one, always the base note if probability hits (unless low drone is active)
+      -- On step one, always add the base note if probability hits (unless low drone is active)
       local isLowDroneActive = paramsPerPart[currentPartPosition].droneLow.visible and paramsPerPart[currentPartPosition].droneLow.value > 1
       if currentStep == 1 and isLowDroneActive == false and notesInclude(notes, minNote) == false and getRandomBoolean(baseNoteProbability) then
         local noteSteps = getRandom(minNoteSteps,maxNoteSteps)
         table.insert(notes, {note=minNote,gate=gate,vel=vel,steps=noteSteps,stepCounter=0})
+        print("Insert base note note/steps/vel/gate", minNote, noteSteps, vel, gate)
       end
 
       -- Check how many notes are already playing, and remove number from numberOfNotes if more than max polyphony
@@ -736,14 +738,21 @@ function arpeg(arpId_)
       end      
 
       -- Add notes to play
-      for i=1,numberOfNotes do
+      --for i=1,numberOfNotes do
+      local noteCounter = 0
+      local roundCounter = 0
+      local maxRounds = numberOfNotes * 2
+      while noteCounter < numberOfNotes and roundCounter < maxRounds do
         local noteToPlay = generateNoteToPlay(currentPartPosition)
         if notesInclude(notes, noteToPlay) == false then
-          local noteSteps = getRandom(minNoteSteps,maxNoteSteps)
+          local noteSteps = getRandom(minNoteSteps, maxNoteSteps)
           table.insert(notes, {note=noteToPlay,gate=(gate/100),vel=vel,steps=noteSteps,stepCounter=0})
-          --print("Insert to notes note/steps/gate", noteToPlay, noteSteps, gate)
+          print("Insert to notes note/steps/vel/gate", noteToPlay, noteSteps, vel, gate)
+          noteCounter = noteCounter + 1
         end
+        roundCounter = roundCounter + 1
       end
+      print("Notes ready to play", #notes)
     end
 
     -- PLAY DRONE(S) ON START OF PART HOLDING ALL PART

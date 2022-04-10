@@ -9,11 +9,6 @@ local menuArrowColour = "#9f09A3F4"
 local menuOutlineColour = "00000000"
 local arpId = 0
 local partToStepMap = {1} -- Holds the starting step for each part
-local velocityRandomizationAmount = 0
-local gateRandomizationAmount = 0
-local partRandomizationAmount = 0
-local tieRandomizationAmount = 0
-local pitchProbabilityRandomizationAmount = 0
 local totalNumSteps = 8
 local numParts = 1
 local heldNotes = {}
@@ -270,7 +265,7 @@ editPartMenu.changed = function(self)
     local isVisible = self.value == i
 
     if isVisible then
-      v.partsTable.backgroundColour = "#6f09A3F4"
+      v.partsTable.backgroundColour = "#ccff3344"
     elseif i % 2 == 0 then
       v.partsTable.backgroundColour = "#3f09A3F4"
     else
@@ -284,57 +279,12 @@ editPartMenu.changed = function(self)
     v.playProbability.visible = isVisible
     v.repeatProbability.visible = isVisible
     v.directionProbability.visible = isVisible
+    v.tieRandKnob.visible = isVisible
+    v.pitchProbRandKnob.visible = isVisible
+    v.velRandKnob.visible = isVisible
+    v.gateRandKnob.visible = isVisible
   end
   setTableWidths()
-end
-
-local tieRandKnob = sequencerPanel:Knob("TieRandomization", 0, 0, 100, true)
-tieRandKnob.displayName = "Rand"
-tieRandKnob.tooltip = "Amount of radomization applied to ties"
-tieRandKnob.unit = Unit.Percent
-tieRandKnob.height = 30
-tieRandKnob.width = 70
-tieRandKnob.x = tableWidth + 5
-tieRandKnob.y = 130
-tieRandKnob.changed = function(self)
-  tieRandomizationAmount = self.value
-end
-
-local pitchProbRandKnob = sequencerPanel:Knob("PitchProbabilityRandomization", 0, 0, 100, true)
-pitchProbRandKnob.displayName = "Rand"
-pitchProbRandKnob.tooltip = "Amount of radomization applied to pitch change probability"
-pitchProbRandKnob.unit = Unit.Percent
-pitchProbRandKnob.height = 30
-pitchProbRandKnob.width = 70
-pitchProbRandKnob.x = tableWidth + 5
-pitchProbRandKnob.y = tieRandKnob.y + tieRandKnob.height + 25
-pitchProbRandKnob.changed = function(self)
-  pitchProbabilityRandomizationAmount = self.value
-end
-
-local velRandKnob = sequencerPanel:Knob("VelocityRandomization", 0, 0, 100, true)
-velRandKnob.displayName = "Rand"
-velRandKnob.tooltip = "Amount of radomization applied to sequencer velocity"
-velRandKnob.unit = Unit.Percent
-velRandKnob.height = 30
-velRandKnob.width = 70
-velRandKnob.x = tableWidth + 5
-velRandKnob.y = pitchProbRandKnob.y + pitchProbRandKnob.height + 45
-velRandKnob.changed = function(self)
-  velocityRandomizationAmount = self.value
-end
-
-local gateRandKnob = sequencerPanel:Knob("GateRandomization", 0, 0, 100, true)
-gateRandKnob.displayName = "Rand"
-gateRandKnob.tooltip = "Amount of radomization applied to sequencer gate"
-gateRandKnob.unit = Unit.Percent
-gateRandKnob.height = 30
-gateRandKnob.width = 70
-gateRandKnob.x = tableWidth + 5
-gateRandKnob.y = velRandKnob.y + velRandKnob.height + 35
-gateRandKnob.changed = function(self)
-  print("gateRandKnob.changed")
-  gateRandomizationAmount = self.value
 end
 
 local numPartsBox = sequencerPanel:NumBox("Parts", numParts, 1, 8, true)
@@ -372,6 +322,10 @@ numPartsBox.changed = function(self)
       paramsPerPart[i].stepResolution.value = prev.stepResolution.value
       paramsPerPart[i].numStepsBox.value = prev.numStepsBox.value
       paramsPerPart[i].playMode.value = prev.playMode.value
+      paramsPerPart[i].tieRandKnob.value = prev.tieRandKnob.value
+      paramsPerPart[i].pitchProbRandKnob.value = prev.pitchProbRandKnob.value
+      paramsPerPart[i].velRandKnob.value = prev.velRandKnob.value
+      paramsPerPart[i].gateRandKnob.value = prev.gateRandKnob.value
       paramsPerPart[i].init = prev.init
     end
   end
@@ -589,7 +543,47 @@ for i=1,numPartsBox.max do
   seqGateTable.height = seqVelTable.height
   seqGateTable.x = tableX
   seqGateTable.y = seqVelTable.y + seqVelTable.height + 2
+
+  local tieRandKnob = sequencerPanel:Knob("TieRandomization" .. i, 0, 0, 100, true)
+  tieRandKnob.visible = isFirst
+  tieRandKnob.displayName = "Rand"
+  tieRandKnob.tooltip = "Amount of radomization applied to ties for selected part"
+  tieRandKnob.unit = Unit.Percent
+  tieRandKnob.height = 30
+  tieRandKnob.width = 70
+  tieRandKnob.x = tableWidth + 5
+  tieRandKnob.y = 130
   
+  local pitchProbRandKnob = sequencerPanel:Knob("PitchProbabilityRandomization" .. i, 0, 0, 100, true)
+  pitchProbRandKnob.visible = isFirst
+  pitchProbRandKnob.displayName = "Rand"
+  pitchProbRandKnob.tooltip = "Amount of radomization applied to pitch change probability for selected part"
+  pitchProbRandKnob.unit = Unit.Percent
+  pitchProbRandKnob.height = 30
+  pitchProbRandKnob.width = 70
+  pitchProbRandKnob.x = tableWidth + 5
+  pitchProbRandKnob.y = tieRandKnob.y + tieRandKnob.height + 25
+  
+  local velRandKnob = sequencerPanel:Knob("VelocityRandomization" .. i, 0, 0, 100, true)
+  velRandKnob.visible = isFirst
+  velRandKnob.displayName = "Rand"
+  velRandKnob.tooltip = "Amount of radomization applied to sequencer velocity for selected part"
+  velRandKnob.unit = Unit.Percent
+  velRandKnob.height = 30
+  velRandKnob.width = 70
+  velRandKnob.x = tableWidth + 5
+  velRandKnob.y = pitchProbRandKnob.y + pitchProbRandKnob.height + 45
+  
+  local gateRandKnob = sequencerPanel:Knob("GateRandomization" .. i, 0, 0, 100, true)
+  gateRandKnob.visible = isFirst
+  gateRandKnob.displayName = "Rand"
+  gateRandKnob.tooltip = "Amount of radomization applied to sequencer gate for selected part"
+  gateRandKnob.unit = Unit.Percent
+  gateRandKnob.height = 30
+  gateRandKnob.width = 70
+  gateRandKnob.x = tableWidth + 5
+  gateRandKnob.y = velRandKnob.y + velRandKnob.height + 35
+
   local partResolution = sequencerPanel:Menu("PartDuration" .. i, getResolutionNames({"Follow Step"}))
   local stepResolution = sequencerPanel:Menu("StepResolution" .. i, getResolutionNames())
 
@@ -640,7 +634,7 @@ for i=1,numPartsBox.max do
     setNumSteps(i)
   end
 
-  local playMode = sequencerPanel:Menu("PlayMode" .. i, {"Mono", "Poly"})
+  local playMode = sequencerPanel:Menu("PlayMode" .. i, {"Mono", "Duo", "Poly"})
   playMode.displayName = "Play Mode"
   playMode.visible = isFirst
   playMode.x = stepResolution.x + stepResolution.width + 10
@@ -681,7 +675,7 @@ for i=1,numPartsBox.max do
   directionProbabilityKnob.height = repeatProbabilityKnob.height
   directionProbabilityKnob.width = playProbabilityKnob.width
 
-  table.insert(paramsPerPart, {partsTable=partsTable,positionTable=positionTable,seqPitchTable=seqPitchTable,tieStepTable=tieStepTable,seqPitchChangeProbabilityTable=seqPitchChangeProbabilityTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,partResolution=partResolution,stepResolution=stepResolution,playMode=playMode,playProbability=playProbabilityKnob,directionProbability=directionProbabilityKnob,repeatProbability=repeatProbabilityKnob,numStepsBox=numStepsBox,init=i==1})
+  table.insert(paramsPerPart, {tieRandKnob=tieRandKnob,pitchProbRandKnob=pitchProbRandKnob,velRandKnob=velRandKnob,gateRandKnob=gateRandKnob,partsTable=partsTable,positionTable=positionTable,seqPitchTable=seqPitchTable,tieStepTable=tieStepTable,seqPitchChangeProbabilityTable=seqPitchChangeProbabilityTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,partResolution=partResolution,stepResolution=stepResolution,playMode=playMode,playProbability=playProbabilityKnob,directionProbability=directionProbabilityKnob,repeatProbability=repeatProbabilityKnob,numStepsBox=numStepsBox,init=i==1})
 end
 
 editPartMenu:changed()
@@ -792,6 +786,7 @@ function arpeg(arpId_)
     local tieNext = tieStepTable:getValue(tablePos)
 
     -- Randomize gate
+    local gateRandomizationAmount = paramsPerPart[currentPartPosition].gateRandKnob.value
     if gateRandomizationAmount > 0 then
       if getRandomBoolean(gateRandomizationAmount) then
         local changeMax = math.ceil(seqGateTable.max * (gateRandomizationAmount/100)) -- 110 * 0,15 = 16,5 = 17
@@ -813,6 +808,7 @@ function arpeg(arpId_)
     end
 
     -- Randomize vel
+    local velocityRandomizationAmount = paramsPerPart[currentPartPosition].velRandKnob.value
     if velocityRandomizationAmount > 0 then
       if getRandomBoolean(velocityRandomizationAmount) then
         local changeMax = math.ceil(seqVelTable.max * (velocityRandomizationAmount/100))
@@ -834,6 +830,7 @@ function arpeg(arpId_)
     end
 
     -- Randomize pitch probaility
+    local pitchProbabilityRandomizationAmount = paramsPerPart[currentPartPosition].pitchProbRandKnob.value
     if pitchProbabilityRandomizationAmount > 0 then
       if getRandomBoolean(pitchProbabilityRandomizationAmount) then
         local changeMax = math.ceil(seqPitchChangeProbabilityTable.max * (pitchProbabilityRandomizationAmount/100))
@@ -855,6 +852,7 @@ function arpeg(arpId_)
     end
 
     -- Randomize ties
+    local tieRandomizationAmount = paramsPerPart[currentPartPosition].tieRandKnob.value
     if tieRandomizationAmount > 0 and randomTieCounter == 0 then
       print("Before randomized tieNext", tieNext)
       if getRandomBoolean(tieRandomizationAmount) then
@@ -928,10 +926,16 @@ function arpeg(arpId_)
 
       -- Add notes to play
       if playMode == 1 then
-        -- MONO
+        -- MONO (The last held note)
         table.insert(notes, {note=heldNotes[#heldNotes].note+pitchAdjustment,gate=(gate/100),vel=vel,steps=noteSteps,stepCounter=0})
+      elseif playMode == 2 then
+        -- DUO (First and last held note)
+        table.insert(notes, {note=heldNotes[1].note+pitchAdjustment,gate=(gate/100),vel=vel,steps=noteSteps,stepCounter=0})
+        if #heldNotes > 1 then
+          table.insert(notes, {note=heldNotes[#heldNotes].note+pitchAdjustment,gate=(gate/100),vel=vel,steps=noteSteps,stepCounter=0})
+        end
       else
-        -- CHORD
+        -- POLY (CHORD)
         for i=1,#heldNotes do
           table.insert(notes, {note=heldNotes[i].note+pitchAdjustment,gate=(gate/100),vel=vel,steps=noteSteps,stepCounter=0})
         end
