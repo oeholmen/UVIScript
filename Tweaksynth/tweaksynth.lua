@@ -6253,6 +6253,7 @@ function createTwequencerPanel()
             if #heldNotes > 1 then
               table.remove(heldNotes, i)
             end
+            return
           end
         end
       end

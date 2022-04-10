@@ -293,7 +293,7 @@ seqVelTable.height = 70
 seqVelTable.x = positionTable.x
 seqVelTable.y = 130
 
-local seqGateTable = sequencerPanel:Table("Gate", 1, 100, 0, 110, true)
+local seqGateTable = sequencerPanel:Table("Gate", 1, 100, 0, 120, true)
 seqGateTable.tooltip = "Set step gate length. Randomization available in settings."
 seqGateTable.showPopupDisplay = true
 seqGateTable.showLabel = true
@@ -745,7 +745,7 @@ function arpeg(arpId_)
         local noteToPlay = generateNoteToPlay(currentPartPosition)
         if notesInclude(notes, noteToPlay) == false then
           local noteSteps = getRandom(minNoteSteps, maxNoteSteps)
-          table.insert(notes, {note=noteToPlay,gate=(gate/100),vel=vel,steps=noteSteps,stepCounter=0})
+          table.insert(notes, {note=noteToPlay,gate=gate,vel=vel,steps=noteSteps,stepCounter=0})
           print("Insert to notes note/steps/vel/gate", noteToPlay, noteSteps, vel, gate)
           noteCounter = noteCounter + 1
         end
@@ -815,23 +815,14 @@ function arpeg(arpId_)
       -- Start playing when step counter is 0 (add an extra check for gate even though no notes should be added when gate is zero)
       if note.stepCounter == 0 and note.gate > 0 then
         -- Play the note for the number of steps that are set
-        playNote(note.note, note.vel, beat2ms(stepDuration * note.gate * note.steps))
-        --print("Playing note/stepDuration/steps", note.note, stepDuration * note.gate, note.steps)
+        local beats = stepDuration * (note.gate/100) * note.steps
+        playNote(note.note, note.vel, beat2ms(beats))
+        --print("Playing note/stepDuration/note.gate/steps/beats", note.note, stepDuration, note.gate, note.steps, beats)
       end
       -- Increment step counter
       note.stepCounter = note.stepCounter + 1
       --print("Increment note step counter", note.stepCounter)
     end
-
-    -- REMOVE COMPLETED NOTES
-    local keep = {}
-    for _,note in ipairs(notes) do
-      if note.steps > note.stepCounter then
-        -- Keep note if more steps than counter is currently on
-        table.insert(keep, note)
-      end
-    end
-    notes = keep -- Refresh notes table
 
     -- UPDATE STEP POSITION TABLE
     for i=1, totalNumSteps do
@@ -853,11 +844,22 @@ function arpeg(arpId_)
         partsTable:setValue(i, val)
       end
     end
-    -- INCREMENT POSITION
-    index = (index + 1) % totalNumSteps -- increment position
 
     -- WAIT FOR NEXT BEAT
     waitBeat(stepDuration)
+
+    -- INCREMENT POSITION
+    index = (index + 1) % totalNumSteps -- increment position
+
+    -- REMOVE COMPLETED NOTES
+    local keep = {}
+    for _,note in ipairs(notes) do
+      if note.steps > note.stepCounter then
+        -- Keep note if more steps than counter is currently on
+        table.insert(keep, note)
+      end
+    end
+    notes = keep -- Refresh notes table
   end
 end
 
@@ -869,9 +871,13 @@ function onNote(e)
   if holdButton.value == true then
     for i,v in ipairs(heldNotes) do
       if v.note == e.note then
+        -- When hold button is active
+        -- we remove the note from held notes
+        -- if table has more than one note
         if #heldNotes > 1 then
           table.remove(heldNotes, i)
         end
+        return
       end
     end
   end

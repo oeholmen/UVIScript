@@ -527,7 +527,7 @@ for i=1,numPartsBox.max do
   seqVelTable.x = tableX
   seqVelTable.y = seqPitchChangeProbabilityTable.y + seqPitchChangeProbabilityTable.height + 2
   
-  local seqGateTable = sequencerPanel:Table("Gate" .. i, totalNumSteps, 100, 0, 110, true)
+  local seqGateTable = sequencerPanel:Table("Gate" .. i, totalNumSteps, 100, 0, 120, true)
   seqGateTable.displayName = "Gate"
   seqGateTable.tooltip = "Set step gate length"
   seqGateTable.showPopupDisplay = true
@@ -687,20 +687,16 @@ numPartsBox:changed()
 
 function arpeg(arpId_)
   local index = 0
-  local currentStep = 0 -- Holds the current step in the round that is being played
   local currentPartPosition = 0 -- Holds the currently playing part
-  local notes = {} -- Holds the playing notes - notes are removed when they are finished playing
   local randomTieCounter = 0 -- Used for holding random ties
   local partRepeat = 0 -- Used for holding part repeat info
   local partDirectionBackward = false -- Used for holding part direction
   -- START ARP LOOP
   while arpId_ == arpId do
-    -- SET VALUES
-    --local numParts = numPartsBox.value
+    -- Reset notes table
+    local notes = {} -- Holds the note(s) that plays at this position
+    -- Set current position and part position
     local currentPosition = (index % totalNumSteps) + 1 -- 11 % 4 = 3
-    currentPosition = (index % totalNumSteps) + 1 -- 11 % 4 = 3
-    --print("currentPosition", currentPosition)
-    -- Set part position
     local startOfPart = false
     for pp,sp in ipairs(partToStepMap) do
       if sp == currentPosition then
@@ -709,12 +705,6 @@ function arpeg(arpId_)
         startOfPart = true
         break
       end
-    end
-
-    -- Increment step counter
-    currentStep = currentStep + 1
-    if currentStep > totalNumSteps then
-      currentStep = 1
     end
 
     -- If we are at the start of a part (and there is more than one part), check for part order randomization (or an active repeat)
@@ -776,7 +766,7 @@ function arpeg(arpId_)
     local seqPitchTable = paramsPerPart[currentPartPosition].seqPitchTable
     local seqPitchChangeProbabilityTable = paramsPerPart[currentPartPosition].seqPitchChangeProbabilityTable
     local tieStepTable = paramsPerPart[currentPartPosition].tieStepTable
-    
+
     -- Params for current step position
     local tablePos = currentPosition - startStep + 1
     local vel = seqVelTable:getValue(tablePos) -- get velocity
@@ -854,7 +844,7 @@ function arpeg(arpId_)
     -- Randomize ties
     local tieRandomizationAmount = paramsPerPart[currentPartPosition].tieRandKnob.value
     if tieRandomizationAmount > 0 and randomTieCounter == 0 then
-      print("Before randomized tieNext", tieNext)
+      --print("Before randomized tieNext", tieNext)
       if getRandomBoolean(tieRandomizationAmount) then
         tieNext = 1
         randomTieCounter = 2
@@ -862,7 +852,7 @@ function arpeg(arpId_)
         tieNext = 0
         randomTieCounter = 0
       end
-      print("After randomize tieNext", tieNext)
+      --print("After randomize tieNext", tieNext)
       if evolve == true then
         tieStepTable:setValue(currentPosition, tieNext)
       end
@@ -879,7 +869,7 @@ function arpeg(arpId_)
       -- Reset tie counter
       if randomTieCounter == 1 then
         randomTieCounter = 0
-        print("Reset tie")
+        --print("Reset tie")
       end
     end
 
@@ -890,7 +880,6 @@ function arpeg(arpId_)
       -- gate: gate length
       -- vel: note velocity
       -- steps: the duration of the note in steps
-      -- stepCounter: the counter for how many steps the note has lasted so far
 
       local noteSteps = 1
       -- Check tie to next step
@@ -898,12 +887,10 @@ function arpeg(arpId_)
         if randomTieCounter == 2 then
           noteSteps = randomTieCounter
           randomTieCounter = 1
-          print("Set automatic tie", noteSteps)
+          --print("Set automatic tie", noteSteps)
         else
           local tmp = currentPosition
           local endStep = startStep + numStepsInPart - 1
-          print("Find tie length startStep/endStep/currentPosition", startStep, endStep, currentPosition)
-
           while (tieStepTable:getValue(tmp) == 1 or randomTieCounter == 2) and tmp < endStep and tmp >= startStep do
             noteSteps = noteSteps + 1
             if partDirectionBackward == true then
@@ -913,7 +900,7 @@ function arpeg(arpId_)
             end
           end
         end
-        print("Set tie steps currentPosition/noteSteps", currentPosition, noteSteps)
+        --print("Set tie steps currentPosition/noteSteps", currentPosition, noteSteps)
       end
 
       -- Check for pitch change randomization
@@ -927,45 +914,31 @@ function arpeg(arpId_)
       -- Add notes to play
       if playMode == 1 then
         -- MONO (The last held note)
-        table.insert(notes, {note=heldNotes[#heldNotes].note+pitchAdjustment,gate=(gate/100),vel=vel,steps=noteSteps,stepCounter=0})
+        table.insert(notes, {note=heldNotes[#heldNotes].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
       elseif playMode == 2 then
         -- DUO (First and last held note)
-        table.insert(notes, {note=heldNotes[1].note+pitchAdjustment,gate=(gate/100),vel=vel,steps=noteSteps,stepCounter=0})
+        table.insert(notes, {note=heldNotes[1].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
         if #heldNotes > 1 then
-          table.insert(notes, {note=heldNotes[#heldNotes].note+pitchAdjustment,gate=(gate/100),vel=vel,steps=noteSteps,stepCounter=0})
+          table.insert(notes, {note=heldNotes[#heldNotes].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
         end
       else
         -- POLY (CHORD)
         for i=1,#heldNotes do
-          table.insert(notes, {note=heldNotes[i].note+pitchAdjustment,gate=(gate/100),vel=vel,steps=noteSteps,stepCounter=0})
+          table.insert(notes, {note=heldNotes[i].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
         end
       end
+      --print("heldNotes", #heldNotes)
     end
 
-    -- PLAY NOTE
-    --print("Ready to play notes", #notes)
+    -- PLAY NOTE(S)
     for _,note in ipairs(notes) do
-      --print("Check note/stepCounter", note.note, note.stepCounter)
-      -- Start playing when step counter is 0 (add an extra check for gate even though no notes should be added when gate is zero)
-      if note.stepCounter == 0 and note.gate > 0 then
+      if note.gate > 0 then
         -- Play the note for the number of steps that are set
-        playNote(note.note, note.vel, beat2ms(stepDuration * note.gate * note.steps))
-        --print("Playing note/stepDuration/steps", note.note, stepDuration * note.gate, note.steps)
-      end
-      -- Increment step counter
-      note.stepCounter = note.stepCounter + 1
-      --print("Increment note step counter", note.stepCounter)
-    end
-
-    -- REMOVE COMPLETED NOTES
-    local keep = {}
-    for _,note in ipairs(notes) do
-      if note.steps > note.stepCounter then
-        -- Keep note if more steps than counter is currently on
-        table.insert(keep, note)
+        local beats = stepDuration * (note.gate / 100) * note.steps
+        playNote(note.note, note.vel, beat2ms(beats))
+        --print("Playing note/stepDuration/note.gate/steps/beats", note.note, stepDuration, note.gate, note.steps, beats)
       end
     end
-    notes = keep -- Refresh notes table
 
     -- UPDATE STEP POSITION TABLE
     for i=1, numParts do
@@ -977,6 +950,7 @@ function arpeg(arpId_)
         end
       end
     end
+
     -- UPDATE PART POSITION TABLE
     if startOfPart then
       for i=1, numParts do
@@ -987,6 +961,7 @@ function arpeg(arpId_)
         end
       end
     end
+
     -- INCREMENT POSITION
     index = (index + 1) % totalNumSteps -- increment position
 
@@ -1003,9 +978,13 @@ function onNote(e)
   if holdButton.value == true then
     for i,v in ipairs(heldNotes) do
       if v.note == e.note then
+        -- When hold button is active
+        -- we remove the note from held notes
+        -- if table has more than one note
         if #heldNotes > 1 then
           table.remove(heldNotes, i)
         end
+        return
       end
     end
   end
