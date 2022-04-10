@@ -223,7 +223,7 @@ focusButton.backgroundColourOn = "#ff02ACFE"
 focusButton.textColourOff = "#ff22FFFF"
 focusButton.textColourOn = "#efFFFFFF"
 focusButton.displayName = "Focus Part"
-focusButton.tooltip = "When focus is active, only the selected part is shown"
+focusButton.tooltip = "When focus is active, only the part selected for editing is shown and played"
 focusButton.fillColour = "#dd000061"
 focusButton.size = {75,30}
 focusButton.x = 450
@@ -371,6 +371,7 @@ numPartsBox.changed = function(self)
       paramsPerPart[i].partResolution.value = prev.partResolution.value
       paramsPerPart[i].stepResolution.value = prev.stepResolution.value
       paramsPerPart[i].numStepsBox.value = prev.numStepsBox.value
+      paramsPerPart[i].playMode.value = prev.playMode.value
       paramsPerPart[i].init = prev.init
     end
   end
@@ -902,7 +903,6 @@ function arpeg(arpId_)
           print("Set automatic tie", noteSteps)
         else
           local tmp = currentPosition
-          --local startStep = partToStepMap[currentPartPosition]
           local endStep = startStep + numStepsInPart - 1
           print("Find tie length startStep/endStep/currentPosition", startStep, endStep, currentPosition)
 
@@ -920,16 +920,8 @@ function arpeg(arpId_)
 
       -- Check for pitch change randomization
       if getRandomBoolean(pitchChangeProbability) then
-        local pitchPos = currentPosition
-        if pitchChangeProbability > 50 and getRandomBoolean() then
-          -- Get pitch adjustment from random index in the whole pitch table
-          pitchPos = getRandom(1,totalNumSteps)
-        else
-          -- Get pitch adjustment from random index in pitch table for current part
-          local min = partToStepMap[currentPartPosition]
-          local max = min + numStepsInPart - 1
-          pitchPos = getRandom(min, max)
-        end
+        -- Get pitch adjustment from random index in pitch table for current part
+        local pitchPos = getRandom(numStepsInPart)
         pitchAdjustment = seqPitchTable:getValue(pitchPos)
         print("Playing pitch from other pos - currentPosition/pitchPos", currentPosition, pitchPos)
       end
