@@ -738,7 +738,6 @@ function arpeg(arpId_)
       end      
 
       -- Add notes to play
-      --for i=1,numberOfNotes do
       local noteCounter = 0
       local roundCounter = 0
       local maxRounds = numberOfNotes * 2
@@ -873,13 +872,12 @@ function onNote(e)
         if #heldNotes > 1 then
           table.remove(heldNotes, i)
         end
-        return
       end
     end
   end
   table.insert(heldNotes, e)
   if #heldNotes == 1 then
-      arpeg(arpId)
+    arpeg(arpId)
   end
 end
 
@@ -892,7 +890,6 @@ function onRelease(e)
           clearPosition()
           arpId = arpId + 1
         end
-        break
       end
     end
   end

@@ -1006,13 +1006,12 @@ function onNote(e)
         if #heldNotes > 1 then
           table.remove(heldNotes, i)
         end
-        return
       end
     end
   end
   table.insert(heldNotes, e)
   if #heldNotes == 1 then
-      arpeg(arpId)
+    arpeg(arpId)
   end
 end
 
@@ -1025,7 +1024,6 @@ function onRelease(e)
           clearPosition()
           arpId = arpId + 1
         end
-        break
       end
     end
   end

@@ -6253,13 +6253,11 @@ function createTwequencerPanel()
             if #heldNotes > 1 then
               table.remove(heldNotes, i)
             end
-            return
           end
         end
       end
       table.insert(heldNotes, e)
       if #heldNotes == 1 then
-          -- wait(10) -- Short delay to ensure all notes are included before starting the arpeggiator
           arpeg(arpId)
       end
     else
@@ -6277,7 +6275,6 @@ function createTwequencerPanel()
             resetTweakLevel()
             arpId = arpId + 1
           end
-          break
         end
       end
       if automaticSequencerRunning == true then
