@@ -634,12 +634,12 @@ for i=1,numPartsBox.max do
     setNumSteps(i)
   end
 
-  local playMode = sequencerPanel:Menu("PlayMode" .. i, {"Mono", "Duo", "Poly"})
+  local playMode = sequencerPanel:Menu("PlayMode" .. i, {"Mono", "As Played", "Random", "Duo", "Chord", "Mono 2 (First Held)"})
   playMode.displayName = "Play Mode"
   playMode.visible = isFirst
   playMode.x = stepResolution.x + stepResolution.width + 10
   playMode.y = stepResolution.y
-  playMode.width = 60
+  playMode.width = 90
   playMode.backgroundColour = menuBackgroundColour
   playMode.textColour = menuTextColour
   playMode.arrowColour = menuArrowColour
@@ -650,7 +650,7 @@ for i=1,numPartsBox.max do
   playProbabilityKnob.tooltip = "Set the probability that the part will be played when randomizing part order."
   playProbabilityKnob.visible = isFirst
   playProbabilityKnob.unit = Unit.Percent
-  playProbabilityKnob.x = playMode.x + playMode.width + 20
+  playProbabilityKnob.x = playMode.x + playMode.width + 15
   playProbabilityKnob.y = playMode.y + 8
   playProbabilityKnob.height = 40
   playProbabilityKnob.width = 100
@@ -687,6 +687,7 @@ numPartsBox:changed()
 
 function arpeg(arpId_)
   local index = 0
+  local heldNoteIndex = 0 -- Counter for held notes (used by As Played seq mode)
   local currentPartPosition = 0 -- Holds the currently playing part
   local randomTieCounter = 0 -- Used for holding random ties
   local partRepeat = 0 -- Used for holding part repeat info
@@ -912,22 +913,51 @@ function arpeg(arpId_)
       end
 
       -- Add notes to play
+      -- "Mono", "As Played", "Random", "Duo", "Chord", "Mono (First Held)"
       if playMode == 1 then
-        -- MONO (The last held note)
-        table.insert(notes, {note=heldNotes[#heldNotes].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
+        -- Mono (Last held)
+          table.insert(notes, {note=heldNotes[#heldNotes].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
       elseif playMode == 2 then
-        -- DUO (First and last held note)
+        -- As played
+        if partDirectionBackward == true then
+          heldNoteIndex = heldNoteIndex - 1 -- Decrement held note position
+          if heldNoteIndex < 1 then
+            heldNoteIndex = #heldNotes
+          end
+        else
+          heldNoteIndex = heldNoteIndex + 1 -- Increment held note position
+          if heldNoteIndex > #heldNotes then
+            heldNoteIndex = 1
+          end
+        end
+        if getRandomBoolean(pitchChangeProbability) then
+          table.insert(notes, {note=heldNotes[getRandom(#heldNotes)].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
+        else
+          -- Add a failsafe i case #heldNotes has changed since setting index
+          if heldNoteIndex > #heldNotes then
+            heldNoteIndex = #heldNotes
+          end
+          table.insert(notes, {note=heldNotes[heldNoteIndex].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
+        end
+      elseif playMode == 3 then
+        -- Random
+        table.insert(notes, {note=heldNotes[getRandom(#heldNotes)].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
+      elseif playMode == 4 then
+        -- Duo (First and last held note)
         table.insert(notes, {note=heldNotes[1].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
         if #heldNotes > 1 then
           table.insert(notes, {note=heldNotes[#heldNotes].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
         end
-      else
-        -- POLY (CHORD)
+      elseif playMode == 5 then
+        -- Chord
         for i=1,#heldNotes do
           table.insert(notes, {note=heldNotes[i].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
         end
+      else
+        -- First held
+        table.insert(notes, {note=heldNotes[1].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
       end
-      --print("heldNotes", #heldNotes)
+      print("#notes", #notes)
     end
 
     -- PLAY NOTE(S)
@@ -936,7 +966,7 @@ function arpeg(arpId_)
         -- Play the note for the number of steps that are set
         local beats = stepDuration * (note.gate / 100) * note.steps
         playNote(note.note, note.vel, beat2ms(beats))
-        --print("Playing note/stepDuration/note.gate/steps/beats", note.note, stepDuration, note.gate, note.steps, beats)
+        print("Playing note/stepDuration/note.gate/steps/beats", note.note, stepDuration, note.gate, note.steps, beats)
       end
     end
 
@@ -984,7 +1014,7 @@ function onNote(e)
         if #heldNotes > 1 then
           table.remove(heldNotes, i)
         end
-        return
+        --return
       end
     end
   end

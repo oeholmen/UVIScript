@@ -751,6 +751,7 @@ function arpeg(arpId_)
         end
         roundCounter = roundCounter + 1
       end
+      table.sort(notes, function(a,b) return a.note < b.note end) -- TODO Parameter for this?
       print("Notes ready to play", #notes)
     end
 
@@ -817,7 +818,7 @@ function arpeg(arpId_)
         -- Play the note for the number of steps that are set
         local beats = stepDuration * (note.gate/100) * note.steps
         playNote(note.note, note.vel, beat2ms(beats))
-        --print("Playing note/stepDuration/note.gate/steps/beats", note.note, stepDuration, note.gate, note.steps, beats)
+        print("Playing note/stepDuration/note.gate/steps/beats", note.note, stepDuration, note.gate, note.steps, beats)
       end
       -- Increment step counter
       note.stepCounter = note.stepCounter + 1

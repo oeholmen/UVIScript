@@ -4904,7 +4904,7 @@ function createTwequencerPanel()
   tweakLevelKnob.width = 120
   tweakLevelKnob.y = 10
 
-  local sequencerPlayMenu = tweqPanel:Menu("SequencerPlay", {"Off", "Mono", "As played", "Random", "Chord", "Random Chord", "Alternate", "Generate"})
+  local sequencerPlayMenu = tweqPanel:Menu("SequencerPlay", {"Off", "Mono", "As Played", "Random", "Chord", "Random Chord", "Alternate", "Generate"})
   sequencerPlayMenu.backgroundColour = menuBackgroundColour
   sequencerPlayMenu.textColour = menuTextColour
   sequencerPlayMenu.arrowColour = menuArrowColour
