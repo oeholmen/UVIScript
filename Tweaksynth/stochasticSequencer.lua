@@ -1035,8 +1035,8 @@ function onRelease(e)
         end
       end
     end
+    postEvent(e)
   end
-  postEvent(e)
 end
 
 --------------------------------------------------------------------------------

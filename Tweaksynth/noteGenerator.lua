@@ -200,14 +200,26 @@ editPartMenu.changed = function(self)
   end
 end
 
+local outputMenu = sequencerPanel:Menu("OutputMenu", {"Random", "Low->High", "High->Low"})
+outputMenu.backgroundColour = menuBackgroundColour
+outputMenu.textColour = menuTextColour
+outputMenu.arrowColour = menuArrowColour
+outputMenu.outlineColour = menuOutlineColour
+outputMenu.displayName = "Output Order"
+outputMenu.tooltip = "The order for outputted notes"
+outputMenu.x = 420
+outputMenu.y = 278
+outputMenu.width = 80
+outputMenu.height = 45
+
 local numPartsBox = sequencerPanel:NumBox("Parts", 1, 1, 8, true)
-numPartsBox.tooltip = "The Number of parts in the sequence"
+numPartsBox.tooltip = "The number of parts in the sequence"
 numPartsBox.backgroundColour = menuBackgroundColour
 numPartsBox.textColour = menuTextColour
 numPartsBox.arrowColour = menuArrowColour
 numPartsBox.outlineColour = menuOutlineColour
-numPartsBox.size = {80,30}
-numPartsBox.x = 490
+numPartsBox.size = {65,32}
+numPartsBox.x = 513
 numPartsBox.y = 290
 numPartsBox.changed = function(self)
   for i=1, self.value do
@@ -251,7 +263,7 @@ evolveButton.textColourOn = "#efFFFFFF"
 evolveButton.displayName = "Evolve"
 evolveButton.tooltip = "When evolve is active, randomization is written back to the corresponding table, allowing the table to evolve with the changes"
 evolveButton.fillColour = "#dd000061"
-evolveButton.size = {60,30}
+evolveButton.size = {50,32}
 evolveButton.x = numPartsBox.x + numPartsBox.width + 10
 evolveButton.y = numPartsBox.y
 
@@ -271,7 +283,7 @@ holdButton.textColourOff = "#ff22FFFF"
 holdButton.textColourOn = "#efFFFFFF"
 holdButton.displayName = "Hold"
 holdButton.fillColour = "#dd000061"
-holdButton.size = {50,30}
+holdButton.size = {50,32}
 holdButton.x = evolveButton.x + evolveButton.width + 10
 holdButton.y = evolveButton.y
 holdButton.changed = function(self)
@@ -319,8 +331,8 @@ local gateRandKnob = sequencerPanel:Knob("GateRandomization", 0, 0, 100, true)
 gateRandKnob.displayName = "Gate"
 gateRandKnob.tooltip = "Amount of radomization applied to sequencer gate"
 gateRandKnob.unit = Unit.Percent
-gateRandKnob.width = 100
-gateRandKnob.x = velRandKnob.x + velRandKnob.width + 25
+gateRandKnob.width = 90
+gateRandKnob.x = velRandKnob.x + velRandKnob.width + 10
 gateRandKnob.y = seqGateTable.y + seqGateTable.height + 5
 gateRandKnob.changed = function(self)
   gateRandomizationAmount = self.value
@@ -330,8 +342,8 @@ local partRandKnob = sequencerPanel:Knob("PartRandomization", 0, 0, 100, true)
 partRandKnob.displayName = "Part"
 partRandKnob.tooltip = "Amount of radomization applied to parts"
 partRandKnob.unit = Unit.Percent
-partRandKnob.width = 90
-partRandKnob.x = gateRandKnob.x + gateRandKnob.width + 25
+partRandKnob.width = 80
+partRandKnob.x = gateRandKnob.x + gateRandKnob.width + 10
 partRandKnob.y = seqGateTable.y + seqGateTable.height + 5
 partRandKnob.changed = function(self)
   partRandomizationAmount = self.value
@@ -342,7 +354,7 @@ baseNoteRandKnob.displayName = "Base note"
 baseNoteRandKnob.tooltip = "Probability that first note in part will be the base note"
 baseNoteRandKnob.unit = Unit.Percent
 baseNoteRandKnob.width = 110
-baseNoteRandKnob.x = partRandKnob.x + partRandKnob.width + 25
+baseNoteRandKnob.x = partRandKnob.x + partRandKnob.width + 10
 baseNoteRandKnob.y = seqGateTable.y + seqGateTable.height + 5
 baseNoteRandKnob.changed = function(self)
   baseNoteProbability = self.value
@@ -524,12 +536,12 @@ for i=1,numPartsBox.max do
 
   generateMinPart.changed = function(self)
     createFilteredScale(i)
-    generateMaxPart:setRange(self.value+1, 127)
+    generateMaxPart:setRange(self.value, 127)
   end
 
   generateMaxPart.changed = function(self)
     createFilteredScale(i)
-    generateMinPart:setRange(0, self.value-1)
+    generateMinPart:setRange(0, self.value)
   end
 
   table.insert(paramsPerPart, {polyphony=generatePolyphonyPart,partResolution=partResolution,stepResolution=stepResolution,numSteps=0,fullScale={},filteredScale={},scale=generateScalePart,key=generateKeyPart,droneLow=droneLowPart,droneHigh=droneHighPart,minNote=generateMinPart,maxNote=generateMaxPart,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
@@ -751,7 +763,14 @@ function arpeg(arpId_)
         end
         roundCounter = roundCounter + 1
       end
-      table.sort(notes, function(a,b) return a.note < b.note end) -- TODO Parameter for this?
+      -- Check if notes should be sorted before playing
+      if outputMenu.value == 2 then
+        -- Low -> High
+        table.sort(notes, function(a,b) return a.note < b.note end)
+      elseif outputMenu.value == 3 then
+        -- High -> Low
+        table.sort(notes, function(a,b) return a.note > b.note end)
+      end
       print("Notes ready to play", #notes)
     end
 
@@ -899,8 +918,8 @@ function onRelease(e)
         end
       end
     end
+    postEvent(e)
   end
-  postEvent(e)
 end
 
 --------------------------------------------------------------------------------

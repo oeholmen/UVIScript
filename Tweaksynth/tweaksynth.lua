@@ -6282,8 +6282,8 @@ function createTwequencerPanel()
         arpeggiatorButton.value = false
         automaticSequencerRunning = false
       end
+      postEvent(e)
     end
-    postEvent(e)
   end
 
   return tweqPanel
