@@ -265,7 +265,7 @@ editPartMenu.changed = function(self)
     local isVisible = self.value == i
 
     if isVisible then
-      v.partsTable.backgroundColour = "#ccff3344"
+      v.partsTable.backgroundColour = "#cc33cc44"
     elseif i % 2 == 0 then
       v.partsTable.backgroundColour = "#3f09A3F4"
     else
@@ -430,7 +430,6 @@ for i=1,numPartsBox.max do
   local isFirst = i == 1
 
   local partsTable = sequencerPanel:Table("Parts" .. i, 1, 0, 0, 1, true)
-  --partsTable.visible = isVisible
   partsTable.enabled = false
   partsTable.persistent = false
   partsTable.fillStyle = "solid"
@@ -446,7 +445,6 @@ for i=1,numPartsBox.max do
   partsTable.y = 0
 
   local positionTable = sequencerPanel:Table("Position" .. i, totalNumSteps, 0, 0, 1, true)
-  --positionTable.visible = isVisible
   positionTable.enabled = false
   positionTable.persistent = false
   positionTable.fillStyle = "solid"
