@@ -162,7 +162,7 @@ sequencerPanel.backgroundColour = menuOutlineColour
 sequencerPanel.x = 10
 sequencerPanel.y = 10
 sequencerPanel.width = 700
-sequencerPanel.height = 505
+sequencerPanel.height = 480
 
 local label = sequencerPanel:Label("label")
 label.text = "Stochastic Sequencer"

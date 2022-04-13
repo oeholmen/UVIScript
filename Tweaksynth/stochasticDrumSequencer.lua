@@ -8,9 +8,16 @@ local menuTextColour = "#9f02ACFE"
 local menuArrowColour = "#9f09A3F4"
 local menuOutlineColour = "00000000"
 local arpId = {}
-local numParts = 4
 local paramsPerPart = {}
 local isPlaying = false
+
+if type(numParts) == "nil" then
+  numParts = 4
+end
+
+if type(title) == "nil" then
+  title = "Stochastic Drum Sequencer"
+end
 
 setBackgroundColour("#2c2c2c")
 
@@ -151,6 +158,7 @@ end
 function setNumSteps(partIndex)
   local numSteps = paramsPerPart[partIndex].numStepsBox.value
   paramsPerPart[partIndex].positionTable.length = numSteps
+  paramsPerPart[partIndex].seqPitchTable.length = numSteps
   paramsPerPart[partIndex].seqVelTable.length = numSteps
   paramsPerPart[partIndex].seqTriggerProbabilityTable.length = numSteps
 end
@@ -194,7 +202,7 @@ sequencerPanel.width = 700
 sequencerPanel.height = numParts * (tableHeight + 25) + 30
 
 local label = sequencerPanel:Label("label")
-label.text = "Stochastic Drum Sequencer"
+label.text = title
 label.align = "left"
 label.backgroundColour = "#272727"
 label.fontSize = 22
@@ -237,6 +245,23 @@ for i=1,numParts do
   positionTable.x = tableX
   positionTable.y = tableY
 
+  local seqPitchTable = sequencerPanel:Table("Pitch" .. i, 8, 0, 0, 12, true)
+  seqPitchTable.displayName = "Pitch"
+  seqPitchTable.tooltip = "Pitch offset for this step"
+  seqPitchTable.showPopupDisplay = true
+  seqPitchTable.showLabel = false
+  seqPitchTable.fillStyle = "solid"
+  seqPitchTable.sliderColour = "#3f6c6c6c"
+  if i % 2 == 0 then
+    seqPitchTable.backgroundColour = "#3f606060"
+  else
+    seqPitchTable.backgroundColour = "#3f606060"
+  end
+  seqPitchTable.width = tableWidth
+  seqPitchTable.height = tableHeight * 0.2
+  seqPitchTable.x = tableX
+  seqPitchTable.y = positionTable.y + positionTable.height + 2
+
   local seqVelTable = sequencerPanel:Table("Velocity" .. i, 8, 100, 1, 127, true)
   seqVelTable.visible = isVisible
   seqVelTable.displayName = "Velocity"
@@ -244,16 +269,16 @@ for i=1,numParts do
   seqVelTable.showPopupDisplay = true
   seqVelTable.showLabel = false
   seqVelTable.fillStyle = "solid"
-  seqVelTable.sliderColour = menuArrowColour
+  seqVelTable.sliderColour = "#9f09A3F4"
   if i % 2 == 0 then
     seqVelTable.backgroundColour = "#3f000000"
   else
-    seqVelTable.backgroundColour = "#6f000000"
+    seqVelTable.backgroundColour = "#3f000000"
   end
   seqVelTable.width = tableWidth
-  seqVelTable.height = tableHeight / 2
+  seqVelTable.height = tableHeight * 0.4
   seqVelTable.x = tableX
-  seqVelTable.y = positionTable.y + positionTable.height + 3
+  seqVelTable.y = seqPitchTable.y + seqPitchTable.height + 2
   
   local seqTriggerProbabilityTable = sequencerPanel:Table("Trigger" .. i, 8, 0, 0, 100, true)
   seqTriggerProbabilityTable.displayName = "Trigger"
@@ -262,16 +287,16 @@ for i=1,numParts do
   seqTriggerProbabilityTable.showLabel = false
   seqTriggerProbabilityTable.visible = isVisible
   seqTriggerProbabilityTable.fillStyle = "solid"
-  seqTriggerProbabilityTable.sliderColour = menuArrowColour
+  seqTriggerProbabilityTable.sliderColour = "#3322FFFF"
   if i % 2 == 0 then
-    seqTriggerProbabilityTable.backgroundColour = "#3f000000"
+    seqTriggerProbabilityTable.backgroundColour = "#3f3e3e3e"
   else
-    seqTriggerProbabilityTable.backgroundColour = "#6f000000"
+    seqTriggerProbabilityTable.backgroundColour = "#3f3e3e3e"
   end
   seqTriggerProbabilityTable.width = tableWidth
-  seqTriggerProbabilityTable.height = tableHeight / 2
+  seqTriggerProbabilityTable.height = tableHeight * 0.4
   seqTriggerProbabilityTable.x = tableX
-  seqTriggerProbabilityTable.y = seqVelTable.y + seqVelTable.height + 1
+  seqTriggerProbabilityTable.y = seqVelTable.y + seqVelTable.height + 2
 
   local directionProbability = sequencerPanel:NumBox("PartDirectionProbability" .. i, 0, 0, 100, true)
   directionProbability.displayName = "Backward"
@@ -280,7 +305,16 @@ for i=1,numParts do
   directionProbability.unit = Unit.Percent
   directionProbability.x = tableX + tableWidth + 10
   directionProbability.y = positionTable.y + 1
-  directionProbability.size={100,22}
+  directionProbability.size={100,20}
+
+  local pitchRand = sequencerPanel:NumBox("PitchOffsetRandomization" .. i, 0, 0, 100, true)
+  pitchRand.displayName = "Pitch"
+  pitchRand.tooltip = "Set probability pitch from another step will be used"
+  pitchRand.visible = isVisible
+  pitchRand.unit = Unit.Percent
+  pitchRand.size = directionProbability.size
+  pitchRand.x = directionProbability.x
+  pitchRand.y = directionProbability.y + directionProbability.height + 2
 
   local velRand = sequencerPanel:NumBox("VelocityRandomization" .. i, 0, 0, 100, true)
   velRand.displayName = "Velocity"
@@ -289,7 +323,7 @@ for i=1,numParts do
   velRand.unit = Unit.Percent
   velRand.size = directionProbability.size
   velRand.x = directionProbability.x
-  velRand.y = directionProbability.y + directionProbability.height + 2
+  velRand.y = pitchRand.y + pitchRand.height + 2
   
   local triggerRand = sequencerPanel:NumBox("TriggerRandomization" .. i, 0, 0, 100, true)
   triggerRand.displayName = "Trigger"
@@ -310,7 +344,7 @@ for i=1,numParts do
   randomizeTriggerButton.displayName = "Randomize"
   randomizeTriggerButton.tooltip = "Randomize Trigger Probability"
   randomizeTriggerButton.fillColour = "#dd000061"
-  randomizeTriggerButton.size = {directionProbability.width,36}
+  randomizeTriggerButton.size = directionProbability.size
   randomizeTriggerButton.x = directionProbability.x
   randomizeTriggerButton.y = triggerRand.y + triggerRand.height + 2
 
@@ -326,7 +360,7 @@ for i=1,numParts do
   muteButton.x = 0
   muteButton.y = positionTable.y
 
-  local types = {"Kick", "Snare", "Hihat", "HH Open", "Clap", "Tom"}
+  local types = {"Kick", "Snare", "Hihat", "Clap"}
   local typeLabel = sequencerPanel:Label("Label" .. i)
   typeLabel.tooltip = "Part Label"
   typeLabel.editable = true
@@ -344,7 +378,7 @@ for i=1,numParts do
   elseif i == 3 then
     triggerNote.value = 42
   elseif i == 4 then
-    triggerNote.value = 46
+    triggerNote.value = 39
   end
   triggerNote.tooltip = "The note to trigger"
   triggerNote.unit = Unit.MidiKey
@@ -380,7 +414,7 @@ for i=1,numParts do
     setNumSteps(i)
   end
 
-  local numStepsBox = sequencerPanel:NumBox("Steps" .. i, 8, 1, 32, true)
+  local numStepsBox = sequencerPanel:NumBox("Steps" .. i, 8, 1, 64, true)
   numStepsBox.displayName = "Steps"
   numStepsBox.tooltip = "The Number of steps in the part"
   numStepsBox.visible = isVisible
@@ -416,7 +450,7 @@ for i=1,numParts do
   channelBox.x = 0
   channelBox.y = numStepsBox.y + numStepsBox.height + 2
 
-  table.insert(paramsPerPart, {muteButton=muteButton,velRand=velRand,triggerRand=triggerRand,triggerNote=triggerNote,channelBox=channelBox,positionTable=positionTable,seqVelTable=seqVelTable,seqTriggerProbabilityTable=seqTriggerProbabilityTable,stepResolution=stepResolution,directionProbability=directionProbability,numStepsBox=numStepsBox})
+  table.insert(paramsPerPart, {muteButton=muteButton,pitchRand=pitchRand,velRand=velRand,triggerRand=triggerRand,triggerNote=triggerNote,channelBox=channelBox,positionTable=positionTable,seqPitchTable=seqPitchTable,seqVelTable=seqVelTable,seqTriggerProbabilityTable=seqTriggerProbabilityTable,stepResolution=stepResolution,directionProbability=directionProbability,numStepsBox=numStepsBox})
   tableY = tableY + tableHeight + 25
 end
 
@@ -460,58 +494,65 @@ function arpeg(partIndex, arpId_)
     end
 
     -- Tables for current step position
+    local seqPitchTable = paramsPerPart[partIndex].seqPitchTable
     local seqVelTable = paramsPerPart[partIndex].seqVelTable
     local seqTriggerProbabilityTable = paramsPerPart[partIndex].seqTriggerProbabilityTable
 
     -- Params for current step position
+    local pitchAdjustment = seqPitchTable:getValue(currentPosition) -- get pitch adjustment
     local vel = seqVelTable:getValue(currentPosition) -- get velocity
     local triggerProbability = seqTriggerProbabilityTable:getValue(currentPosition) -- get trigger probability
 
     -- Randomize trigger probability
     local triggerRandomizationAmount = paramsPerPart[partIndex].triggerRand.value
-    if triggerRandomizationAmount > 0 then
-      if getRandomBoolean(triggerRandomizationAmount) then
-        local changeMax = math.ceil(seqTriggerProbabilityTable.max * (triggerRandomizationAmount/100))
-        local min = triggerProbability - changeMax
-        local max = triggerProbability + changeMax
-        if min < seqTriggerProbabilityTable.min then
-          min = seqTriggerProbabilityTable.min
-        end
-        if max > seqTriggerProbabilityTable.max then
-          max = seqTriggerProbabilityTable.max
-        end
-        triggerProbability = getRandom(min, max)
-        if evolve == true then
-          seqTriggerProbabilityTable:setValue(currentPosition, triggerProbability)
-        end
+    if getRandomBoolean(triggerRandomizationAmount) then
+      local changeMax = math.ceil(seqTriggerProbabilityTable.max * (triggerRandomizationAmount/100))
+      local min = triggerProbability - changeMax
+      local max = triggerProbability + changeMax
+      if min < seqTriggerProbabilityTable.min then
+        min = seqTriggerProbabilityTable.min
+      end
+      if max > seqTriggerProbabilityTable.max then
+        max = seqTriggerProbabilityTable.max
+      end
+      triggerProbability = getRandom(min, max)
+      if evolve == true then
+        seqTriggerProbabilityTable:setValue(currentPosition, triggerProbability)
       end
     end
 
     -- Randomize velocity
     local velocityRandomizationAmount = paramsPerPart[partIndex].velRand.value
-    if velocityRandomizationAmount > 0 then
-      if getRandomBoolean(velocityRandomizationAmount) then
-        local changeMax = math.ceil(seqVelTable.max * (velocityRandomizationAmount/100))
-        local min = vel - changeMax
-        local max = vel + changeMax
-        if min < seqVelTable.min then
-          min = seqVelTable.min
-        end
-        if max > seqVelTable.max then
-          max = seqVelTable.max
-        end
-        vel = getRandom(min, max)
-        if evolve == true then
-          seqVelTable:setValue(currentPosition, vel)
-        end
+    if getRandomBoolean(velocityRandomizationAmount) then
+      local changeMax = math.ceil(seqVelTable.max * (velocityRandomizationAmount/100))
+      local min = vel - changeMax
+      local max = vel + changeMax
+      if min < seqVelTable.min then
+        min = seqVelTable.min
       end
+      if max > seqVelTable.max then
+        max = seqVelTable.max
+      end
+      vel = getRandom(min, max)
+      if evolve == true then
+        seqVelTable:setValue(currentPosition, vel)
+      end
+    end
+
+    -- Check for pitch change randomization
+    local pitchChangeProbability = paramsPerPart[partIndex].pitchRand.value
+    if getRandomBoolean(pitchChangeProbability) then
+      -- Get pitch adjustment from random index in pitch table for current part
+      local pitchPos = getRandom(numStepsInPart)
+      pitchAdjustment = seqPitchTable:getValue(pitchPos)
+      print("Playing pitch from other pos - currentPosition/pitchPos", currentPosition, pitchPos)
     end
 
     local isActive = paramsPerPart[partIndex].muteButton.value == false
 
     -- Play note if trigger probability hits (and part is not turned off)
     if isActive and getRandomBoolean(triggerProbability) then
-      local note = paramsPerPart[partIndex].triggerNote.value
+      local note = paramsPerPart[partIndex].triggerNote.value + pitchAdjustment
       playNote(note, vel, beat2ms(stepDuration), nil, channel)
       print("Playing note/vel/stepDuration", note, vel, stepDuration)
   end
@@ -547,12 +588,14 @@ end
 
 function onSave()
   local numStepsData = {}
+  local seqPitchTableData = {}
   local seqVelTableData = {}
   local seqTriggerProbabilityTableData = {}
 
   for i=1, numParts do
     table.insert(numStepsData, paramsPerPart[i].numStepsBox.value)
     for j=1, paramsPerPart[i].numStepsBox.value do
+      table.insert(seqPitchTableData, paramsPerPart[i].seqPitchTable:getValue(j))
       table.insert(seqVelTableData, paramsPerPart[i].seqVelTable:getValue(j))
       table.insert(seqTriggerProbabilityTableData, paramsPerPart[i].seqTriggerProbabilityTable:getValue(j))
     end
@@ -560,6 +603,7 @@ function onSave()
 
   local data = {}
   table.insert(data, numStepsData)
+  table.insert(data, seqPitchTableData)
   table.insert(data, seqVelTableData)
   table.insert(data, seqTriggerProbabilityTableData)
 
@@ -568,15 +612,18 @@ end
 
 function onLoad(data)
   local numStepsData = data[1]
-  local seqVelTableData = data[2]
-  local seqTriggerProbabilityTableData = data[3]
+  local seqPitchTableData = data[2]
+  local seqVelTableData = data[3]
+  local seqTriggerProbabilityTableData = data[4]
 
   local dataCounter = 1
   for i,v in ipairs(numStepsData) do
     paramsPerPart[i].numStepsBox:setValue(v)
+    paramsPerPart[i].seqPitchTable.length = v
     paramsPerPart[i].seqVelTable.length = v
     paramsPerPart[i].seqTriggerProbabilityTable.length = v
     for j=1, v do
+      paramsPerPart[i].seqPitchTable:setValue(j, seqPitchTableData[dataCounter])
       paramsPerPart[i].seqVelTable:setValue(j, seqVelTableData[dataCounter])
       paramsPerPart[i].seqTriggerProbabilityTable:setValue(j, seqTriggerProbabilityTableData[dataCounter])
       dataCounter = dataCounter + 1
