@@ -800,7 +800,7 @@ function arpeg(arpId_)
         gate = getRandom(min, max)
         --print("After randomize gate/changeMax/min/max", gate, changeMax, min, max)
         if evolve == true then
-          seqGateTable:setValue(currentPosition, gate)
+          seqGateTable:setValue(tablePos, gate)
         end
       end
     end
@@ -822,7 +822,7 @@ function arpeg(arpId_)
         vel = getRandom(min, max)
         --print("After randomize vel/changeMax/min/max", vel, changeMax, min, max)
         if evolve == true then
-          seqVelTable:setValue(currentPosition, vel)
+          seqVelTable:setValue(tablePos, vel)
         end
       end
     end
@@ -844,7 +844,7 @@ function arpeg(arpId_)
         pitchChangeProbability = getRandom(min, max)
         --print("After randomize pitchChangeProbability/changeMax/min/max", pitchChangeProbability, changeMax, min, max)
         if evolve == true then
-          seqPitchChangeProbabilityTable:setValue(currentPosition, pitchChangeProbability)
+          seqPitchChangeProbabilityTable:setValue(tablePos, pitchChangeProbability)
         end
       end
     end
@@ -862,7 +862,7 @@ function arpeg(arpId_)
       end
       --print("After randomize tieNext", tieNext)
       if evolve == true then
-        tieStepTable:setValue(currentPosition, tieNext)
+        tieStepTable:setValue(tablePos, tieNext)
       end
     end
 

@@ -169,7 +169,7 @@ function startPlaying()
   end
   for i,v in ipairs(arpId) do
     print("Start playing", i)
-    run(arpeg, i, v)
+    spawn(arpeg, i, v)
   end
   isPlaying = true
 end
@@ -210,6 +210,7 @@ label.position = {0,0}
 label.size = {230,25}
 
 local playButton = sequencerPanel:OnOffButton("Play", false)
+playButton.persistent = false
 playButton.backgroundColourOff = "#ff084486"
 playButton.backgroundColourOn = "#ff02ACFE"
 playButton.textColourOff = "#ff22FFFF"
