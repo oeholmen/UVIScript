@@ -148,7 +148,16 @@ sequencerPanel.backgroundColour = menuOutlineColour
 sequencerPanel.x = 10
 sequencerPanel.y = 10
 sequencerPanel.width = 700
-sequencerPanel.height = 330
+sequencerPanel.height = 360
+
+local label = sequencerPanel:Label("label")
+label.text = "Generative Sequencer"
+label.align = "centred"
+label.alpha = 0.5
+label.backgroundColour = "#272727"
+label.fontSize = 22
+label.position = {0,0}
+label.size = {sequencerPanel.width,25}
 
 local partsTable = sequencerPanel:Table("Parts", 1, 0, 0, 1, true)
 partsTable.enabled = false
@@ -159,7 +168,7 @@ partsTable.sliderColour = "#5FB5FF"
 partsTable.width = 700
 partsTable.height = 10
 partsTable.x = 0
-partsTable.y = 0
+partsTable.y = label.height + 10
 
 local positionTable = sequencerPanel:Table("Position", 1, 0, 0, 1, true)
 positionTable.enabled = false
@@ -208,9 +217,18 @@ outputMenu.outlineColour = menuOutlineColour
 outputMenu.displayName = "Output Order"
 outputMenu.tooltip = "The order for outputted notes (when polyphony > 1)"
 outputMenu.x = 420
-outputMenu.y = 278
+outputMenu.y = 310
 outputMenu.width = 80
 outputMenu.height = 45
+
+function clearPosition()
+  for i=1, totalNumSteps do
+    positionTable:setValue(i, 0)
+  end
+  for i=1, totalNumSteps do
+    partsTable:setValue(i, 0)
+  end
+end
 
 local numPartsBox = sequencerPanel:NumBox("Parts", 1, 1, 8, true)
 numPartsBox.tooltip = "The number of parts in the sequence"
@@ -220,7 +238,7 @@ numPartsBox.arrowColour = menuArrowColour
 numPartsBox.outlineColour = menuOutlineColour
 numPartsBox.size = {65,32}
 numPartsBox.x = 513
-numPartsBox.y = 290
+numPartsBox.y = 323
 numPartsBox.changed = function(self)
   for i=1, self.value do
     setNumSteps(i)
@@ -267,15 +285,6 @@ evolveButton.size = {50,32}
 evolveButton.x = numPartsBox.x + numPartsBox.width + 10
 evolveButton.y = numPartsBox.y
 
-function clearPosition()
-  for i=1, totalNumSteps do
-    positionTable:setValue(i, 0)
-  end
-  for i=1, totalNumSteps do
-    partsTable:setValue(i, 0)
-  end
-end
-
 local holdButton = sequencerPanel:OnOffButton("HoldOnOff", false)
 holdButton.backgroundColourOff = "#ff084486"
 holdButton.backgroundColourOn = "#ff02ACFE"
@@ -303,7 +312,7 @@ seqVelTable.sliderColour = menuArrowColour
 seqVelTable.width = positionTable.width
 seqVelTable.height = 70
 seqVelTable.x = positionTable.x
-seqVelTable.y = 130
+seqVelTable.y = 165
 
 local seqGateTable = sequencerPanel:Table("Gate", 1, 100, 0, 120, true)
 seqGateTable.tooltip = "Set step gate length. Randomization available in settings."

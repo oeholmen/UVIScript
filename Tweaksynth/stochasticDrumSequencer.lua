@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
--- Stochastic Sequencer
+-- Stochastic Drum Sequencer
 --------------------------------------------------------------------------------
 
 local outlineColour = "#FFB5FF"
@@ -8,10 +8,11 @@ local menuTextColour = "#9f02ACFE"
 local menuArrowColour = "#9f09A3F4"
 local menuOutlineColour = "00000000"
 local arpId = {}
-local numParts = 6
+local numParts = 4
 local paramsPerPart = {}
+local isPlaying = false
 
-setBackgroundColour("#3f3f3f")
+setBackgroundColour("#2c2c2c")
 
 for i=1,numParts do
   table.insert(arpId, 0)
@@ -24,11 +25,9 @@ end
 function getRandom(min, max, factor)
   if type(min) == "number" and type(max) == "number" then
     local value = math.random(min, max)
-    --print("Random - value, min, max:", value, min, max)
     return value
   elseif type(min) == "number" then
     local value = math.random(min)
-    --print("Random - value, min:", value, min)
     return value
   end
   local value = math.random()
@@ -141,17 +140,6 @@ function getResolutionNames(options)
   return res
 end
 
---------------------------------------------------------------------------------
--- Sequencer Panel
---------------------------------------------------------------------------------
-
-local sequencerPanel = Panel("Sequencer")
-sequencerPanel.backgroundColour = menuOutlineColour
-sequencerPanel.x = 10
-sequencerPanel.y = 10
-sequencerPanel.width = 700
-sequencerPanel.height = 600
-
 function clearPosition()
   for _,v in ipairs(paramsPerPart) do
     for i=1,v.numStepsBox.value do
@@ -167,16 +155,78 @@ function setNumSteps(partIndex)
   paramsPerPart[partIndex].seqTriggerProbabilityTable.length = numSteps
 end
 
+function startPlaying()
+  if isPlaying == true then
+    return
+  end
+  for i,v in ipairs(arpId) do
+    print("Start playing", i)
+    run(arpeg, i, v)
+  end
+  isPlaying = true
+end
+
+function stopPlaying()
+  if isPlaying == false then
+    return
+  end
+  for i=1,#arpId do
+    arpId[i] = arpId[i] + 1
+    print("Stop playing", i)
+  end
+  isPlaying = false
+  clearPosition()
+end
+
+--------------------------------------------------------------------------------
+-- Sequencer Panel
+--------------------------------------------------------------------------------
 local tableX = 100
-local tableY = 0
+local tableY = 35
 local tableWidth = 490
-local tableHeight = 80
+local tableHeight = 94
+
+local sequencerPanel = Panel("Sequencer")
+sequencerPanel.backgroundColour = menuOutlineColour
+sequencerPanel.x = 10
+sequencerPanel.y = 10
+sequencerPanel.width = 700
+sequencerPanel.height = numParts * (tableHeight + 25) + 30
+
+local label = sequencerPanel:Label("label")
+label.text = "Stochastic Drum Sequencer"
+label.align = "left"
+label.backgroundColour = "#272727"
+label.fontSize = 22
+label.position = {0,0}
+label.size = {230,25}
+
+local playButton = sequencerPanel:OnOffButton("Play", false)
+playButton.backgroundColourOff = "#ff084486"
+playButton.backgroundColourOn = "#ff02ACFE"
+playButton.textColourOff = "#ff22FFFF"
+playButton.textColourOn = "#efFFFFFF"
+playButton.fillColour = "#dd000061"
+playButton.displayName = "Play"
+playButton.size = {102,22}
+playButton.x = sequencerPanel.width - playButton.width
+playButton.y = 0
+playButton.changed = function(self)
+  if self.value == true then
+    startPlaying()
+  else
+    stopPlaying()
+  end
+end
 
 -- Add params that are to be editable per part
 for i=1,numParts do
   print("Set paramsPerPart", i)
 
+  local isVisible = i <= numParts
+
   local positionTable = sequencerPanel:Table("Position" .. i, 8, 0, 0, 1, true)
+  positionTable.visible = isVisible
   positionTable.enabled = false
   positionTable.persistent = false
   positionTable.fillStyle = "solid"
@@ -188,6 +238,7 @@ for i=1,numParts do
   positionTable.y = tableY
 
   local seqVelTable = sequencerPanel:Table("Velocity" .. i, 8, 100, 1, 127, true)
+  seqVelTable.visible = isVisible
   seqVelTable.displayName = "Velocity"
   seqVelTable.tooltip = "Velocity for this step"
   seqVelTable.showPopupDisplay = true
@@ -209,6 +260,7 @@ for i=1,numParts do
   seqTriggerProbabilityTable.tooltip = "Trigger probability for this step"
   seqTriggerProbabilityTable.showPopupDisplay = true
   seqTriggerProbabilityTable.showLabel = false
+  seqTriggerProbabilityTable.visible = isVisible
   seqTriggerProbabilityTable.fillStyle = "solid"
   seqTriggerProbabilityTable.sliderColour = menuArrowColour
   if i % 2 == 0 then
@@ -223,6 +275,7 @@ for i=1,numParts do
 
   local directionProbability = sequencerPanel:NumBox("PartDirectionProbability" .. i, 0, 0, 100, true)
   directionProbability.displayName = "Backward"
+  directionProbability.visible = isVisible
   directionProbability.tooltip = "Backward probability amount"
   directionProbability.unit = Unit.Percent
   directionProbability.x = tableX + tableWidth + 10
@@ -232,6 +285,7 @@ for i=1,numParts do
   local velRand = sequencerPanel:NumBox("VelocityRandomization" .. i, 0, 0, 100, true)
   velRand.displayName = "Velocity"
   velRand.tooltip = "Velocity radomization amount"
+  velRand.visible = isVisible
   velRand.unit = Unit.Percent
   velRand.size = directionProbability.size
   velRand.x = directionProbability.x
@@ -240,36 +294,49 @@ for i=1,numParts do
   local triggerRand = sequencerPanel:NumBox("TriggerRandomization" .. i, 0, 0, 100, true)
   triggerRand.displayName = "Trigger"
   triggerRand.tooltip = "Trigger probability radomization amount"
+  triggerRand.visible = isVisible
   triggerRand.unit = Unit.Percent
   triggerRand.size = directionProbability.size
   triggerRand.x = directionProbability.x
   triggerRand.y = velRand.y + velRand.height + 2
 
-  local randomizeTriggerButton = sequencerPanel:Button("RandomizePitch")
+  local randomizeTriggerButton = sequencerPanel:Button("RandomizePitch" .. i)
   randomizeTriggerButton.persistent = false
+  randomizeTriggerButton.visible = isVisible
   randomizeTriggerButton.backgroundColourOff = "#33084486"
   randomizeTriggerButton.backgroundColourOn = "#9902ACFE"
   randomizeTriggerButton.textColourOff = "#cc22FFFF"
   randomizeTriggerButton.textColourOn = "#ccFFFFFF"
   randomizeTriggerButton.displayName = "Randomize"
-  randomizeTriggerButton.tooltip = "Randomize Trigger Probability - NOTE: Changes all settings!"
+  randomizeTriggerButton.tooltip = "Randomize Trigger Probability"
   randomizeTriggerButton.fillColour = "#dd000061"
-  randomizeTriggerButton.size = directionProbability.size
+  randomizeTriggerButton.size = {directionProbability.width,36}
   randomizeTriggerButton.x = directionProbability.x
   randomizeTriggerButton.y = triggerRand.y + triggerRand.height + 2
 
-  local typeMenu = sequencerPanel:Menu("Label" .. i, {"Off", "Kick", "Snare", "Hihat", "HH Open", "Clap", "Tom", "Perc", "Cymbal", "Note", "Misc"})
-  typeMenu.tooltip = "Part Label"
-  typeMenu.showLabel = false
-  typeMenu.selected = i + 1
-  typeMenu.x = 0
-  typeMenu.y = seqVelTable.y
-  typeMenu.width = 60
-  typeMenu.height = 18
-  typeMenu.backgroundColour = menuBackgroundColour
-  typeMenu.textColour = menuTextColour
-  typeMenu.arrowColour = menuArrowColour
-  typeMenu.outlineColour = menuOutlineColour
+  local muteButton = sequencerPanel:OnOffButton("MutePart" .. i, false)
+  muteButton.backgroundColourOff = "#ff084486"
+  muteButton.backgroundColourOn = "#ff02ACFE"
+  muteButton.textColourOff = "#ff22FFFF"
+  muteButton.textColourOn = "#efFFFFFF"
+  muteButton.fillColour = "#dd000061"
+  muteButton.displayName = "Mute"
+  muteButton.tooltip = "Mute part"
+  muteButton.size = {90,20}
+  muteButton.x = 0
+  muteButton.y = positionTable.y
+
+  local types = {"Kick", "Snare", "Hihat", "HH Open", "Clap", "Tom"}
+  local typeLabel = sequencerPanel:Label("Label" .. i)
+  typeLabel.tooltip = "Part Label"
+  typeLabel.editable = true
+  typeLabel.text = types[i]
+  typeLabel.backgroundColour = menuBackgroundColour
+  typeLabel.backgroundColourWhenEditing = "#cccccc"
+  typeLabel.x = 0
+  typeLabel.y = muteButton.y + muteButton.height + 2
+  typeLabel.width = 59
+  typeLabel.height = muteButton.height
 
   local triggerNote = sequencerPanel:NumBox("TriggerNote" .. i, 36, 0, 127, true)
   if i == 2 then
@@ -278,26 +345,27 @@ for i=1,numParts do
     triggerNote.value = 42
   elseif i == 4 then
     triggerNote.value = 46
-  elseif i == 5 then
-    triggerNote.value = 39
-  elseif i == 6 then
-    triggerNote.value = 43
   end
   triggerNote.tooltip = "The note to trigger"
   triggerNote.unit = Unit.MidiKey
   triggerNote.showPopupDisplay = true
+  triggerNote.visible = isVisible
   triggerNote.showLabel = false
   triggerNote.fillStyle = "solid"
-  triggerNote.sliderColour = menuArrowColour
+  triggerNote.backgroundColour = menuBackgroundColour
+  triggerNote.textColour = menuTextColour
+  triggerNote.arrowColour = menuArrowColour
+  triggerNote.outlineColour = menuOutlineColour
   triggerNote.displayName = "Note"
   triggerNote.width = 30
-  triggerNote.height = typeMenu.height
-  triggerNote.x = typeMenu.width
-  triggerNote.y = seqVelTable.y
+  triggerNote.height = typeLabel.height
+  triggerNote.x = typeLabel.width + 1
+  triggerNote.y = typeLabel.y
 
   local stepResolution = sequencerPanel:Menu("StepResolution" .. i, getResolutionNames())
   stepResolution.tooltip = "Set the step resolution"
   stepResolution.showLabel = false
+  stepResolution.visible = isVisible
   stepResolution.selected = 20
   stepResolution.x = 0
   stepResolution.y = triggerNote.y + triggerNote.height + 2
@@ -315,6 +383,7 @@ for i=1,numParts do
   local numStepsBox = sequencerPanel:NumBox("Steps" .. i, 8, 1, 32, true)
   numStepsBox.displayName = "Steps"
   numStepsBox.tooltip = "The Number of steps in the part"
+  numStepsBox.visible = isVisible
   numStepsBox.backgroundColour = menuBackgroundColour
   numStepsBox.textColour = menuTextColour
   numStepsBox.arrowColour = menuArrowColour
@@ -336,7 +405,8 @@ for i=1,numParts do
 
   local channelBox = sequencerPanel:NumBox("Channel" .. i, 0, 0, 16, true)
   channelBox.displayName = "Channel"
-  channelBox.tooltip = "Midi channel to send to - 0 = omni"
+  channelBox.tooltip = "Midi channel that receives trigger from this part. 0 = omni"
+  channelBox.visible = isVisible
   channelBox.backgroundColour = menuBackgroundColour
   channelBox.textColour = menuTextColour
   channelBox.arrowColour = menuArrowColour
@@ -346,8 +416,8 @@ for i=1,numParts do
   channelBox.x = 0
   channelBox.y = numStepsBox.y + numStepsBox.height + 2
 
-  table.insert(paramsPerPart, {velRand=velRand,triggerRand=triggerRand,typeMenu=typeMenu,triggerNote=triggerNote,channelBox=channelBox,positionTable=positionTable,seqVelTable=seqVelTable,seqTriggerProbabilityTable=seqTriggerProbabilityTable,stepResolution=stepResolution,directionProbability=directionProbability,numStepsBox=numStepsBox,init=i==1})
-  tableY = tableY + tableHeight + 20
+  table.insert(paramsPerPart, {muteButton=muteButton,velRand=velRand,triggerRand=triggerRand,triggerNote=triggerNote,channelBox=channelBox,positionTable=positionTable,seqVelTable=seqVelTable,seqTriggerProbabilityTable=seqTriggerProbabilityTable,stepResolution=stepResolution,directionProbability=directionProbability,numStepsBox=numStepsBox})
+  tableY = tableY + tableHeight + 25
 end
 
 --------------------------------------------------------------------------------
@@ -437,8 +507,10 @@ function arpeg(partIndex, arpId_)
       end
     end
 
+    local isActive = paramsPerPart[partIndex].muteButton.value == false
+
     -- Play note if trigger probability hits (and part is not turned off)
-    if paramsPerPart[partIndex].typeMenu.value > 1 and getRandomBoolean(triggerProbability) then
+    if isActive and getRandomBoolean(triggerProbability) then
       local note = paramsPerPart[partIndex].triggerNote.value
       playNote(note, vel, beat2ms(stepDuration), nil, channel)
       print("Playing note/vel/stepDuration", note, vel, stepDuration)
@@ -446,7 +518,7 @@ function arpeg(partIndex, arpId_)
 
     -- UPDATE STEP POSITION TABLE
     for i=1, numStepsInPart do
-      if i == currentPosition then
+      if isActive and i == currentPosition then
         paramsPerPart[partIndex].positionTable:setValue(i, 1)
       else
         paramsPerPart[partIndex].positionTable:setValue(i, 0)
@@ -465,45 +537,49 @@ end
 -- Events
 --------------------------------------------------------------------------------
 
-function startPlaying()
-  for i,v in ipairs(arpId) do
-    print("Start playing", i)
-    run(arpeg, i, v)
-  end
-end
-
-function stopPlaying()
-  for i=1,#arpId do
-    arpId[i] = arpId[i] + 1
-    print("Stop playing", i)
-  end
-  clearPosition()
-end
-
-function onNote(e)
-  -- Trigger on C4
-  if e.note == 72 then
-    startPlaying()
-  else
-    postEvent(e)
-  end
-end
-
-function onRelease(e)
-  -- Trigger on C4
-  if e.note == 72 then
-    stopPlaying()
-  else
-    postEvent(e)
-  end
-end
-
 function onTransport(start)
-  -- TODO Button for autoplay?
-  print("onTransport", start)
-  if start then
-    startPlaying()
-  else
-    stopPlaying()
+  playButton:setValue(start)
+end
+
+--------------------------------------------------------------------------------
+-- Save / Load
+--------------------------------------------------------------------------------
+
+function onSave()
+  local numStepsData = {}
+  local seqVelTableData = {}
+  local seqTriggerProbabilityTableData = {}
+
+  for i=1, numParts do
+    table.insert(numStepsData, paramsPerPart[i].numStepsBox.value)
+    for j=1, paramsPerPart[i].numStepsBox.value do
+      table.insert(seqVelTableData, paramsPerPart[i].seqVelTable:getValue(j))
+      table.insert(seqTriggerProbabilityTableData, paramsPerPart[i].seqTriggerProbabilityTable:getValue(j))
+    end
+  end
+
+  local data = {}
+  table.insert(data, numStepsData)
+  table.insert(data, seqVelTableData)
+  table.insert(data, seqTriggerProbabilityTableData)
+
+  return data
+end
+
+function onLoad(data)
+  local numStepsData = data[1]
+  local seqVelTableData = data[2]
+  local seqTriggerProbabilityTableData = data[3]
+
+  local dataCounter = 1
+  for i,v in ipairs(numStepsData) do
+    paramsPerPart[i].numStepsBox:setValue(v)
+    paramsPerPart[i].seqVelTable.length = v
+    paramsPerPart[i].seqTriggerProbabilityTable.length = v
+    for j=1, v do
+      paramsPerPart[i].seqVelTable:setValue(j, seqVelTableData[dataCounter])
+      paramsPerPart[i].seqTriggerProbabilityTable:setValue(j, seqTriggerProbabilityTableData[dataCounter])
+      dataCounter = dataCounter + 1
+    end
   end
 end

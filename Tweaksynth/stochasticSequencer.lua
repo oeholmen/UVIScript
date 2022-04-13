@@ -141,6 +141,15 @@ function getResolutionNames(options)
   return res
 end
 
+function clearPosition()
+  for _,v in ipairs(paramsPerPart) do
+    for i=1,v.numStepsBox.value do
+      v.positionTable:setValue(i, 0)
+    end
+    v.partsTable:setValue(1, 0)
+  end
+end
+
 --------------------------------------------------------------------------------
 -- Sequencer Panel
 --------------------------------------------------------------------------------
@@ -153,16 +162,16 @@ sequencerPanel.backgroundColour = menuOutlineColour
 sequencerPanel.x = 10
 sequencerPanel.y = 10
 sequencerPanel.width = 700
-sequencerPanel.height = 480
+sequencerPanel.height = 505
 
-function clearPosition()
-  for _,v in ipairs(paramsPerPart) do
-    for i=1,v.numStepsBox.value do
-      v.positionTable:setValue(i, 0)
-    end
-    v.partsTable:setValue(1, 0)
-  end
-end
+local label = sequencerPanel:Label("label")
+label.text = "Stochastic Sequencer"
+label.align = "right"
+label.alpha = 0.5
+label.backgroundColour = "#272727"
+label.fontSize = 22
+label.position = {0,19}
+label.size = {tableWidth,25}
 
 local editPartMenu = sequencerPanel:Menu("EditPart", partSelect)
 editPartMenu.backgroundColour = menuBackgroundColour
