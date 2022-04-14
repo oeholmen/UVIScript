@@ -201,7 +201,7 @@ sequencerPanel.y = 10
 sequencerPanel.width = 700
 sequencerPanel.height = numParts * (tableHeight + 25) + 30
 
-local label = sequencerPanel:Label("label")
+local label = sequencerPanel:Label("Label")
 label.text = title
 label.align = "left"
 label.backgroundColour = "#272727"
@@ -361,17 +361,19 @@ for i=1,numParts do
   muteButton.x = 0
   muteButton.y = positionTable.y
 
-  local types = {"Kick", "Snare", "Hihat", "Clap"}
-  local typeLabel = sequencerPanel:Label("Label" .. i)
-  typeLabel.tooltip = "Part Label"
-  typeLabel.editable = true
-  typeLabel.text = types[i]
-  typeLabel.backgroundColour = menuBackgroundColour
-  typeLabel.backgroundColourWhenEditing = "#cccccc"
-  typeLabel.x = 0
-  typeLabel.y = muteButton.y + muteButton.height + 2
-  typeLabel.width = 59
-  typeLabel.height = muteButton.height
+  if numParts > 1 then
+    local types = {"Kick", "Snare", "Hihat", "Clap"}
+    local typeLabel = sequencerPanel:Label("Label" .. i)
+    typeLabel.tooltip = "Part Label"
+    typeLabel.editable = true
+    typeLabel.text = types[i]
+    typeLabel.backgroundColour = menuBackgroundColour
+    typeLabel.backgroundColourWhenEditing = "#cccccc"
+    typeLabel.x = 0
+    typeLabel.y = muteButton.y + muteButton.height + 2
+    typeLabel.width = 59
+    typeLabel.height = muteButton.height
+  end
 
   local triggerNote = sequencerPanel:NumBox("TriggerNote" .. i, 36, 0, 127, true)
   if i == 2 then
@@ -385,17 +387,23 @@ for i=1,numParts do
   triggerNote.unit = Unit.MidiKey
   triggerNote.showPopupDisplay = true
   triggerNote.visible = isVisible
-  triggerNote.showLabel = false
+  triggerNote.showLabel = numParts == 1
   triggerNote.fillStyle = "solid"
   triggerNote.backgroundColour = menuBackgroundColour
   triggerNote.textColour = menuTextColour
   triggerNote.arrowColour = menuArrowColour
   triggerNote.outlineColour = menuOutlineColour
   triggerNote.displayName = "Note"
-  triggerNote.width = 30
-  triggerNote.height = typeLabel.height
-  triggerNote.x = typeLabel.width + 1
-  triggerNote.y = typeLabel.y
+  if numParts == 1 then
+    triggerNote.size = muteButton.size
+    triggerNote.x = 0
+    triggerNote.y = muteButton.y + muteButton.height + 2
+  else
+    triggerNote.width = 30
+    triggerNote.height = muteButton.height
+    triggerNote.x = 60
+    triggerNote.y = muteButton.y + muteButton.height + 2
+  end
 
   local stepResolution = sequencerPanel:Menu("StepResolution" .. i, getResolutionNames())
   stepResolution.tooltip = "Set the step resolution"

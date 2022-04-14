@@ -8,6 +8,7 @@ local menuTextColour = "#9f02ACFE"
 local menuArrowColour = "#9f09A3F4"
 local menuOutlineColour = "00000000"
 local arpId = 0
+local isPlaying = false
 local partToStepMap = {1} -- Holds the starting step for each part
 local partRandomizationAmount = 0
 local totalNumSteps = 8
@@ -132,6 +133,23 @@ function clearPosition()
   end
 end
 
+function startPlaying()
+  if isPlaying == true then
+    return
+  end
+  spawn(arpeg, arpId)
+  isPlaying = true
+end
+
+function stopPlaying()
+  if isPlaying == false then
+    return
+  end
+  arpId = arpId + 1
+  isPlaying = false
+  clearPosition()
+end
+
 --------------------------------------------------------------------------------
 -- Sequencer Panel
 --------------------------------------------------------------------------------
@@ -190,6 +208,7 @@ editPartMenu.changed = function(self)
     v.gateRandomization.visible = isVisible
     v.baseNoteRandomization.visible = isVisible
   end
+  setTableWidths()
 end
 
 local numPartsBox = sequencerPanel:NumBox("Parts", 1, 1, 8, true)
@@ -211,6 +230,7 @@ numPartsBox.changed = function(self)
   for i=1,numParts do
     setNumSteps(i)
   end
+
   local partSelect = {}
   for i=1,numParts do
     -- Add item to part select table
@@ -254,6 +274,21 @@ partRandBox.changed = function(self)
   partRandomizationAmount = self.value
 end
 
+local focusButton = sequencerPanel:OnOffButton("FocusPartOnOff", false)
+focusButton.backgroundColourOff = "#ff084486"
+focusButton.backgroundColourOn = "#ff02ACFE"
+focusButton.textColourOff = "#ff22FFFF"
+focusButton.textColourOn = "#efFFFFFF"
+focusButton.displayName = "Focus Part"
+focusButton.tooltip = "When focus is active, only the part selected for editing is shown and played"
+focusButton.fillColour = "#dd000061"
+focusButton.size = {102,22}
+focusButton.x = sequencerPanel.width - (focusButton.width * 2) - 10
+focusButton.y = 0
+focusButton.changed = function(self)
+  setTableWidths()
+end
+
 local playButton = sequencerPanel:OnOffButton("Play", false)
 playButton.persistent = false
 playButton.backgroundColourOff = "#ff084486"
@@ -266,11 +301,10 @@ playButton.size = {102,22}
 playButton.x = sequencerPanel.width - playButton.width
 playButton.y = 0
 playButton.changed = function(self)
-  if self.value then
-    spawn(arpeg, arpId)
+  if self.value == true then
+    startPlaying()
   else
-    arpId = arpId + 1
-    clearPosition()
+    stopPlaying()
   end
 end
 
@@ -287,11 +321,17 @@ function setNumSteps(index)
 end
 
 function setTableWidths()
+  local focusSelectedPart = focusButton.value
   local widthPerStep = tableWidth / totalNumSteps
   local x = 0
   for i=1, numPartsBox.value do
-    local isVisible = true
+    --local isVisible = true
+    local isVisible = (focusSelectedPart == true and i == editPartMenu.value) or focusSelectedPart == false
     local partTableWidth = paramsPerPart[i].numStepsBox.value * widthPerStep
+    if focusSelectedPart then
+      partTableWidth = tableWidth
+      x = 0
+    end
 
     paramsPerPart[i].partsTable.visible = isVisible
     paramsPerPart[i].partsTable.width = partTableWidth
@@ -597,9 +637,9 @@ function arpeg(arpId_)
     -- SET VALUES
     local numParts = numPartsBox.value
     local currentPosition = (index % totalNumSteps) + 1 -- 11 % 4 = 3
+    local startOfPart = false
     --print("currentPosition", currentPosition)
     -- Set part position
-    local startOfPart = false
     for pp,sp in ipairs(partToStepMap) do
       if sp == currentPosition then
         currentPartPosition = pp
@@ -616,12 +656,16 @@ function arpeg(arpId_)
     end
 
     -- Check if we are at the start of a part
-    if startOfPart and partRandomizationAmount > 0 then
-      -- Randomize parts within the set limit
-      print("currentPartPosition before", currentPartPosition)
-      print("currentPosition before", currentPosition)
-      print("index before", index)
-      currentPartPosition = getRandom(numParts)
+    if startOfPart and numParts > 1 and (getRandomBoolean(partRandomizationAmount) or focusButton.value == true) then
+      if focusButton.value == true then
+        currentPartPosition = editPartMenu.value
+      else
+        -- Randomize parts within the set limit
+        print("currentPartPosition before", currentPartPosition)
+        print("currentPosition before", currentPosition)
+        print("index before", index)
+        currentPartPosition = getRandom(numParts)
+      end
       -- Find the current pos and index
       currentPosition = partToStepMap[currentPartPosition]
       index = currentPosition - 1
@@ -631,7 +675,6 @@ function arpeg(arpId_)
     end
 
     local stepDuration = getResolution(paramsPerPart[currentPartPosition].stepResolution.value)
-    local numStepsInPart = paramsPerPart[currentPartPosition].numSteps
     local startStep = partToStepMap[currentPartPosition]
 
     -- Tables for current step position

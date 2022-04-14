@@ -1,3 +1,3 @@
---title = "Note trigger"
+title = "Note trigger"
 numParts = 1
 require "stochasticDrumSequencer"
