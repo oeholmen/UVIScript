@@ -641,7 +641,7 @@ for i=1,numPartsBox.max do
     setNumSteps(i)
   end
 
-  local playMode = sequencerPanel:Menu("PlayMode" .. i, {"Mono", "As Played", "Random", "Duo", "Chord", "Mono 2 (First Held)"})
+  local playMode = sequencerPanel:Menu("PlayMode" .. i, {"Mono", "As Played", "Random", "Duo", "Chord", "Lowest Held", "Highest Held"})
   playMode.displayName = "Play Mode"
   playMode.visible = isFirst
   playMode.x = stepResolution.x + stepResolution.width + 10
@@ -921,6 +921,12 @@ function arpeg(arpId_)
 
       -- Add notes to play
       -- "Mono", "As Played", "Random", "Duo", "Chord", "Mono (First Held)"
+      local sortedNotes = {}
+      for _,v in ipairs(heldNotes) do
+        table.insert(sortedNotes, v.note)
+      end
+      table.sort(sortedNotes)
+
       if playMode == 1 then
         -- Mono (Last held)
           table.insert(notes, {note=heldNotes[#heldNotes].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
@@ -940,7 +946,7 @@ function arpeg(arpId_)
         if getRandomBoolean(pitchChangeProbability) then
           table.insert(notes, {note=heldNotes[getRandom(#heldNotes)].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
         else
-          -- Add a failsafe i case #heldNotes has changed since setting index
+          -- Add a failsafe in case #heldNotes has changed since setting index
           if heldNoteIndex > #heldNotes then
             heldNoteIndex = #heldNotes
           end
@@ -948,21 +954,24 @@ function arpeg(arpId_)
         end
       elseif playMode == 3 then
         -- Random
-        table.insert(notes, {note=heldNotes[getRandom(#heldNotes)].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
+        table.insert(notes, {note=sortedNotes[getRandom(#sortedNotes)]+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
       elseif playMode == 4 then
-        -- Duo (First and last held note)
-        table.insert(notes, {note=heldNotes[1].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
+        -- Duo (Lowest and highest held notes)
+        table.insert(notes, {note=sortedNotes[1]+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
         if #heldNotes > 1 then
-          table.insert(notes, {note=heldNotes[#heldNotes].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
+          table.insert(notes, {note=sortedNotes[#sortedNotes]+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
         end
       elseif playMode == 5 then
         -- Chord
-        for i=1,#heldNotes do
-          table.insert(notes, {note=heldNotes[i].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
+        for i=1,#sortedNotes do
+          table.insert(notes, {note=sortedNotes[i]+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
         end
+      elseif playMode == 6 then
+        -- Lowest held
+        table.insert(notes, {note=sortedNotes[1]+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
       else
-        -- First held
-        table.insert(notes, {note=heldNotes[1].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
+        -- Highest held
+        table.insert(notes, {note=sortedNotes[#sortedNotes]+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
       end
       print("#notes", #notes)
     end
@@ -1027,7 +1036,9 @@ function onNote(e)
   end
   table.insert(heldNotes, e)
   if #heldNotes == 1 then
-    arpeg(arpId)
+    --wait(1) -- Wait to make sure all held notes are added
+    --arpeg(arpId)
+    spawn(arpeg, arpId)
   end
 end
 

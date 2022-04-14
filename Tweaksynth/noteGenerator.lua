@@ -9,27 +9,12 @@ local menuArrowColour = "#9f09A3F4"
 local menuOutlineColour = "00000000"
 local arpId = 0
 local partToStepMap = {1} -- Holds the starting step for each part
-local velocityRandomizationAmount = 0
-local gateRandomizationAmount = 0
 local partRandomizationAmount = 0
-local baseNoteProbability = 0
 local totalNumSteps = 8
 local scaleDefinitions = {{1},{2,2,1,2,2,2,1}, {2,1,2,2,1,2,2}, {2,1,2,2,2,1,2}, {2}, {2,2,3,2,3}, {3,2,2,3,2}, {5,2,5}, {7,5}, {12}, {3}, {5}, {7}}
 local paramsPerPart = {}
 local partSelect = {}
-local heldNotes = {}
-local isPlaying = false
 local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
-local noteNumberToNoteName = {} -- Used for mapping - does not include octave, only name of note (C, C#...)
-local notenamePos = 1
-for i=0,127 do
-  local name = notenames[notenamePos] .. (math.floor(i/12)-2) .. " (" .. i .. ")"
-  table.insert(noteNumberToNoteName, notenames[notenamePos])
-  notenamePos = notenamePos + 1
-  if notenamePos > #notenames then
-    notenamePos = 1
-  end
-end
 
 setBackgroundColour("#5f5f5f")
 
@@ -40,11 +25,9 @@ setBackgroundColour("#5f5f5f")
 function getRandom(min, max, factor)
   if type(min) == "number" and type(max) == "number" then
     local value = math.random(min, max)
-    --print("Random - value, min, max:", value, min, max)
     return value
   elseif type(min) == "number" then
     local value = math.random(min)
-    --print("Random - value, min:", value, min)
     return value
   end
   local value = math.random()
@@ -161,11 +144,10 @@ sequencerPanel.backgroundColour = menuOutlineColour
 sequencerPanel.x = 10
 sequencerPanel.y = 10
 sequencerPanel.width = tableWidth
-sequencerPanel.height = 340
+sequencerPanel.height = 300
 
-local label = sequencerPanel:Label("label")
+local label = sequencerPanel:Label("Label")
 label.text = "Generative Sequencer"
---label.align = "centred"
 label.alpha = 0.5
 label.backgroundColour = "#272727"
 label.fontSize = 22
@@ -178,13 +160,23 @@ editPartMenu.textColour = menuTextColour
 editPartMenu.arrowColour = menuArrowColour
 editPartMenu.outlineColour = menuOutlineColour
 editPartMenu.displayName = "Edit part"
-editPartMenu.showLabel = true
+editPartMenu.showLabel = false
 editPartMenu.y = 65
 editPartMenu.x = 0
-editPartMenu.width = 132
+editPartMenu.width = 108
+editPartMenu.height = 20
 editPartMenu.changed = function(self)
   for i,v in ipairs(paramsPerPart) do
     local isVisible = self.value == i
+
+    if isVisible then
+      v.partsTable.backgroundColour = "#cc33cc44"
+    elseif i % 2 == 0 then
+      v.partsTable.backgroundColour = "#3f09A3F4"
+    else
+      v.partsTable.backgroundColour = "#1f09A3F4"
+    end
+
     v.polyphony.visible = isVisible
     v.numStepsBox.visible = isVisible
     v.stepResolution.visible = isVisible
@@ -194,23 +186,22 @@ editPartMenu.changed = function(self)
     v.maxNote.visible = isVisible
     v.key.visible = isVisible
     v.scale.visible = isVisible
+    v.velRandomization.visible = isVisible
+    v.gateRandomization.visible = isVisible
+    v.baseNoteRandomization.visible = isVisible
   end
-  setTableWidths()
 end
 
 local numPartsBox = sequencerPanel:NumBox("Parts", 1, 1, 8, true)
 numPartsBox.tooltip = "The number of parts in the sequence"
 numPartsBox.backgroundColour = menuBackgroundColour
 numPartsBox.textColour = menuTextColour
-numPartsBox.arrowColour = menuArrowColour
-numPartsBox.outlineColour = menuOutlineColour
 numPartsBox.width = editPartMenu.width
 numPartsBox.height = 20
 numPartsBox.x = editPartMenu.x
 numPartsBox.y = editPartMenu.y + editPartMenu.height + 5
 numPartsBox.changed = function(self)
-  print("numPartsBox.changed numParts/self.value", numParts, self.value)
-  for i,v in ipairs(paramsPerPart) do
+  for _,v in ipairs(paramsPerPart) do
     v.partsTable.visible = false
     v.positionTable.visible = false
     v.seqVelTable.visible = false
@@ -239,6 +230,9 @@ numPartsBox.changed = function(self)
       paramsPerPart[i].numSteps = prev.numSteps
       paramsPerPart[i].fullScale = prev.fullScale
       paramsPerPart[i].filteredScale = prev.filteredScale
+      paramsPerPart[i].velRandomization.value = prev.velRandomization.value
+      paramsPerPart[i].gateRandomization.value = prev.gateRandomization.value
+      paramsPerPart[i].baseNoteRandomization.value = prev.baseNoteRandomization.value
       paramsPerPart[i].init = prev.init
     end
   end
@@ -247,91 +241,18 @@ numPartsBox.changed = function(self)
   editPartMenu:setValue(#partSelect)
 end
 
-local velRandKnob = sequencerPanel:Knob("VelocityRandomization", 0, 0, 100, true)
-velRandKnob.displayName = "Velocity"
-velRandKnob.tooltip = "Amount of radomization applied to sequencer velocity"
-velRandKnob.unit = Unit.Percent
-velRandKnob.width = 100
-velRandKnob.x = 0
-velRandKnob.y = sequencerPanel.height - 48
-velRandKnob.changed = function(self)
-  velocityRandomizationAmount = self.value
-end
-
-local gateRandKnob = sequencerPanel:Knob("GateRandomization", 0, 0, 100, true)
-gateRandKnob.displayName = "Gate"
-gateRandKnob.tooltip = "Amount of radomization applied to sequencer gate"
-gateRandKnob.unit = Unit.Percent
-gateRandKnob.width = velRandKnob.width
-gateRandKnob.x = velRandKnob.x + velRandKnob.width + 10
-gateRandKnob.y = velRandKnob.y
-gateRandKnob.changed = function(self)
-  gateRandomizationAmount = self.value
-end
-
-local partRandKnob = sequencerPanel:Knob("PartRandomization", 0, 0, 100, true)
-partRandKnob.displayName = "Part"
-partRandKnob.tooltip = "Amount of radomization applied to parts"
-partRandKnob.unit = Unit.Percent
-partRandKnob.width = velRandKnob.width
-partRandKnob.x = gateRandKnob.x + gateRandKnob.width + 10
-partRandKnob.y = velRandKnob.y
-partRandKnob.changed = function(self)
+local partRandBox = sequencerPanel:NumBox("PartRandomization", 0, 0, 100, true)
+partRandBox.backgroundColour = menuBackgroundColour
+partRandBox.textColour = menuTextColour
+partRandBox.displayName = "Part Order"
+partRandBox.tooltip = "Amount of radomization applied to the order of playing parts"
+partRandBox.unit = Unit.Percent
+partRandBox.width = numPartsBox.width
+partRandBox.x = numPartsBox.x
+partRandBox.y = numPartsBox.y + numPartsBox.height + 5
+partRandBox.changed = function(self)
   partRandomizationAmount = self.value
 end
-
-local baseNoteRandKnob = sequencerPanel:Knob("BaseNoteProbability", 0, 0, 100, true)
-baseNoteRandKnob.displayName = "Base note"
-baseNoteRandKnob.tooltip = "Probability that first note in part will be the base note"
-baseNoteRandKnob.unit = Unit.Percent
-baseNoteRandKnob.width = velRandKnob.width
-baseNoteRandKnob.x = partRandKnob.x + partRandKnob.width + 10
-baseNoteRandKnob.y = velRandKnob.y
-baseNoteRandKnob.changed = function(self)
-  baseNoteProbability = self.value
-end
-
-local outputMenu = sequencerPanel:Menu("OutputMenu", {"Random", "Low->High", "High->Low"})
-outputMenu.backgroundColour = menuBackgroundColour
-outputMenu.textColour = menuTextColour
-outputMenu.arrowColour = menuArrowColour
-outputMenu.outlineColour = menuOutlineColour
-outputMenu.displayName = "Output Order"
-outputMenu.tooltip = "The order for outputted notes (when polyphony > 1)"
-outputMenu.x = baseNoteRandKnob.x + baseNoteRandKnob.width + 10
-outputMenu.y = baseNoteRandKnob.y
-outputMenu.width = 80
-outputMenu.height = 45
-
-local evolveButton = sequencerPanel:OnOffButton("EvolveOnOff", false)
-evolveButton.backgroundColourOff = "#ff084486"
-evolveButton.backgroundColourOn = "#ff02ACFE"
-evolveButton.textColourOff = "#ff22FFFF"
-evolveButton.textColourOn = "#efFFFFFF"
-evolveButton.displayName = "Evolve"
-evolveButton.tooltip = "When evolve is active, randomization is written back to the corresponding table, allowing the table to evolve with the changes"
-evolveButton.fillColour = "#dd000061"
-evolveButton.size = {80,35}
-evolveButton.x = outputMenu.x + outputMenu.width + 10
-evolveButton.y = outputMenu.y + 10
-
---[[ local holdButton = sequencerPanel:OnOffButton("HoldOnOff", false)
-holdButton.backgroundColourOff = "#ff084486"
-holdButton.backgroundColourOn = "#ff02ACFE"
-holdButton.textColourOff = "#ff22FFFF"
-holdButton.textColourOn = "#efFFFFFF"
-holdButton.displayName = "Hold"
-holdButton.fillColour = "#dd000061"
-holdButton.size = evolveButton.size
-holdButton.x = evolveButton.x + evolveButton.width + 10
-holdButton.y = evolveButton.y
-holdButton.changed = function(self)
-  if self.value == false then
-    heldNotes = {}
-    clearPosition()
-    arpId = arpId + 1
-  end
-end ]]
 
 local playButton = sequencerPanel:OnOffButton("Play", false)
 playButton.persistent = false
@@ -341,9 +262,9 @@ playButton.textColourOff = "#ff22FFFF"
 playButton.textColourOn = "#efFFFFFF"
 playButton.fillColour = "#dd000061"
 playButton.displayName = "Play"
-playButton.size = evolveButton.size
-playButton.x = evolveButton.x + evolveButton.width + 10
-playButton.y = evolveButton.y
+playButton.size = {102,22}
+playButton.x = sequencerPanel.width - playButton.width
+playButton.y = 0
 playButton.changed = function(self)
   if self.value then
     spawn(arpeg, arpId)
@@ -354,7 +275,6 @@ playButton.changed = function(self)
 end
 
 function setNumSteps(index)
-  print("setNumSteps", index)
   local numSteps = paramsPerPart[index].numStepsBox.value
   partToStepMap = {} -- Reset map
   totalNumSteps = 0
@@ -396,8 +316,14 @@ function setTableWidths()
   end
 end
 
+local noteRangeLabel = sequencerPanel:Label("NoteRangeLabel")
+noteRangeLabel.persistent = false
+noteRangeLabel.text = "Note Range"
+
 -- Add params that are to be editable per part
 for i=1,numPartsBox.max do
+  print("Set paramsPerPart", i)
+
   local partsTable = sequencerPanel:Table("Parts" .. i, 1, 0, 0, 1, true)
   partsTable.enabled = false
   partsTable.persistent = false
@@ -429,7 +355,7 @@ for i=1,numPartsBox.max do
   seqVelTable.width = positionTable.width
   seqVelTable.height = 70
   seqVelTable.x = positionTable.x
-  seqVelTable.y = numPartsBox.y + numPartsBox.height + 5
+  seqVelTable.y = partRandBox.y + partRandBox.height + 5
   
   local seqGateTable = sequencerPanel:Table("Gate" .. i, totalNumSteps, 100, 0, 120, true)
   seqGateTable.tooltip = "Set step gate length. Randomization available in settings."
@@ -447,8 +373,6 @@ for i=1,numPartsBox.max do
   generatePolyphonyPart.tooltip = "How many notes are played at once"
   generatePolyphonyPart.backgroundColour = menuBackgroundColour
   generatePolyphonyPart.textColour = menuTextColour
-  generatePolyphonyPart.arrowColour = menuArrowColour
-  generatePolyphonyPart.outlineColour = menuOutlineColour
   generatePolyphonyPart.visible = false
   generatePolyphonyPart.width = editPartMenu.width
   generatePolyphonyPart.x = editPartMenu.x + editPartMenu.width + 10
@@ -459,8 +383,6 @@ for i=1,numPartsBox.max do
   generateMinNoteStepsPart.tooltip = "The minimum number of steps can a note last"
   generateMinNoteStepsPart.backgroundColour = menuBackgroundColour
   generateMinNoteStepsPart.textColour = menuTextColour
-  generateMinNoteStepsPart.arrowColour = menuArrowColour
-  generateMinNoteStepsPart.outlineColour = menuOutlineColour
   generateMinNoteStepsPart.enabled = false
   generateMinNoteStepsPart.width = generatePolyphonyPart.width
   generateMinNoteStepsPart.x = generatePolyphonyPart.x
@@ -471,8 +393,6 @@ for i=1,numPartsBox.max do
   generateMaxNoteStepsPart.tooltip = "The maximium number of steps can a note last"
   generateMaxNoteStepsPart.backgroundColour = menuBackgroundColour
   generateMaxNoteStepsPart.textColour = menuTextColour
-  generateMaxNoteStepsPart.arrowColour = menuArrowColour
-  generateMaxNoteStepsPart.outlineColour = menuOutlineColour
   generateMaxNoteStepsPart.width = generateMinNoteStepsPart.width
   generateMaxNoteStepsPart.x = generateMinNoteStepsPart.x
   generateMaxNoteStepsPart.y = generateMinNoteStepsPart.y + generateMinNoteStepsPart.height + 5
@@ -484,12 +404,11 @@ for i=1,numPartsBox.max do
   local stepResolution = sequencerPanel:Menu("StepResolution" .. i, resolutionNames)
   stepResolution.displayName = "Step Resolution"
   stepResolution.selected = 20
-  --stepResolution.showLabel = false
   stepResolution.x = generatePolyphonyPart.x + generatePolyphonyPart.width + 10
   stepResolution.y = generatePolyphonyPart.y
   stepResolution.width = generateMaxNoteStepsPart.width
-  --stepResolution.height = numStepsBox.height
   stepResolution.backgroundColour = menuBackgroundColour
+  stepResolution.textColour = menuTextColour
   stepResolution.arrowColour = menuArrowColour
   stepResolution.outlineColour = menuOutlineColour
   stepResolution.changed = function(self)
@@ -501,30 +420,27 @@ for i=1,numPartsBox.max do
   numStepsBox.tooltip = "The Number of steps in the part"
   numStepsBox.backgroundColour = menuBackgroundColour
   numStepsBox.textColour = menuTextColour
-  numStepsBox.arrowColour = menuArrowColour
-  numStepsBox.outlineColour = menuOutlineColour
   numStepsBox.width = stepResolution.width
   numStepsBox.x = stepResolution.x
   numStepsBox.y = stepResolution.y + stepResolution.height + 5
   numStepsBox.changed = function(self)
-    print("numStepsBox.changed index/value", i, self.value)
+    --print("numStepsBox.changed index/value", i, self.value)
     setNumSteps(i)
   end
 
-  local noteRangeLabel = sequencerPanel:Label("NoteRangeLabel")
-  noteRangeLabel.text = "Note Range"
-  noteRangeLabel.visible = i == 1
-  noteRangeLabel.x = stepResolution.x + stepResolution.width + 10
-  noteRangeLabel.y = stepResolution.y
-  noteRangeLabel.width = stepResolution.width
-  noteRangeLabel.height = 20
+  if i == 1 then
+    noteRangeLabel.x = stepResolution.x + stepResolution.width + 10
+    noteRangeLabel.y = stepResolution.y
+    noteRangeLabel.width = stepResolution.width
+    noteRangeLabel.height = 20
+  end
 
   local generateMinPart = sequencerPanel:NumBox("GenerateMin" .. i, 24, 0, 127, true)
   generateMinPart.unit = Unit.MidiKey
   generateMinPart.showPopupDisplay = true
   generateMinPart.showLabel = true
-  generateMinPart.fillStyle = "solid"
-  generateMinPart.sliderColour = menuArrowColour
+  generateMinPart.backgroundColour = menuBackgroundColour
+  generateMinPart.textColour = menuTextColour
   generateMinPart.displayName = "Min"
   generateMinPart.tooltip = "Lowest note"
   generateMinPart.x = noteRangeLabel.x
@@ -535,8 +451,8 @@ for i=1,numPartsBox.max do
   generateMaxPart.unit = Unit.MidiKey
   generateMaxPart.showPopupDisplay = true
   generateMaxPart.showLabel = true
-  generateMaxPart.fillStyle = "solid"
-  generateMaxPart.sliderColour = menuArrowColour
+  generateMaxPart.backgroundColour = menuBackgroundColour
+  generateMaxPart.textColour = menuTextColour
   generateMaxPart.displayName = "Max"
   generateMaxPart.tooltip = "Highest note"
   generateMaxPart.x = generateMinPart.x
@@ -583,7 +499,37 @@ for i=1,numPartsBox.max do
     createFilteredScale(i)
   end
 
-  table.insert(paramsPerPart, {partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,polyphony=generatePolyphonyPart,numStepsBox=numStepsBox,stepResolution=stepResolution,numSteps=0,fullScale={},filteredScale={},scale=generateScalePart,key=generateKeyPart,minNote=generateMinPart,maxNote=generateMaxPart,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
+  local velRandomization = sequencerPanel:NumBox("VelocityRandomization" .. i, 0, 0, 100, true)
+  velRandomization.displayName = "Velocity"
+  velRandomization.tooltip = "Amount of radomization applied to sequencer velocity"
+  velRandomization.unit = Unit.Percent
+  velRandomization.width = editPartMenu.width
+  velRandomization.x = generateKeyPart.x + generateKeyPart.width + 10
+  velRandomization.y = editPartMenu.y
+  velRandomization.backgroundColour = menuBackgroundColour
+  velRandomization.textColour = menuTextColour
+
+  local gateRandomization = sequencerPanel:NumBox("GateRandomization" .. i, 0, 0, 100, true)
+  gateRandomization.displayName = "Gate"
+  gateRandomization.tooltip = "Amount of radomization applied to sequencer gate"
+  gateRandomization.unit = Unit.Percent
+  gateRandomization.width = velRandomization.width
+  gateRandomization.x = velRandomization.x
+  gateRandomization.y = velRandomization.y + velRandomization.height + 5
+  gateRandomization.backgroundColour = menuBackgroundColour
+  gateRandomization.textColour = menuTextColour
+
+  local baseNoteRandomization = sequencerPanel:NumBox("BaseNoteProbability" .. i, 0, 0, 100, true)
+  baseNoteRandomization.displayName = "Base note"
+  baseNoteRandomization.tooltip = "Probability that first note in part will be the base note"
+  baseNoteRandomization.unit = Unit.Percent
+  baseNoteRandomization.width = gateRandomization.width
+  baseNoteRandomization.x = gateRandomization.x
+  baseNoteRandomization.y = gateRandomization.y + gateRandomization.height + 5
+  baseNoteRandomization.backgroundColour = menuBackgroundColour
+  baseNoteRandomization.textColour = menuTextColour
+
+  table.insert(paramsPerPart, {velRandomization=velRandomization,gateRandomization=gateRandomization,baseNoteRandomization=baseNoteRandomization,partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,polyphony=generatePolyphonyPart,numStepsBox=numStepsBox,stepResolution=stepResolution,numSteps=0,fullScale={},filteredScale={},scale=generateScalePart,key=generateKeyPart,minNote=generateMinPart,maxNote=generateMaxPart,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
 end
 
 editPartMenu:changed()
@@ -601,7 +547,7 @@ function createFilteredScale(part)
       end
     end
   end
-  print("Filtered scale contains notes:", #paramsPerPart[part].filteredScale)
+  --print("Filtered scale contains notes:", #paramsPerPart[part].filteredScale)
 end
 
 function createFullScale(part)
@@ -623,21 +569,13 @@ function createFullScale(part)
       pos = 0
     end
   end
-  print("Full scale contains notes:", #paramsPerPart[part].fullScale)
-end
-
-function isRootNote(note, currentPartPosition)
-  -- Find root note index
-  local rootIndex = paramsPerPart[currentPartPosition].key.value
-  local noteIndex = note + 1 -- note index is 1 higher than note number
-  print("Check isRootNote", rootIndex-1, note, noteNumberToNoteName[rootIndex], noteNumberToNoteName[noteIndex])
-  return noteNumberToNoteName[rootIndex] == noteNumberToNoteName[noteIndex]
+  --print("Full scale contains notes:", #paramsPerPart[part].fullScale)
 end
 
 function notesInclude(notesTable, note)
   for _,v in pairs(notesTable) do
     if v.note == note then
-      print("Note already included", note)
+      --print("Note already included", note)
       return true
     end
   end
@@ -696,9 +634,6 @@ function arpeg(arpId_)
     local numStepsInPart = paramsPerPart[currentPartPosition].numSteps
     local startStep = partToStepMap[currentPartPosition]
 
-    -- If evolve is true, the randomization is written back to the table
-    local evolve = evolveButton.value
-
     -- Tables for current step position
     local seqVelTable = paramsPerPart[currentPartPosition].seqVelTable
     local seqGateTable = paramsPerPart[currentPartPosition].seqGateTable
@@ -709,45 +644,37 @@ function arpeg(arpId_)
     local gate = seqGateTable:getValue(tablePos) -- get gate
 
     -- Randomize gate
-    if gateRandomizationAmount > 0 then
-      if getRandomBoolean(gateRandomizationAmount) then
-        local changeMax = math.ceil(seqGateTable.max * (gateRandomizationAmount/100)) -- 110 * 0,15 = 16,5 = 17
-        local min = gate - changeMax -- 100 - 17 = 83
-        local max = gate + changeMax -- 100 + 17 = 117 = 110
-        if min < seqGateTable.min then
-          min = seqGateTable.min
-        end
-        if max > seqGateTable.max then
-          max = seqGateTable.max
-        end
-        --print("Before randomize gate", gate)
-        gate = getRandom(min, max)
-        --print("After randomize gate/changeMax/min/max", gate, changeMax, min, max)
-        if evolve == true then
-          seqGateTable:setValue(tablePos, gate)
-        end
+    local gateRandomization = paramsPerPart[currentPartPosition].gateRandomization.value
+    if getRandomBoolean(gateRandomization) then
+      local changeMax = math.ceil(seqGateTable.max * (gateRandomization/100)) -- 110 * 0,15 = 16,5 = 17
+      local min = gate - changeMax -- 100 - 17 = 83
+      local max = gate + changeMax -- 100 + 17 = 117 = 110
+      if min < seqGateTable.min then
+        min = seqGateTable.min
       end
+      if max > seqGateTable.max then
+        max = seqGateTable.max
+      end
+      --print("Before randomize gate", gate)
+      gate = getRandom(min, max)
+      --print("After randomize gate/changeMax/min/max", gate, changeMax, min, max)
     end
 
     -- Randomize vel
-    if velocityRandomizationAmount > 0 then
-      if getRandomBoolean(velocityRandomizationAmount) then
-        local changeMax = math.ceil(seqVelTable.max * (velocityRandomizationAmount/100))
-        local min = vel - changeMax
-        local max = vel + changeMax
-        if min < seqVelTable.min then
-          min = seqVelTable.min
-        end
-        if max > seqVelTable.max then
-          max = seqVelTable.max
-        end
-        --print("Before randomize vel", vel)
-        vel = getRandom(min, max)
-        --print("After randomize vel/changeMax/min/max", vel, changeMax, min, max)
-        if evolve == true then
-          seqVelTable:setValue(tablePos, vel)
-        end
+    local velRandomization = paramsPerPart[currentPartPosition].velRandomization.value
+    if getRandomBoolean(velRandomization) then
+      local changeMax = math.ceil(seqVelTable.max * (velRandomization/100))
+      local min = vel - changeMax
+      local max = vel + changeMax
+      if min < seqVelTable.min then
+        min = seqVelTable.min
       end
+      if max > seqVelTable.max then
+        max = seqVelTable.max
+      end
+      --print("Before randomize vel", vel)
+      vel = getRandom(min, max)
+      --print("After randomize vel/changeMax/min/max", vel, changeMax, min, max)
     end
 
     -- If gate is zero no notes will play on this step
@@ -771,7 +698,8 @@ function arpeg(arpId_)
       end
 
       -- On step one, always add the base note if probability hits (unless low drone is active)
-      if currentStep == 1 and notesInclude(notes, minNote) == false and getRandomBoolean(baseNoteProbability) then
+      local baseNoteRandomization = paramsPerPart[currentPartPosition].baseNoteRandomization.value
+      if currentStep == 1 and notesInclude(notes, minNote) == false and getRandomBoolean(baseNoteRandomization) then
         local noteSteps = getRandom(minNoteSteps,maxNoteSteps)
         table.insert(notes, {note=minNote,gate=gate,vel=vel,steps=noteSteps,stepCounter=0})
         print("Insert base note note/steps/vel/gate", minNote, noteSteps, vel, gate)
@@ -805,21 +733,11 @@ function arpeg(arpId_)
         end
         roundCounter = roundCounter + 1
       end
-      -- Check if notes should be sorted before playing
-      if outputMenu.value == 2 then
-        -- Low -> High
-        table.sort(notes, function(a,b) return a.note < b.note end)
-      elseif outputMenu.value == 3 then
-        -- High -> Low
-        table.sort(notes, function(a,b) return a.note > b.note end)
-      end
       print("Notes ready to play", #notes)
     end
 
     -- PLAY NOTE(S)
-    --print("Ready to play notes", #notes)
     for _,note in ipairs(notes) do
-      --print("Check note/stepCounter", note.note, note.stepCounter)
       -- Start playing when step counter is 0 (add an extra check for gate even though no notes should be added when gate is zero)
       if note.stepCounter == 0 and note.gate > 0 then
         -- Play the note for the number of steps that are set
@@ -829,29 +747,7 @@ function arpeg(arpId_)
       end
       -- Increment step counter
       note.stepCounter = note.stepCounter + 1
-      --print("Increment note step counter", note.stepCounter)
     end
-
-    --[[ -- UPDATE STEP POSITION TABLE
-    for i=1, totalNumSteps do
-      local val = 0
-      if i == currentPosition then
-        val = 1
-      end
-      positionTable:setValue(i, val)
-    end
-    -- UPDATE PART POSITION TABLE
-    if startOfPart then
-      local startStep = partToStepMap[currentPartPosition]
-      local endStep = startStep + numStepsInPart
-      for i=1, totalNumSteps do
-        local val = 0
-        if i >= startStep and i < endStep then
-          val = 1
-        end
-        partsTable:setValue(i, val)
-      end
-    end ]]
 
     -- UPDATE STEP POSITION TABLE
     for i=1, numParts do
