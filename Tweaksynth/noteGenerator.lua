@@ -632,6 +632,7 @@ function arpeg(arpId_)
   local currentPartPosition = 0 -- Holds the currently playing part
   local notes = {} -- Holds the playing notes - notes are removed when they are finished playing
   local heldNoteIndex = 0
+  local isStarting = true
   -- START ARP LOOP
   while arpId_ == arpId do
     -- SET VALUES
@@ -656,11 +657,11 @@ function arpeg(arpId_)
     end
 
     -- Check if we are at the start of a part
-    if startOfPart and numParts > 1 and (getRandomBoolean(partRandomizationAmount) or focusButton.value == true) then
+    if startOfPart and numParts > 1 then
       if focusButton.value == true then
         currentPartPosition = editPartMenu.value
-      else
-        -- Randomize parts within the set limit
+      elseif isStarting == false and getRandomBoolean(partRandomizationAmount) then
+        -- Randomize parts within the set limit, unless we are in startup mode
         print("currentPartPosition before", currentPartPosition)
         print("currentPosition before", currentPosition)
         print("index before", index)
@@ -816,6 +817,8 @@ function arpeg(arpId_)
 
     -- INCREMENT POSITION
     index = (index + 1) % totalNumSteps -- increment position
+
+    isStarting = false
 
     -- REMOVE COMPLETED NOTES
     local keep = {}

@@ -699,6 +699,7 @@ function arpeg(arpId_)
   local randomTieCounter = 0 -- Used for holding random ties
   local partRepeat = 0 -- Used for holding part repeat info
   local partDirectionBackward = false -- Used for holding part direction
+  local isStarting = true
   -- START ARP LOOP
   while arpId_ == arpId do
     -- Reset notes table
@@ -716,14 +717,15 @@ function arpeg(arpId_)
     end
 
     -- If we are at the start of a part (and there is more than one part), check for part order randomization (or an active repeat)
-    if startOfPart and numParts > 1 and (getRandomBoolean(partRandomizationAmount) or partRepeat > 0 or focusButton.value == true) then
+    --if startOfPart and numParts > 1 and (getRandomBoolean(partRandomizationAmount) or partRepeat > 0 or focusButton.value == true) then
+    if startOfPart and numParts > 1 then
       if focusButton.value == true then
         currentPartPosition = editPartMenu.value
       elseif partRepeat > 0 then
         currentPartPosition = partRepeat
         partRepeat = 0 -- Reset repeat  
-      else
-        -- Randomize parts within the set limit
+      elseif isStarting == false and getRandomBoolean(partRandomizationAmount) then
+        -- Randomize parts within the set limit, unless we are in startup mode
         print("currentPartPosition before", currentPartPosition)
         -- Suggest a part by random
         local suggestedPartPosition = getRandom(numParts)
@@ -1010,6 +1012,8 @@ function arpeg(arpId_)
 
     -- INCREMENT POSITION
     index = (index + 1) % totalNumSteps -- increment position
+
+    isStarting = false
 
     -- WAIT FOR NEXT BEAT
     waitBeat(stepDuration)
