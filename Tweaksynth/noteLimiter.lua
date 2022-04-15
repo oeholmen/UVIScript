@@ -1,6 +1,10 @@
 --------------------------------------------------------------------------------
 -- Note Limiter
 --------------------------------------------------------------------------------
+-- Limits note range and polyphony (0 ployphony blocks all incoming notes)
+-- Notes outside range are transposed to the closest octave within range
+-- Duplicate notes are removed
+--------------------------------------------------------------------------------
 
 local menuBackgroundColour = "#bf01011F"
 local menuTextColour = "#9f02ACFE"
@@ -24,9 +28,9 @@ label.position = {0,0}
 label.size = {120,25}
 
 -- Polyphony
-local polyphony = panel:NumBox("Polyphony", 16, 1, 16, true)
-polyphony.displayName = "Keep"
-polyphony.tooltip = "How many notes to keep"
+local polyphony = panel:NumBox("Polyphony", 16, 0, 16, true)
+polyphony.displayName = "Polyphony"
+polyphony.tooltip = "Limit polyphony to the set number of notes - 0 blocks all incoming notes"
 polyphony.backgroundColour = menuBackgroundColour
 polyphony.textColour = menuTextColour
 polyphony.x = 200
@@ -38,7 +42,7 @@ noteMin.unit = Unit.MidiKey
 noteMin.backgroundColour = menuBackgroundColour
 noteMin.textColour = menuTextColour
 noteMin.displayName = "Min note"
-noteMin.tooltip = "Lowest note - notes below this are transposed to within range"
+noteMin.tooltip = "Lowest note - notes below this are transposed to closest octave within range"
 noteMin.x = polyphony.x + polyphony.width + 60
 noteMin.y = polyphony.y
 
@@ -47,7 +51,7 @@ noteMax.unit = Unit.MidiKey
 noteMax.backgroundColour = menuBackgroundColour
 noteMax.textColour = menuTextColour
 noteMax.displayName = "Max note"
-noteMax.tooltip = "Highest note - notes above this are transposed to within range"
+noteMax.tooltip = "Highest note - notes above this are transposed to closest octave within range"
 noteMax.x = noteMin.x + noteMin.width + 10
 noteMax.y = polyphony.y
 
@@ -89,12 +93,11 @@ end
 
 function onNote(e)
   e.note = transpose(e.note)
-  if heldNotesInclude(e.note) == false and #heldNotes <= polyphony.value then
-    local id = postEvent(e)
-    --e.id = id
+  if heldNotesInclude(e.note) == false and #heldNotes < polyphony.value then
+    postEvent(e)
     table.insert(heldNotes, e)
   end
-  print("heldNotes", #heldNotes)
+  print("Current #heldNotes", #heldNotes)
 end
 
 function onRelease(e)
@@ -102,7 +105,6 @@ function onRelease(e)
   for i,v in ipairs(heldNotes) do
     if v.note == e.note then
       table.remove(heldNotes, i)
-      --releaseVoice(v.id)
       if #heldNotes == 0 then
         print("All held notes are released")
       end
