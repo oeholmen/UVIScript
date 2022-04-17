@@ -283,11 +283,23 @@ focusButton.displayName = "Focus Part"
 focusButton.tooltip = "When focus is active, only the part selected for editing is shown and played"
 focusButton.fillColour = "#dd000061"
 focusButton.size = {102,22}
-focusButton.x = sequencerPanel.width - (focusButton.width * 2) - 10
+focusButton.x = (sequencerPanel.width / 2) + 33
 focusButton.y = 0
 focusButton.changed = function(self)
   setTableWidths()
 end
+
+local autoplayButton = sequencerPanel:OnOffButton("AutoPlay", false)
+autoplayButton.backgroundColourOff = "#ff084486"
+autoplayButton.backgroundColourOn = "#ff02ACFE"
+autoplayButton.textColourOff = "#ff22FFFF"
+autoplayButton.textColourOn = "#efFFFFFF"
+autoplayButton.fillColour = "#dd000061"
+autoplayButton.displayName = "Auto Play"
+autoplayButton.tooltip = "Play automatically on transport"
+autoplayButton.size = {102,22}
+autoplayButton.x = focusButton.x + focusButton.width + 5
+autoplayButton.y = 0
 
 local playButton = sequencerPanel:OnOffButton("Play", false)
 playButton.persistent = false
@@ -298,7 +310,7 @@ playButton.textColourOn = "#efFFFFFF"
 playButton.fillColour = "#dd000061"
 playButton.displayName = "Play"
 playButton.size = {102,22}
-playButton.x = sequencerPanel.width - playButton.width
+playButton.x = autoplayButton.x + autoplayButton.width + 5
 playButton.y = 0
 playButton.changed = function(self)
   if self.value == true then
@@ -839,8 +851,26 @@ end
 -- Handle note events
 --------------------------------------------------------------------------------
 
+function onNote(e)
+  if autoplayButton.value == true then
+    postEvent(e)
+  else
+    playButton:setValue(true)
+  end
+end
+
+function onRelease(e)
+  if autoplayButton.value == true then
+    postEvent(e)
+  else
+    playButton:setValue(false)
+  end
+end
+
 function onTransport(start)
-  playButton:setValue(start)
+  if autoplayButton.value == true then
+    playButton:setValue(start)
+  end
 end
 
 --------------------------------------------------------------------------------

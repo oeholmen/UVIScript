@@ -228,6 +228,18 @@ playButton.changed = function(self)
   end
 end
 
+local autoplayButton = sequencerPanel:OnOffButton("AutoPlay", false)
+autoplayButton.backgroundColourOff = "#ff084486"
+autoplayButton.backgroundColourOn = "#ff02ACFE"
+autoplayButton.textColourOff = "#ff22FFFF"
+autoplayButton.textColourOn = "#efFFFFFF"
+autoplayButton.fillColour = "#dd000061"
+autoplayButton.displayName = "Auto Play"
+autoplayButton.tooltip = "Play automatically on transport"
+autoplayButton.size = {102,22}
+autoplayButton.x = playButton.x - playButton.width - 5
+autoplayButton.y = 0
+
 -- Add params that are to be editable per part
 for i=1,numParts do
   print("Set paramsPerPart", i)
@@ -335,7 +347,7 @@ for i=1,numParts do
   triggerRand.x = directionProbability.x
   triggerRand.y = velRand.y + velRand.height + 2
 
-  local randomizeTriggerButton = sequencerPanel:Button("RandomizePitch" .. i)
+  local randomizeTriggerButton = sequencerPanel:Button("RandomizeTrigger" .. i)
   randomizeTriggerButton.persistent = false
   randomizeTriggerButton.visible = isVisible
   randomizeTriggerButton.backgroundColourOff = "#33084486"
@@ -442,7 +454,13 @@ for i=1,numParts do
 
   randomizeTriggerButton.changed = function()
     for i=1,numStepsBox.value do
-      seqTriggerProbabilityTable:setValue(i, getRandom(seqTriggerProbabilityTable.min, seqTriggerProbabilityTable.max))
+      if getRandomBoolean(25) then
+        seqTriggerProbabilityTable:setValue(i, 0)
+      elseif getRandomBoolean(25) then
+        seqTriggerProbabilityTable:setValue(i, 100)
+      else
+        seqTriggerProbabilityTable:setValue(i, getRandom(seqTriggerProbabilityTable.min, seqTriggerProbabilityTable.max))
+      end
     end
   end
 
@@ -587,8 +605,26 @@ end
 -- Events
 --------------------------------------------------------------------------------
 
+function onNote(e)
+  if autoplayButton.value == true then
+    postEvent(e)
+  else
+    playButton:setValue(true)
+  end
+end
+
+function onRelease(e)
+  if autoplayButton.value == true then
+    postEvent(e)
+  else
+    playButton:setValue(false)
+  end
+end
+
 function onTransport(start)
-  playButton:setValue(start)
+  if autoplayButton.value == true then
+    playButton:setValue(start)
+  end
 end
 
 --------------------------------------------------------------------------------
