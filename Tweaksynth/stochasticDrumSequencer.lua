@@ -258,7 +258,11 @@ for i=1,numParts do
   positionTable.x = tableX
   positionTable.y = tableY
 
-  local seqPitchTable = sequencerPanel:Table("Pitch" .. i, 8, 0, 0, 12, true)
+  local seqPitchTableMin = 0
+  if numParts == 1 then
+    seqPitchTableMin = -12
+  end
+  local seqPitchTable = sequencerPanel:Table("Pitch" .. i, 8, 0, seqPitchTableMin, 12, true)
   seqPitchTable.displayName = "Pitch"
   seqPitchTable.tooltip = "Pitch offset for this step"
   seqPitchTable.showPopupDisplay = true
@@ -271,7 +275,11 @@ for i=1,numParts do
     seqPitchTable.backgroundColour = "#3f606060"
   end
   seqPitchTable.width = tableWidth
-  seqPitchTable.height = tableHeight * 0.2
+  if numParts == 1 then
+    seqPitchTable.height = tableHeight * 0.5
+  else
+    seqPitchTable.height = tableHeight * 0.2
+  end
   seqPitchTable.x = tableX
   seqPitchTable.y = positionTable.y + positionTable.height + 2
 
@@ -289,16 +297,24 @@ for i=1,numParts do
     seqVelTable.backgroundColour = "#3f000000"
   end
   seqVelTable.width = tableWidth
-  seqVelTable.height = tableHeight * 0.4
+  if numParts == 1 then
+    seqVelTable.height = tableHeight * 0.5
+  else
+    seqVelTable.height = tableHeight * 0.4
+  end
   seqVelTable.x = tableX
   seqVelTable.y = seqPitchTable.y + seqPitchTable.height + 2
   
-  local seqTriggerProbabilityTable = sequencerPanel:Table("Trigger" .. i, 8, 0, 0, 100, true)
+  local seqTriggerProbabilityTableDefault = 0
+  if numParts == 1 then
+    seqTriggerProbabilityTableDefault = 100
+  end
+  local seqTriggerProbabilityTable = sequencerPanel:Table("Trigger" .. i, 8, seqTriggerProbabilityTableDefault, 0, 100, true)
   seqTriggerProbabilityTable.displayName = "Trigger"
   seqTriggerProbabilityTable.tooltip = "Trigger probability for this step"
   seqTriggerProbabilityTable.showPopupDisplay = true
   seqTriggerProbabilityTable.showLabel = false
-  seqTriggerProbabilityTable.visible = isVisible
+  seqTriggerProbabilityTable.visible = isVisible and numParts > 1
   seqTriggerProbabilityTable.fillStyle = "solid"
   seqTriggerProbabilityTable.sliderColour = "#3322FFFF"
   if i % 2 == 0 then
@@ -311,6 +327,10 @@ for i=1,numParts do
   seqTriggerProbabilityTable.x = tableX
   seqTriggerProbabilityTable.y = seqVelTable.y + seqVelTable.height + 2
 
+  local numBoxHeight = 20
+  if numParts == 1 then
+    numBoxHeight = 34
+  end
   local directionProbability = sequencerPanel:NumBox("PartDirectionProbability" .. i, 0, 0, 100, true)
   directionProbability.displayName = "Backward"
   directionProbability.visible = isVisible
@@ -318,7 +338,7 @@ for i=1,numParts do
   directionProbability.unit = Unit.Percent
   directionProbability.x = tableX + tableWidth + 10
   directionProbability.y = positionTable.y + 1
-  directionProbability.size={100,20}
+  directionProbability.size = {100,numBoxHeight}
 
   local pitchRand = sequencerPanel:NumBox("PitchOffsetRandomization" .. i, 0, 0, 100, true)
   pitchRand.displayName = "Pitch"
@@ -341,7 +361,7 @@ for i=1,numParts do
   local triggerRand = sequencerPanel:NumBox("TriggerRandomization" .. i, 0, 0, 100, true)
   triggerRand.displayName = "Trigger"
   triggerRand.tooltip = "Trigger probability radomization amount"
-  triggerRand.visible = isVisible
+  triggerRand.visible = isVisible and numParts > 1
   triggerRand.unit = Unit.Percent
   triggerRand.size = directionProbability.size
   triggerRand.x = directionProbability.x
@@ -349,7 +369,7 @@ for i=1,numParts do
 
   local randomizeTriggerButton = sequencerPanel:Button("RandomizeTrigger" .. i)
   randomizeTriggerButton.persistent = false
-  randomizeTriggerButton.visible = isVisible
+  randomizeTriggerButton.visible = isVisible and numParts > 1
   randomizeTriggerButton.backgroundColourOff = "#33084486"
   randomizeTriggerButton.backgroundColourOn = "#9902ACFE"
   randomizeTriggerButton.textColourOff = "#cc22FFFF"
@@ -362,6 +382,7 @@ for i=1,numParts do
   randomizeTriggerButton.y = triggerRand.y + triggerRand.height + 2
 
   local muteButton = sequencerPanel:OnOffButton("MutePart" .. i, false)
+  muteButton.visible = isVisible and numParts > 1
   muteButton.backgroundColourOff = "#ff084486"
   muteButton.backgroundColourOn = "#ff02ACFE"
   muteButton.textColourOff = "#ff22FFFF"
@@ -407,9 +428,10 @@ for i=1,numParts do
   triggerNote.outlineColour = menuOutlineColour
   triggerNote.displayName = "Note"
   if numParts == 1 then
-    triggerNote.size = muteButton.size
+    triggerNote.width = muteButton.width
+    triggerNote.height = 25
     triggerNote.x = 0
-    triggerNote.y = muteButton.y + muteButton.height + 2
+    triggerNote.y = 35
   else
     triggerNote.width = 30
     triggerNote.height = muteButton.height
@@ -421,7 +443,11 @@ for i=1,numParts do
   stepResolution.tooltip = "Set the step resolution"
   stepResolution.showLabel = false
   stepResolution.visible = isVisible
-  stepResolution.selected = 20
+  if numParts == 1 then
+    stepResolution.selected = 11
+  else
+    stepResolution.selected = 20
+  end
   stepResolution.x = 0
   stepResolution.y = triggerNote.y + triggerNote.height + 2
   stepResolution.width = 90
