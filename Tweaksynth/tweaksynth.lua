@@ -6,6 +6,15 @@ local tweakables = {}
 local storedPatches = {}
 local storedPatch = {}
 local patchesMenu = nil
+local snapshots = {} -- Snapshots stored for each round in twequencer
+local snapshotPosition = 1
+local snapshotsMenu = nil
+local numPartsBox = nil
+local numStepsBox = nil
+local seqPitchTable = nil
+local tieStepTable = nil
+local seqVelTable = nil
+local seqGateTable = nil
 
 --------------------------------------------------------------------------------
 -- Synth engine elements
@@ -272,7 +281,7 @@ local buttonTextColourOff = "#ff22FFFF"
 local buttonTextColourOn = "#efFFFFFF"
 
 local outlineColour = "#FFB5FF"
-local bgColor = "00000000"
+local bgColor = "#00000000"
 local knobColour = "#dd000061"
 local osc1Colour = outlineColour
 local osc2Colour = outlineColour
@@ -298,30 +307,92 @@ local width = 714
 --------------------------------------------------------------------------------
 
 function onSave()
+  local pitchTableData = {}
+  local tieStepTableData = {}
+  local seqVelTableData = {}
+  local seqGateTableData = {}
+
+  for i=1, (numPartsBox.value*numStepsBox.value) do
+    table.insert(pitchTableData, seqPitchTable:getValue(i))
+    table.insert(tieStepTableData, tieStepTable:getValue(i))
+    table.insert(seqVelTableData, seqVelTable:getValue(i))
+    table.insert(seqGateTableData, seqGateTable:getValue(i))
+  end
+
   local data = {}
-  storedPatch = {} -- Store patch tweaks
+
+  -- Store patch tweaks
+  storedPatch = {}
   for i,v in ipairs(tweakables) do
     table.insert(storedPatch, {index=i,widget=v.widget.name,value=v.widget.value})
   end
   table.insert(data, storedPatch)
-  if #storedPatches > 0 then
-    table.insert(data, storedPatches)
-  end
-  print("Data stored: ", #data)
+
+  -- Stored patches
+  table.insert(data, storedPatches)
+
+  -- Twequencer snapshots
+  table.insert(data, snapshots)
+
+  -- Twequencer settings
+  table.insert(data, numPartsBox.value)
+  table.insert(data, numStepsBox.value)
+  table.insert(data, pitchTableData)
+  table.insert(data, tieStepTableData)
+  table.insert(data, seqVelTableData)
+  table.insert(data, seqGateTableData)
+
   return data
 end
 
 function onLoad(data)
-  print("Loading data", #data)
-  storedPatch = data[1] -- USE FOR DEFAULT VALUES
+  -- Load stored patch
+  storedPatch = data[1]
   print("storedPatch", #storedPatch)
   for _,v in ipairs(storedPatch) do
     print("Loaded: ", v.widget, v.value)
   end
+
+  -- Load stored patches
   if type(data[2]) ~= "nil" then
     storedPatches = data[2]
-    populatePatchesMenu()
-    print("Loaded stored patches: ", #storedPatches)
+    if #storedPatches > 0 then
+      populatePatchesMenu()
+      print("Loaded stored patches: ", #storedPatches)
+    end
+  end
+
+  -- Load snapshots
+  if type(data[3]) ~= "nil" then
+    snapshots = data[3]
+    if #snapshots > 0 then
+      for i,v in ipairs(snapshots) do
+        snapshotsMenu:addItem("Round " .. i)
+      end
+      snapshotPosition = #snapshots + 1 -- set snapshot position
+      snapshotsMenu.enabled = true
+      print("Loaded snapshots: ", #snapshots)
+    end
+  end
+
+  -- Load twequencer settings
+  if #data > 3 then
+    local numParts = data[4]
+    local numSteps = data[5]
+    local seqPitchTableData = data[6]
+    local tieStepTableData = data[7]
+    local seqVelTableData = data[8]
+    local seqGateTableData = data[9]
+
+    numPartsBox:setValue(numParts)
+    numStepsBox:setValue(numSteps)
+
+    for i=1, (numParts*numSteps) do
+      seqPitchTable:setValue(i, seqPitchTableData[i])
+      tieStepTable:setValue(i, tieStepTableData[i])
+      seqVelTable:setValue(i, seqVelTableData[i])
+      seqGateTable:setValue(i, seqGateTableData[i])
+    end
   end
 end
 
@@ -3696,8 +3767,9 @@ function createLfoTargetPanel()
   lfoToAmpKnob:changed()
   table.insert(tweakables, {widget=lfoToAmpKnob,bipolar=25,default=60,floor=0.3,ceiling=0.8,probability=50,useDuration=true,category="modulation"})
 
-  local lfoToDetuneKnob = lfoTargetPanel:Knob("LfoToDetune", 0, 0, 1)
-  lfoToDetuneKnob.displayName = "Detune"
+  local lfoToDetuneKnob = lfoTargetPanel:Knob("LfoToFilterEnvDecay", 0, 0, 1)
+  lfoToDetuneKnob.displayName = "FDecay"
+  lfoToDetuneKnob.tooltip = "LFO to filter envelope decay"
   lfoToDetuneKnob.fillColour = knobColour
   lfoToDetuneKnob.outlineColour = lfoColour
   lfoToDetuneKnob.changed = function(self)
@@ -4874,9 +4946,7 @@ local polyphonyWhenArp = 5
 function createTwequencerPanel()
   local arpId = 0
   local heldNotes = {}
-  local snapshots = {}
-  local snapshotPosition = 1
-  local maxSnapshots = 500 -- TODO Make it possible to set in UI?
+  local maxSnapshots = 500
   local automaticSequencerRunning = false
   local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
   local noteNumberToNoteName = {} -- Used for mapping - does not include octave, only name of note (C, C#...)
@@ -4889,7 +4959,7 @@ function createTwequencerPanel()
       notenamePos = 1
     end
   end
-  
+
   local tweqPanel = Panel("Sequencer")
   tweqPanel.backgroundColour = bgColor
   tweqPanel.x = marginX
@@ -4902,6 +4972,7 @@ function createTwequencerPanel()
   tweakLevelKnob.outlineColour = outlineColour
   tweakLevelKnob.displayName = "Tweak Level"
   tweakLevelKnob.width = 120
+  tweakLevelKnob.x = 10
   tweakLevelKnob.y = 10
 
   local sequencerPlayMenu = tweqPanel:Menu("SequencerPlay", {"Off", "Mono", "As Played", "Random", "Chord", "Random Chord", "Alternate", "Generate"})
@@ -4986,7 +5057,7 @@ function createTwequencerPanel()
   local rightMenuWidth = 140
   local rightMenuX = 565
 
-  local snapshotsMenu = tweqPanel:Menu("SnapshotsMenu")
+  snapshotsMenu = tweqPanel:Menu("SnapshotsMenu")
   snapshotsMenu.backgroundColour = menuBackgroundColour
   snapshotsMenu.textColour = menuTextColour
   snapshotsMenu.arrowColour = menuArrowColour
@@ -5121,7 +5192,7 @@ function createTwequencerPanel()
   local roundResolution = tweqPanel:Menu("RoundDuration", getResolutionNames({"Follow Step"}))
   local resolution = tweqPanel:Menu("Resolution", getResolutionNames({"Random"}))
 
-  local numStepsBox = tweqPanel:NumBox("Steps", 4, 1, 256, true)
+  numStepsBox = tweqPanel:NumBox("Steps", 4, 1, 256, true)
   numStepsBox.tooltip = "The Number of steps in each round"
   numStepsBox.backgroundColour = menuBackgroundColour
   numStepsBox.textColour = menuTextColour
@@ -5129,7 +5200,7 @@ function createTwequencerPanel()
   numStepsBox.outlineColour = menuOutlineColour
   numStepsBox.width = rightMenuWidth - 65
 
-  local numPartsBox = tweqPanel:NumBox("Parts", 1, 1, 16, true)
+  numPartsBox = tweqPanel:NumBox("Parts", 1, 1, 16, true)
   numPartsBox.tooltip = "The Number of parts in the sequence"
   numPartsBox.backgroundColour = menuBackgroundColour
   numPartsBox.textColour = menuTextColour
@@ -5238,25 +5309,17 @@ function createTwequencerPanel()
     end
   end
 
-  --[[ local settingsButton = tweqPanel:Button("TweqSettings")
-  settingsButton.displayName = "Settings"
-  settingsButton.fillColour = knobColour
-  settingsButton.size = {rightMenuWidth,arpOnOffButton.height}
-  settingsButton.changed = function()
-    setPage(7)
-  end ]]
-
-  local seqPitchTable = tweqPanel:Table("Pitch", numStepsBox.value, 0, -12, 12, true)
+  seqPitchTable = tweqPanel:Table("Pitch", numStepsBox.value, 0, -12, 12, true)
   seqPitchTable.showPopupDisplay = true
   seqPitchTable.showLabel = true
-  seqPitchTable.fillStyle = "gloss"
-  seqPitchTable.sliderColour = menuArrowColour
+  seqPitchTable.fillStyle = "solid"
+  seqPitchTable.sliderColour = "#3f6c6c6c"
   seqPitchTable.width = positionTable.width
   seqPitchTable.height = 90
   seqPitchTable.x = positionTable.x
   seqPitchTable.y = positionTable.y + positionTable.height + 45
 
-  local tieStepTable = tweqPanel:Table("TieStep", numStepsBox.value, 0, 0, 1, true)
+  tieStepTable = tweqPanel:Table("TieStep", numStepsBox.value, 0, 0, 1, true)
   tieStepTable.tooltip = "Tie with next step"
   tieStepTable.fillStyle = "solid"
   tieStepTable.backgroundColour = "black"
@@ -5267,22 +5330,22 @@ function createTwequencerPanel()
   tieStepTable.x = seqPitchTable.x
   tieStepTable.y = seqPitchTable.y + seqPitchTable.height + 2
 
-  local seqVelTable = tweqPanel:Table("Velocity", numStepsBox.value, 100, 1, 127, true)
+  seqVelTable = tweqPanel:Table("Velocity", numStepsBox.value, 100, 1, 127, true)
   seqVelTable.tooltip = "Set step velocity. Randomization available in settings."
   seqVelTable.showPopupDisplay = true
   seqVelTable.showLabel = true
-  seqVelTable.fillStyle = "gloss"
+  seqVelTable.fillStyle = "solid"
   seqVelTable.sliderColour = menuArrowColour
   seqVelTable.width = tieStepTable.width
   seqVelTable.height = 70
   seqVelTable.x = tieStepTable.x
   seqVelTable.y = tieStepTable.y + tieStepTable.height + 5
 
-  local seqGateTable = tweqPanel:Table("Gate", numStepsBox.value, 100, 0, 100, true)
+  seqGateTable = tweqPanel:Table("Gate", numStepsBox.value, 100, 0, 100, true)
   seqGateTable.tooltip = "Set step gate length. Randomization available in settings."
   seqGateTable.showPopupDisplay = true
   seqGateTable.showLabel = true
-  seqGateTable.fillStyle = "gloss"
+  seqGateTable.fillStyle = "solid"
   seqGateTable.sliderColour = menuArrowColour
   seqGateTable.width = seqPitchTable.width
   seqGateTable.height = 70
@@ -5339,10 +5402,6 @@ function createTwequencerPanel()
 
   local generateMin = tweqPanel:NumBox("GenerateMin", 21, 0, 127, true)
   generateMin.unit = Unit.MidiKey
-  generateMin.showPopupDisplay = true
-  generateMin.showLabel = true
-  generateMin.fillStyle = "gloss"
-  generateMin.sliderColour = menuArrowColour
   generateMin.displayName = "Lowest note"
   generateMin.visible = false
   generateMin.x = droneMenu.x + droneMenu.width + 5
@@ -5366,10 +5425,6 @@ function createTwequencerPanel()
 
   local generateMax = tweqPanel:NumBox("GenerateMax", 108, 0, 127, true)
   generateMax.unit = Unit.MidiKey
-  generateMax.showPopupDisplay = true
-  generateMax.showLabel = true
-  generateMax.fillStyle = "gloss"
-  generateMax.sliderColour = menuArrowColour
   generateMax.displayName = "Highest note"
   generateMax.visible = false
   generateMax.x = droneHighMenu.x + droneHighMenu.width + 5
@@ -6227,16 +6282,15 @@ function createTwequencerPanel()
     if maxSnapshots > 0 then
       local snapshot = {}
       for _,v in ipairs(tweakables) do
-        --table.insert(snapshot, {widget=v.widget,value=v.widget.value})
         table.insert(snapshot, {widget=v.widget,value=v.targetValue})
       end
       table.remove(snapshots, snapshotPosition)
       table.insert(snapshots, snapshotPosition, snapshot)
       print("Updated snapshot at index:", snapshotPosition)
       if #snapshotsMenu.items < snapshotPosition then
-        snapshotsMenu:addItem("Round "..snapshotPosition)
+        snapshotsMenu:addItem("Round " .. snapshotPosition)
       else
-        snapshotsMenu:setItem(snapshotPosition, "Round "..snapshotPosition)
+        snapshotsMenu:setItem(snapshotPosition, "Round " .. snapshotPosition)
       end
       snapshotPosition = snapshotPosition + 1 -- increment snapshot position
       if snapshotPosition > maxSnapshots then
@@ -6259,7 +6313,7 @@ function createTwequencerPanel()
       end
       table.insert(heldNotes, e)
       if #heldNotes == 1 then
-          arpeg(arpId)
+        spawn(arpeg, arpId)
       end
     else
       postEvent(e)
@@ -6334,7 +6388,7 @@ function createSettingsPanel()
 
   settingsPageMenu.width = 100
   settingsPageMenu.height = 25
-  settingsPageMenu.x = 200
+  settingsPageMenu.x = 270
   settingsPageMenu.y = label.y
   settingsPageMenu.showLabel = false
   settingsPageMenu.persistent = false
@@ -6449,7 +6503,7 @@ function createSettingsPanel()
     end
   end
 
-  local closeButton = settingsPanel:Button("CloseSettings")
+  --[[ local closeButton = settingsPanel:Button("CloseSettings")
   closeButton.persistent = false
   closeButton.displayName = "Back"
   closeButton.width = allOffButton.width
@@ -6463,7 +6517,7 @@ function createSettingsPanel()
     else
       setPage(4)
     end
-  end
+  end ]]
 
   -- Options:
     -- widget = the widget to tweak - the only non-optional parameter

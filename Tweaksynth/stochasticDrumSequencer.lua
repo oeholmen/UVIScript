@@ -6,7 +6,7 @@ local outlineColour = "#FFB5FF"
 local menuBackgroundColour = "#bf01011F"
 local menuTextColour = "#9f02ACFE"
 local menuArrowColour = "#9f09A3F4"
-local menuOutlineColour = "00000000"
+local menuOutlineColour = "#00000000"
 local arpId = {}
 local paramsPerPart = {}
 local isPlaying = false
@@ -199,7 +199,11 @@ sequencerPanel.backgroundColour = menuOutlineColour
 sequencerPanel.x = 10
 sequencerPanel.y = 10
 sequencerPanel.width = 700
-sequencerPanel.height = numParts * (tableHeight + 25) + 30
+if numParts == 1 then
+  sequencerPanel.height = numParts * (tableHeight + 25) + 60
+else
+  sequencerPanel.height = numParts * (tableHeight + 25) + 30
+end
 
 local label = sequencerPanel:Label("Label")
 label.text = title
@@ -297,11 +301,7 @@ for i=1,numParts do
     seqVelTable.backgroundColour = "#3f000000"
   end
   seqVelTable.width = tableWidth
-  if numParts == 1 then
-    seqVelTable.height = tableHeight * 0.5
-  else
-    seqVelTable.height = tableHeight * 0.4
-  end
+  seqVelTable.height = tableHeight * 0.4
   seqVelTable.x = tableX
   seqVelTable.y = seqPitchTable.y + seqPitchTable.height + 2
   
@@ -314,7 +314,7 @@ for i=1,numParts do
   seqTriggerProbabilityTable.tooltip = "Trigger probability for this step"
   seqTriggerProbabilityTable.showPopupDisplay = true
   seqTriggerProbabilityTable.showLabel = false
-  seqTriggerProbabilityTable.visible = isVisible and numParts > 1
+  seqTriggerProbabilityTable.visible = isVisible
   seqTriggerProbabilityTable.fillStyle = "solid"
   seqTriggerProbabilityTable.sliderColour = "#3322FFFF"
   if i % 2 == 0 then
@@ -328,9 +328,6 @@ for i=1,numParts do
   seqTriggerProbabilityTable.y = seqVelTable.y + seqVelTable.height + 2
 
   local numBoxHeight = 20
-  if numParts == 1 then
-    numBoxHeight = 34
-  end
   local directionProbability = sequencerPanel:NumBox("PartDirectionProbability" .. i, 0, 0, 100, true)
   directionProbability.displayName = "Backward"
   directionProbability.visible = isVisible
@@ -361,7 +358,7 @@ for i=1,numParts do
   local triggerRand = sequencerPanel:NumBox("TriggerRandomization" .. i, 0, 0, 100, true)
   triggerRand.displayName = "Trigger"
   triggerRand.tooltip = "Trigger probability radomization amount"
-  triggerRand.visible = isVisible and numParts > 1
+  triggerRand.visible = isVisible
   triggerRand.unit = Unit.Percent
   triggerRand.size = directionProbability.size
   triggerRand.x = directionProbability.x
@@ -369,7 +366,7 @@ for i=1,numParts do
 
   local randomizeTriggerButton = sequencerPanel:Button("RandomizeTrigger" .. i)
   randomizeTriggerButton.persistent = false
-  randomizeTriggerButton.visible = isVisible and numParts > 1
+  randomizeTriggerButton.visible = isVisible
   randomizeTriggerButton.backgroundColourOff = "#33084486"
   randomizeTriggerButton.backgroundColourOn = "#9902ACFE"
   randomizeTriggerButton.textColourOff = "#cc22FFFF"
@@ -382,7 +379,7 @@ for i=1,numParts do
   randomizeTriggerButton.y = triggerRand.y + triggerRand.height + 2
 
   local muteButton = sequencerPanel:OnOffButton("MutePart" .. i, false)
-  muteButton.visible = isVisible and numParts > 1
+  muteButton.visible = isVisible
   muteButton.backgroundColourOff = "#ff084486"
   muteButton.backgroundColourOn = "#ff02ACFE"
   muteButton.textColourOff = "#ff22FFFF"
@@ -416,6 +413,7 @@ for i=1,numParts do
   elseif i == 4 then
     triggerNote.value = 39
   end
+  triggerNote.displayName = "Note"
   triggerNote.tooltip = "The note to trigger"
   triggerNote.unit = Unit.MidiKey
   triggerNote.showPopupDisplay = true
@@ -426,15 +424,13 @@ for i=1,numParts do
   triggerNote.textColour = menuTextColour
   triggerNote.arrowColour = menuArrowColour
   triggerNote.outlineColour = menuOutlineColour
-  triggerNote.displayName = "Note"
+  triggerNote.height = muteButton.height
   if numParts == 1 then
     triggerNote.width = muteButton.width
-    triggerNote.height = 25
     triggerNote.x = 0
-    triggerNote.y = 35
+    triggerNote.y = muteButton.y + muteButton.height + 2
   else
     triggerNote.width = 30
-    triggerNote.height = muteButton.height
     triggerNote.x = 60
     triggerNote.y = muteButton.y + muteButton.height + 2
   end

@@ -169,11 +169,11 @@ function onNote(e)
   if priority.value == 2 then
     print("Sort lowest")
     table.sort(noteBuffer, function(a,b) return a.note < b.note end)
-    print("noteBuffer first/last", noteBuffer[1].note, noteBuffer[#noteBuffer].note)
+    --print("noteBuffer first/last", noteBuffer[1].note, noteBuffer[#noteBuffer].note)
   elseif priority.value == 3 then
     print("Sort highest")
     table.sort(noteBuffer, function(a,b) return a.note > b.note end)
-    print("noteBuffer first/last", noteBuffer[1].note, noteBuffer[#noteBuffer].note)
+    --print("noteBuffer first/last", noteBuffer[1].note, noteBuffer[#noteBuffer].note)
   end
 
   print("Current #heldNotes", #heldNotes)

@@ -6,7 +6,7 @@ local outlineColour = "#FFB5FF"
 local menuBackgroundColour = "#bf01011F"
 local menuTextColour = "#9f02ACFE"
 local menuArrowColour = "#9f09A3F4"
-local menuOutlineColour = "00000000"
+local menuOutlineColour = "#00000000"
 local arpId = 0
 local partToStepMap = {1} -- Holds the starting step for each part
 local totalNumSteps = 8
@@ -1040,8 +1040,6 @@ function onNote(e)
   end
   table.insert(heldNotes, e)
   if #heldNotes == 1 then
-    --wait(1) -- Wait to make sure all held notes are added
-    --arpeg(arpId)
     spawn(arpeg, arpId)
   end
 end
