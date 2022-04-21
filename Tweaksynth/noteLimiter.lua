@@ -1,7 +1,7 @@
 --------------------------------------------------------------------------------
 -- Note Limiter
 --------------------------------------------------------------------------------
--- Limits note range and polyphony (0 ployphony blocks all incoming notes)
+-- Limits note range and polyphony (0 polyphony blocks all incoming notes)
 -- Notes outside range are transposed to the closest octave within range
 -- Duplicate notes are removed
 --------------------------------------------------------------------------------
@@ -144,7 +144,7 @@ local noteIndex = 1
 function onNote(e)
   local note = e.note
   e.note = transpose(e.note)
-  -- Check for duplicated
+  -- Check for duplicates
   if eventIncludesNote(heldNotes, e.note) == false then
     table.insert(heldNotes, e)
     table.insert(noteBuffer, {index=noteIndex,note=note})
@@ -217,12 +217,8 @@ function onRelease(e)
   e.note = transpose(e.note)
   for i,v in ipairs(heldNotes) do
     if v.note == e.note then
-      --print("Removing from held notes", e.note)
       table.remove(heldNotes, i)
-      --[[ if #heldNotes == 0 then
-        print("All held notes are released")
-      end ]]
+      postEvent(e)
     end
   end
-  postEvent(e)
 end

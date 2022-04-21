@@ -7,7 +7,8 @@ local menuBackgroundColour = "#bf01011F"
 local menuTextColour = "#9f02ACFE"
 local menuArrowColour = "#9f09A3F4"
 local menuOutlineColour = "#00000000"
-local arpId = 0
+--local arpId = 0
+local isPlaying = false
 local partToStepMap = {1} -- Holds the starting step for each part
 local totalNumSteps = 8
 local numParts = 1
@@ -264,7 +265,6 @@ holdButton.changed = function(self)
   if self.value == false then
     heldNotes = {}
     clearPosition()
-    arpId = arpId + 1
   end
 end
 
@@ -351,9 +351,6 @@ partRandKnob.height = 40
 partRandKnob.width = 200
 partRandKnob.x = numPartsBox.x + numPartsBox.width + 20
 partRandKnob.y = editPartMenu.y + 10
-partRandKnob.changed = function(self)
-  partRandomizationAmount = self.value
-end
 
 function setNumSteps(index)
   print("setNumSteps", index)
@@ -692,7 +689,7 @@ numPartsBox:changed()
 -- Sequencer
 --------------------------------------------------------------------------------
 
-function arpeg(arpId_)
+function arpeg()
   local index = 0
   local heldNoteIndex = 0 -- Counter for held notes (used by As Played seq mode)
   local currentPartPosition = 0 -- Holds the currently playing part
@@ -701,7 +698,21 @@ function arpeg(arpId_)
   local partDirectionBackward = false -- Used for holding part direction
   local isStarting = true
   -- START ARP LOOP
-  while arpId_ == arpId do
+  print("Starting sequencer")
+  while isPlaying == true do
+    local offset = 0
+    if #heldNotes == 0 then
+      local buffer = 1 -- How long to wait for notes before stopping the sequencer
+      wait(buffer)
+      print("waiting for heldNotes", buffer)
+      offset = offset + buffer
+    end
+    if #heldNotes == 0 then
+      print("#heldNotes == 0 - stopping sequencer")
+      clearPosition()
+      isPlaying = false
+      break
+    end
     -- Reset notes table
     local notes = {} -- Holds the note(s) that plays at this position
     -- Set current position and part position
@@ -717,14 +728,13 @@ function arpeg(arpId_)
     end
 
     -- If we are at the start of a part (and there is more than one part), check for part order randomization (or an active repeat)
-    --if startOfPart and numParts > 1 and (getRandomBoolean(partRandomizationAmount) or partRepeat > 0 or focusButton.value == true) then
     if startOfPart and numParts > 1 then
       if focusButton.value == true then
         currentPartPosition = editPartMenu.value
       elseif partRepeat > 0 then
         currentPartPosition = partRepeat
         partRepeat = 0 -- Reset repeat  
-      elseif isStarting == false and getRandomBoolean(partRandomizationAmount) then
+      elseif isStarting == false and getRandomBoolean(partRandKnob.value) then
         -- Randomize parts within the set limit, unless we are in startup mode
         print("currentPartPosition before", currentPartPosition)
         -- Suggest a part by random
@@ -1016,7 +1026,7 @@ function arpeg(arpId_)
     isStarting = false
 
     -- WAIT FOR NEXT BEAT
-    waitBeat(stepDuration)
+    wait(beat2ms(stepDuration) - offset)
   end
 end
 
@@ -1039,7 +1049,8 @@ function onNote(e)
     end
   end
   table.insert(heldNotes, e)
-  if #heldNotes == 1 then
+  if #heldNotes == 1 and isPlaying == false then
+    isPlaying = true
     spawn(arpeg, arpId)
   end
 end
@@ -1049,10 +1060,10 @@ function onRelease(e)
     for i,v in ipairs(heldNotes) do
       if v.note == e.note then
         table.remove(heldNotes, i)
-        if #heldNotes == 0 then
+        --[[ if #heldNotes == 0 then
           clearPosition()
           arpId = arpId + 1
-        end
+        end ]]
       end
     end
     postEvent(e)
