@@ -1044,6 +1044,7 @@ function onNote(e)
         if #heldNotes > 1 then
           table.remove(heldNotes, i)
         end
+        break
         --return
       end
     end
