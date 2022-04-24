@@ -7,7 +7,6 @@ local menuBackgroundColour = "#bf01011F"
 local menuTextColour = "#9f02ACFE"
 local menuArrowColour = "#9f09A3F4"
 local menuOutlineColour = "#00000000"
---local arpId = 0
 local isPlaying = false
 local partToStepMap = {1} -- Holds the starting step for each part
 local totalNumSteps = 8
@@ -878,12 +877,14 @@ function arpeg()
       end
     end
 
-    local tieStepPos = currentPosition - 1
+    local tieStepPos = tablePos - 1
     if partDirectionBackward == true then
-      tieStepPos = currentPosition + 1
+      tieStepPos = tablePos + 1
     end
+    print("tieStepPos", tieStepPos)
 
     local shouldAddNote = tieStepTable:getValue(tieStepPos) ~= 1
+    print("shouldAddNote", shouldAddNote)
     if randomTieCounter > 0 then
       shouldAddNote = randomTieCounter == 2
       -- Reset tie counter
@@ -909,7 +910,8 @@ function arpeg()
           randomTieCounter = 1
           --print("Set automatic tie", noteSteps)
         else
-          local tmp = currentPosition
+          --local tmp = currentPosition
+          local tmp = tablePos
           local endStep = startStep + numStepsInPart - 1
           while (tieStepTable:getValue(tmp) == 1 or randomTieCounter == 2) and tmp < endStep and tmp >= startStep do
             noteSteps = noteSteps + 1
@@ -1052,7 +1054,7 @@ function onNote(e)
   table.insert(heldNotes, e)
   if #heldNotes == 1 and isPlaying == false then
     isPlaying = true
-    spawn(arpeg, arpId)
+    spawn(arpeg)
   end
 end
 
