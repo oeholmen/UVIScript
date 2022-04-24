@@ -10,7 +10,6 @@ local menuBackgroundColour = "#bf01011F"
 local menuTextColour = "#9f02ACFE"
 local menuArrowColour = "#9f09A3F4"
 local menuOutlineColour = "#00000000"
-local heldNotes = {}
 
 setBackgroundColour("#292929")
 
@@ -77,8 +76,6 @@ polyphony.displayName = "Polyphony"
 polyphony.tooltip = "Limit polyphony to the set number of notes - 0 blocks all incoming notes"
 polyphony.backgroundColour = menuBackgroundColour
 polyphony.textColour = menuTextColour
---polyphony.x = 150
---polyphony.y = 3
 polyphony.x = priority.x + priority.width + 50
 polyphony.y = priority.y
 
@@ -91,9 +88,13 @@ buffer.tooltip = "Time to wait for incoming notes - if input is from a human, 20
 buffer.x = polyphony.x
 buffer.y = polyphony.y + polyphony.height + 5
 
-function eventIncludesNote(eventTable, note)
+function eventsIncludeNote(eventTable, note)
   for _,v in pairs(eventTable) do
-    if v.note == note then
+    local event = v
+    if type(v.event) == "table" then
+      event = v.event
+    end
+    if event.note == note then
       print("Note already included", note)
       return true
     end
@@ -139,17 +140,22 @@ end
 --------------------------------------------------------------------------------
 
 local bufferActive = false
-local noteBuffer = {} -- Holds the original incoming notes
-local noteIndex = 1
+local heldNotes = {} -- Holds the notes that are currently held
+local noteBuffer = {} -- Holds the original (untransposed) incoming notes for the active buffer
 function onNote(e)
-  local note = e.note
+  local note = e.note -- The original note without transposition
   e.note = transpose(e.note)
-  -- Check for duplicates
-  if eventIncludesNote(heldNotes, e.note) == false then
+
+  -- Add to held notes, unless duplicate
+  if eventsIncludeNote(heldNotes, e.note) == false then
     table.insert(heldNotes, e)
-    table.insert(noteBuffer, {index=noteIndex,note=note})
-    print("Added note at original/transposed/index", note, e.note, noteIndex)
-    noteIndex = noteIndex + 1 -- Increment note index
+    print("Added note to held notes original/transposed", note, e.note)
+  end
+
+  -- Add to buffer, unless duplicate
+  if eventsIncludeNote(noteBuffer, e.note) == false then
+    table.insert(noteBuffer, {event=e,note=note})
+    print("Added note to buffer original/transposed", note, e.note)
   end
 
   -- Collect notes while the buffer is active
@@ -169,40 +175,45 @@ function onNote(e)
   if priority.value == 2 then
     print("Sort lowest")
     table.sort(noteBuffer, function(a,b) return a.note < b.note end)
-    --print("noteBuffer first/last", noteBuffer[1].note, noteBuffer[#noteBuffer].note)
   elseif priority.value == 3 then
     print("Sort highest")
     table.sort(noteBuffer, function(a,b) return a.note > b.note end)
-    --print("noteBuffer first/last", noteBuffer[1].note, noteBuffer[#noteBuffer].note)
   end
 
   print("Current #heldNotes", #heldNotes)
+  print("Current #noteBuffer", #noteBuffer)
 
-  if polyphony.value < #heldNotes then
-    -- Pick random notes from the incoming notes
+  --if polyphony.value < #heldNotes then
+  if polyphony.value < #noteBuffer then
     local keep = {}
-    local counter = 1
-    while #keep < polyphony.value and counter <= #heldNotes do
-      print("Selecting from heldNotes at index", noteBuffer[counter].index)
-      local event = heldNotes[noteBuffer[counter].index]
+    local i = 1
+    while #keep < polyphony.value and i <= #noteBuffer do
+      local event = noteBuffer[i].event
+      -- Pick random notes from the incoming notes
       if priority.value == 4 then
-        event = heldNotes[getRandom(#heldNotes)]
-        while eventIncludesNote(keep, event.note) do
-          event = heldNotes[getRandom(#heldNotes)]
+        event = noteBuffer[getRandom(#noteBuffer)].event
+        while eventsIncludeNote(keep, event.note) == true do
+          event = noteBuffer[getRandom(#noteBuffer)].event
         end
       end
       print("postEvent", event.note)
       postEvent(event)
       table.insert(keep, event)
-      counter = counter + 1
+      i = i + 1 -- Increment index
     end
 
+    -- Any held not that is not kept, must be released, unless it is in the current note buffer (then it has not been played)
+    for _,held in ipairs(heldNotes) do
+      if eventsIncludeNote(keep, held.note) == false and eventsIncludeNote(noteBuffer, held.note) == false then
+        held.type = Event.NoteOff -- Send a note off event
+        postEvent(held)
+      end
+    end
     heldNotes = keep -- Update held notes
   else
-    -- Play all the held notes
-    print("Play all the held notes")
-    for _,event in ipairs(heldNotes) do
-      postEvent(event)
+    print("Play all the notes from the active buffer")
+    for _,v in ipairs(noteBuffer) do
+      postEvent(v.event)
     end
   end
 
@@ -210,15 +221,16 @@ function onNote(e)
 
   bufferActive = false -- Reset buffer
   noteBuffer = {} -- Reset note buffer
-  noteIndex = 1 -- Reset note index
 end
 
 function onRelease(e)
+  print("onRelease note in", e.note)
   e.note = transpose(e.note)
   for i,v in ipairs(heldNotes) do
     if v.note == e.note then
       table.remove(heldNotes, i)
-      postEvent(e)
+      print("Released note", e.note)
     end
   end
+  postEvent(e)
 end

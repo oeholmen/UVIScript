@@ -797,9 +797,9 @@ function arpeg(arpId_)
       -- Start playing when step counter is 0 (add an extra check for gate even though no notes should be added when gate is zero)
       if note.stepCounter == 0 and note.gate > 0 then
         -- Play the note for the number of steps that are set
-        local beats = stepDuration * (note.gate/100) * note.steps
-        playNote(note.note, note.vel, beat2ms(beats))
-        print("Playing note/stepDuration/note.gate/steps/beats", note.note, stepDuration, note.gate, note.steps, beats)
+        local duration = beat2ms(stepDuration * (note.gate/100) * note.steps) - 1 -- Make sure note is not played into the next
+        playNote(note.note, note.vel, duration)
+        print("Playing note/stepDuration/note.gate/steps/duration", note.note, stepDuration, note.gate, note.steps, duration)
       end
       -- Increment step counter
       note.stepCounter = note.stepCounter + 1
