@@ -1063,7 +1063,7 @@ function onRelease(e)
         table.remove(heldNotes, i)
         --[[ if #heldNotes == 0 then
           clearPosition()
-          arpId = arpId + 1
+          isPlaying = false
         end ]]
       end
     end

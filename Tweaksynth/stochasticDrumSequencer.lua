@@ -602,7 +602,8 @@ function arpeg(partIndex, arpId_)
     -- Play note if trigger probability hits (and part is not turned off)
     if isActive and getRandomBoolean(triggerProbability) then
       local note = paramsPerPart[partIndex].triggerNote.value + pitchAdjustment
-      playNote(note, vel, beat2ms(stepDuration), nil, channel)
+      local duration = beat2ms(stepDuration) - 1 -- Make sure note is not played into the next
+      playNote(note, vel, duration, nil, channel)
       print("Playing note/vel/stepDuration", note, vel, stepDuration)
   end
 

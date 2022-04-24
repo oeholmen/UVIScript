@@ -4888,7 +4888,7 @@ end
 function createTwequencerPanel()
   local isPlaying = false
   local heldNotes = {}
-  local maxSnapshots = 1000
+  local maxSnapshots = 500
   local numSteps = 16
 
   local tweqPanel = Panel("Sequencer")
