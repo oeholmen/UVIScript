@@ -1930,7 +1930,7 @@ else
         self.displayText = percent(self.value)
       end
       osc1EvenOddKnob:changed()
-      table.insert(tweakables, {widget=osc1EvenOddKnob,bipolar=50,default=10,useDuration=true,category="synthesis"})
+      table.insert(tweakables, {widget=osc1EvenOddKnob,bipolar=50,default=10,floor=0.3,ceiling=0.9,probability=50,useDuration=true,category="synthesis"})
     end
     
     if isAnalog or isWavetable then
@@ -2241,7 +2241,7 @@ function createOsc2Panel()
         self.displayText = percent(self.value)
       end
       osc2EvenOddKnob:changed()
-      table.insert(tweakables, {widget=osc2EvenOddKnob,bipolar=50,default=10,useDuration=true,category="synthesis"})
+      table.insert(tweakables, {widget=osc2EvenOddKnob,bipolar=50,floor=0.3,ceiling=0.9,probability=50,default=10,useDuration=true,category="synthesis"})
     end
 
     if isAnalog or isWavetable then

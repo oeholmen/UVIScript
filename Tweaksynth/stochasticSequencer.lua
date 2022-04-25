@@ -183,6 +183,38 @@ editPartMenu.y = 370
 editPartMenu.x = 0
 editPartMenu.width = 120
 
+local copyPartMenu = sequencerPanel:Menu("CopyFromPart")
+copyPartMenu.persistent = false
+copyPartMenu.visible = false
+copyPartMenu.backgroundColour = menuBackgroundColour
+copyPartMenu.textColour = menuTextColour
+copyPartMenu.arrowColour = menuArrowColour
+copyPartMenu.outlineColour = menuOutlineColour
+copyPartMenu.displayName = "Copy from"
+copyPartMenu.y = 18
+copyPartMenu.x = 640
+copyPartMenu.width = 60
+copyPartMenu.changed = function(self)
+  if self.value == editPartMenu.value then
+    return
+  end
+  local source = paramsPerPart[self.value]
+  local target = paramsPerPart[editPartMenu.value]
+  target.seqPitchTable.length = source.numStepsBox.value
+  target.tieStepTable.length = source.numStepsBox.value
+  target.seqPitchChangeProbabilityTable.length = source.numStepsBox.value
+  target.seqVelTable.length = source.numStepsBox.value
+  target.seqGateTable.length = source.numStepsBox.value
+  for i=1, source.numStepsBox.value do
+    target.seqPitchTable:setValue(i, source.seqPitchTable:getValue(i))
+    target.tieStepTable:setValue(i, source.tieStepTable:getValue(i))
+    target.seqPitchChangeProbabilityTable:setValue(i, source.seqPitchChangeProbabilityTable:getValue(i))
+    target.seqVelTable:setValue(i, source.seqVelTable:getValue(i))
+    target.seqGateTable:setValue(i, source.seqGateTable:getValue(i))
+  end
+  target.numStepsBox:setValue(source.numStepsBox.value)
+end
+
 local randomizePitchButton = sequencerPanel:Button("RandomizePitch")
 randomizePitchButton.persistent = false
 randomizePitchButton.visible = false
@@ -193,9 +225,9 @@ randomizePitchButton.textColourOn = "#ccFFFFFF"
 randomizePitchButton.displayName = "Randomize"
 randomizePitchButton.tooltip = "Randomize Pitch - NOTE: Changes all pitch settings!"
 randomizePitchButton.fillColour = "#dd000061"
-randomizePitchButton.size = {60,20}
+randomizePitchButton.size = {copyPartMenu.width,18}
 randomizePitchButton.x = 640
-randomizePitchButton.y = 47
+randomizePitchButton.y = copyPartMenu.y + copyPartMenu.height + 3
 randomizePitchButton.changed = function()
   for i=1,paramsPerPart[editPartMenu.value].numStepsBox.value do
     paramsPerPart[editPartMenu.value].seqPitchTable:setValue(i, getRandom(paramsPerPart[editPartMenu.value].seqPitchTable.min, paramsPerPart[editPartMenu.value].seqPitchTable.max))
@@ -212,8 +244,8 @@ clearPitchButton.textColourOn = "#ccFFFFFF"
 clearPitchButton.displayName = "Clear"
 clearPitchButton.tooltip = "Clear Pitch - NOTE: Resets all pitch settings!"
 clearPitchButton.fillColour = "#dd000061"
-clearPitchButton.size = {60,20}
-clearPitchButton.x = 640
+clearPitchButton.size = randomizePitchButton.size
+clearPitchButton.x = randomizePitchButton.x
 clearPitchButton.y = randomizePitchButton.y + randomizePitchButton.height + 3
 clearPitchButton.changed = function()
   for i=1,paramsPerPart[editPartMenu.value].numStepsBox.value do
@@ -235,6 +267,17 @@ focusButton.y = editPartMenu.y + 15
 focusButton.changed = function(self)
   randomizePitchButton.visible = self.value
   clearPitchButton.visible = self.value
+  copyPartMenu.visible = self.value
+  -- Update copy menu if focus button is active
+  if self.value == true then
+    local parts = {}
+    for i=1, numParts do
+      table.insert(parts, "Part " .. i)
+    end
+    copyPartMenu.items = parts
+    copyPartMenu.selected = editPartMenu.value
+    copyPartMenu.enabled = numParts > 1
+  end
   setTableWidths()
 end
 
@@ -292,7 +335,7 @@ editPartMenu.changed = function(self)
     v.velRandKnob.visible = isVisible
     v.gateRandKnob.visible = isVisible
   end
-  setTableWidths()
+  focusButton:changed()
 end
 
 local numPartsBox = sequencerPanel:NumBox("Parts", numParts, 1, 8, true)
@@ -340,6 +383,7 @@ numPartsBox.changed = function(self)
   clearPosition()
   editPartMenu.items = partSelect
   editPartMenu:setValue(#partSelect)
+  focusButton:changed()
 end
 
 local partRandKnob = sequencerPanel:Knob("PartRandomization", 0, 0, 100, true)
@@ -720,7 +764,7 @@ function arpeg()
     for pp,sp in ipairs(partToStepMap) do
       if sp == currentPosition then
         currentPartPosition = pp
-        --print("Set currentPartPosition", currentPartPosition)
+        print("Set currentPartPosition", currentPartPosition)
         startOfPart = true
         break
       end
@@ -772,11 +816,12 @@ function arpeg()
 
     -- Flip position if playing backwards
     local startStep = partToStepMap[currentPartPosition]
+    local endStep = startStep + numStepsInPart - 1
+    print("startStep/endStep/currentPosition/currentPartPosition", startStep, endStep, currentPosition, currentPartPosition)
     if partDirectionBackward == true then
-      local endStep = startStep + numStepsInPart - 1
       local diff = currentPosition - startStep
       currentPosition = endStep - diff
-      print("startStep/endStep/diff/currentPosition", startStep, endStep, diff, currentPosition)
+      --print("partDirectionBackward diff/currentPosition", diff, currentPosition)
     end
 
     -- Tables for current step position
@@ -785,9 +830,10 @@ function arpeg()
     local seqPitchTable = paramsPerPart[currentPartPosition].seqPitchTable
     local seqPitchChangeProbabilityTable = paramsPerPart[currentPartPosition].seqPitchChangeProbabilityTable
     local tieStepTable = paramsPerPart[currentPartPosition].tieStepTable
-
+    
     -- Params for current step position
     local tablePos = currentPosition - startStep + 1
+    print("tablePos", tablePos)
     local vel = seqVelTable:getValue(tablePos) -- get velocity
     local gate = seqGateTable:getValue(tablePos) -- get gate
     local pitchAdjustment = seqPitchTable:getValue(tablePos) -- get pitch adjustment
@@ -877,12 +923,14 @@ function arpeg()
       end
     end
 
+    -- Check if tie from previous step
     local tieStepPos = tablePos - 1
     if partDirectionBackward == true then
       tieStepPos = tablePos + 1
     end
     print("tieStepPos", tieStepPos)
 
+    -- Do not add note if it is tied from the prevoius step
     local shouldAddNote = tieStepTable:getValue(tieStepPos) ~= 1
     print("shouldAddNote", shouldAddNote)
     if randomTieCounter > 0 then
@@ -908,21 +956,19 @@ function arpeg()
         if randomTieCounter == 2 then
           noteSteps = randomTieCounter
           randomTieCounter = 1
-          --print("Set automatic tie", noteSteps)
+          print("Set automatic tie", noteSteps)
         else
-          --local tmp = currentPosition
-          local tmp = tablePos
-          local endStep = startStep + numStepsInPart - 1
-          while (tieStepTable:getValue(tmp) == 1 or randomTieCounter == 2) and tmp < endStep and tmp >= startStep do
+          local tieStepPos = tablePos
+          while tieStepPos > 0 and tieStepPos < numStepsInPart and (tieStepTable:getValue(tieStepPos) == 1 or randomTieCounter == 2) do
             noteSteps = noteSteps + 1
             if partDirectionBackward == true then
-              tmp = tmp - 1
+              tieStepPos = tieStepPos - 1
             else
-              tmp = tmp + 1
+              tieStepPos = tieStepPos + 1
             end
           end
         end
-        --print("Set tie steps currentPosition/noteSteps", currentPosition, noteSteps)
+        print("Set tie steps tablePos/noteSteps", tablePos, noteSteps)
       end
 
       -- Check for pitch change randomization
@@ -930,7 +976,7 @@ function arpeg()
         -- Get pitch adjustment from random index in pitch table for current part
         local pitchPos = getRandom(numStepsInPart)
         pitchAdjustment = seqPitchTable:getValue(pitchPos)
-        print("Playing pitch from other pos - currentPosition/pitchPos", currentPosition, pitchPos)
+        print("Playing pitch from other pos - tablePos/pitchPos", tablePos, pitchPos)
       end
 
       -- Add notes to play
@@ -1047,7 +1093,6 @@ function onNote(e)
           table.remove(heldNotes, i)
         end
         break
-        --return
       end
     end
   end
@@ -1063,10 +1108,6 @@ function onRelease(e)
     for i,v in ipairs(heldNotes) do
       if v.note == e.note then
         table.remove(heldNotes, i)
-        --[[ if #heldNotes == 0 then
-          clearPosition()
-          isPlaying = false
-        end ]]
       end
     end
     postEvent(e)

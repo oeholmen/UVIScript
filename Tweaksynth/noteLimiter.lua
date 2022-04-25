@@ -33,7 +33,6 @@ rangeLabel.text = "Note Range"
 rangeLabel.x = 150
 rangeLabel.y = 3
 
-
 local noteMin = panel:NumBox("NoteMin", 0, 0, 127, true)
 noteMin.unit = Unit.MidiKey
 noteMin.backgroundColour = menuBackgroundColour
@@ -84,9 +83,12 @@ buffer.unit = Unit.MilliSeconds
 buffer.backgroundColour = menuBackgroundColour
 buffer.textColour = menuTextColour
 buffer.displayName = "Buffer"
-buffer.tooltip = "Time to wait for incoming notes - if input is from a human, 20-30 ms is recommended, 0 means no buffer"
+buffer.tooltip = "Time to wait for incoming notes - if input is from a human, 20-30 ms is recommended, 0 means no buffer (NOTE: this disables the polyphony limit)"
 buffer.x = polyphony.x
 buffer.y = polyphony.y + polyphony.height + 5
+buffer.changed = function(self)
+  polyphony.enabled = self.value > 0
+end
 
 function eventsIncludeNote(eventTable, note)
   for _,v in pairs(eventTable) do
@@ -143,6 +145,9 @@ local bufferActive = false
 local heldNotes = {} -- Holds the notes that are currently held
 local noteBuffer = {} -- Holds the original (untransposed) incoming notes for the active buffer
 function onNote(e)
+  if polyphony.value == 0 then
+    return
+  end
   local note = e.note -- The original note without transposition
   e.note = transpose(e.note)
 
@@ -205,6 +210,7 @@ function onNote(e)
     for _,held in ipairs(heldNotes) do
       if eventsIncludeNote(keep, held.note) == false and eventsIncludeNote(noteBuffer, held.note) == false then
         held.type = Event.NoteOff -- Send a note off event
+        held.velocity = 0 -- Set no velocity on release to avoid any sound on release
         postEvent(held)
       end
     end
@@ -223,8 +229,12 @@ function onNote(e)
 end
 
 function onRelease(e)
+  if polyphony.value == 0 then
+    return
+  end
   print("onRelease note in", e.note)
-  e.note = transpose(e.note)
+  e.note = transpose(e.note) -- Transpose note
+  e.velocity = 0 -- Set no velocity on release to avoid any sound on release
   for i,v in ipairs(heldNotes) do
     if v.note == e.note then
       table.remove(heldNotes, i)
