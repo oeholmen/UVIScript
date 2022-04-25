@@ -183,7 +183,6 @@ function onNote(e)
   print("Current #heldNotes", #heldNotes)
   print("Current #noteBuffer", #noteBuffer)
 
-  --if polyphony.value < #heldNotes then
   if polyphony.value < #noteBuffer then
     local keep = {}
     local i = 1
