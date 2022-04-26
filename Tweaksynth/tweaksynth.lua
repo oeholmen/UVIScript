@@ -853,7 +853,7 @@ function getTweakSuggestion(options, tweakLevel, envelopeStyle, modulationStyle,
     -- Set to the default value if probability hits
     endValue = options.widget.default
     print("Default:", options.default)
-  elseif modulationStyle > 1 and (options.widget.name == 'LfoFreq') then
+  elseif modulationStyle > 1 and options.widget.name == 'LfoFreq' then
     endValue = getModulationFreqByStyle(options, modulationStyle)
     print("getModulationFreqByStyle:", endValue)
   elseif envelopeStyle > 1 and (options.attack == true or options.decay == true or options.release == true) then
@@ -895,14 +895,9 @@ end
 
 -- Verify the suggested settings to avoid unwanted side effects
 function verifySettings(tweakLevel, selectedTweakables, synthesisButton, modulationButton, filterButton, mixerButton, effectsButton)
+  -- Verify modulation settings
   if modulationButton.value == true then
-    if (getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevel, 75))) or getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevel, 20)) then
-      for _,v in ipairs(selectedTweakables) do
-        if v.category == "modulation" then
-          v.targetValue = v.widget.default
-        end
-      end
-    end
+    verifyModulationSettings(selectedTweakables)
   end
   -- Verify unison/opLevel settings
   if synthesisButton.value == true then
@@ -1054,19 +1049,20 @@ function verifyMixerSettings(selectedTweakables)
   end
 end
 
---[[ function getTweakable(name, selectedTweakables)
-  for _,v in ipairs(selectedTweakables) do
-    if v.widget.name == name then
-      return v
-    end
-  end
-end ]]
-
 function getTweakable(name, selectedTweakables)
   for _,v in ipairs(tweakables) do
     if v.widget.name == name then
       return v
     end
+  end
+end
+
+function verifyModulationSettings(selectedTweakables)
+  local LfoFreq = getTweakable("LfoFreq", selectedTweakables)
+  local Lfo2Trigger = getTweakable("Lfo2Trigger", selectedTweakables)
+  -- Lfo2Trigger should be on to avoid noise if LfoFreq has any changes
+  if LfoFreq.targetValue ~= LfoFreq.widget.value then
+    Lfo2Trigger.targetValue = true
   end
 end
 
@@ -1903,7 +1899,7 @@ else
         self.displayText = percent(self.value)
       end
       osc1ShapeKnob:changed()
-      table.insert(tweakables, {widget=osc1ShapeKnob,default=10,useDuration=true,category="synthesis"})
+      table.insert(tweakables, {widget=osc1ShapeKnob,default=10,zero=5,probability=50,floor=0.3,ceil=0.6,useDuration=true,category="synthesis"})
     elseif isAdditive then
       local osc1PartialsKnob = osc1Panel:Knob("Osc1Partials", 1, 1, 256, true)
       osc1PartialsKnob.displayName = "Max Partials"
@@ -2214,7 +2210,7 @@ function createOsc2Panel()
         self.displayText = percent(self.value)
       end
       osc2ShapeKnob:changed()
-      table.insert(tweakables, {widget=osc2ShapeKnob,default=10,useDuration=true,category="synthesis"})
+      table.insert(tweakables, {widget=osc2ShapeKnob,default=10,zero=5,probability=50,floor=0.3,ceil=0.6,useDuration=true,category="synthesis"})
     elseif isAdditive then
       local osc2PartialsKnob = osc2Panel:Knob("Osc2Partials", 1, 1, 256, true)
       osc2PartialsKnob.displayName = "Max Partials"
@@ -3453,7 +3449,8 @@ function createLfoPanel()
   lfo2SyncButton:changed()
   table.insert(tweakables, {widget=lfo2SyncButton,func=getRandomBoolean,excludeWhenTweaking=true,category="modulation"})
 
-  table.insert(tweakables, {widget=lfoFreqKnob,factor=20,floor=0.1,ceiling=0.5,probability=25,useDuration=true,category="modulation"})
+  --table.insert(tweakables, {widget=lfoFreqKnob,factor=20,floor=0.1,ceiling=0.5,probability=25,useDuration=true,category="modulation"})
+  table.insert(tweakables, {widget=lfoFreqKnob,floor=0.1,ceiling=9.5,probability=25,useDuration=true,category="modulation"})
 
   local lfo2TriggerButton = lfoPanel:OnOffButton("Lfo2Trigger", true)
   lfo2TriggerButton.alpha = buttonAlpha
@@ -4831,10 +4828,6 @@ function createPatchMakerPanel()
     local widgetsForTweaking = getTweakables(tweakLevelKnob.value, synthesisButton, modulationButton, filterButton, mixerButton, effectsButton)
     -- Get the tweak suggestions
     for _,v in ipairs(widgetsForTweaking) do
-      -- TODO Add waveform filter to tweak panel?
-      --[[ if string.match(v.widget.name, 'Osc%dWave') or v.widget.name == "SubOscWaveform" then
-        v.valueFilter = valueFilter
-      end ]]
       v.targetValue = getTweakSuggestion(v, tweakLevelKnob.value, envStyleMenu.value, modStyleMenu.value)
     end
     verifySettings(tweakLevelKnob.value, widgetsForTweaking, synthesisButton, modulationButton, filterButton, mixerButton, effectsButton)
@@ -5358,21 +5351,7 @@ function createTwequencerPanel()
               if string.match(v.widget.name, 'Osc%dWave') or v.widget.name == "SubOscWaveform" then
                 v.valueFilter = valueFilter
               end
-              -- Some special treatment for modulation parameters in twequencer
-              if v.widget.name == "Lfo2Trigger" then
-                -- Lfo2Trigger should always be on to avoid noise when LfoFreq changes
-                v.targetValue = true
-              elseif v.category == "modulation" and v.widget.name ~= "LfoFreq" and v.widget.name ~= "LfoToCutoff" and getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
-                if getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 50)) == getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
-                  -- Do not change the value of modulation parameters so often for twequencer
-                  v.targetValue = v.widget.value
-                else
-                  -- Use default value more often for modulation parameters in twequencer
-                  v.targetValue = v.widget.default
-                end
-              else
-                v.targetValue = getTweakSuggestion(v, tweakLevelKnob.value, envelopeStyle, modulationStyle, stepDuration)
-              end
+              v.targetValue = getTweakSuggestion(v, tweakLevelKnob.value, envelopeStyle, modulationStyle, stepDuration)
             end
             -- Verify tweak suggestions
             verifySettings(tweakLevelKnob.value, tweakablesForTwequencer, synthesisButton, modulationButton, filterButton, mixerButton, effectsButton)
