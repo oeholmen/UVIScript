@@ -548,6 +548,9 @@ function tweakValue(options, value, tweakLevel)
     end
     return value
   end
+  if type(options.factor) == "nil" then
+    options.factor = 1
+  end
   print("Tweaking value:", value)
   -- Get range limits
   local floor = options.widget.min -- Default floor is widget min
@@ -555,10 +558,10 @@ function tweakValue(options, value, tweakLevel)
   -- Adjust value to within set range if probability hits
   if type(options.probability) == "number" and getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevel, options.probability)) then
     if type(options.floor) == "number" then
-      floor = options.floor
+      floor = options.floor * options.factor
     end
     if type(options.ceiling) == "number" then
-      ceiling = options.ceiling
+      ceiling = options.ceiling * options.factor
     end
     print("Probability/floor/ceiling:", options.probability, floor, ceiling)
   end
@@ -566,12 +569,6 @@ function tweakValue(options, value, tweakLevel)
   -- If probability is set to 100, we are forced to stay within the given range
   local forceRange = type(options.probability) == "number" and options.probability == 100
 
-  -- If probability hits, we get a random value within the limits
-  if getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevel, 30, 15)) then
-    print("Random limited range")
-    return getValueBetween(floor, ceiling, value, options)
-  end
-  
   -- If probability hits, we get a random value within the full range
   if getRandomBoolean(getProbabilityFromTweakLevel(tweakLevel)) and forceRange == false then
     print("Random full range")
@@ -580,7 +577,7 @@ function tweakValue(options, value, tweakLevel)
 
   -- Get widget range
   local range = ceiling - floor
-  if type(options.defaultTweakRange) == "number" then
+  if type(options.defaultTweakRange) == "number" and forceRange == false then
     range = options.defaultTweakRange
   end
   print("Value range:", range)
@@ -590,19 +587,39 @@ function tweakValue(options, value, tweakLevel)
   -- Set the range allowed for value adjustment
   local tweakRange = range * factor
   print("Tweakrange:", tweakRange)
-  -- Check if value should be incemented or decremented
-  local increment = value - tweakRange < options.widget.min
-  local decrement = value + tweakRange > options.widget.max
-  if increment then
-    print("Incrementing to avoid out of range")
-    value = value + tweakRange
-  elseif decrement then
-    print("Decrementing to avoid out of range")
-    value = value - tweakRange
+
+  local minVal = options.widget.min
+  local maxVal = options.widget.max
+  if forceRange == true or (type(options.probability) == "number" and getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevel, options.probability))) then
+    minVal = floor
+    maxVal = ceiling
+  end
+
+  if (value - tweakRange) < minVal then
+    while (value - tweakRange) < minVal do
+      print("Incrementing to avoid out of range")
+      value = value + tweakRange
+    end
+  elseif (value + tweakRange) > maxVal then
+    while (value + tweakRange) > maxVal do
+      print("Decrementing to avoid out of range")
+      value = value - tweakRange
+    end
   elseif getRandomBoolean() == true then
+    print("Incrementing value")
     value = value + tweakRange
   else
+    print("Decrementing value")
     value = value - tweakRange
+  end
+  if forceRange == true then
+    if value > maxVal then
+      print("Set max")
+      value = maxVal
+    elseif value < minVal then
+      print("Set min")
+      value = minVal
+    end
   end
   return value
 end
@@ -672,6 +689,11 @@ function getValueBetween(floor, ceiling, originalValue, options, maxRounds)
     options = {}
   end
 
+  -- Set default factor
+  if type(options.factor) == "nil" then
+    options.factor = 1
+  end
+
   -- Set max rounds if not provided
   if type(maxRounds) ~= "number" then
     maxRounds = 25
@@ -679,17 +701,23 @@ function getValueBetween(floor, ceiling, originalValue, options, maxRounds)
 
   print("getValueBetween floor, ceiling, startvalue, maxrounds:", floor, ceiling, value, maxRounds)
   while rounds < maxRounds and (value < floor or value > ceiling) do
-    value = getRandom(options.min, options.max, options.factor)
+    value = getRandom(floor, ceiling, options.factor)
     rounds = rounds + 1 -- Increment rounds
   end
-  
+
   -- Return the new value if we hit the target
-  if value >= floor and value <= ceiling then
+  if value >= (floor*options.factor) and value <= (ceiling*options.factor) then
     print("getValueBetween found value in rounds:", value, rounds)
     return value
   end
 
-  return originalValue
+  -- Set value to ceiling if above the given ceiling
+  if value > ceiling then
+    return ceiling * options.factor
+  end
+
+  -- Otherwise we return the floor
+  return floor * options.factor
 end
 
 -- Get the widgets to tweak
@@ -2967,7 +2995,7 @@ function createFilterEnvPanel()
     self.displayText = formatTimeInSeconds(self.value)
   end
   filterAttackKnob:changed()
-  table.insert(tweakables, {widget=filterAttackKnob,attack=true,floor=0.001,ceiling=0.01,probability=85,default=35,defaultTweakRange=3,useDuration=false,category="filter"})
+  table.insert(tweakables, {widget=filterAttackKnob,attack=true,floor=0.001,ceiling=0.01,probability=85,default=35,defaultTweakRange=0.3,useDuration=false,category="filter"})
 
   local filterDecayKnob = filterEnvPanel:Knob("FDecay", 0.050, 0, 10)
   filterDecayKnob.displayName="Decay"
@@ -2987,7 +3015,7 @@ function createFilterEnvPanel()
     self.displayText = formatTimeInSeconds(self.value)
   end
   filterDecayKnob:changed()
-  table.insert(tweakables, {widget=filterDecayKnob,factor=3,decay=true,floor=0.01,ceiling=0.75,probability=50,default=10,useDuration=false,category="filter"})
+  table.insert(tweakables, {widget=filterDecayKnob,decay=true,floor=0.01,ceiling=0.75,probability=50,default=10,useDuration=false,category="filter"})
 
   local filterSustainKnob = filterEnvPanel:Knob("FSustain", 1, 0, 1)
   filterSustainKnob.displayName="Sustain"
@@ -3026,7 +3054,7 @@ function createFilterEnvPanel()
     self.displayText = formatTimeInSeconds(self.value)
   end
   filterReleaseKnob:changed()
-  table.insert(tweakables, {widget=filterReleaseKnob,release=true,factor=3,floor=0.01,ceiling=0.8,probability=70,default=35,defaultTweakRange=2,useDuration=true,category="filter"})
+  table.insert(tweakables, {widget=filterReleaseKnob,release=true,floor=0.01,ceiling=0.8,probability=70,default=35,defaultTweakRange=2,useDuration=true,category="filter"})
 
   local filterVelocityKnob = filterEnvPanel:Knob("VelocityToFilterEnv", 10, 0, 40)
   filterVelocityKnob.displayName="Velocity"
@@ -3411,6 +3439,7 @@ function createLfoPanel()
       lfo3:setParameter("SyncToHost", self.value)
     end
     if self.value == false then
+      lfoFreqKnob:setRange(0.1, 20.)
       lfoFreqKnob.default = 4.5
       lfoFreqKnob.mapper = Mapper.Quadratic
       lfoFreqKnob.changed = function(self)
@@ -3425,25 +3454,30 @@ function createLfoPanel()
         end
         self.displayText = string.format("%0.2f Hz", self.value)
       end
-      lfoFreqKnob:changed()
+      lfoFreqKnob:setValue(lfoFreqKnob.default)
     else
-      lfoFreqKnob.default = 13
+      -- Uses beat ratio when synced: 4 is 1/1, 0.25 is 1/16
+      lfoFreqKnob:setRange(1, #resolutions)
+      lfoFreqKnob.default = 20
       lfoFreqKnob.mapper = Mapper.Linear
       lfoFreqKnob.changed = function(self)
-        -- Uses beat ratio when synced: 4 is 1/1, 0.25 is 1/16
-        local index = math.floor(self.value) + 7
+        --print("Sync on, value in", self.value)
+        local index = math.floor(self.value)
+        --print("Sync on, resolution index", index)
+        local resolution = getResolution(index)
+        --print("Sync on, resolution", resolution)
         if activeLfoOsc == 1 or activeLfoOsc == 2 then
-          lfo1:setParameter("Freq", getResolution(index))
+          lfo1:setParameter("Freq", resolution)
         end
         if activeLfoOsc == 1 or activeLfoOsc == 3 then
-          lfo2:setParameter("Freq", getResolution(index))
+          lfo2:setParameter("Freq", resolution)
         end
         if activeLfoOsc == 1 or activeLfoOsc == 4 then
-          lfo3:setParameter("Freq", getResolution(index))
+          lfo3:setParameter("Freq", resolution)
         end
         self.displayText = getResolutionName(index)
       end
-      lfoFreqKnob:changed()
+      lfoFreqKnob:setValue(lfoFreqKnob.default)
     end
   end
   lfo2SyncButton:changed()
@@ -4270,7 +4304,7 @@ function createAmpEnvPanel()
     self.displayText = formatTimeInSeconds(self.value)
   end
   ampDecayKnob:changed()
-  table.insert(tweakables, {widget=ampDecayKnob,factor=3,decay=true,floor=0.01,ceiling=0.5,probability=50,default=25,useDuration=false,category="synthesis"})
+  table.insert(tweakables, {widget=ampDecayKnob,decay=true,floor=0.01,ceiling=0.5,probability=50,default=25,useDuration=false,category="synthesis"})
 
   local ampSustainKnob = ampEnvPanel:Knob("Sustain", 1, 0, 1)
   ampSustainKnob.fillColour = knobColour
@@ -4307,7 +4341,7 @@ function createAmpEnvPanel()
     self.displayText = formatTimeInSeconds(self.value)
   end
   ampReleaseKnob:changed()
-  table.insert(tweakables, {widget=ampReleaseKnob,release=true,factor=2,floor=0.01,ceiling=0.5,probability=90,default=30,defaultTweakRange=1,useDuration=false,category="synthesis"})
+  table.insert(tweakables, {widget=ampReleaseKnob,release=true,floor=0.01,ceiling=0.5,probability=90,default=30,defaultTweakRange=1,useDuration=false,category="synthesis"})
 
   local ampVelocityKnob = ampEnvPanel:Knob("VelocityToAmpEnv", 10, 0, 40)
   ampVelocityKnob.displayName="Velocity"
@@ -5846,6 +5880,12 @@ function createSettingsPanel()
     selectedWidget.knob1.showValue = true
     selectedWidget.knob1.size = selectedWidget.probabilityKnob.size
 
+    -- Toggle duration button
+    selectedWidget.durationButton.visible = true
+    selectedWidget.durationButton.x = selectedWidget.knob1.x + selectedWidget.knob1.width + 10
+    selectedWidget.durationButton.y = selectedWidget.button.y
+    selectedWidget.durationButton.size = {120,60}
+
     -- POSITION THE WIDGETS
 
     -- Row 2 --
@@ -5920,7 +5960,7 @@ function createSettingsPanel()
     local exclude = type(v.excludeWhenTweaking) == "boolean" and v.excludeWhenTweaking == true
     local btn = settingsPanel:OnOffButton(v.widget.name .. 'Btn' .. i, (exclude == false))
     btn.displayName = v.widget.name
-    btn.tooltip = "Activate/deactivate tweakable in twequencer"
+    btn.tooltip = "Activate/deactivate " .. v.widget.name .. " for tweaking"
     btn.alpha = buttonAlpha
     btn.visible = false
     btn.backgroundColourOff = buttonBackgroundColourOff
@@ -5931,6 +5971,22 @@ function createSettingsPanel()
       v.excludeWhenTweaking = self.value == false
     end
     btn:changed()
+
+    local useDuration = type(v.useDuration) == "boolean" and v.useDuration == true
+    local durationButton = settingsPanel:OnOffButton(v.widget.name .. 'UseDuration' .. i, useDuration)
+    durationButton.displayName = "Use duration"
+    durationButton.tooltip = "Activate/deactivate tweak over time in twequencer"
+    durationButton.alpha = buttonAlpha
+    durationButton.visible = false
+    durationButton.enabled = type(v.widget.default) == "number"
+    durationButton.backgroundColourOff = buttonBackgroundColourOff
+    durationButton.backgroundColourOn = buttonBackgroundColourOn
+    durationButton.textColourOff = buttonTextColourOff
+    durationButton.textColourOn = buttonTextColourOn
+    durationButton.changed = function(self)
+      v.useDuration = self.value
+    end
+    durationButton:changed()
 
     -- Widgets for details view
     local probabilityKnob = settingsPanel:Knob('ProbabilityKnob' .. i, 0, 0, 100, true)
@@ -6085,6 +6141,7 @@ function createSettingsPanel()
 
     table.insert(widgets, {
       button=btn,
+      durationButton=durationButton,
       knob1=knob1,
       editBtn=editBtn,
       floorKnob=floorKnob,
@@ -6113,6 +6170,7 @@ function createSettingsPanel()
       v.button.visible = isVisible
       v.knob1.visible = isVisible
       v.editBtn.visible = isVisible
+      v.durationButton.visible = false
       v.floorKnob.visible = false
       v.ceilKnob.visible = false
       v.defaultKnob.visible = false
