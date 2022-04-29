@@ -736,7 +736,7 @@ function arpeg()
   local index = 0
   local heldNoteIndex = 0 -- Counter for held notes (used by As Played seq mode)
   local currentPartPosition = 0 -- Holds the currently playing part
-  local randomTieCounter = 0 -- Used for holding random ties
+  local tieCounter = 0 -- Used for holding ties
   local partRepeat = 0 -- Used for holding part repeat info
   local partDirectionBackward = false -- Used for holding part direction
   local isStarting = true
@@ -756,6 +756,8 @@ function arpeg()
       isPlaying = false
       break
     end
+    -- Reset random tie flag
+    --local randomTie = false
     -- Reset notes table
     local notes = {} -- Holds the note(s) that plays at this position
     -- Set current position and part position
@@ -906,23 +908,6 @@ function arpeg()
       end
     end
 
-    -- Randomize ties
-    local tieRandomizationAmount = paramsPerPart[currentPartPosition].tieRandKnob.value
-    if tieRandomizationAmount > 0 and randomTieCounter == 0 then
-      --print("Before randomized tieNext", tieNext)
-      if getRandomBoolean(tieRandomizationAmount) then
-        tieNext = 1
-        randomTieCounter = 2
-      else
-        tieNext = 0
-        randomTieCounter = 0
-      end
-      --print("After randomize tieNext", tieNext)
-      if evolve == true then
-        tieStepTable:setValue(tablePos, tieNext)
-      end
-    end
-
     -- Check if tie from previous step
     local tieStepPos = tablePos - 1
     if partDirectionBackward == true then
@@ -930,16 +915,23 @@ function arpeg()
     end
     print("tieStepPos", tieStepPos)
 
-    -- Do not add note if it is tied from the prevoius step
-    local shouldAddNote = tieStepTable:getValue(tieStepPos) ~= 1
+    -- Do not add note if tie is active
+    local shouldAddNote = tieCounter == 0
     print("shouldAddNote", shouldAddNote)
-    if randomTieCounter > 0 then
-      shouldAddNote = randomTieCounter == 2
-      -- Reset tie counter
-      if randomTieCounter == 1 then
-        randomTieCounter = 0
-        --print("Reset tie")
+
+    -- Randomize ties
+    local tieRandomizationAmount = paramsPerPart[currentPartPosition].tieRandKnob.value
+    if shouldAddNote and getRandomBoolean(tieRandomizationAmount) then
+      print("Before randomized tieNext", tieNext)
+      -- Get length of tie
+      tieCounter = getRandom(2, math.max(2, numStepsInPart))
+      --randomTie = true
+      tieNext = 1
+      print("tieCounter", tieCounter)
+      if evolve == true then
+        tieStepTable:setValue(tablePos, tieNext)
       end
+      print("After randomize tieNext", tieNext)
     end
 
     -- If gate is zero no notes will play on this step
@@ -951,15 +943,16 @@ function arpeg()
       -- steps: the duration of the note in steps
 
       local noteSteps = 1
+
       -- Check tie to next step
       if tieNext == 1 then
-        if randomTieCounter == 2 then
-          noteSteps = randomTieCounter
-          randomTieCounter = 1
-          print("Set automatic tie", noteSteps)
+        if tieCounter > 0 then
+          -- If tie is random, we set steps from the counter
+          noteSteps = tieCounter
+          print("Set random tie", noteSteps)
         else
           local tieStepPos = tablePos
-          while tieStepPos > 0 and tieStepPos < numStepsInPart and (tieStepTable:getValue(tieStepPos) == 1 or randomTieCounter == 2) do
+          while tieStepPos > 0 and tieStepPos < numStepsInPart and tieStepTable:getValue(tieStepPos) == 1 do
             noteSteps = noteSteps + 1
             if partDirectionBackward == true then
               tieStepPos = tieStepPos - 1
@@ -967,6 +960,8 @@ function arpeg()
               tieStepPos = tieStepPos + 1
             end
           end
+          tieCounter = noteSteps
+          print("Set tie", noteSteps)
         end
         print("Set tie steps tablePos/noteSteps", tablePos, noteSteps)
       end
@@ -1068,8 +1063,14 @@ function arpeg()
       end
     end
 
-    -- INCREMENT POSITION
-    index = (index + 1) % totalNumSteps -- increment position
+    -- Increment position
+    index = (index + 1) % totalNumSteps
+
+    -- Decrement tie counter if a tie is active
+    if tieCounter > 0 then
+      tieCounter = tieCounter - 1
+      print("Decrement tie counter", tieCounter)
+    end
 
     isStarting = false
 

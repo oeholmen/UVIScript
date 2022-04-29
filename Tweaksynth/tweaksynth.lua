@@ -552,11 +552,13 @@ function tweakValue(options, value, tweakLevel)
     options.factor = 1
   end
   print("Tweaking value:", value)
+  -- If probability is set to 100, we are forced to stay within the given range
+  local forceRange = type(options.probability) == "number" and options.probability == 100
   -- Get range limits
   local floor = options.widget.min -- Default floor is widget min
   local ceiling = options.widget.max -- Default ceiling is widget max
-  -- Adjust value to within set range if probability hits
-  if type(options.probability) == "number" and getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevel, options.probability)) then
+  -- Get value within set range if probability hits
+  if forceRange or type(options.probability) == "number" and getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevel, options.probability)) then
     if type(options.floor) == "number" then
       floor = options.floor * options.factor
     end
@@ -564,64 +566,56 @@ function tweakValue(options, value, tweakLevel)
       ceiling = options.ceiling * options.factor
     end
     print("Probability/floor/ceiling:", options.probability, floor, ceiling)
-  end
-
-  -- If probability is set to 100, we are forced to stay within the given range
-  local forceRange = type(options.probability) == "number" and options.probability == 100
-
-  -- If probability hits, we get a random value within the full range
-  if getRandomBoolean(getProbabilityFromTweakLevel(tweakLevel)) and forceRange == false then
-    print("Random full range")
-    return getRandom(options.min, options.max, options.factor)
-  end
-
-  -- Get widget range
-  local range = ceiling - floor
-  if type(options.defaultTweakRange) == "number" and forceRange == false then
-    range = options.defaultTweakRange
-  end
-  print("Value range:", range)
-  -- Determine change factor - a low tweaklevel gives a small change - high tweaklevel gives bigger change
-  local factor = (0.5 * getRandom()) * ((tweakLevel * 1.5) / 100)
-  print("Tweak factor:", factor)
-  -- Set the range allowed for value adjustment
-  local tweakRange = range * factor
-  print("Tweakrange:", tweakRange)
-
-  local minVal = options.widget.min
-  local maxVal = options.widget.max
-  if forceRange == true or (type(options.probability) == "number" and getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevel, options.probability))) then
-    minVal = floor
-    maxVal = ceiling
-  end
-
-  if (value - tweakRange) < minVal then
-    while (value - tweakRange) < minVal do
-      print("Incrementing to avoid out of range")
-      value = value + tweakRange
+    -- Get widget range
+    local range = ceiling - floor
+    if type(options.defaultTweakRange) == "number" and forceRange == false then
+      range = options.defaultTweakRange
     end
-  elseif (value + tweakRange) > maxVal then
-    while (value + tweakRange) > maxVal do
-      print("Decrementing to avoid out of range")
+    print("Value range:", range)
+    -- Determine change factor - a low tweaklevel gives a small change - high tweaklevel gives bigger change
+    local factor = (0.5 * getRandom()) * ((tweakLevel * 1.5) / 100)
+    print("Tweak factor:", factor)
+    -- Set the range allowed for value adjustment
+    local tweakRange = range * factor
+    print("Tweakrange:", tweakRange)
+    local minVal = options.widget.min
+    local maxVal = options.widget.max
+    if forceRange or (type(options.probability) == "number" and getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevel, options.probability))) then
+      minVal = floor
+      maxVal = ceiling
+    end
+    if (value - tweakRange) < minVal then
+      while (value - tweakRange) < minVal do
+        print("Incrementing to avoid out of range")
+        value = value + tweakRange
+      end
+    elseif (value + tweakRange) > maxVal then
+      while (value + tweakRange) > maxVal do
+        print("Decrementing to avoid out of range")
+        value = value - tweakRange
+      end
+    elseif getRandomBoolean() == true then
+      print("Incrementing value")
+      value = value + tweakRange
+    else
+      print("Decrementing value")
       value = value - tweakRange
     end
-  elseif getRandomBoolean() == true then
-    print("Incrementing value")
-    value = value + tweakRange
-  else
-    print("Decrementing value")
-    value = value - tweakRange
-  end
-  if forceRange == true then
-    if value > maxVal then
-      print("Set max")
-      value = maxVal
-    elseif value < minVal then
-      print("Set min")
-      value = minVal
+    if forceRange then
+      if value > maxVal then
+        print("Set max")
+        value = maxVal
+      elseif value < minVal then
+        print("Set min")
+        value = minVal
+      end
     end
+    return value
   end
-  return value
+
+  -- Get a random value within the full range
+  print("Random full range")
+  return getRandom(options.min, options.max, options.factor)
 end
 
 function getEnvelopeTimeForDuration(options, duration)
@@ -720,8 +714,9 @@ function getValueBetween(floor, ceiling, originalValue, options, maxRounds)
   return floor * options.factor
 end
 
--- Get the widgets to tweak
-function getTweakables(tweakLevel, synthesisButton, modulationButton, filterButton, mixerButton, effectsButton)
+-- Get the widgets to tweak - Scope {"All", "Settings", "Random"}
+function getTweakables(tweakLevel, synthesisButton, modulationButton, filterButton, mixerButton, effectsButton, scope)
+  print("getTweakables with scope", scope)
   local t = {}
   for _,v in ipairs(tweakables) do
     local skip = false
@@ -736,16 +731,31 @@ function getTweakables(tweakLevel, synthesisButton, modulationButton, filterButt
     elseif v.category == "effects" and effectsButton.value == false then
       skip = true
     end
-    -- Check skip probability
-    if type(v.skipProbability) ~= "number" then
-      v.skipProbability = defaultSkipProbability
+    -- Check skip
+    if scope > 1 then
+      -- Use skip probability from settings
+      if type(v.skipProbability) ~= "number" then
+        v.skipProbability = defaultSkipProbability -- defaultSkipProbability = 0
+      end
+      -- Used for random skip
+      local probability = 50
+      if scope == 2 then
+        if v.excludeWhenTweaking == true then
+          -- Always skip if excluded
+          probability = 100
+        else
+          -- Use skip probability from settings
+          probability = adjustProbabilityByTweakLevel(tweakLevel, v.skipProbability, 5)
+        end
+      end
+      if skip == false then
+        skip = getRandomBoolean(probability)
+      end
     end
-    local probability = adjustProbabilityByTweakLevel(tweakLevel, v.skipProbability, 5) -- Used for random skip
-    if skip == false then
-      skip = getRandomBoolean(probability)
-    end
-    v.targetValue = v.widget.value -- Ensure a target value is set
-    if skip == true or v.widget.enabled == false or v.excludeWhenTweaking == true then
+    -- Ensure a target value is set
+    v.targetValue = v.widget.value
+    -- Skip if required
+    if skip == true or v.widget.enabled == false then
       print("Skipping:", v.widget.name)
     else
       table.insert(t, v)
@@ -4762,7 +4772,7 @@ function createPatchMakerPanel()
   modStyleMenu.displayName = "Modulation Style"
   modStyleMenu.x = width/2
   modStyleMenu.y = patchesMenu.y
-  modStyleMenu.width = width/4-10
+  modStyleMenu.width = width/6-10
 
   envStyleMenu = tweakPanel:Menu("EnvStyle", {"Automatic", "Very short", "Short", "Medium short", "Medium", "Medium long", "Long", "Very long"})
   envStyleMenu.backgroundColour = menuBackgroundColour
@@ -4774,7 +4784,18 @@ function createPatchMakerPanel()
   envStyleMenu.x = modStyleMenu.width + modStyleMenu.x + 10
   envStyleMenu.y = modStyleMenu.y
 
-  local scopeLabel = tweakPanel:Label("Tweak Scope")
+  scopeMenu = tweakPanel:Menu("TweakScope", {"All", "Settings", "Random"})
+  scopeMenu.backgroundColour = menuBackgroundColour
+  scopeMenu.textColour = menuTextColour
+  scopeMenu.arrowColour = menuArrowColour
+  scopeMenu.outlineColour = menuOutlineColour
+  scopeMenu.displayName = "Include Params"
+  scopeMenu.tooltip = "Set what params to include when tweaking the patch. All=all in the activated categories, Settings=params in activated categories that are active in settings, Random=random from activated categories."
+  scopeMenu.width = envStyleMenu.width
+  scopeMenu.x = envStyleMenu.width + envStyleMenu.x + 10
+  scopeMenu.y = envStyleMenu.y
+
+  local scopeLabel = tweakPanel:Label("Tweak Categories")
   scopeLabel.x = modStyleMenu.x
   scopeLabel.y = modStyleMenu.y + modStyleMenu.height + 10
 
@@ -4837,7 +4858,7 @@ function createPatchMakerPanel()
   tweakArpeggiatorButton.backgroundColourOn = buttonBackgroundColourOn
   tweakArpeggiatorButton.textColourOff = buttonTextColourOff
   tweakArpeggiatorButton.textColourOn = buttonTextColourOn
-  tweakArpeggiatorButton.displayName = "Tweak Arpeggiator"
+  tweakArpeggiatorButton.displayName = "Randomize Arp"
   tweakArpeggiatorButton.bounds = {0,0,190,synthesisButton.height*1.3}
   tweakArpeggiatorButton.x = 10
   tweakArpeggiatorButton.y = synthesisButton.y - (synthesisButton.height*0.3)
@@ -4859,7 +4880,7 @@ function createPatchMakerPanel()
 
   tweakButton.changed = function(self)
     print("Find widgets to tweak")
-    local widgetsForTweaking = getTweakables(tweakLevelKnob.value, synthesisButton, modulationButton, filterButton, mixerButton, effectsButton)
+    local widgetsForTweaking = getTweakables(tweakLevelKnob.value, synthesisButton, modulationButton, filterButton, mixerButton, effectsButton, scopeMenu.value)
     -- Get the tweak suggestions
     for _,v in ipairs(widgetsForTweaking) do
       v.targetValue = getTweakSuggestion(v, tweakLevelKnob.value, envStyleMenu.value, modStyleMenu.value)
@@ -4940,7 +4961,7 @@ function createTwequencerPanel()
   envStyleMenu.outlineColour = menuOutlineColour
   envStyleMenu.displayName = "Envelope Style"
   envStyleMenu.x = 10
-  envStyleMenu.y = 125
+  envStyleMenu.y = tweakLevelKnob.y
   envStyleMenu.width = tweakLevelKnob.width
 
   local modStyleMenu = tweqPanel:Menu("ModStyle", {"Automatic", "Very fast", "Fast", "Medium fast", "Medium", "Medium slow", "Slow", "Very slow"})
@@ -4953,6 +4974,18 @@ function createTwequencerPanel()
   modStyleMenu.y = envStyleMenu.y + envStyleMenu.height + 10
   modStyleMenu.width = envStyleMenu.width
 
+  scopeMenu = tweqPanel:Menu("SeqTweakScope", {"All", "Settings", "Random"})
+  scopeMenu.selected = 2
+  scopeMenu.backgroundColour = menuBackgroundColour
+  scopeMenu.textColour = menuTextColour
+  scopeMenu.arrowColour = menuArrowColour
+  scopeMenu.outlineColour = menuOutlineColour
+  scopeMenu.displayName = "Include Params"
+  scopeMenu.tooltip = "Set what params to include when tweaking the patch. All=all in the activated categories, Settings=params in activated categories that are active in settings, Random=random from activated categories."
+  scopeMenu.x = modStyleMenu.x
+  scopeMenu.y = modStyleMenu.y + modStyleMenu.height + 10
+  scopeMenu.width = modStyleMenu.width
+
   local waveformMenu
   if isAnalog or isAnalog3Osc or isAnalogStack then
     waveformMenu = tweqPanel:Menu("AllowedWaveforms", {"All", "Saw/Square", "Triangle/Sine", "Square/Triangle", "Saw/Sq/Tri/Sine"})
@@ -4961,9 +4994,9 @@ function createTwequencerPanel()
     waveformMenu.arrowColour = menuArrowColour
     waveformMenu.outlineColour = menuOutlineColour
     waveformMenu.displayName = "Allowed Waveforms"
-    waveformMenu.x = modStyleMenu.x
-    waveformMenu.y = modStyleMenu.y + modStyleMenu.height + 10
-    waveformMenu.width = modStyleMenu.width
+    waveformMenu.x = scopeMenu.x
+    waveformMenu.y = scopeMenu.y + scopeMenu.height + 10
+    waveformMenu.width = scopeMenu.width
   end
 
   local partsTable = tweqPanel:Table("Parts", 1, 0, 0, 1, true)
@@ -4997,7 +5030,7 @@ function createTwequencerPanel()
   snapshotsMenu.arrowColour = menuArrowColour
   snapshotsMenu.outlineColour = menuOutlineColour
   snapshotsMenu.x = rightMenuX
-  snapshotsMenu.y = 125
+  snapshotsMenu.y = tweakLevelKnob.y
   snapshotsMenu.width = 90
   snapshotsMenu.enabled = false
   snapshotsMenu.displayName = "Snapshots"
@@ -5263,7 +5296,7 @@ function createTwequencerPanel()
     end
   end
 
-  local scopeLabel = tweqPanel:Label("Tweak Scope")
+  local scopeLabel = tweqPanel:Label("Tweak Categories")
   scopeLabel.x = positionTable.x
   scopeLabel.y = positionTable.y + positionTable.height + 5
 
@@ -5353,7 +5386,7 @@ function createTwequencerPanel()
       if index == 1 then
         -- CHECK FOR TWEAKLEVEL
         if tweakLevelKnob.value > 0 and tweakOnOffButton.value then
-          tweakablesForTwequencer = getTweakables(tweakLevelKnob.value, synthesisButton, modulationButton, filterButton, mixerButton, effectsButton)
+          tweakablesForTwequencer = getTweakables(tweakLevelKnob.value, synthesisButton, modulationButton, filterButton, mixerButton, effectsButton, scopeMenu.value)
           if #tweakablesForTwequencer > 0 then
             -- Update snapshots menu
             snapshotsMenu.enabled = true
