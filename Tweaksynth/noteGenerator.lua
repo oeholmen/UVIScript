@@ -289,7 +289,7 @@ focusButton.changed = function(self)
   setTableWidths()
 end
 
-local autoplayButton = sequencerPanel:OnOffButton("AutoPlay", false)
+local autoplayButton = sequencerPanel:OnOffButton("AutoPlay", true)
 autoplayButton.backgroundColourOff = "#ff084486"
 autoplayButton.backgroundColourOn = "#ff02ACFE"
 autoplayButton.textColourOff = "#ff22FFFF"

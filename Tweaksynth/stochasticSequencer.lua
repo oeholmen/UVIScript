@@ -205,12 +205,14 @@ copyPartMenu.changed = function(self)
   target.seqPitchChangeProbabilityTable.length = source.numStepsBox.value
   target.seqVelTable.length = source.numStepsBox.value
   target.seqGateTable.length = source.numStepsBox.value
+  target.seqRatchetTable.length = source.numStepsBox.value
   for i=1, source.numStepsBox.value do
     target.seqPitchTable:setValue(i, source.seqPitchTable:getValue(i))
     target.tieStepTable:setValue(i, source.tieStepTable:getValue(i))
     target.seqPitchChangeProbabilityTable:setValue(i, source.seqPitchChangeProbabilityTable:getValue(i))
     target.seqVelTable:setValue(i, source.seqVelTable:getValue(i))
     target.seqGateTable:setValue(i, source.seqGateTable:getValue(i))
+    target.seqRatchetTable:setValue(i, source.seqRatchetTable:getValue(i))
   end
   target.numStepsBox:setValue(source.numStepsBox.value)
 end
@@ -357,6 +359,7 @@ numPartsBox.changed = function(self)
     v.seqPitchChangeProbabilityTable.visible = false
     v.seqVelTable.visible = false
     v.seqGateTable.visible = false
+    v.seqRatchetTable.visible = false
   end
   numParts = self.value
   for i=1,numParts do
@@ -469,6 +472,11 @@ function setTableWidths()
     paramsPerPart[i].seqGateTable.width = partTableWidth
     paramsPerPart[i].seqGateTable.x = x
 
+    paramsPerPart[i].seqRatchetTable.length = paramsPerPart[i].numStepsBox.value
+    paramsPerPart[i].seqRatchetTable.visible = isVisible
+    paramsPerPart[i].seqRatchetTable.width = partTableWidth
+    paramsPerPart[i].seqRatchetTable.x = x
+
     x = x + partTableWidth
   end
 end
@@ -527,7 +535,6 @@ for i=1,numPartsBox.max do
   local tieStepTable = sequencerPanel:Table("TieStep" .. i, totalNumSteps, 0, 0, 1, true)
   tieStepTable.tooltip = "Tie with next step"
   tieStepTable.fillStyle = "solid"
-  --tieStepTable.backgroundColour = "black"
   if i % 2 == 0 then
     tieStepTable.backgroundColour = "#99000000"
   else
@@ -553,7 +560,7 @@ for i=1,numPartsBox.max do
     seqPitchChangeProbabilityTable.backgroundColour = "#6f000000"
   end
   seqPitchChangeProbabilityTable.width = tableWidth
-  seqPitchChangeProbabilityTable.height = 68
+  seqPitchChangeProbabilityTable.height = 63
   seqPitchChangeProbabilityTable.x = tableX
   seqPitchChangeProbabilityTable.y = tieStepTable.y + tieStepTable.height + 2
   
@@ -590,6 +597,24 @@ for i=1,numPartsBox.max do
   seqGateTable.height = seqVelTable.height
   seqGateTable.x = tableX
   seqGateTable.y = seqVelTable.y + seqVelTable.height + 2
+  
+  -- TODO Add a setting for max ratchet
+  local seqRatchetTable = sequencerPanel:Table("Ratchet" .. i, totalNumSteps, 1, 1, 4, true)
+  seqRatchetTable.displayName = "Ratchet"
+  seqRatchetTable.tooltip = "Subdivition for this step"
+  seqRatchetTable.showPopupDisplay = true
+  seqRatchetTable.showLabel = false
+  seqRatchetTable.fillStyle = "solid"
+  seqRatchetTable.sliderColour = "#33229966"
+  if i % 2 == 0 then
+    seqRatchetTable.backgroundColour = "#3f000000"
+  else
+    seqRatchetTable.backgroundColour = "#6f000000"
+  end
+  seqRatchetTable.width = seqGateTable.width
+  seqRatchetTable.height = seqVelTable.height * 0.3
+  seqRatchetTable.x = tableX
+  seqRatchetTable.y = seqGateTable.y + seqGateTable.height + 2
 
   local tieRandKnob = sequencerPanel:Knob("TieRandomization" .. i, 0, 0, 100, true)
   tieRandKnob.visible = isFirst
@@ -619,7 +644,7 @@ for i=1,numPartsBox.max do
   velRandKnob.height = 30
   velRandKnob.width = 70
   velRandKnob.x = tableWidth + 5
-  velRandKnob.y = pitchProbRandKnob.y + pitchProbRandKnob.height + 45
+  velRandKnob.y = pitchProbRandKnob.y + pitchProbRandKnob.height + 35
   
   local gateRandKnob = sequencerPanel:Knob("GateRandomization" .. i, 0, 0, 100, true)
   gateRandKnob.visible = isFirst
@@ -629,7 +654,16 @@ for i=1,numPartsBox.max do
   gateRandKnob.height = 30
   gateRandKnob.width = 70
   gateRandKnob.x = tableWidth + 5
-  gateRandKnob.y = velRandKnob.y + velRandKnob.height + 35
+  gateRandKnob.y = velRandKnob.y + velRandKnob.height + 25
+
+  local ratchetRand = sequencerPanel:Knob("RatchetRandomization" .. i, 0, 0, 100, true)
+  ratchetRand.displayName = "Rand"
+  ratchetRand.tooltip = "Ratchet radomization amount"
+  ratchetRand.visible = isFirst
+  ratchetRand.unit = Unit.Percent
+  ratchetRand.size = gateRandKnob.size
+  ratchetRand.x = gateRandKnob.x
+  ratchetRand.y = gateRandKnob.y + gateRandKnob.height + 10
 
   local partResolution = sequencerPanel:Menu("PartDuration" .. i, getResolutionNames({"Follow Step"}))
   local stepResolution = sequencerPanel:Menu("StepResolution" .. i, getResolutionNames())
@@ -722,7 +756,7 @@ for i=1,numPartsBox.max do
   directionProbabilityKnob.height = repeatProbabilityKnob.height
   directionProbabilityKnob.width = playProbabilityKnob.width
 
-  table.insert(paramsPerPart, {tieRandKnob=tieRandKnob,pitchProbRandKnob=pitchProbRandKnob,velRandKnob=velRandKnob,gateRandKnob=gateRandKnob,partsTable=partsTable,positionTable=positionTable,seqPitchTable=seqPitchTable,tieStepTable=tieStepTable,seqPitchChangeProbabilityTable=seqPitchChangeProbabilityTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,partResolution=partResolution,stepResolution=stepResolution,playMode=playMode,playProbability=playProbabilityKnob,directionProbability=directionProbabilityKnob,repeatProbability=repeatProbabilityKnob,numStepsBox=numStepsBox,init=i==1})
+  table.insert(paramsPerPart, {tieRandKnob=tieRandKnob,pitchProbRandKnob=pitchProbRandKnob,velRandKnob=velRandKnob,gateRandKnob=gateRandKnob,ratchetRand=ratchetRand,partsTable=partsTable,positionTable=positionTable,seqPitchTable=seqPitchTable,tieStepTable=tieStepTable,seqPitchChangeProbabilityTable=seqPitchChangeProbabilityTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,seqRatchetTable=seqRatchetTable,partResolution=partResolution,stepResolution=stepResolution,playMode=playMode,playProbability=playProbabilityKnob,directionProbability=directionProbabilityKnob,repeatProbability=repeatProbabilityKnob,numStepsBox=numStepsBox,init=i==1})
 end
 
 editPartMenu:changed()
@@ -736,30 +770,12 @@ function arpeg()
   local index = 0
   local heldNoteIndex = 0 -- Counter for held notes (used by As Played seq mode)
   local currentPartPosition = 0 -- Holds the currently playing part
-  local tieCounter = 0 -- Used for holding ties
   local partRepeat = 0 -- Used for holding part repeat info
   local partDirectionBackward = false -- Used for holding part direction
   local isStarting = true
   -- START ARP LOOP
   print("Starting sequencer")
   while isPlaying == true do
-    local offset = 0
-    if #heldNotes == 0 then
-      local buffer = 1 -- How long to wait for notes before stopping the sequencer
-      wait(buffer)
-      print("waiting for heldNotes", buffer)
-      offset = offset + buffer
-    end
-    if #heldNotes == 0 then
-      print("#heldNotes == 0 - stopping sequencer")
-      clearPosition()
-      isPlaying = false
-      break
-    end
-    -- Reset random tie flag
-    --local randomTie = false
-    -- Reset notes table
-    local notes = {} -- Holds the note(s) that plays at this position
     -- Set current position and part position
     local currentPosition = (index % totalNumSteps) + 1 -- 11 % 4 = 3
     local startOfPart = false
@@ -812,7 +828,6 @@ function arpeg()
     local evolve = evolveButton.value
 
     -- Params for current part position
-    local stepDuration = getResolution(paramsPerPart[currentPartPosition].stepResolution.value)
     local playMode = paramsPerPart[currentPartPosition].playMode.value
     local numStepsInPart = paramsPerPart[currentPartPosition].numStepsBox.value
 
@@ -829,6 +844,7 @@ function arpeg()
     -- Tables for current step position
     local seqVelTable = paramsPerPart[currentPartPosition].seqVelTable
     local seqGateTable = paramsPerPart[currentPartPosition].seqGateTable
+    local seqRatchetTable = paramsPerPart[currentPartPosition].seqRatchetTable
     local seqPitchTable = paramsPerPart[currentPartPosition].seqPitchTable
     local seqPitchChangeProbabilityTable = paramsPerPart[currentPartPosition].seqPitchChangeProbabilityTable
     local tieStepTable = paramsPerPart[currentPartPosition].tieStepTable
@@ -838,73 +854,20 @@ function arpeg()
     print("tablePos", tablePos)
     local vel = seqVelTable:getValue(tablePos) -- get velocity
     local gate = seqGateTable:getValue(tablePos) -- get gate
+    local ratchet = seqRatchetTable:getValue(tablePos) -- get ratchet
     local pitchAdjustment = seqPitchTable:getValue(tablePos) -- get pitch adjustment
     local pitchChangeProbability = seqPitchChangeProbabilityTable:getValue(tablePos) -- get pitch change probability
     local tieNext = tieStepTable:getValue(tablePos)
 
-    -- Randomize gate
-    local gateRandomizationAmount = paramsPerPart[currentPartPosition].gateRandKnob.value
-    if gateRandomizationAmount > 0 then
-      if getRandomBoolean(gateRandomizationAmount) then
-        local changeMax = math.ceil(seqGateTable.max * (gateRandomizationAmount/100)) -- 110 * 0,15 = 16,5 = 17
-        local min = gate - changeMax -- 100 - 17 = 83
-        local max = gate + changeMax -- 100 + 17 = 117 = 110
-        if min < seqGateTable.min then
-          min = seqGateTable.min
-        end
-        if max > seqGateTable.max then
-          max = seqGateTable.max
-        end
-        --print("Before randomize gate", gate)
-        gate = getRandom(min, max)
-        --print("After randomize gate/changeMax/min/max", gate, changeMax, min, max)
-        if evolve == true then
-          seqGateTable:setValue(tablePos, gate)
-        end
-      end
-    end
-
-    -- Randomize vel
-    local velocityRandomizationAmount = paramsPerPart[currentPartPosition].velRandKnob.value
-    if velocityRandomizationAmount > 0 then
-      if getRandomBoolean(velocityRandomizationAmount) then
-        local changeMax = math.ceil(seqVelTable.max * (velocityRandomizationAmount/100))
-        local min = vel - changeMax
-        local max = vel + changeMax
-        if min < seqVelTable.min then
-          min = seqVelTable.min
-        end
-        if max > seqVelTable.max then
-          max = seqVelTable.max
-        end
-        --print("Before randomize vel", vel)
-        vel = getRandom(min, max)
-        --print("After randomize vel/changeMax/min/max", vel, changeMax, min, max)
-        if evolve == true then
-          seqVelTable:setValue(tablePos, vel)
-        end
-      end
-    end
-
-    -- Randomize pitch probaility
-    local pitchProbabilityRandomizationAmount = paramsPerPart[currentPartPosition].pitchProbRandKnob.value
-    if pitchProbabilityRandomizationAmount > 0 then
-      if getRandomBoolean(pitchProbabilityRandomizationAmount) then
-        local changeMax = math.ceil(seqPitchChangeProbabilityTable.max * (pitchProbabilityRandomizationAmount/100))
-        local min = pitchChangeProbability - changeMax
-        local max = pitchChangeProbability + changeMax
-        if min < seqPitchChangeProbabilityTable.min then
-          min = seqPitchChangeProbabilityTable.min
-        end
-        if max > seqPitchChangeProbabilityTable.max then
-          max = seqPitchChangeProbabilityTable.max
-        end
-        --print("Before randomize pitchChangeProbability", pitchChangeProbability)
-        pitchChangeProbability = getRandom(min, max)
-        --print("After randomize pitchChangeProbability/changeMax/min/max", pitchChangeProbability, changeMax, min, max)
-        if evolve == true then
-          seqPitchChangeProbabilityTable:setValue(tablePos, pitchChangeProbability)
-        end
+    -- Randomize ratchet
+    local ratchetRandomizationAmount = paramsPerPart[currentPartPosition].ratchetRand.value
+    if getRandomBoolean(ratchetRandomizationAmount) then
+      local min = seqRatchetTable.min
+      local max = math.min(seqRatchetTable.max, (math.ceil(seqRatchetTable.max * (ratchetRandomizationAmount/100)) + 1))
+      ratchet = getRandom(min, max)
+      print("Randomize ratchet, min/max/ratchet", min, max, ratchet)
+      if evolve == true then
+        seqRatchetTable:setValue(currentPosition, ratchet)
       end
     end
 
@@ -915,136 +878,40 @@ function arpeg()
     end
     print("tieStepPos", tieStepPos)
 
-    -- Do not add note if tie is active
-    local shouldAddNote = tieCounter == 0
-    print("shouldAddNote", shouldAddNote)
+    -- Hold the number of steps the note in this position should play
+    local noteSteps = 1
 
     -- Randomize ties
     local tieRandomizationAmount = paramsPerPart[currentPartPosition].tieRandKnob.value
-    if shouldAddNote and getRandomBoolean(tieRandomizationAmount) then
+    if tablePos < numStepsInPart and getRandomBoolean(tieRandomizationAmount) then
       print("Before randomized tieNext", tieNext)
       -- Get length of tie
-      tieCounter = getRandom(2, math.max(2, numStepsInPart))
-      --randomTie = true
+      local min = 2
+      local max = math.ceil((numStepsInPart-tablePos) * (tieRandomizationAmount/100))
+      noteSteps = getRandom(min, math.max(2, max))
       tieNext = 1
-      print("tieCounter", tieCounter)
       if evolve == true then
         tieStepTable:setValue(tablePos, tieNext)
       end
       print("After randomize tieNext", tieNext)
-    end
-
-    -- If gate is zero no notes will play on this step
-    if gate > 0 and shouldAddNote then
-
-      -- note: the note to play
-      -- gate: gate length
-      -- vel: note velocity
-      -- steps: the duration of the note in steps
-
-      local noteSteps = 1
-
-      -- Check tie to next step
-      if tieNext == 1 then
-        if tieCounter > 0 then
-          -- If tie is random, we set steps from the counter
-          noteSteps = tieCounter
-          print("Set random tie", noteSteps)
-        else
-          local tieStepPos = tablePos
-          while tieStepPos > 0 and tieStepPos < numStepsInPart and tieStepTable:getValue(tieStepPos) == 1 do
-            noteSteps = noteSteps + 1
-            if partDirectionBackward == true then
-              tieStepPos = tieStepPos - 1
-            else
-              tieStepPos = tieStepPos + 1
-            end
-          end
-          tieCounter = noteSteps
-          print("Set tie", noteSteps)
-        end
-        print("Set tie steps tablePos/noteSteps", tablePos, noteSteps)
-      end
-
-      -- Check for pitch change randomization
-      if getRandomBoolean(pitchChangeProbability) then
-        -- Get pitch adjustment from random index in pitch table for current part
-        local pitchPos = getRandom(numStepsInPart)
-        pitchAdjustment = seqPitchTable:getValue(pitchPos)
-        print("Playing pitch from other pos - tablePos/pitchPos", tablePos, pitchPos)
-      end
-
-      -- Add notes to play
-      -- "Mono", "As Played", "Random", "Duo", "Chord", "Mono (First Held)"
-      local sortedNotes = {}
-      for _,v in ipairs(heldNotes) do
-        table.insert(sortedNotes, v.note)
-      end
-      table.sort(sortedNotes)
-
-      if playMode == 1 then
-        -- Mono (Last held)
-          table.insert(notes, {note=heldNotes[#heldNotes].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
-      elseif playMode == 2 then
-        -- As played
+    elseif tieNext == 1 then
+      local tieStepPos = tablePos
+      while tieStepPos > 0 and tieStepPos < numStepsInPart and tieStepTable:getValue(tieStepPos) == 1 do
+        noteSteps = noteSteps + 1
         if partDirectionBackward == true then
-          heldNoteIndex = heldNoteIndex - 1 -- Decrement held note position
-          if heldNoteIndex < 1 then
-            heldNoteIndex = #heldNotes
-          end
+          tieStepPos = tieStepPos - 1
         else
-          heldNoteIndex = heldNoteIndex + 1 -- Increment held note position
-          if heldNoteIndex > #heldNotes then
-            heldNoteIndex = 1
-          end
+          tieStepPos = tieStepPos + 1
         end
-        if getRandomBoolean(pitchChangeProbability) then
-          table.insert(notes, {note=heldNotes[getRandom(#heldNotes)].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
-        else
-          -- Add a failsafe in case #heldNotes has changed since setting index
-          if heldNoteIndex > #heldNotes then
-            heldNoteIndex = #heldNotes
-          end
-          table.insert(notes, {note=heldNotes[heldNoteIndex].note+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
-        end
-      elseif playMode == 3 then
-        -- Random
-        table.insert(notes, {note=sortedNotes[getRandom(#sortedNotes)]+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
-      elseif playMode == 4 then
-        -- Duo (Lowest and highest held notes)
-        table.insert(notes, {note=sortedNotes[1]+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
-        if #heldNotes > 1 then
-          table.insert(notes, {note=sortedNotes[#sortedNotes]+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
-        end
-      elseif playMode == 5 then
-        -- Chord
-        for i=1,#sortedNotes do
-          table.insert(notes, {note=sortedNotes[i]+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
-        end
-      elseif playMode == 6 then
-        -- Lowest held
-        table.insert(notes, {note=sortedNotes[1]+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
-      else
-        -- Highest held
-        table.insert(notes, {note=sortedNotes[#sortedNotes]+pitchAdjustment,gate=gate,vel=vel,steps=noteSteps})
       end
-      print("#notes", #notes)
-    end
-
-    -- PLAY NOTE(S)
-    for _,note in ipairs(notes) do
-      if note.gate > 0 then
-        -- Play the note for the number of steps that are set
-        local duration = beat2ms(stepDuration * (note.gate / 100) * note.steps) - 1 -- Make sure note is not played into the next
-        playNote(note.note, note.vel, duration)
-        print("Playing note/stepDuration/note.gate/steps/duration", note.note, stepDuration, note.gate, note.steps, duration)
-      end
+      print("Set tie steps tablePos/noteSteps", tablePos, noteSteps)
     end
 
     -- UPDATE STEP POSITION TABLE
     for i=1, numParts do
       for j=1, paramsPerPart[i].numStepsBox.value do
-        if i == currentPartPosition and j == currentPosition - startStep + 1 then
+        --if i == currentPartPosition and j == currentPosition - startStep + 1 then
+        if i == currentPartPosition and j >= currentPosition - startStep + 1 and j <= currentPosition - startStep + noteSteps then
           paramsPerPart[i].positionTable:setValue(j, 1)
         else
           paramsPerPart[i].positionTable:setValue(j, 0)
@@ -1063,19 +930,180 @@ function arpeg()
       end
     end
 
+    local stepDuration = (getResolution(paramsPerPart[currentPartPosition].stepResolution.value) * noteSteps) / ratchet
+
+    for ratchetIndex=1, ratchet do
+      -- Randomize gate
+      local gateRandomizationAmount = paramsPerPart[currentPartPosition].gateRandKnob.value
+      if gateRandomizationAmount > 0 then
+        if getRandomBoolean(gateRandomizationAmount) then
+          local changeMax = math.ceil(seqGateTable.max * (gateRandomizationAmount/100)) -- 110 * 0,15 = 16,5 = 17
+          local min = gate - changeMax -- 100 - 17 = 83
+          local max = gate + changeMax -- 100 + 17 = 117 = 110
+          if min < seqGateTable.min then
+            min = seqGateTable.min
+          end
+          if max > seqGateTable.max then
+            max = seqGateTable.max
+          end
+          --print("Before randomize gate", gate)
+          gate = getRandom(min, max)
+          --print("After randomize gate/changeMax/min/max", gate, changeMax, min, max)
+          if evolve == true then
+            seqGateTable:setValue(tablePos, gate)
+          end
+        end
+      end
+
+      -- Randomize vel
+      local velocityRandomizationAmount = paramsPerPart[currentPartPosition].velRandKnob.value
+      if velocityRandomizationAmount > 0 then
+        if getRandomBoolean(velocityRandomizationAmount) then
+          local changeMax = math.ceil(seqVelTable.max * (velocityRandomizationAmount/100))
+          local min = vel - changeMax
+          local max = vel + changeMax
+          if min < seqVelTable.min then
+            min = seqVelTable.min
+          end
+          if max > seqVelTable.max then
+            max = seqVelTable.max
+          end
+          --print("Before randomize vel", vel)
+          vel = getRandom(min, max)
+          --print("After randomize vel/changeMax/min/max", vel, changeMax, min, max)
+          if evolve == true then
+            seqVelTable:setValue(tablePos, vel)
+          end
+        end
+      end
+
+      -- Randomize pitch probaility
+      local pitchProbabilityRandomizationAmount = paramsPerPart[currentPartPosition].pitchProbRandKnob.value
+      if pitchProbabilityRandomizationAmount > 0 then
+        if getRandomBoolean(pitchProbabilityRandomizationAmount) then
+          local changeMax = math.ceil(seqPitchChangeProbabilityTable.max * (pitchProbabilityRandomizationAmount/100))
+          local min = pitchChangeProbability - changeMax
+          local max = pitchChangeProbability + changeMax
+          if min < seqPitchChangeProbabilityTable.min then
+            min = seqPitchChangeProbabilityTable.min
+          end
+          if max > seqPitchChangeProbabilityTable.max then
+            max = seqPitchChangeProbabilityTable.max
+          end
+          --print("Before randomize pitchChangeProbability", pitchChangeProbability)
+          pitchChangeProbability = getRandom(min, max)
+          --print("After randomize pitchChangeProbability/changeMax/min/max", pitchChangeProbability, changeMax, min, max)
+          if evolve == true then
+            seqPitchChangeProbabilityTable:setValue(tablePos, pitchChangeProbability)
+          end
+        end
+      end
+
+      -- Reset notes table
+      local notes = {} -- Holds the note(s) that plays at this position
+      local offset = 0
+      if #heldNotes == 0 then
+        local buffer = 1 -- How long to wait for notes before stopping the sequencer
+        wait(buffer)
+        print("waiting for heldNotes", buffer)
+        offset = offset + buffer
+      end
+      if #heldNotes == 0 then
+        print("#heldNotes == 0 - stopping sequencer")
+        clearPosition()
+        isPlaying = false
+        break
+      end
+  
+      -- If gate is zero, no notes will play on this step
+      if gate > 0 then
+        -- Check for pitch change randomization
+        if getRandomBoolean(pitchChangeProbability) then
+          -- Get pitch adjustment from random index in pitch table for current part
+          local pitchPos = getRandom(numStepsInPart)
+          pitchAdjustment = seqPitchTable:getValue(pitchPos)
+          print("Playing pitch from other pos - tablePos/pitchPos", tablePos, pitchPos)
+        end
+
+        -- Add notes to play
+        -- "Mono", "As Played", "Random", "Duo", "Chord", "Mono (First Held)"
+        local sortedNotes = {}
+        for _,v in ipairs(heldNotes) do
+          table.insert(sortedNotes, v.note)
+        end
+        table.sort(sortedNotes)
+
+        if playMode == 1 then
+          -- Mono (Last held)
+            table.insert(notes, heldNotes[#heldNotes].note)
+        elseif playMode == 2 then
+          -- As played
+          if partDirectionBackward == true then
+            heldNoteIndex = heldNoteIndex - 1 -- Decrement held note position
+            if heldNoteIndex < 1 then
+              heldNoteIndex = #heldNotes
+            end
+          else
+            heldNoteIndex = heldNoteIndex + 1 -- Increment held note position
+            if heldNoteIndex > #heldNotes then
+              heldNoteIndex = 1
+            end
+          end
+          if getRandomBoolean(pitchChangeProbability) then
+            table.insert(notes, heldNotes[getRandom(#heldNotes)].note)
+          else
+            -- Add a failsafe in case #heldNotes has changed since setting index
+            if heldNoteIndex > #heldNotes then
+              heldNoteIndex = #heldNotes
+            end
+            table.insert(notes, heldNotes[heldNoteIndex].note)
+          end
+        elseif playMode == 3 then
+          -- Random
+          table.insert(notes, sortedNotes[getRandom(#sortedNotes)])
+        elseif playMode == 4 then
+          -- Duo (Lowest and highest held notes)
+          table.insert(notes, sortedNotes[1])
+          if #heldNotes > 1 then
+            table.insert(notes, sortedNotes[#sortedNotes])
+          end
+        elseif playMode == 5 then
+          -- Chord
+          for i=1,#sortedNotes do
+            table.insert(notes, sortedNotes[i])
+          end
+        elseif playMode == 6 then
+          -- Lowest held
+          table.insert(notes, sortedNotes[1])
+        else
+          -- Highest held
+          table.insert(notes, sortedNotes[#sortedNotes])
+        end
+        print("#notes", #notes)
+      end
+
+      -- PLAY NOTE(S)
+      for _,note in ipairs(notes) do
+        if gate > 0 then
+          -- Play the note for the set duration
+          local duration = beat2ms(stepDuration * (gate / 100)) - 1 -- Make sure note is not played into the next
+          playNote(note+pitchAdjustment, vel, duration)
+          print("Playing note/stepDuration/gate/duration/ratchet", note, stepDuration, gate, duration, ratchet)
+        end
+      end
+
+      -- WAIT FOR NEXT BEAT
+      wait(beat2ms(stepDuration) - offset)
+    end
+    -- END SUBDIVISION LOOP
+
     -- Increment position
+    if noteSteps > 1 then
+      index = index + noteSteps - 1
+    end
     index = (index + 1) % totalNumSteps
 
-    -- Decrement tie counter if a tie is active
-    if tieCounter > 0 then
-      tieCounter = tieCounter - 1
-      print("Decrement tie counter", tieCounter)
-    end
-
     isStarting = false
-
-    -- WAIT FOR NEXT BEAT
-    wait(beat2ms(stepDuration) - offset)
   end
 end
 
@@ -1125,6 +1153,7 @@ function onSave()
   local seqPitchChangeProbabilityTableData = {}
   local seqVelTableData = {}
   local seqGateTableData = {}
+  local seqRatchetTableData = {}
   local numStepsData = {}
 
   for i=1, numParts do
@@ -1135,6 +1164,7 @@ function onSave()
       table.insert(seqPitchChangeProbabilityTableData, paramsPerPart[i].seqPitchChangeProbabilityTable:getValue(j))
       table.insert(seqVelTableData, paramsPerPart[i].seqVelTable:getValue(j))
       table.insert(seqGateTableData, paramsPerPart[i].seqGateTable:getValue(j))
+      table.insert(seqRatchetTableData, paramsPerPart[i].seqRatchetTable:getValue(j))
     end
   end
 
@@ -1144,6 +1174,7 @@ function onSave()
   table.insert(data, seqPitchChangeProbabilityTableData)
   table.insert(data, seqVelTableData)
   table.insert(data, seqGateTableData)
+  table.insert(data, seqRatchetTableData)
   table.insert(data, numStepsData)
 
   return data
@@ -1155,7 +1186,8 @@ function onLoad(data)
   local seqPitchChangeProbabilityTableData = data[3]
   local seqVelTableData = data[4]
   local seqGateTableData = data[5]
-  local numStepsData = data[6]
+  local seqRatchetTableData = data[6]
+  local numStepsData = data[7]
 
   numPartsBox:setValue(#numStepsData)
 
@@ -1167,12 +1199,14 @@ function onLoad(data)
     paramsPerPart[i].seqPitchChangeProbabilityTable.length = v
     paramsPerPart[i].seqVelTable.length = v
     paramsPerPart[i].seqGateTable.length = v
+    paramsPerPart[i].seqRatchetTable.length = v
     for j=1, v do
       paramsPerPart[i].seqPitchTable:setValue(j, seqPitchTableData[dataCounter])
       paramsPerPart[i].tieStepTable:setValue(j, tieStepTableData[dataCounter])
       paramsPerPart[i].seqPitchChangeProbabilityTable:setValue(j, seqPitchChangeProbabilityTableData[dataCounter])
       paramsPerPart[i].seqVelTable:setValue(j, seqVelTableData[dataCounter])
       paramsPerPart[i].seqGateTable:setValue(j, seqGateTableData[dataCounter])
+      paramsPerPart[i].seqRatchetTable:setValue(j, seqRatchetTableData[dataCounter])
       dataCounter = dataCounter + 1
     end
   end
