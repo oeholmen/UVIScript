@@ -601,7 +601,7 @@ for i=1,numPartsBox.max do
   -- TODO Add a setting for max ratchet
   local seqRatchetTable = sequencerPanel:Table("Ratchet" .. i, totalNumSteps, 1, 1, 4, true)
   seqRatchetTable.displayName = "Ratchet"
-  seqRatchetTable.tooltip = "Subdivition for this step"
+  seqRatchetTable.tooltip = "Subdivision for this step"
   seqRatchetTable.showPopupDisplay = true
   seqRatchetTable.showLabel = false
   seqRatchetTable.fillStyle = "solid"
@@ -863,6 +863,7 @@ function arpeg()
     local ratchetRandomizationAmount = paramsPerPart[currentPartPosition].ratchetRand.value
     if getRandomBoolean(ratchetRandomizationAmount) then
       local min = seqRatchetTable.min
+      --local max = seqRatchetTable.max
       local max = math.min(seqRatchetTable.max, (math.ceil(seqRatchetTable.max * (ratchetRandomizationAmount/100)) + 1))
       ratchet = getRandom(min, max)
       print("Randomize ratchet, min/max/ratchet", min, max, ratchet)
@@ -910,8 +911,11 @@ function arpeg()
     -- UPDATE STEP POSITION TABLE
     for i=1, numParts do
       for j=1, paramsPerPart[i].numStepsBox.value do
-        --if i == currentPartPosition and j == currentPosition - startStep + 1 then
-        if i == currentPartPosition and j >= currentPosition - startStep + 1 and j <= currentPosition - startStep + noteSteps then
+        local isActiveStep = j >= tablePos and j < tablePos + noteSteps
+        if partDirectionBackward == true then
+          isActiveStep = j <= tablePos and j > tablePos - noteSteps
+        end
+        if i == currentPartPosition and isActiveStep then
           paramsPerPart[i].positionTable:setValue(j, 1)
         else
           paramsPerPart[i].positionTable:setValue(j, 0)

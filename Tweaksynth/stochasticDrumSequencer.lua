@@ -344,10 +344,9 @@ for i=1,numParts do
   seqTriggerProbabilityTable.x = tableX
   seqTriggerProbabilityTable.y = seqVelTable.y + seqVelTable.height + 2
   
-  -- TODO Add a setting for max ratchet
   local seqRatchetTable = sequencerPanel:Table("Ratchet" .. i, 8, 1, 1, 4, true)
   seqRatchetTable.displayName = "Ratchet"
-  seqRatchetTable.tooltip = "Subdivition for this step"
+  seqRatchetTable.tooltip = "Subdivision for this step"
   seqRatchetTable.showPopupDisplay = true
   seqRatchetTable.showLabel = false
   seqRatchetTable.visible = isVisible
@@ -365,6 +364,9 @@ for i=1,numParts do
 
   local numBoxHeight = 20
   local numBoxSpacing = 1
+  if numParts == 1 then
+    numBoxSpacing = 6
+  end
   local directionProbability = sequencerPanel:NumBox("PartDirectionProbability" .. i, 0, 0, 100, true)
   directionProbability.displayName = "Backward"
   directionProbability.visible = isVisible
@@ -446,8 +448,11 @@ for i=1,numParts do
   muteButton.x = 0
   muteButton.y = positionTable.y
 
-  if numParts > 1 then
-    local types = {"Kick", "Snare", "Hihat", "Clap"}
+  local leftButtonSpacing = 1
+  if numParts == 1 then
+    leftButtonSpacing = 6
+  else
+    local types = {"Kick", "Snare", "Hihat", "Clap", "Toms", "Cymbal", "Tambourine", "Perc"}
     local typeLabel = sequencerPanel:Label("Label" .. i)
     typeLabel.tooltip = "Part Label"
     typeLabel.editable = true
@@ -455,7 +460,7 @@ for i=1,numParts do
     typeLabel.backgroundColour = menuBackgroundColour
     typeLabel.backgroundColourWhenEditing = "#cccccc"
     typeLabel.x = 0
-    typeLabel.y = muteButton.y + muteButton.height + 2
+    typeLabel.y = muteButton.y + muteButton.height + leftButtonSpacing
     typeLabel.width = 59
     typeLabel.height = muteButton.height
   end
@@ -467,6 +472,14 @@ for i=1,numParts do
     triggerNote.value = 42
   elseif i == 4 then
     triggerNote.value = 39
+  elseif i == 5 then
+    triggerNote.value = 41
+  elseif i == 6 then
+    triggerNote.value = 49
+  elseif i == 7 then
+    triggerNote.value = 54
+  elseif i == 8 then
+    triggerNote.value = 66
   end
   triggerNote.displayName = "Note"
   triggerNote.tooltip = "The note to trigger"
@@ -483,11 +496,11 @@ for i=1,numParts do
   if numParts == 1 then
     triggerNote.width = muteButton.width
     triggerNote.x = 0
-    triggerNote.y = muteButton.y + muteButton.height + 2
+    triggerNote.y = muteButton.y + muteButton.height + leftButtonSpacing
   else
     triggerNote.width = 30
     triggerNote.x = 60
-    triggerNote.y = muteButton.y + muteButton.height + 2
+    triggerNote.y = muteButton.y + muteButton.height + leftButtonSpacing
   end
 
   local stepResolution = sequencerPanel:Menu("StepResolution" .. i, getResolutionNames())
@@ -500,7 +513,7 @@ for i=1,numParts do
     stepResolution.selected = 20
   end
   stepResolution.x = 0
-  stepResolution.y = triggerNote.y + triggerNote.height + 2
+  stepResolution.y = triggerNote.y + triggerNote.height + leftButtonSpacing
   stepResolution.width = 90
   stepResolution.height = triggerNote.height
   stepResolution.backgroundColour = menuBackgroundColour
@@ -523,7 +536,7 @@ for i=1,numParts do
   numStepsBox.width = stepResolution.width
   numStepsBox.height = stepResolution.height
   numStepsBox.x = 0
-  numStepsBox.y = stepResolution.y + stepResolution.height + 2
+  numStepsBox.y = stepResolution.y + stepResolution.height + leftButtonSpacing
   numStepsBox.changed = function(self)
     print("numStepsBox.changed index/value", i, self.value)
     setNumSteps(i)
@@ -541,6 +554,27 @@ for i=1,numParts do
     end
   end ]]
 
+  local ratchetMax = sequencerPanel:NumBox("RatchetMax" .. i, 4, 2, 16, true)
+  ratchetMax.displayName = "Ratchet"
+  ratchetMax.tooltip = "Set the maximum allowed ratchet that can be selected for each step"
+  ratchetMax.visible = isVisible
+  ratchetMax.backgroundColour = menuBackgroundColour
+  ratchetMax.textColour = menuTextColour
+  ratchetMax.arrowColour = menuArrowColour
+  ratchetMax.outlineColour = menuOutlineColour
+  ratchetMax.width = numStepsBox.width
+  ratchetMax.height = numStepsBox.height
+  ratchetMax.x = 0
+  ratchetMax.y = numStepsBox.y + numStepsBox.height + leftButtonSpacing
+  ratchetMax.changed = function(self)
+    for i=1, seqRatchetTable.length do
+      if seqRatchetTable:getValue(i) > self.value then
+        seqRatchetTable:setValue(i, self.value)
+      end
+    end
+    seqRatchetTable:setRange(1, self.value)
+  end
+
   local channelBox = sequencerPanel:NumBox("Channel" .. i, 0, 0, 16, true)
   channelBox.displayName = "Channel"
   channelBox.tooltip = "Midi channel that receives trigger from this part. 0 = omni"
@@ -552,7 +586,7 @@ for i=1,numParts do
   channelBox.width = numStepsBox.width
   channelBox.height = numStepsBox.height
   channelBox.x = 0
-  channelBox.y = numStepsBox.y + numStepsBox.height + 2
+  channelBox.y = ratchetMax.y + ratchetMax.height + leftButtonSpacing
 
   table.insert(paramsPerPart, {muteButton=muteButton,pitchRand=pitchRand,tieRand=tieRand,velRand=velRand,triggerRand=triggerRand,ratchetRand=ratchetRand,triggerNote=triggerNote,channelBox=channelBox,positionTable=positionTable,seqPitchTable=seqPitchTable,tieStepTable=tieStepTable,seqVelTable=seqVelTable,seqTriggerProbabilityTable=seqTriggerProbabilityTable,seqRatchetTable=seqRatchetTable,stepResolution=stepResolution,directionProbability=directionProbability,numStepsBox=numStepsBox})
   tableY = tableY + tableHeight + 25
@@ -567,7 +601,7 @@ function arpeg(partIndex, arpId_)
   local partDirectionBackward = false
   while arpId_ == arpId[partIndex] do
     -- Set current position and part position
-    local isActive = paramsPerPart[partIndex].muteButton.value == false
+    local isPartActive = paramsPerPart[partIndex].muteButton.value == false
     local numStepsInPart = paramsPerPart[partIndex].numStepsBox.value
     local currentPosition = (index % numStepsInPart) + 1 -- 11 % 4 = 3
     local channel = paramsPerPart[partIndex].channelBox.value
@@ -619,7 +653,8 @@ function arpeg(partIndex, arpId_)
     -- Randomize ratchet
     if getRandomBoolean(ratchetRandomizationAmount) then
       local min = seqRatchetTable.min
-      local max = math.min(seqRatchetTable.max, (math.ceil(seqRatchetTable.max * (ratchetRandomizationAmount/100)) + 1))
+      local max = seqRatchetTable.max
+      --local max = math.min(seqRatchetTable.max, (math.ceil(seqRatchetTable.max * (ratchetRandomizationAmount/100)) + 1))
       ratchet = getRandom(min, max)
       print("Randomize ratchet, min/max/ratchet", min, max, ratchet)
       if evolve == true then
@@ -663,11 +698,15 @@ function arpeg(partIndex, arpId_)
     end
 
     -- UPDATE STEP POSITION TABLE
-    for i=1, numStepsInPart do
-      if isActive and i >= currentPosition - startStep + 1 and i <= currentPosition - startStep + noteSteps then
-        paramsPerPart[partIndex].positionTable:setValue(i, 1)
+    for j=1, numStepsInPart do
+      local isActiveStep = j >= currentPosition and j < currentPosition + noteSteps
+      if partDirectionBackward == true then
+        isActiveStep = j <= currentPosition and j > currentPosition - noteSteps
+      end
+      if isPartActive and isActiveStep then
+        paramsPerPart[partIndex].positionTable:setValue(j, 1)
       else
-        paramsPerPart[partIndex].positionTable:setValue(i, 0)
+        paramsPerPart[partIndex].positionTable:setValue(j, 0)
       end
     end
 
@@ -719,7 +758,7 @@ function arpeg(partIndex, arpId_)
       end
 
       -- Play note if trigger probability hits (and part is not turned off)
-      if isActive and getRandomBoolean(triggerProbability) then
+      if isPartActive and getRandomBoolean(triggerProbability) then
         local note = paramsPerPart[partIndex].triggerNote.value + pitchAdjustment
         local duration = beat2ms(stepDuration) - 1 -- Make sure note is not played into the next
         playNote(note, vel, duration, nil, channel)

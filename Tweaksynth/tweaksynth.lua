@@ -3492,8 +3492,6 @@ function createLfoPanel()
   end
   lfo2SyncButton:changed()
   table.insert(tweakables, {widget=lfo2SyncButton,func=getRandomBoolean,excludeWhenTweaking=true,category="modulation"})
-
-  --table.insert(tweakables, {widget=lfoFreqKnob,factor=20,floor=0.1,ceiling=0.5,probability=25,useDuration=true,category="modulation"})
   table.insert(tweakables, {widget=lfoFreqKnob,floor=0.1,ceiling=9.5,probability=25,useDuration=true,category="modulation"})
 
   local lfo2TriggerButton = lfoPanel:OnOffButton("Lfo2Trigger", true)
