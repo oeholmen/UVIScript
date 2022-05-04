@@ -4759,7 +4759,7 @@ function createPatchMakerPanel()
     elseif self.value == 8 then
       clearStoredPatches()
     end
-    self:setValue(1)
+    self.selected = 1
   end
 
   local modStyleMenu = tweakPanel:Menu("ModulationStyle", {"Automatic", "Very fast", "Fast", "Medium fast", "Medium", "Medium slow", "Slow", "Very slow"})
@@ -5148,7 +5148,7 @@ function createTwequencerPanel()
     elseif self.value == 5 then
       clearSnapshots()
     end
-    self:setValue(1)
+    self.selected = 1
   end
 
   function releaseHeldNotes()
