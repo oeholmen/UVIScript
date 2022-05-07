@@ -307,6 +307,7 @@ function onSave()
   storedPatch = {}
   for i,v in ipairs(tweakables) do
     table.insert(storedPatch, {index=i,widget=v.widget.name,value=v.widget.value})
+    print("Saved: ", v.widget.name, v.widget.value)
   end
   table.insert(data, storedPatch)
 
@@ -322,10 +323,7 @@ end
 function onLoad(data)
   -- Load stored patch
   storedPatch = data[1]
-  print("storedPatch", #storedPatch)
-  for _,v in ipairs(storedPatch) do
-    print("Loaded: ", v.widget, v.value)
-  end
+  recallStoredPatch()
 
   -- Load stored patches
   if type(data[2]) ~= "nil" then
@@ -415,7 +413,6 @@ function recallStoredPatch()
   print("Recalling stored patch...")
   for _,v in ipairs(storedPatch) do
     setWidgetValue(v.index, v.widget, v.value)
-    print("Set value for widget", v.widget.name, v.value)
   end
 end
 
@@ -1820,7 +1817,7 @@ function createOsc1Panel()
     end
     osc1LevelKnobA:changed()
     table.insert(osc1LevelKnobs, osc1LevelKnobA)
-    table.insert(tweakables, {widget=osc1LevelKnobA,default=80,floor=0.85,ceil=1,probability=96,category="synthesis"})
+    table.insert(tweakables, {widget=osc1LevelKnobA,default=80,floor=0.85,ceil=1,probability=96,useDuration=true,category="synthesis"})
 
     local osc1LevelKnobB = osc1Panel:Knob("Osc1LevelOpB", 1, 0, 20)
     osc1LevelKnobB.displayName = "Level B"
@@ -1833,7 +1830,7 @@ function createOsc1Panel()
     end
     osc1LevelKnobB:changed()
     table.insert(osc1LevelKnobs, osc1LevelKnobB)
-    table.insert(tweakables, {widget=osc1LevelKnobB,default=50,zero=5,floor=0.5,ceil=1,probability=96,defaultTweakRange=3,fmLevel=25,category="synthesis"})
+    table.insert(tweakables, {widget=osc1LevelKnobB,default=50,zero=5,floor=0.5,ceil=1,probability=96,defaultTweakRange=3,fmLevel=25,useDuration=true,category="synthesis"})
 
     local osc1LevelKnobC = osc1Panel:Knob("Osc1LevelOpC", 1, 0, 20)
     osc1LevelKnobC.displayName = "Level C"
@@ -1846,7 +1843,7 @@ function createOsc1Panel()
     end
     osc1LevelKnobC:changed()
     table.insert(osc1LevelKnobs, osc1LevelKnobC)
-    table.insert(tweakables, {widget=osc1LevelKnobC,default=50,zero=5,floor=0.5,ceil=1,probability=96,defaultTweakRange=6,fmLevel=25,category="synthesis"})
+    table.insert(tweakables, {widget=osc1LevelKnobC,default=50,zero=5,floor=0.5,ceil=1,probability=96,defaultTweakRange=6,fmLevel=25,useDuration=true,category="synthesis"})
 
     local osc1LevelKnobD = osc1Panel:Knob("Osc1LevelOpD", 1, 0, 20)
     osc1LevelKnobD.displayName = "Level D"
@@ -1859,7 +1856,7 @@ function createOsc1Panel()
     end
     osc1LevelKnobD:changed()
     table.insert(osc1LevelKnobs, osc1LevelKnobD)
-    table.insert(tweakables, {widget=osc1LevelKnobD,default=50,zero=5,floor=0.5,ceil=1,probability=96,defaultTweakRange=9,fmLevel=25,category="synthesis"})
+    table.insert(tweakables, {widget=osc1LevelKnobD,default=50,zero=5,floor=0.5,ceil=1,probability=96,useDuration=true,defaultTweakRange=9,fmLevel=25,category="synthesis"})
 
     for i=1,4 do
       local op = 'A'
@@ -1886,7 +1883,8 @@ function createOsc1Panel()
       end
       osc1RatioKnob:changed()
       table.insert(osc1RatioKnobs, osc1RatioKnob)
-      table.insert(tweakables, {widget=osc1RatioKnob,default=50,factor=40,floor=1,ceiling=8,probability=probability,category="synthesis"})
+      --table.insert(tweakables, {widget=osc1RatioKnob,default=50,factor=40,floor=1,ceiling=8,probability=probability,category="synthesis"})
+      table.insert(tweakables, {widget=osc1RatioKnob,default=50,min=1,max=40,floor=1,ceiling=8,probability=probability,useDuration=true,category="synthesis"})
     end
 
     local osc1PitchKnob = osc1Panel:Knob("Osc1Pitch", 0, -2, 2, true)
@@ -1910,7 +1908,7 @@ function createOsc1Panel()
       self.displayText = percent(self.value)
     end
     osc1FeedbackKnob:changed()
-    table.insert(tweakables, {widget=osc1FeedbackKnob,default=60,category="synthesis"})
+    table.insert(tweakables, {widget=osc1FeedbackKnob,default=60,floor=0.1,ceiling=0.6,probability=50,useDuration=true,category="synthesis"})
 
     osc1TopologyKnob:changed()
     opMenu:changed()
@@ -2131,7 +2129,7 @@ function createOsc2Panel()
     end
     osc2LevelKnobA:changed()
     table.insert(osc2LevelKnobs, osc2LevelKnobA)
-    table.insert(tweakables, {widget=osc2LevelKnobA,default=80,floor=0.8,ceil=1,probability=90,category="synthesis"})
+    table.insert(tweakables, {widget=osc2LevelKnobA,default=80,floor=0.8,ceil=1,probability=90,useDuration=true,category="synthesis"})
 
     local osc2LevelKnobB = osc2Panel:Knob("Osc2LevelOpB", 1, 0, 20)
     osc2LevelKnobB.displayName = "Level B"
@@ -2144,7 +2142,7 @@ function createOsc2Panel()
     end
     osc2LevelKnobB:changed()
     table.insert(osc2LevelKnobs, osc2LevelKnobB)
-    table.insert(tweakables, {widget=osc2LevelKnobB,default=50,zero=5,floor=0.5,ceil=1,probability=96,defaultTweakRange=3,fmLevel=25,category="synthesis"})
+    table.insert(tweakables, {widget=osc2LevelKnobB,default=50,zero=5,floor=0.5,ceil=1,probability=96,defaultTweakRange=3,fmLevel=25,useDuration=true,category="synthesis"})
 
     local osc2LevelKnobC = osc2Panel:Knob("Osc2LevelOpC", 1, 0, 20)
     osc2LevelKnobC.displayName = "Level C"
@@ -2157,7 +2155,7 @@ function createOsc2Panel()
     end
     osc2LevelKnobC:changed()
     table.insert(osc2LevelKnobs, osc2LevelKnobC)
-    table.insert(tweakables, {widget=osc2LevelKnobC,default=50,zero=5,floor=0.5,ceil=1,probability=96,defaultTweakRange=6,fmLevel=25,category="synthesis"})
+    table.insert(tweakables, {widget=osc2LevelKnobC,default=50,zero=5,floor=0.5,ceil=1,probability=96,defaultTweakRange=6,fmLevel=25,useDuration=true,category="synthesis"})
 
     local osc2LevelKnobD = osc2Panel:Knob("Osc2LevelOpD", 1, 0, 20)
     osc2LevelKnobD.displayName = "Level D"
@@ -2170,7 +2168,7 @@ function createOsc2Panel()
     end
     osc2LevelKnobD:changed()
     table.insert(osc2LevelKnobs, osc2LevelKnobD)
-    table.insert(tweakables, {widget=osc2LevelKnobD,default=50,zero=5,floor=0.5,ceil=1,probability=96,defaultTweakRange=9,fmLevel=25,category="synthesis"})
+    table.insert(tweakables, {widget=osc2LevelKnobD,default=50,zero=5,floor=0.5,ceil=1,probability=96,defaultTweakRange=9,fmLevel=25,useDuration=true,category="synthesis"})
 
     for i=1,4 do
       local op = 'A'
@@ -2197,7 +2195,8 @@ function createOsc2Panel()
       end
       osc2RatioKnob:changed()
       table.insert(osc2RatioKnobs, osc2RatioKnob)
-      table.insert(tweakables, {widget=osc2RatioKnob,default=50,factor=40,floor=1,ceiling=8,probability=probability,category="synthesis"})
+      --table.insert(tweakables, {widget=osc2RatioKnob,default=50,factor=40,floor=1,ceiling=8,probability=probability,category="synthesis"})
+      table.insert(tweakables, {widget=osc2RatioKnob,default=50,min=1,max=40,floor=1,ceiling=8,probability=probability,category="synthesis"})
     end
 
     local osc2PitchKnob = osc2Panel:Knob("Osc2Pitch", 0, -24, 24, true)
@@ -2221,7 +2220,7 @@ function createOsc2Panel()
       self.displayText = percent(self.value)
     end
     osc2FeedbackKnob:changed()
-    table.insert(tweakables, {widget=osc2FeedbackKnob,default=60,category="synthesis"})
+    table.insert(tweakables, {widget=osc2FeedbackKnob,default=60,floor=0.1,ceiling=0.6,probability=50,useDuration=true,category="synthesis"})
 
     osc2TopologyKnob:changed()
     opMenu:changed()
@@ -3453,6 +3452,7 @@ function createLfoPanel()
       lfoFreqKnob.default = 4.5
       lfoFreqKnob.mapper = Mapper.Quadratic
       lfoFreqKnob.changed = function(self)
+        --print("Sync off, value in", self.value)
         if activeLfoOsc == 1 or activeLfoOsc == 2 then
           lfo1:setParameter("Freq", self.value)
         end
@@ -3998,7 +3998,7 @@ function createLfoTargetPanel1()
       lfoToWaveSpread1Knob:changed()
       table.insert(tweakables, {widget=lfoToWaveSpread1Knob,bipolar=80,default=50,ceiling=0.4,probability=30,useDuration=true,category="modulation"})
     elseif isFM then
-      local lfoToOsc1OpBLevelKnob = lfoTargetPanel1:Knob("LfoToOsc1OpBLevelKnob", 0, 0, 1)
+      local lfoToOsc1OpBLevelKnob = lfoTargetPanel1:Knob("LfoToOsc1OpBLevel", 0, 0, 1)
       lfoToOsc1OpBLevelKnob.displayName = "Op B Level"
       lfoToOsc1OpBLevelKnob.fillColour = knobColour
       lfoToOsc1OpBLevelKnob.outlineColour = lfoColour
@@ -4009,7 +4009,7 @@ function createLfoTargetPanel1()
       lfoToOsc1OpBLevelKnob:changed()
       table.insert(tweakables, {widget=lfoToOsc1OpBLevelKnob,default=50,floor=0.1,ceiling=0.6,probability=20,category="modulation"})
 
-      local lfoToOsc1OpCLevelKnob = lfoTargetPanel1:Knob("LfoToOsc1OpCLevelKnob", 0, 0, 1)
+      local lfoToOsc1OpCLevelKnob = lfoTargetPanel1:Knob("LfoToOsc1OpCLevel", 0, 0, 1)
       lfoToOsc1OpCLevelKnob.displayName = "Op C Level"
       lfoToOsc1OpCLevelKnob.fillColour = knobColour
       lfoToOsc1OpCLevelKnob.outlineColour = lfoColour
@@ -4020,7 +4020,7 @@ function createLfoTargetPanel1()
       lfoToOsc1OpCLevelKnob:changed()
       table.insert(tweakables, {widget=lfoToOsc1OpCLevelKnob,default=50,floor=0.1,ceiling=0.6,probability=20,category="modulation"})
 
-      local lfoToOsc1OpDLevelKnob = lfoTargetPanel1:Knob("LfoToOsc1OpDLevelKnob", 0, 0, 1)
+      local lfoToOsc1OpDLevelKnob = lfoTargetPanel1:Knob("LfoToOsc1OpDLevel", 0, 0, 1)
       lfoToOsc1OpDLevelKnob.displayName = "Op D Level"
       lfoToOsc1OpDLevelKnob.fillColour = knobColour
       lfoToOsc1OpDLevelKnob.outlineColour = lfoColour
@@ -4044,7 +4044,7 @@ function createLfoTargetPanel1()
     end
 
     if isAnalog or isAdditive or isWavetable or isFM then
-      local lfoToPitchOsc1Knob = lfoTargetPanel1:Knob("LfoToPitchOsc1Knob", 0, 0, 48)
+      local lfoToPitchOsc1Knob = lfoTargetPanel1:Knob("LfoToPitchOsc1", 0, 0, 48)
       lfoToPitchOsc1Knob.displayName = "Pitch"
       lfoToPitchOsc1Knob.mapper = Mapper.Quadratic
       lfoToPitchOsc1Knob.fillColour = knobColour
@@ -4074,7 +4074,7 @@ function createLfoTargetPanel2()
   if isAnalog3Osc then
     lfoTargetPanel2:Label("LFO -> Osc ->")
 
-    local lfoToPitchOsc1Knob = lfoTargetPanel2:Knob("LfoToPitchOsc1Knob", 0, 0, 48)
+    local lfoToPitchOsc1Knob = lfoTargetPanel2:Knob("LfoToPitchOsc1", 0, 0, 48)
     lfoToPitchOsc1Knob.displayName = "Pitch 1"
     lfoToPitchOsc1Knob.mapper = Mapper.Quadratic
     lfoToPitchOsc1Knob.fillColour = knobColour
@@ -4088,7 +4088,7 @@ function createLfoTargetPanel2()
     table.insert(tweakables, {widget=lfoToPitchOsc1Knob,ceiling=0.1,probability=80,default=80,zero=50,useDuration=true,category="modulation"})
 
     -- TODO Validate pitch modulation - if hard sync is enabled, ceiling can be higher
-    local lfoToPitchOsc2Knob = lfoTargetPanel2:Knob("LfoToPitchOsc2Knob", 0, 0, 48)
+    local lfoToPitchOsc2Knob = lfoTargetPanel2:Knob("LfoToPitchOsc2", 0, 0, 48)
     lfoToPitchOsc2Knob.displayName = "Pitch 2"
     lfoToPitchOsc2Knob.mapper = Mapper.Quadratic
     lfoToPitchOsc2Knob.fillColour = knobColour
@@ -4102,7 +4102,7 @@ function createLfoTargetPanel2()
     table.insert(tweakables, {widget=lfoToPitchOsc2Knob,ceiling=0.1,probability=75,default=80,zero=30,useDuration=true,category="modulation"})
 
     -- TODO Validate pitch modulation - if hard sync is enabled, ceiling can be higher
-    local lfoToPitchOsc3Knob = lfoTargetPanel2:Knob("LfoToPitchOsc3Knob", 0, 0, 48)
+    local lfoToPitchOsc3Knob = lfoTargetPanel2:Knob("LfoToPitchOsc3", 0, 0, 48)
     lfoToPitchOsc3Knob.displayName = "Pitch 3"
     lfoToPitchOsc3Knob.mapper = Mapper.Quadratic
     lfoToPitchOsc3Knob.fillColour = knobColour
@@ -4190,7 +4190,7 @@ function createLfoTargetPanel2()
       lfoToWaveSpread2Knob:changed()
       table.insert(tweakables, {widget=lfoToWaveSpread2Knob,bipolar=80,default=50,floor=0.3,ceiling=0.7,probability=25,useDuration=true,category="modulation"})
     elseif isFM then
-      local lfoToOsc2OpBLevelKnob = lfoTargetPanel2:Knob("LfoToOsc2OpBLevelKnob", 0, 0, 1)
+      local lfoToOsc2OpBLevelKnob = lfoTargetPanel2:Knob("LfoToOsc2OpBLevel", 0, 0, 1)
       lfoToOsc2OpBLevelKnob.displayName = "Op B Level"
       lfoToOsc2OpBLevelKnob.fillColour = knobColour
       lfoToOsc2OpBLevelKnob.outlineColour = lfoColour
@@ -4201,7 +4201,7 @@ function createLfoTargetPanel2()
       lfoToOsc2OpBLevelKnob:changed()
       table.insert(tweakables, {widget=lfoToOsc2OpBLevelKnob,default=50,floor=0.1,ceiling=0.6,probability=20,category="modulation"})
 
-      local lfoToOsc2OpCLevelKnob = lfoTargetPanel2:Knob("LfoToOsc2OpCLevelKnob", 0, 0, 1)
+      local lfoToOsc2OpCLevelKnob = lfoTargetPanel2:Knob("LfoToOsc2OpCLevel", 0, 0, 1)
       lfoToOsc2OpCLevelKnob.displayName = "Op C Level"
       lfoToOsc2OpCLevelKnob.fillColour = knobColour
       lfoToOsc2OpCLevelKnob.outlineColour = lfoColour
@@ -4212,7 +4212,7 @@ function createLfoTargetPanel2()
       lfoToOsc2OpCLevelKnob:changed()
       table.insert(tweakables, {widget=lfoToOsc2OpCLevelKnob,default=50,floor=0.1,ceiling=0.6,probability=20,category="modulation"})
 
-      local lfoToOsc2OpDLevelKnob = lfoTargetPanel2:Knob("LfoToOsc2OpDLevelKnob", 0, 0, 1)
+      local lfoToOsc2OpDLevelKnob = lfoTargetPanel2:Knob("LfoToOsc2OpDLevel", 0, 0, 1)
       lfoToOsc2OpDLevelKnob.displayName = "Op D Level"
       lfoToOsc2OpDLevelKnob.fillColour = knobColour
       lfoToOsc2OpDLevelKnob.outlineColour = lfoColour
@@ -4236,7 +4236,7 @@ function createLfoTargetPanel2()
     end
 
     if isAnalog or isAdditive or isWavetable or isFM then
-      local lfoToPitchOsc2Knob = lfoTargetPanel2:Knob("LfoToPitchOsc2Knob", 0, 0, 48)
+      local lfoToPitchOsc2Knob = lfoTargetPanel2:Knob("LfoToPitchOsc2", 0, 0, 48)
       lfoToPitchOsc2Knob.displayName = "Pitch"
       lfoToPitchOsc2Knob.mapper = Mapper.Quadratic
       lfoToPitchOsc2Knob.fillColour = knobColour
@@ -4782,7 +4782,7 @@ function createPatchMakerPanel()
   envStyleMenu.x = modStyleMenu.width + modStyleMenu.x + 10
   envStyleMenu.y = modStyleMenu.y
 
-  scopeMenu = tweakPanel:Menu("TweakScope", {"All", "Settings", "Random"})
+  local scopeMenu = tweakPanel:Menu("TweakScope", {"All", "Settings", "Random"})
   scopeMenu.backgroundColour = menuBackgroundColour
   scopeMenu.textColour = menuTextColour
   scopeMenu.arrowColour = menuArrowColour
@@ -4972,7 +4972,7 @@ function createTwequencerPanel()
   modStyleMenu.y = envStyleMenu.y + envStyleMenu.height + 10
   modStyleMenu.width = envStyleMenu.width
 
-  scopeMenu = tweqPanel:Menu("SeqTweakScope", {"All", "Settings", "Random"})
+  local scopeMenu = tweqPanel:Menu("SeqTweakScope", {"All", "Settings", "Random"})
   scopeMenu.selected = 2
   scopeMenu.backgroundColour = menuBackgroundColour
   scopeMenu.textColour = menuTextColour
@@ -5704,13 +5704,13 @@ function createSettingsPanel()
     end
   end
 
-  local label = settingsPanel:Label("TweakSynth Settings")
-  label.displayName = label.name
-  label.showLabel = true
+  local label = settingsPanel:Label("SettingsLabel")
+  label.displayName = "TweakSynth Settings" -- Just used for holding the default text - not displayed directly
+  label.text = label.displayName
   label.x = 0
   label.y = 0
   label.height = 25
-  label.width = 200
+  label.width = 240
 
   settingsPageMenu.width = 100
   settingsPageMenu.height = 25
@@ -5842,6 +5842,27 @@ function createSettingsPanel()
     settingsPageMenu:changed()
   end
 
+  function getWidgetDisplayText(v, value)
+    if type(value) == "nil" then
+      value = v.widget.value
+    end
+    if v.widget.displayName == "Cutoff" then
+      value = filterMapValue(value)
+      if value < 1000 then
+          return string.format("%0.1f Hz", value)
+      else
+          return string.format("%0.1f kHz", value/1000.)
+      end
+    elseif v.widget.name:sub(-3) == "Mix" then
+      return formatGainInDb(value)
+    elseif v.attack == true or v.release == true or v.decay == true then
+      return formatTimeInSeconds(value)
+    elseif (v.widget.min == 0 or v.widget.min == -1) and v.widget.max == 1 then
+      return percent(value)
+    end
+    return value
+  end
+
   -- Options:
     -- widget = the widget to tweak - the only non-optional parameter
     -- func = the function to execute for getting the value - default is getRandom
@@ -5894,7 +5915,9 @@ function createSettingsPanel()
     selectedWidget.bipolarKnob.visible = true
     
     -- Set page label
-    label.displayName = "Edit " .. selectedTweakable.widget.displayName .. " (" .. selectedTweakable.widget.name .. ")"
+    local currentValue = getWidgetDisplayText(selectedTweakable)
+    label.text = selectedTweakable.widget.displayName .. " (" .. selectedTweakable.widget.name .. ") - Current value: " .. currentValue
+    label.width = 600
 
     -- Toggle active button
     selectedWidget.button.visible = true
@@ -5947,7 +5970,8 @@ function createSettingsPanel()
     allOnButton.visible = true
     allRandButton.visible = true
     skipSetter.visible = true
-    label.displayName = label.name
+    label.text = label.displayName
+    label.width = 240
   end
 
   for i,v in ipairs(tweakables) do
@@ -6021,12 +6045,14 @@ function createSettingsPanel()
 
     -- Widgets for details view
     local probabilityKnob = settingsPanel:Knob('ProbabilityKnob' .. i, 0, 0, 100, true)
+    probabilityKnob.unit = Unit.Percent
     probabilityKnob.visible = false
     probabilityKnob.displayName = "Probability"
     probabilityKnob.fillColour = knobColour
     probabilityKnob.size = {200,60}
 
     local defaultKnob = settingsPanel:Knob('DefaultKnob' .. i, 0, 0, 100, true)
+    defaultKnob.unit = Unit.Percent
     defaultKnob.visible = false
     defaultKnob.displayName = "Default value probability"
     defaultKnob.tooltip = "Probability of default value being set on the controller"
@@ -6037,12 +6063,12 @@ function createSettingsPanel()
       defaultKnob.value = v.default
     end
     defaultKnob.changed = function(self)
-      self.displayText = self.value .. "%"
       v.default = self.value
     end
     defaultKnob:changed()
 
     local zeroKnob = settingsPanel:Knob('ZeroKnob' .. i, 0, 0, 100, true)
+    zeroKnob.unit = Unit.Percent
     zeroKnob.visible = false
     zeroKnob.displayName = "Probability of zero"
     zeroKnob.tooltip = "Probability of zero (0) being set"
@@ -6052,7 +6078,6 @@ function createSettingsPanel()
       --print("zero", v.zero)
       zeroKnob.value = v.zero
       zeroKnob.changed = function(self)
-        self.displayText = self.value .. "%"
         v.zero = self.value
       end
       zeroKnob:changed()
@@ -6061,6 +6086,7 @@ function createSettingsPanel()
     end
 
     local bipolarKnob = settingsPanel:Knob('BipolarKnob' .. i, 0, 0, 100, true)
+    bipolarKnob.unit = Unit.Percent
     bipolarKnob.visible = false
     bipolarKnob.displayName = "Bipolar probability"
     bipolarKnob.tooltip = "Probability of value being changed to negative for bipolar controllers"
@@ -6070,7 +6096,6 @@ function createSettingsPanel()
       --print("bipolar", v.bipolar)
       bipolarKnob.value = v.bipolar
       bipolarKnob.changed = function(self)
-        self.displayText = self.value .. "%"
         v.bipolar = self.value
       end
       bipolarKnob:changed()
@@ -6091,16 +6116,17 @@ function createSettingsPanel()
 
     probabilityKnob.enabled = isEnabled
     if isEnabled then
+      probabilityKnob.tooltip = "Probability that value is within limits (floor/ceiling)"
       probabilityKnob.value = v.probability
       probabilityKnob.changed = function(self)
-        self.tooltip = "Probability that value is within limits (floor/ceiling)"
-        self.displayText = self.value .. "%"
         v.probability = self.value
       end
       probabilityKnob:changed()
     end
 
-    local floorKnob = settingsPanel:Knob('FloorKnob' .. i, default, min, max)
+    local isInteger = v.integer == true
+
+    local floorKnob = settingsPanel:Knob('FloorKnob' .. i, default, min, max, isInteger)
     floorKnob.visible = false
     floorKnob.enabled = isEnabled
     floorKnob.displayName = "Floor"
@@ -6116,26 +6142,16 @@ function createSettingsPanel()
     if isEnabled then
       floorKnob.mapper = v.widget.mapper
       floorKnob.changed = function(self)
-        if v.widget.displayName == "Cutoff" then
-          local value = filterMapValue(self.value)
-          if value < 1000 then
-              self.displayText = string.format("%0.1f Hz", value)
-          else
-              self.displayText = string.format("%0.1f kHz", value/1000.)
-          end
-        elseif v.widget.name:sub(-3) == "Mix" then
-          self.displayText = formatGainInDb(self.value)
-        elseif v.attack == true or v.release == true or v.decay == true then
-          self.displayText = formatTimeInSeconds(self.value)
-        elseif (self.min == 0 or self.min == -1) and self.max == 1 then
-          self.displayText = percent(self.value)
-        end
         v.floor = self.value
+        local displayText = getWidgetDisplayText(v, self.value)
+        if type(displayText) == "string" then
+          self.displayText = displayText
+        end
       end
       floorKnob:changed()
     end
 
-    local ceilKnob = settingsPanel:Knob('CeilKnob' .. i, max, min, max)
+    local ceilKnob = settingsPanel:Knob('CeilKnob' .. i, max, min, max, isInteger)
     ceilKnob.visible = false
     ceilKnob.enabled = isEnabled
     ceilKnob.displayName = "Ceiling"
@@ -6151,21 +6167,11 @@ function createSettingsPanel()
     if isEnabled then
       ceilKnob.mapper = v.widget.mapper
       ceilKnob.changed = function(self)
-        if v.widget.displayName == "Cutoff" then
-          local value = filterMapValue(self.value)
-          if value < 1000 then
-              self.displayText = string.format("%0.1f Hz", value)
-          else
-              self.displayText = string.format("%0.1f kHz", value/1000.)
-          end
-        elseif v.widget.name:sub(-3) == "Mix" then
-          self.displayText = formatGainInDb(self.value)
-        elseif v.attack == true or v.release == true or v.decay == true then
-          self.displayText = formatTimeInSeconds(self.value)
-        elseif (self.min == 0 or self.min == -1) and self.max == 1 then
-          self.displayText = percent(self.value)
-        end
         v.ceiling = self.value
+        local displayText = getWidgetDisplayText(v, self.value)
+        if type(displayText) == "string" then
+          self.displayText = displayText
+        end
       end
       ceilKnob:changed()
     end
@@ -6422,7 +6428,7 @@ function mapMinilogueCC()
       CC22 = {name = "FSustain", bipolar = 0, page = filterPageButton},
       CC23 = {name = "FRelease", page = filterPageButton},
       CC24 = {name = "LfoFreq", bipolar = 0, page = modulationPageButton, factor = 20}, -- LFO RATE
-      CC26 = {name = "LfoToTargetKnob", bipolar = 0, page = modulationPageButton}, -- LFO INT
+      CC26 = {name = "LfoToTarget", bipolar = 0, page = modulationPageButton}, -- LFO INT
       CC27 = {name = "Drive", bipolar = 0, page = effectsPageButton}, -- Voice Mode Depth > Drive
       CC29 = {name = "HpfCutoff", bipolar = 0, page = filterPageButton}, -- HI PASS CUTOFF
       CC30 = {name = "HpfEnvelopeAmt", bipolar = 1, page = filterPageButton}, -- TIME
@@ -6492,7 +6498,7 @@ function mapMinilogueCC()
         setLfoTargetValue()
         return
       end
-      if cc.name == "LfoToTargetKnob" then
+      if cc.name == "LfoToTarget" then
         activeLfoTargetValue = e.value
         setLfoTargetValue()
         return

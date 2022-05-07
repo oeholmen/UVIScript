@@ -21,6 +21,10 @@ setBackgroundColour("#3f3f3f")
 -- Functions
 --------------------------------------------------------------------------------
 
+function getChangeMax(value, probabilityAmount)
+  return math.ceil(value * (probabilityAmount / 100))
+end
+
 function getRandom(min, max, factor)
   if type(min) == "number" and type(max) == "number" then
     local value = math.random(min, max)
@@ -183,6 +187,7 @@ actionMenu.outlineColour = menuOutlineColour
 actionMenu.showLabel = false
 
 local focusButton = sequencerPanel:OnOffButton("FocusPartOnOff", false)
+focusButton.persistent = false -- This is not meant for saving, just for focusing on a part for editing.
 focusButton.backgroundColourOff = "#ff084486"
 focusButton.backgroundColourOn = "#ff02ACFE"
 focusButton.textColourOff = "#ff22FFFF"
@@ -231,7 +236,7 @@ editPartMenu.backgroundColour = menuBackgroundColour
 editPartMenu.textColour = menuTextColour
 editPartMenu.arrowColour = menuArrowColour
 editPartMenu.outlineColour = menuOutlineColour
-editPartMenu.displayName = "Edit part"
+editPartMenu.displayName = "Edit Part"
 editPartMenu.y = 405
 editPartMenu.x = 0
 editPartMenu.width = 110
@@ -252,6 +257,7 @@ editPartMenu.changed = function(self)
     v.numStepsBox.visible = isVisible
     v.stepResolution.visible = isVisible
     v.playMode.visible = isVisible
+    v.ratchetMax.visible = isVisible
     v.playProbability.visible = isVisible
     v.repeatProbability.visible = isVisible
     v.directionProbability.visible = isVisible
@@ -327,7 +333,7 @@ numPartsBox.changed = function(self)
   editPartMenu.items = partSelect
   editPartMenu:setValue(#partSelect)
   -- Update action menu
-  local actionMenuItems = {"Actions...", "Randomize all tables", "Randomize pitch table", "Randomize tie table", "Randomize pitch probability table", "Randomize velocity table", "Randomize gate table", "Randomize ratchet table", "Reset all tables", "Reset pitch table", "Reset tie table", "Reset pitch probability table", "Reset velocity table", "Reset gate table", "Reset ratchet table"}
+  local actionMenuItems = {"Actions...", "Randomize all tables", "Randomize pitch table", "Randomize tie table", "Randomize pitch probability table", "Randomize velocity table", "Randomize gate table", "Randomize ratchet table", "Reset all tables", "Reset pitch table", "Reset tie table", "Reset pitch probability table", "Reset velocity table", "Reset gate table", "Reset ratchet table", "Set velocity at 50%", "Set gate at 50%"}
   actionsCount = #actionMenuItems
   if numParts > 1 then
     for i=1, numParts do
@@ -503,7 +509,7 @@ for i=1,numPartsBox.max do
   tieStepTable.y = seqPitchTable.y + seqPitchTable.height + 2
   
   local seqPitchChangeProbabilityTable = sequencerPanel:Table("PitchChangeProbability" .. i, totalNumSteps, 0, 0, 100, true)
-  seqPitchChangeProbabilityTable.displayName = "Change Probability"
+  seqPitchChangeProbabilityTable.displayName = "Pitch Swap Probability"
   seqPitchChangeProbabilityTable.tooltip = "Set the probability that the pitch from another step will be used"
   seqPitchChangeProbabilityTable.showPopupDisplay = true
   seqPitchChangeProbabilityTable.showLabel = true
@@ -554,8 +560,8 @@ for i=1,numPartsBox.max do
   seqGateTable.y = seqVelTable.y + seqVelTable.height + 2
   
   -- TODO Add a setting for max ratchet
-  local seqRatchetTable = sequencerPanel:Table("Ratchet" .. i, totalNumSteps, 1, 1, 4, true)
-  seqRatchetTable.displayName = "Ratchet"
+  local seqRatchetTable = sequencerPanel:Table("Subdivision" .. i, totalNumSteps, 1, 1, 4, true)
+  seqRatchetTable.displayName = "Subdivision"
   seqRatchetTable.tooltip = "Subdivision for this step"
   seqRatchetTable.showPopupDisplay = true
   seqRatchetTable.showLabel = false
@@ -569,7 +575,7 @@ for i=1,numPartsBox.max do
   seqRatchetTable.width = seqGateTable.width
   seqRatchetTable.height = seqVelTable.height * 0.3
   seqRatchetTable.x = tableX
-  seqRatchetTable.y = seqGateTable.y + seqGateTable.height + 2
+  seqRatchetTable.y = seqGateTable.y + seqGateTable.height + 5
 
   local partResolution = sequencerPanel:Menu("PartDuration" .. i, getResolutionNames({"Follow Step"}))
   local stepResolution = sequencerPanel:Menu("StepResolution" .. i, getResolutionNames())
@@ -631,9 +637,9 @@ for i=1,numPartsBox.max do
   playMode.arrowColour = menuArrowColour
   playMode.outlineColour = menuOutlineColour
 
-  local ratchetMax = sequencerPanel:NumBox("RatchetMax" .. i, 4, 2, 16, true)
-  ratchetMax.displayName = "Ratchet Max"
-  ratchetMax.tooltip = "Set the maximum allowed ratchet that can be selected for each step"
+  local ratchetMax = sequencerPanel:NumBox("SubdivisionMax" .. i, 4, 2, 16, true)
+  ratchetMax.displayName = "Subdiv Max"
+  ratchetMax.tooltip = "Set the maximum allowed subdivision that can be selected for each step"
   ratchetMax.visible = isFirst
   ratchetMax.backgroundColour = menuBackgroundColour
   ratchetMax.textColour = menuTextColour
@@ -694,8 +700,8 @@ for i=1,numPartsBox.max do
   directionProbability.width = playProbability.width
 
   if isFirst then
-    randomizeLabel.text = "Randomize (amt/freq)"
-    randomizeLabel.width = 132
+    randomizeLabel.text = "Randomize (Amount/Frequency)"
+    randomizeLabel.width = 240
     randomizeLabel.x = probabilityLabel.x + probabilityLabel.width + 5
     randomizeLabel.y = probabilityLabel.y
   end
@@ -717,7 +723,7 @@ for i=1,numPartsBox.max do
 
   local pitchRandFreq = sequencerPanel:NumBox("PitchRandomizationFrequency" .. i, defaultFrequency, 0, 100, true)
   pitchRandFreq.showLabel = false
-  pitchRandFreq.tooltip = "Frequency of radomization applied to pitch offset"
+  pitchRandFreq.tooltip = "Frequency of pitch offset radomization"
   pitchRandFreq.visible = isFirst
   pitchRandFreq.unit = Unit.Percent
   pitchRandFreq.backgroundColour = menuBackgroundColour
@@ -729,7 +735,7 @@ for i=1,numPartsBox.max do
   local tieRand = sequencerPanel:NumBox("TieRandomization" .. i, 0, 0, 100, true)
   tieRand.visible = isFirst
   tieRand.displayName = "Tie"
-  tieRand.tooltip = "Amount of radomization applied to ties for selected part"
+  tieRand.tooltip = "Amount of radomization applied to ties"
   tieRand.unit = Unit.Percent
   tieRand.backgroundColour = menuBackgroundColour
   tieRand.textColour = menuTextColour
@@ -740,7 +746,7 @@ for i=1,numPartsBox.max do
   local tieRandFreq = sequencerPanel:NumBox("TieRandomizationFrequency" .. i, defaultFrequency, 0, 100, true)
   tieRandFreq.visible = isFirst
   tieRandFreq.showLabel = false
-  tieRandFreq.tooltip = "Frequency of radomization applied to ties for selected part"
+  tieRandFreq.tooltip = "Frequency of tie radomization"
   tieRandFreq.unit = Unit.Percent
   tieRandFreq.backgroundColour = menuBackgroundColour
   tieRandFreq.textColour = menuTextColour
@@ -750,8 +756,8 @@ for i=1,numPartsBox.max do
 
   local pitchProbRand = sequencerPanel:NumBox("PitchProbabilityRandomization" .. i, 0, 0, 100, true)
   pitchProbRand.visible = isFirst
-  pitchProbRand.displayName = "Pitch Change"
-  pitchProbRand.tooltip = "Amount of radomization applied to pitch change probability"
+  pitchProbRand.displayName = "Pitch Swap"
+  pitchProbRand.tooltip = "Amount of radomization applied to pitch swap probability - pitch swap means playing the pitch offset from another step in the part"
   pitchProbRand.unit = Unit.Percent
   pitchProbRand.backgroundColour = menuBackgroundColour
   pitchProbRand.textColour = menuTextColour
@@ -762,7 +768,7 @@ for i=1,numPartsBox.max do
   local pitchProbRandFreq = sequencerPanel:NumBox("PitchProbabilityRandomizationFrequency" .. i, defaultFrequency, 0, 100, true)
   pitchProbRandFreq.visible = isFirst
   pitchProbRandFreq.showLabel = false
-  pitchProbRandFreq.tooltip = "Frequency of radomization applied to pitch change probability"
+  pitchProbRandFreq.tooltip = "Frequency of pitch swap probability radomization"
   pitchProbRandFreq.unit = Unit.Percent
   pitchProbRandFreq.backgroundColour = menuBackgroundColour
   pitchProbRandFreq.textColour = menuTextColour
@@ -778,13 +784,13 @@ for i=1,numPartsBox.max do
   velRand.backgroundColour = menuBackgroundColour
   velRand.textColour = menuTextColour
   velRand.size = numBoxSize1
-  velRand.x = randomizeLabel.x + randomizeLabel.width + 5
+  velRand.x = randomizeLabel.x + 138
   velRand.y = pitchRand.y
 
   local velRandFreq = sequencerPanel:NumBox("VelocityRandomizationFrequency" .. i, defaultFrequency, 0, 100, true)
   velRandFreq.showLabel = false
   velRandFreq.visible = isFirst
-  velRandFreq.tooltip = "Frequency of radomization applied to sequencer velocity"
+  velRandFreq.tooltip = "Frequency of velocity radomization"
   velRandFreq.unit = Unit.Percent
   velRandFreq.backgroundColour = menuBackgroundColour
   velRandFreq.textColour = menuTextColour
@@ -806,7 +812,7 @@ for i=1,numPartsBox.max do
   local gateRandFreq = sequencerPanel:NumBox("GateRandomizationFrequency" .. i, defaultFrequency, 0, 100, true)
   gateRandFreq.visible = isFirst
   gateRandFreq.showLabel = false
-  gateRandFreq.tooltip = "Frequency of radomization applied to sequencer gate"
+  gateRandFreq.tooltip = "Frequency of gate radomization"
   gateRandFreq.unit = Unit.Percent
   gateRandFreq.backgroundColour = menuBackgroundColour
   gateRandFreq.textColour = menuTextColour
@@ -814,9 +820,9 @@ for i=1,numPartsBox.max do
   gateRandFreq.x = gateRand.x + gateRand.width - 2
   gateRandFreq.y = gateRand.y
 
-  local ratchetRand = sequencerPanel:NumBox("RatchetRandomization" .. i, 0, 0, 100, true)
-  ratchetRand.displayName = "Ratchet"
-  ratchetRand.tooltip = "Amount of radomization applied to sequencer ratchet"
+  local ratchetRand = sequencerPanel:NumBox("SubdivisionRandomization" .. i, 0, 0, 100, true)
+  ratchetRand.displayName = "Subdivision"
+  ratchetRand.tooltip = "Amount of radomization applied to step subdivision"
   ratchetRand.visible = isFirst
   ratchetRand.unit = Unit.Percent
   ratchetRand.backgroundColour = menuBackgroundColour
@@ -825,9 +831,9 @@ for i=1,numPartsBox.max do
   ratchetRand.x = gateRand.x
   ratchetRand.y = gateRand.y + gateRand.height + 5
 
-  local ratchetRandFreq = sequencerPanel:NumBox("RatchetRandomizationFrequency" .. i, defaultFrequency, 0, 100, true)
+  local ratchetRandFreq = sequencerPanel:NumBox("SubdivisionRandomizationFrequency" .. i, defaultFrequency, 0, 100, true)
   ratchetRandFreq.showLabel = false
-  ratchetRandFreq.tooltip = "Frequency of radomization applied to sequencer ratchet"
+  ratchetRandFreq.tooltip = "Frequency of subdivision radomization"
   ratchetRandFreq.visible = isFirst
   ratchetRandFreq.unit = Unit.Percent
   ratchetRandFreq.backgroundColour = menuBackgroundColour
@@ -847,8 +853,7 @@ actionMenu.changed = function(self)
     return
   end
   local partParams = paramsPerPart[editPartMenu.value]
-  -- actionsCount = 15 
-  if self.value <= math.ceil(actionsCount/2) then
+  if self.value < 9 then
     -- Randomize tables
     for i=1,partParams.numStepsBox.value do
       if self.value == 2 or self.value == 3 then
@@ -870,7 +875,7 @@ actionMenu.changed = function(self)
         partParams.seqRatchetTable:setValue(i, getRandom(partParams.seqRatchetTable.min, partParams.seqRatchetTable.max))
       end
     end
-  elseif self.value <= math.ceil(actionsCount) then
+  elseif self.value < 16 then
     -- Clear tables (set default values)
     for i=1,partParams.numStepsBox.value do
       if self.value == 9 or self.value == 10 then
@@ -891,6 +896,14 @@ actionMenu.changed = function(self)
       if self.value == 9 or self.value == 15 then
         partParams.seqRatchetTable:setValue(i, partParams.seqRatchetTable.default)
       end
+    end
+  elseif self.value == 16 then
+    for i=1,partParams.numStepsBox.value do
+      partParams.seqVelTable:setValue(i, math.ceil(partParams.seqVelTable.max/2))
+    end
+  elseif self.value == 17 then
+    for i=1,partParams.numStepsBox.value do
+      partParams.seqGateTable:setValue(i, 50)
     end
   else
     -- Copy settings from another part
@@ -930,7 +943,6 @@ actionMenu.changed = function(self)
       target.playMode:setValue(source.playMode.value)
       target.playProbability:setValue(source.playProbability.value)
       target.directionProbability:setValue(source.directionProbability.value)
-      target.ratchetMax:setValue(source.ratchetMax.value)
       target.repeatProbability:setValue(source.repeatProbability.value)
       target.ratchetMax:setValue(source.ratchetMax.value)
       target.numStepsBox:setValue(source.numStepsBox.value)
@@ -974,12 +986,15 @@ function arpeg()
         currentPartPosition = editPartMenu.value
       elseif partRepeat > 0 then
         currentPartPosition = partRepeat
-        partRepeat = 0 -- Reset repeat  
+        partRepeat = 0 -- Reset repeat
+        print("currentPartPosition repeat", currentPartPosition)
       elseif isStarting == false and getRandomBoolean(partRand.value) then
+      --elseif getRandomBoolean(partRand.value) then
         -- Randomize parts within the set limit, unless we are in startup mode
         print("currentPartPosition before", currentPartPosition)
         -- Suggest a part by random
         local suggestedPartPosition = getRandom(numParts)
+        print("suggestedPartPosition", suggestedPartPosition)
         -- Check play probability
         if getRandomBoolean(paramsPerPart[suggestedPartPosition].playProbability.value) then
           currentPartPosition = suggestedPartPosition
@@ -1018,7 +1033,7 @@ function arpeg()
     if partDirectionBackward == true then
       local diff = currentPosition - startStep
       currentPosition = endStep - diff
-      --print("partDirectionBackward diff/currentPosition", diff, currentPosition)
+      print("partDirectionBackward diff/currentPosition", diff, currentPosition)
     end
 
     -- Tables for current step position
@@ -1036,21 +1051,8 @@ function arpeg()
     local gate = seqGateTable:getValue(tablePos) -- get gate
     local ratchet = seqRatchetTable:getValue(tablePos) -- get ratchet
     local pitchAdjustment = seqPitchTable:getValue(tablePos) -- get pitch adjustment
-    local pitchChangeProbability = seqPitchChangeProbabilityTable:getValue(tablePos) -- get pitch change probability
+    local pitchChangeProbability = seqPitchChangeProbabilityTable:getValue(tablePos) -- get pitch swap probability
     local tieNext = tieStepTable:getValue(tablePos)
-
-    -- Randomize ratchet
-    local ratchetRandomizationFrequency = paramsPerPart[currentPartPosition].ratchetRandFreq.value
-    local ratchetRandomizationAmount = paramsPerPart[currentPartPosition].ratchetRand.value
-    if ratchetRandomizationAmount > 0 and getRandomBoolean(ratchetRandomizationFrequency) then
-      local min = seqRatchetTable.min
-      local max = math.min(seqRatchetTable.max, (math.ceil(seqRatchetTable.max * (ratchetRandomizationAmount/100)) + 1))
-      ratchet = getRandom(min, max)
-      print("Randomize ratchet, min/max/ratchet", min, max, ratchet)
-      if evolve == true then
-        seqRatchetTable:setValue(currentPosition, ratchet)
-      end
-    end
 
     -- Check if tie from previous step
     local tieStepPos = tablePos - 1
@@ -1067,15 +1069,26 @@ function arpeg()
     local tieRandomizationAmount = paramsPerPart[currentPartPosition].tieRand.value
     if tieRandomizationAmount > 0 and tablePos < numStepsInPart and getRandomBoolean(tieRandomizationFrequency) then
       print("Before randomized tieNext", tieNext)
-      -- Get length of tie
-      local min = 2
-      local max = math.ceil((numStepsInPart-tablePos) * (tieRandomizationAmount/100))
+      local min = 1
+      local max = getChangeMax((numStepsInPart-tablePos), tieRandomizationAmount)
       noteSteps = getRandom(min, math.max(2, max))
-      tieNext = 1
-      if evolve == true then
-        tieStepTable:setValue(tablePos, tieNext)
+      if noteSteps == 1 then
+        tieNext = 0
+      else
+        tieNext = 1
       end
-      print("After randomize tieNext", tieNext)
+      if evolve == true then
+        local tieStepPos = tablePos
+        for i=1, noteSteps do
+          tieStepTable:setValue(tieStepPos, tieNext)
+          if partDirectionBackward == true then
+            tieStepPos = tieStepPos - 1
+          else
+            tieStepPos = tieStepPos + 1
+          end
+        end
+      end
+      print("After randomize tieNext/max/noteSteps", tieNext, max, noteSteps)
     elseif tieNext == 1 then
       local tieStepPos = tablePos
       while tieStepPos > 0 and tieStepPos < numStepsInPart and tieStepTable:getValue(tieStepPos) == 1 do
@@ -1115,6 +1128,19 @@ function arpeg()
       end
     end
 
+    -- Randomize ratchet
+    local ratchetRandomizationFrequency = paramsPerPart[currentPartPosition].ratchetRandFreq.value
+    local ratchetRandomizationAmount = paramsPerPart[currentPartPosition].ratchetRand.value
+    if ratchetRandomizationAmount > 0 and getRandomBoolean(ratchetRandomizationFrequency) then
+      local min = seqRatchetTable.min
+      local max = math.min(seqRatchetTable.max, (getChangeMax(seqRatchetTable.max, ratchetRandomizationAmount) + noteSteps))
+      ratchet = getRandom(min, max)
+      print("Randomize ratchet, min/max/ratchet", min, max, ratchet)
+      if evolve == true then
+        seqRatchetTable:setValue(currentPosition, ratchet)
+      end
+    end
+
     local stepDuration = (getResolution(paramsPerPart[currentPartPosition].stepResolution.value) * noteSteps) / ratchet
 
     for ratchetIndex=1, ratchet do
@@ -1122,7 +1148,7 @@ function arpeg()
       local gateRandomizationFrequency = paramsPerPart[currentPartPosition].gateRandFreq.value
       local gateRandomizationAmount = paramsPerPart[currentPartPosition].gateRand.value
       if gateRandomizationAmount > 0 and getRandomBoolean(gateRandomizationFrequency) then
-        local changeMax = math.ceil(seqGateTable.max * (gateRandomizationAmount/100)) -- 110 * 0,15 = 16,5 = 17
+        local changeMax = getChangeMax(seqGateTable.max, gateRandomizationAmount)
         local min = gate - changeMax -- 100 - 17 = 83
         local max = gate + changeMax -- 100 + 17 = 117 = 110
         if min < seqGateTable.min then
@@ -1131,9 +1157,9 @@ function arpeg()
         if max > seqGateTable.max then
           max = seqGateTable.max
         end
-        --print("Before randomize gate", gate)
+        print("Before randomize gate", gate)
         gate = getRandom(min, max)
-        --print("After randomize gate/changeMax/min/max", gate, changeMax, min, max)
+        print("After randomize gate/changeMax/min/max", gate, changeMax, min, max)
         if evolve == true then
           seqGateTable:setValue(tablePos, gate)
         end
@@ -1143,7 +1169,7 @@ function arpeg()
       local pitchRandomizationFrequency = paramsPerPart[currentPartPosition].pitchRandFreq.value
       local pitchRandomizationAmount = paramsPerPart[currentPartPosition].pitchRand.value
       if pitchRandomizationAmount > 0 and getRandomBoolean(pitchRandomizationFrequency) then
-        local changeMax = math.ceil(seqPitchTable.max * (pitchRandomizationAmount/100))
+        local changeMax = getChangeMax(seqPitchTable.max, pitchRandomizationAmount)
         local min = pitchAdjustment - changeMax
         local max = pitchAdjustment + changeMax
         if min < seqPitchTable.min then
@@ -1152,9 +1178,9 @@ function arpeg()
         if max > seqPitchTable.max then
           max = seqPitchTable.max
         end
-        --print("Before randomize pitchAdjustment", pitchAdjustment)
+        print("Before randomize pitchAdjustment", pitchAdjustment)
         pitchAdjustment = getRandom(min, max)
-        --print("After randomize pitchAdjustment/changeMax/min/max", pitchAdjustment, changeMax, min, max)
+        print("After randomize pitchAdjustment/changeMax/min/max", pitchAdjustment, changeMax, min, max)
         if evolve == true then
           seqPitchTable:setValue(tablePos, pitchAdjustment)
         end
@@ -1164,7 +1190,7 @@ function arpeg()
       local velocityRandomizationFrequency = paramsPerPart[currentPartPosition].velRandFreq.value
       local velocityRandomizationAmount = paramsPerPart[currentPartPosition].velRand.value
       if velocityRandomizationAmount > 0 and getRandomBoolean(velocityRandomizationFrequency) then
-        local changeMax = math.ceil(seqVelTable.max * (velocityRandomizationAmount/100))
+        local changeMax = getChangeMax(seqVelTable.max, velocityRandomizationAmount)
         local min = vel - changeMax
         local max = vel + changeMax
         if min < seqVelTable.min then
@@ -1173,9 +1199,9 @@ function arpeg()
         if max > seqVelTable.max then
           max = seqVelTable.max
         end
-        --print("Before randomize vel", vel)
+        print("Before randomize velocity", vel)
         vel = getRandom(min, max)
-        --print("After randomize vel/changeMax/min/max", vel, changeMax, min, max)
+        print("After randomize velocity/changeMax/min/max", vel, changeMax, min, max)
         if evolve == true then
           seqVelTable:setValue(tablePos, vel)
         end
@@ -1185,7 +1211,7 @@ function arpeg()
       local pitchProbabilityRandomizationFrequency = paramsPerPart[currentPartPosition].pitchProbRandFreq.value
       local pitchProbabilityRandomizationAmount = paramsPerPart[currentPartPosition].pitchProbRand.value
       if pitchProbabilityRandomizationAmount > 0 and getRandomBoolean(pitchProbabilityRandomizationFrequency) then
-        local changeMax = math.ceil(seqPitchChangeProbabilityTable.max * (pitchProbabilityRandomizationAmount/100))
+        local changeMax = getChangeMax(seqPitchChangeProbabilityTable.max, pitchProbabilityRandomizationAmount)
         local min = pitchChangeProbability - changeMax
         local max = pitchChangeProbability + changeMax
         if min < seqPitchChangeProbabilityTable.min then
@@ -1194,9 +1220,9 @@ function arpeg()
         if max > seqPitchChangeProbabilityTable.max then
           max = seqPitchChangeProbabilityTable.max
         end
-        --print("Before randomize pitchChangeProbability", pitchChangeProbability)
+        print("Before randomize pitchChangeProbability", pitchChangeProbability)
         pitchChangeProbability = getRandom(min, max)
-        --print("After randomize pitchChangeProbability/changeMax/min/max", pitchChangeProbability, changeMax, min, max)
+        print("After randomize pitchChangeProbability/changeMax/min/max", pitchChangeProbability, changeMax, min, max)
         if evolve == true then
           seqPitchChangeProbabilityTable:setValue(tablePos, pitchChangeProbability)
         end
