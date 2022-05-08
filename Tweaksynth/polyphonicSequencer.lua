@@ -9,7 +9,7 @@ local menuArrowColour = "#9f09A3F4"
 local menuOutlineColour = "#00000000"
 local heldNotes = {}
 local paramsPerPart = {}
-local numParts = 3
+local numParts = 4
 local isPlaying = false
 local title = "Polyphonic Sequencer"
 
@@ -180,14 +180,14 @@ end
 local tableX = 100
 local tableY = 35
 local tableWidth = 490
-local tableHeight = 120
+local tableHeight = 160
 
 local sequencerPanel = Panel("Sequencer")
 sequencerPanel.backgroundColour = menuOutlineColour
 sequencerPanel.x = 10
 sequencerPanel.y = 10
 sequencerPanel.width = 700
-sequencerPanel.height = numParts * (tableHeight + 25) + 40
+sequencerPanel.height = numParts * (tableHeight + 25) + 10
 
 local label = sequencerPanel:Label("Label")
 label.text = title
@@ -225,7 +225,7 @@ for i=1,numParts do
   positionTable.backgroundColour = "#9f02ACFE"
   positionTable.sliderColour = outlineColour
   positionTable.width = tableWidth
-  positionTable.height = 3
+  positionTable.height = tableHeight * 0.02
   positionTable.x = tableX
   positionTable.y = tableY
 
@@ -242,7 +242,7 @@ for i=1,numParts do
     seqPitchTable.backgroundColour = "#3f606060"
   end
   seqPitchTable.width = tableWidth
-  seqPitchTable.height = tableHeight * 0.4
+  seqPitchTable.height = tableHeight * 0.38
   seqPitchTable.x = tableX
   seqPitchTable.y = positionTable.y + positionTable.height + 2
 
@@ -257,7 +257,7 @@ for i=1,numParts do
   tieStepTable.showLabel = false
   tieStepTable.sliderColour = "#3fcc3300"
   tieStepTable.width = tableWidth
-  tieStepTable.height = 6
+  tieStepTable.height = tableHeight * 0.06
   tieStepTable.x = tableX
   tieStepTable.y = seqPitchTable.y + seqPitchTable.height + 2
 
@@ -274,7 +274,7 @@ for i=1,numParts do
     seqVelTable.backgroundColour = "#3f000000"
   end
   seqVelTable.width = tableWidth
-  seqVelTable.height = tableHeight * 0.25
+  seqVelTable.height = tableHeight * 0.2
   seqVelTable.x = tableX
   seqVelTable.y = tieStepTable.y + tieStepTable.height + 2
   
@@ -291,7 +291,7 @@ for i=1,numParts do
     seqGateTable.backgroundColour = "#3f3e3e3e"
   end
   seqGateTable.width = tableWidth
-  seqGateTable.height = tableHeight * 0.25
+  seqGateTable.height = tableHeight * 0.2
   seqGateTable.x = tableX
   seqGateTable.y = seqVelTable.y + seqVelTable.height + 2
   
@@ -308,7 +308,7 @@ for i=1,numParts do
     seqRatchetTable.backgroundColour = "#3f000000"
   end
   seqRatchetTable.width = tableWidth
-  seqRatchetTable.height = tableHeight * 0.1
+  seqRatchetTable.height = tableHeight * 0.14
   seqRatchetTable.x = tableX
   seqRatchetTable.y = seqGateTable.y + seqGateTable.height + 2
 
@@ -437,7 +437,7 @@ for i=1,numParts do
   channelBox.y = ratchetMax.y + ratchetMax.height + leftButtonSpacing
 
   table.insert(paramsPerPart, {muteButton=muteButton,pitchRand=pitchRand,tieRand=tieRand,velRand=velRand,gateRand=gateRand,ratchetRand=ratchetRand,triggerNote=triggerNote,channelBox=channelBox,positionTable=positionTable,seqPitchTable=seqPitchTable,tieStepTable=tieStepTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,seqRatchetTable=seqRatchetTable,stepResolution=stepResolution,directionProbability=directionProbability,numStepsBox=numStepsBox})
-  tableY = tableY + tableHeight + 25
+  tableY = tableY + tableHeight + 20
 end
 
 --------------------------------------------------------------------------------
@@ -452,18 +452,33 @@ function arpeg(partIndex)
     local isPartActive = false
     local offset = 0
     local numStepsInPart = paramsPerPart[partIndex].numStepsBox.value
-    local currentPosition = (index % numStepsInPart) + 1 -- 11 % 4 = 3
+    local currentPosition = (index % numStepsInPart) + 1
     local channel = paramsPerPart[partIndex].channelBox.value
     print("Playing currentPosition/part/channel", currentPosition, partIndex, channel)
     if channel == 0 then
       channel = nil -- Play all channels
     end
 
+    if #heldNotes == 0 then
+      local buffer = 1 -- How long to wait for notes before stopping the sequencer
+      wait(buffer)
+      print("waiting for heldNotes", buffer)
+      offset = offset + buffer
+    end
+    if #heldNotes == 0 then
+      print("#heldNotes == 0 - stopping sequencer")
+      stopPlaying()
+      break
+    end
+
     -- POLY
-    local noteIndex = partIndex -- TODO Use 4 last in #heldNotes
+    local noteIndex = partIndex
+    if #heldNotes > numParts then
+      noteIndex = noteIndex + (#heldNotes - numParts)
+    end
     isPartActive = type(heldNotes[noteIndex]) == "table" and paramsPerPart[partIndex].muteButton.value == false
     if isPartActive then
-      note = heldNotes[partIndex].note
+      note = heldNotes[noteIndex].note
     end
 
     print("partIndex/isPartActive", partIndex, isPartActive)
@@ -509,7 +524,6 @@ function arpeg(partIndex)
     if getRandomBoolean(ratchetRandomizationAmount) then
       local min = seqRatchetTable.min
       local max = seqRatchetTable.max
-      --local max = math.min(seqRatchetTable.max, (math.ceil(seqRatchetTable.max * (ratchetRandomizationAmount/100)) + 1))
       ratchet = getRandom(min, max)
       print("Randomize ratchet, min/max/ratchet", min, max, ratchet)
     end
@@ -581,10 +595,6 @@ function arpeg(partIndex)
 
     -- Play subdivision
     for ratchetIndex=1, ratchet do
-      if #heldNotes == 0 then
-        stopPlaying()
-        break
-      end
       -- Randomize velocity
       if getRandomBoolean(velocityRandomizationAmount) then
         local changeMax = math.ceil(seqVelTable.max * (velocityRandomizationAmount/100))
@@ -608,7 +618,6 @@ function arpeg(partIndex)
       end
 
       if isPartActive and shouldTrigger then
-        --local note = paramsPerPart[partIndex].triggerNote.value + pitchAdjustment
         local duration = beat2ms(stepDuration * (gate / 100)) - 1 -- Make sure note is not played into the next
         playNote((note + pitchAdjustment), vel, duration, nil, channel)
         print("Playing note/vel/gate/ratchet/stepDuration/partIndex", note, vel, gate, ratchet, stepDuration, partIndex)

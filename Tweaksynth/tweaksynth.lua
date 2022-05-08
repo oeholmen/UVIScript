@@ -607,6 +607,17 @@ function tweakValue(options, value, tweakLevel)
         value = minVal
       end
     end
+    if options.integer then
+      local int, frac = math.modf(value)
+      print("int/frac", int, frac)
+      if math.abs(frac) < 0.5 then
+        value = int
+      elseif value < 0 then
+        value = int - 1
+      else
+        value = int + 1
+      end
+    end
     return value
   end
 
@@ -1172,21 +1183,49 @@ function verifyFilterSettings(selectedTweakables)
 end
 
 function applyValueFilter(valueFilter, startValue)
+  table.sort(valueFilter) -- Ensure filter is sorted
   local endValue = startValue
   local index = 0
+  -- Check value filter range
+  if endValue < valueFilter[1] then
+    -- Out of range - use lowest
+    index = 1
+  elseif endValue > valueFilter[#valueFilter] then
+    -- Out of range - use highest
+    index = #valueFilter
+  end
   -- Try to find value in filter
-  for i,v in ipairs(valueFilter) do
-    if endValue == v then
-      index = i
-      break
+  if index == 0 then
+    local tmp = {}
+    for i,v in ipairs(valueFilter) do
+      table.insert(tmp, v)
+      if endValue == v then
+        index = i
+        break
+      end
     end
   end
-  -- If value is not found in the value filter, we select a random value from the filter
+  -- If value is not found in the value filter, we find the closest match
   if index == 0 then
-    if #valueFilter > 1 then
-      index = getRandom(#valueFilter)
-    else
-      index = 1
+    table.insert(tmp, endValue)
+    table.sort(tmp)
+    for i,v in ipairs(tmp) do
+      print("valueFilter sorted i/v", i, v)
+      if v == endValue then
+        -- Check nearest value
+        local diffPrev = v - tmp[i-1]
+        local diffNext = tmp[i+1] - v
+        print("diffPrev, diffNext", diffPrev, diffNext)
+        if diffPrev < diffNext then
+          -- Get the index pos before
+          index = i - 1
+        else
+          -- Get the index pos after
+          -- We select i because we are iteration over tmp that includes the endValue
+          index = i
+        end
+        break
+      end
     end
   end
   endValue = valueFilter[index]
@@ -2209,7 +2248,7 @@ function createOsc2Panel()
       osc2Pitch:setParameter("Value", value)
     end
     osc2PitchKnob:changed()
-    table.insert(tweakables, {widget=osc2PitchKnob,min=-24,max=24,valueFilter={-24,-12,-5,0,7,12,19,24},floor=-12,ceiling=12,probability=75,default=50,zero=50,useDuration=true,category="synthesis"})
+    table.insert(tweakables, {widget=osc2PitchKnob,min=-24,max=24,integer=true,valueFilter={-24,-12,-5,0,7,12,19,24},floor=-12,ceiling=12,probability=75,default=50,zero=50,useDuration=true,category="synthesis"})
 
     local osc2FeedbackKnob = osc2Panel:Knob("Osc2Feedback", 0, 0, 1)
     osc2FeedbackKnob.displayName = "Feedback"
@@ -2316,7 +2355,7 @@ function createOsc2Panel()
       osc2Pitch:setParameter("Value", value)
     end
     osc2PitchKnob:changed()
-    table.insert(tweakables, {widget=osc2PitchKnob,min=-24,max=24,valueFilter={-24,-12,-5,0,7,12,19,24},floor=-12,ceiling=12,probability=75,default=50,zero=50,useDuration=true,category="synthesis"})
+    table.insert(tweakables, {widget=osc2PitchKnob,min=-24,max=24,integer=true,valueFilter={-24,-12,-5,0,7,12,19,24},floor=-12,ceiling=12,probability=75,default=50,zero=50,useDuration=true,category="synthesis"})
 
     if isAnalog or isWavetable or isAdditive then
       local osc2DetuneKnob = osc2Panel:Knob("Osc2FinePitch", 0, 0, 1)
