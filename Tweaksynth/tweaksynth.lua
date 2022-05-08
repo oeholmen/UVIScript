@@ -607,16 +607,8 @@ function tweakValue(options, value, tweakLevel)
         value = minVal
       end
     end
-    if options.integer then
-      local int, frac = math.modf(value)
-      print("int/frac", int, frac)
-      if math.abs(frac) < 0.5 then
-        value = int
-      elseif value < 0 then
-        value = int - 1
-      else
-        value = int + 1
-      end
+    if options.integer == true then
+      value = round(value)
     end
     return value
   end
@@ -624,6 +616,19 @@ function tweakValue(options, value, tweakLevel)
   -- Get a random value within the full range
   print("Random full range")
   return getRandom(options.min, options.max, options.factor)
+end
+
+function round(value)
+  local int, frac = math.modf(value)
+  print("int/frac", int, frac)
+  if math.abs(frac) < 0.5 then
+    value = int
+  elseif value < 0 then
+    value = int - 1
+  else
+    value = int + 1
+  end
+  return value
 end
 
 function getEnvelopeTimeForDuration(options, duration)
@@ -1186,6 +1191,7 @@ function applyValueFilter(valueFilter, startValue)
   table.sort(valueFilter) -- Ensure filter is sorted
   local endValue = startValue
   local index = 0
+  local sortedFilter = {}
   -- Check value filter range
   if endValue < valueFilter[1] then
     -- Out of range - use lowest
@@ -1196,9 +1202,8 @@ function applyValueFilter(valueFilter, startValue)
   end
   -- Try to find value in filter
   if index == 0 then
-    local tmp = {}
     for i,v in ipairs(valueFilter) do
-      table.insert(tmp, v)
+      table.insert(sortedFilter, v)
       if endValue == v then
         index = i
         break
@@ -1207,21 +1212,21 @@ function applyValueFilter(valueFilter, startValue)
   end
   -- If value is not found in the value filter, we find the closest match
   if index == 0 then
-    table.insert(tmp, endValue)
-    table.sort(tmp)
-    for i,v in ipairs(tmp) do
+    table.insert(sortedFilter, endValue)
+    table.sort(sortedFilter)
+    for i,v in ipairs(sortedFilter) do
       print("valueFilter sorted i/v", i, v)
       if v == endValue then
         -- Check nearest value
-        local diffPrev = v - tmp[i-1]
-        local diffNext = tmp[i+1] - v
+        local diffPrev = v - sortedFilter[i-1]
+        local diffNext = sortedFilter[i+1] - v
         print("diffPrev, diffNext", diffPrev, diffNext)
         if diffPrev < diffNext then
           -- Get the index pos before
           index = i - 1
         else
           -- Get the index pos after
-          -- We select i because we are iteration over tmp that includes the endValue
+          -- We select i because we are iteration over sortedFilter that includes the endValue
           index = i
         end
         break
