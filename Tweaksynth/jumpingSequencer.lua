@@ -2,6 +2,8 @@
 -- Jumping Sequencer
 --------------------------------------------------------------------------------
 
+require "common"
+
 local outlineColour = "#FFB5FF"
 local menuBackgroundColour = "#bf01011F"
 local menuTextColour = "#9f02ACFE"
@@ -11,129 +13,10 @@ local heldNotes = {}
 local paramsPerPart = {}
 local heldNoteIndex = 0 -- Counter for held notes (used by "As Played" seq mode)
 local numParts = 3
-local seen = {}
 local isPlaying = false
 local title = "Jumping Sequencer"
 
 setBackgroundColour("#2c2c2c")
-
-function getRandom(min, max, factor)
-  if type(min) == "number" and type(max) == "number" then
-    local value = math.random(min, max)
-    return value
-  elseif type(min) == "number" then
-    local value = math.random(min)
-    return value
-  end
-  local value = math.random()
-  if type(factor) == "number" then
-    value = value * factor
-  end
-  return value
-end
-
-function getRandomBoolean(probability)
-  -- Default probability of getting true is 50%
-  if type(probability) ~= "number" then
-    probability = 50
-  end
-  return getRandom(100) <= probability
-end
-
-function getDotted(value)
-  return value + (value / 2)
-end
-
-function getTriplet(value)
-  return value / 3
-end
-
-local resolutions = {
-  128, -- "32x" -- 0
-  64, -- "16x" -- 1
-  32, -- "8x" -- 2
-  28, -- "7x" -- 3
-  24, -- "6x" -- 4
-  20, -- "5x" -- 5
-  16, -- "4x" -- 6
-  12, -- "3x" -- 7
-  8, -- "2x" -- 8
-  6, -- "1/1 dot" -- 9
-  4, -- "1/1" -- 10
-  3, -- "1/2 dot" -- 11
-  getTriplet(8), -- "1/1 tri" -- 12
-  2, -- "1/2" -- 13
-  getDotted(1), -- "1/4 dot", -- 14
-  getTriplet(4), -- "1/2 tri", -- 15
-  1, -- "1/4", -- 16
-  getDotted(0.5), -- "1/8 dot", -- 17
-  getTriplet(2), -- "1/4 tri", -- 18
-  0.5,  -- "1/8", -- 19
-  getDotted(0.25), -- "1/16 dot", -- 20
-  getTriplet(1), -- "1/8 tri", -- 21
-  0.25, -- "1/16", -- 22
-  getDotted(0.125), -- "1/32 dot", -- 23
-  getTriplet(0.5), -- "1/16 tri", -- 24
-  0.125, -- "1/32" -- 25
-  getDotted(0.0625), -- "1/64 dot", -- 26
-  getTriplet(0.25), -- "1/32 tri", -- 27
-  0.0625, -- "1/64", -- 28
-  getTriplet(0.125) -- "1/64 tri" -- 29
-}
-
-local resolutionNames = {
-  "32x", -- 0
-  "16x", -- 1
-  "8x", -- 2
-  "7x", -- 3
-  "6x", -- 4
-  "5x", -- 5
-  "4x", -- 6
-  "3x", -- 7
-  "2x", -- 8
-  "1/1 dot", -- 9
-  "1/1", -- 10
-  "1/2 dot", -- 11
-  "1/1 tri", -- 12 NY
-  "1/2", -- 13
-  "1/4 dot", -- 14
-  "1/2 tri", -- 15
-  "1/4", -- 16
-  "1/8 dot", -- 17
-  "1/4 tri", -- 18
-  "1/8", -- 19
-  "1/16 dot", -- 20
-  "1/8 tri", -- 21
-  "1/16", -- 22
-  "1/32 dot", -- 23
-  "1/16 tri", -- 24
-  "1/32", -- 25
-  "1/64 dot", -- 26
-  "1/32 tri", -- 27
-  "1/64", -- 28
-  "1/64 tri" -- 29
-}
-
-function getResolution(i)
-  return resolutions[i]
-end
-
-function getResolutionNames(options)
-  local res = {}
-
-  for _,r in ipairs(resolutionNames) do
-    table.insert(res, r)
-  end
-
-  -- Add any options
-  if type(options) == "table" then
-    for _,o in ipairs(options) do
-      table.insert(res, o)
-    end
-  end
-
-  return res
-end
 
 --------------------------------------------------------------------------------
 -- Sequencer Panel
@@ -223,6 +106,15 @@ stepResolution.textColour = menuTextColour
 stepResolution.arrowColour = menuArrowColour
 stepResolution.outlineColour = menuOutlineColour
 
+local directionProbability = sequencerPanel:NumBox("PartDirectionProbability", 0, 0, 100, true)
+directionProbability.displayName = "Backward"
+directionProbability.tooltip = "Backward probability amount"
+directionProbability.unit = Unit.Percent
+directionProbability.x = stepResolution.x + stepResolution.width + 5
+directionProbability.y = playMode.y
+directionProbability.width = 110
+directionProbability.height = playMode.height
+
 local ratchetMax = sequencerPanel:NumBox("SubdivisionMax", 4, 2, 16, true)
 ratchetMax.displayName = "Subdivision Max"
 ratchetMax.tooltip = "Set the maximum allowed subdivision that can be selected for each step"
@@ -232,7 +124,7 @@ ratchetMax.arrowColour = menuArrowColour
 ratchetMax.outlineColour = menuOutlineColour
 ratchetMax.width = 150
 ratchetMax.height = playMode.height
-ratchetMax.x = stepResolution.x + stepResolution.width + 5
+ratchetMax.x = directionProbability.x + directionProbability.width + 5
 ratchetMax.y = playMode.y
 ratchetMax.changed = function(self)
   for i=1,numParts do
@@ -329,8 +221,8 @@ for i=1,numParts do
   seqRatchetTable.x = tableX
   seqRatchetTable.y = seqGateTable.y + seqGateTable.height + 2
 
-  local numBoxHeight = 20
-  local numBoxSpacing = 4
+  local numBoxHeight = 25
+  local numBoxSpacing = 3
 
   local activeButton = sequencerPanel:OnOffButton("ActiveButtonOnOff" .. i, (i == 1))
   activeButton.persistent = false
@@ -361,62 +253,41 @@ for i=1,numParts do
   octaveOffset.y = activeButton.y + activeButton.height + numBoxSpacing
   octaveOffset.size = {100,numBoxHeight}
 
-  local directionProbability = sequencerPanel:NumBox("PartDirectionProbability" .. i, 0, 0, 100, true)
-  directionProbability.displayName = "Backward"
-  directionProbability.tooltip = "Backward probability amount"
-  directionProbability.unit = Unit.Percent
-  directionProbability.x = octaveOffset.x
-  directionProbability.y = octaveOffset.y + octaveOffset.height + numBoxSpacing
-  directionProbability.size = {100,numBoxHeight}
-
   local pitchRand = sequencerPanel:NumBox("PitchOffsetRandomization" .. i, 0, 0, 100, true)
   pitchRand.displayName = "Pitch"
   pitchRand.tooltip = "Set probability pitch from another step will be used"
   pitchRand.unit = Unit.Percent
-  pitchRand.size = directionProbability.size
-  pitchRand.x = directionProbability.x
-  pitchRand.y = directionProbability.y + directionProbability.height + numBoxSpacing
+  pitchRand.size = octaveOffset.size
+  pitchRand.x = octaveOffset.x
+  pitchRand.y = octaveOffset.y + octaveOffset.height + numBoxSpacing
 
   local velRand = sequencerPanel:NumBox("VelocityRandomization" .. i, 0, 0, 100, true)
   velRand.displayName = "Velocity"
   velRand.tooltip = "Velocity radomization amount"
   velRand.unit = Unit.Percent
-  velRand.size = directionProbability.size
-  velRand.x = directionProbability.x
+  velRand.size = pitchRand.size
+  velRand.x = pitchRand.x
   velRand.y = pitchRand.y + pitchRand.height + numBoxSpacing
   
   local gateRand = sequencerPanel:NumBox("GateRandomization" .. i, 0, 0, 100, true)
   gateRand.displayName = "Gate"
   gateRand.tooltip = "Gate radomization amount"
   gateRand.unit = Unit.Percent
-  gateRand.size = directionProbability.size
-  gateRand.x = directionProbability.x
+  gateRand.size = velRand.size
+  gateRand.x = velRand.x
   gateRand.y = velRand.y + velRand.height + numBoxSpacing
 
   local ratchetRand = sequencerPanel:NumBox("SubdivisionRandomization" .. i, 0, 0, 100, true)
   ratchetRand.displayName = "Subdivision"
   ratchetRand.tooltip = "Subdivision radomization amount"
   ratchetRand.unit = Unit.Percent
-  ratchetRand.size = directionProbability.size
-  ratchetRand.x = directionProbability.x
+  ratchetRand.size = gateRand.size
+  ratchetRand.x = gateRand.x
   ratchetRand.y = gateRand.y + gateRand.height + numBoxSpacing
 
   local leftButtonSpacing = 5
 
-  local channelBox = sequencerPanel:NumBox("Channel" .. i, 0, 0, 16, true)
-  channelBox.visible = false -- disabled for now
-  channelBox.displayName = "Channel"
-  channelBox.tooltip = "Midi channel that receives trigger from this part. 0 = omni"
-  channelBox.backgroundColour = menuBackgroundColour
-  channelBox.textColour = menuTextColour
-  channelBox.arrowColour = menuArrowColour
-  channelBox.outlineColour = menuOutlineColour
-  --channelBox.width = numStepsBox.width
-  --channelBox.height = numStepsBox.height
-  --channelBox.x = 0
-  --channelBox.y = ratchetMax.y + ratchetMax.height + leftButtonSpacing
-
-  table.insert(paramsPerPart, {activeButton=activeButton,octaveOffset=octaveOffset,pitchRand=pitchRand,velRand=velRand,gateRand=gateRand,ratchetRand=ratchetRand,triggerNote=triggerNote,channelBox=channelBox,positionTable=positionTable,seqPitchTable=seqPitchTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,seqRatchetTable=seqRatchetTable,directionProbability=directionProbability})
+  table.insert(paramsPerPart, {activeButton=activeButton,octaveOffset=octaveOffset,pitchRand=pitchRand,velRand=velRand,gateRand=gateRand,ratchetRand=ratchetRand,triggerNote=triggerNote,positionTable=positionTable,seqPitchTable=seqPitchTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,seqRatchetTable=seqRatchetTable})
   tableY = tableY + tableHeight + 25
 end
 
@@ -429,78 +300,50 @@ function arpeg(partIndex)
   local partDirectionBackward = false
   while isPlaying do
     local note = nil
-    local isPartActive = false
     local offset = 0
     local numStepsInPart = numStepsBox.value
     local currentPosition = (index % numStepsInPart) + 1
-    local channel = paramsPerPart[partIndex].channelBox.value
-    print("Playing currentPosition/part/channel", currentPosition, partIndex, channel)
-    if channel == 0 then
-      channel = nil -- Ignore channel
-    end
+    local activePart = partIndex
 
-    if #seen == 0 and getRandomBoolean(jumpProbability.value) == true then
-      -- Change active part
-      print("Change active part before", partIndex)
-      local activePart = getRandom(numParts)
-      for i=1,numParts do
-        paramsPerPart[i].activeButton:setValue(activePart == i)
+    --print("Active part before", activePart)
+
+    -- Check if part was manually changed
+    for i=1,numParts do
+      if paramsPerPart[i].activeButton.value == true then
+        activePart = i
+        break
       end
-      print("Change active part after activePart/partIndex", activePart, partIndex)
     end
-
-    table.insert(seen, partIndex)
-    local buffer = 1
-    while isPlaying and #seen < numParts do
-      wait(buffer)
-      print("Waiting for parts, offset/#seen/partIndex", offset, #seen, partIndex)
-      offset = offset + buffer
+  
+    -- Change active part by random (if not changed by button)
+    if activePart == partIndex and getRandomBoolean(jumpProbability.value) == true then
+      activePart = getRandom(numParts)
     end
-
-    if #seen == 4 then
-      wait(buffer)
-      seen = {}
-      offset = offset + buffer
-    end
-
-    isPartActive = paramsPerPart[partIndex].activeButton.value == true and #heldNotes > 0
-    if isPartActive then
-      if playMode.value == 1 then
-        -- Mono (Last held)
-        note = heldNotes[#heldNotes].note
-      elseif playMode.value == 2 then
-        -- As played
-        if partDirectionBackward == true then
-          heldNoteIndex = heldNoteIndex - 1 -- Decrement held note position
-          if heldNoteIndex < 1 then
-            heldNoteIndex = #heldNotes
-          end
-        else
-          heldNoteIndex = heldNoteIndex + 1 -- Increment held note position
-          if heldNoteIndex > #heldNotes then
-            heldNoteIndex = 1
-          end
-        end
-        -- Add a failsafe in case #heldNotes has changed since setting index
-        if heldNoteIndex > #heldNotes then
-          heldNoteIndex = #heldNotes
-        end
-        note = heldNotes[heldNoteIndex].note
-      elseif playMode.value == 3 then
-        -- Random
-        note = heldNotes[getRandom(#heldNotes)].note
-      end
-
-      print("note ready, partIndex", note, partIndex)
-    end
-
-    print("partIndex/isPartActive", partIndex, isPartActive)
 
     if currentPosition == 1 then
-      -- Set direction for this part
-      local directionProbability = paramsPerPart[partIndex].directionProbability.value
-      partDirectionBackward = getRandomBoolean(directionProbability)
-      print("directionProbability/partIndex/partDirectionBackward", directionProbability, partIndex, partDirectionBackward)
+      -- Set direction for this round
+      partDirectionBackward = getRandomBoolean(directionProbability.value)
+      --print("directionProbability/partIndex/partDirectionBackward", directionProbability.value, partIndex, partDirectionBackward)
+    end
+
+    partIndex = activePart
+    for i=1,numParts do
+      paramsPerPart[i].activeButton:setValue(activePart == i)
+    end
+
+    --print("Active part after activePart/partIndex", activePart, partIndex)
+
+    -- Check for held notes
+    if #heldNotes == 0 then
+      local buffer = 1 -- How long to wait for notes before stopping the sequencer
+      wait(buffer)
+      print("waiting for heldNotes", buffer)
+      offset = offset + buffer
+    end
+    if #heldNotes == 0 then
+      print("#heldNotes == 0 - stopping sequencer")
+      stopPlaying()
+      break
     end
 
     -- Flip position if playing backwards
@@ -510,6 +353,17 @@ function arpeg(partIndex)
       local diff = currentPosition - startStep
       currentPosition = endStep - diff
       print("startStep/endStep/diff/currentPosition", startStep, endStep, diff, currentPosition)
+    end
+
+    -- UPDATE STEP POSITION TABLE
+    for i,v in ipairs(paramsPerPart) do
+      for j=1,numStepsInPart do
+        if i == partIndex and j == currentPosition then
+          v.positionTable:setValue(j, 1)
+        else
+          v.positionTable:setValue(j, 0)
+        end
+      end
     end
 
     -- Tables for current step position
@@ -538,25 +392,9 @@ function arpeg(partIndex)
       print("Randomize ratchet, min/max/ratchet", min, max, ratchet)
     end
 
-    -- Hold the number of steps the note in this position should play
-    local noteSteps = 1
-
-    -- UPDATE STEP POSITION TABLE
-    for j=1, numStepsInPart do
-      local isActiveStep = j >= currentPosition and j < currentPosition + noteSteps
-      if partDirectionBackward == true then
-        isActiveStep = j <= currentPosition and j > currentPosition - noteSteps
-      end
-      if isPartActive and isActiveStep then
-        paramsPerPart[partIndex].positionTable:setValue(j, 1)
-      else
-        paramsPerPart[partIndex].positionTable:setValue(j, 0)
-      end
-    end
-
     -- Randomize gate
     if getRandomBoolean(gateRandomizationAmount) then
-      local changeMax = math.ceil(seqGateTable.max * (gateRandomizationAmount/100))
+      local changeMax = getChangeMax(seqGateTable.max, gateRandomizationAmount)
       local min = gate - changeMax
       local max = gate + changeMax
       if min < seqGateTable.min then
@@ -572,17 +410,40 @@ function arpeg(partIndex)
     local shouldTrigger = gate > 0
 
     -- Get step duration
-    local stepDuration = (getResolution(stepResolution.value) * noteSteps) / ratchet
+    local stepDuration = getResolution(stepResolution.value) / ratchet
+
+    -- Find note to play
+    if playMode.value == 1 then
+      -- Mono (Last held)
+      note = heldNotes[#heldNotes].note
+    elseif playMode.value == 2 then
+      -- As played
+      if partDirectionBackward == true then
+        heldNoteIndex = heldNoteIndex - 1 -- Decrement held note position
+        if heldNoteIndex < 1 then
+          heldNoteIndex = #heldNotes
+        end
+      else
+        heldNoteIndex = heldNoteIndex + 1 -- Increment held note position
+        if heldNoteIndex > #heldNotes then
+          heldNoteIndex = 1
+        end
+      end
+      -- Add a failsafe in case #heldNotes has changed since setting index
+      if heldNoteIndex > #heldNotes then
+        heldNoteIndex = #heldNotes
+      end
+      note = heldNotes[heldNoteIndex].note
+    elseif playMode.value == 3 then
+      -- Random
+      note = heldNotes[getRandom(#heldNotes)].note
+    end
 
     -- Play subdivision
     for ratchetIndex=1, ratchet do
-      if #heldNotes == 0 then
-        stopPlaying()
-        break
-      end
       -- Randomize velocity
       if getRandomBoolean(velocityRandomizationAmount) then
-        local changeMax = math.ceil(seqVelTable.max * (velocityRandomizationAmount/100))
+        local changeMax = getChangeMax(seqVelTable.max, velocityRandomizationAmount)
         local min = vel - changeMax
         local max = vel + changeMax
         if min < seqVelTable.min then
@@ -604,10 +465,10 @@ function arpeg(partIndex)
 
       pitchAdjustment = pitchAdjustment + (paramsPerPart[partIndex].octaveOffset.value * 12)
 
-      if isPartActive and shouldTrigger then
+      if shouldTrigger then
         local duration = beat2ms(stepDuration * (gate / 100)) - 1 -- Make sure note is not played into the next
         playNote((note + pitchAdjustment), vel, duration, nil, channel)
-        print("Playing note/vel/gate/ratchet/stepDuration/partIndex", note, vel, gate, ratchet, stepDuration, partIndex)
+        print("Playing note/vel/gate/ratchet/stepDuration/currentPosition/partIndex", note, vel, gate, ratchet, stepDuration, currentPosition, partIndex)
       end
 
       -- WAIT FOR NEXT BEAT
@@ -617,9 +478,6 @@ function arpeg(partIndex)
     -- END SUBDIVISION LOOP
 
     -- Increment position
-    if noteSteps > 1 then
-      index = index + noteSteps - 1
-    end
     index = (index + 1) % numStepsInPart
     print("Increment index, partIndex", index, partIndex)
   end
@@ -687,10 +545,15 @@ function startPlaying()
   if isPlaying == true then
     return
   end
+  local partIndex = 1
   for i=1,numParts do
-    print("Start playing", i)
-    spawn(arpeg, i)
+    if paramsPerPart[i].activeButton.value == true then
+      partIndex = i
+      break
+    end
   end
+  print("Start playing", partIndex)
+  spawn(arpeg, partIndex)
   isPlaying = true
 end
 

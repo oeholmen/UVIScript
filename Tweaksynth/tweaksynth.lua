@@ -2,6 +2,8 @@
 -- TweakSynth
 --------------------------------------------------------------------------------
 
+require "common"
+
 local tweakables = {}
 local storedPatches = {}
 local storedPatch = {}
@@ -1244,151 +1246,9 @@ function applyValueFilter(valueFilter, startValue)
   return endValue
 end
 
-function getDotted(value)
-  return value + (value / 2)
-end
-
-function getTriplet(value)
-  return value  / 3
-end
-
 local selectedArpResolutions = {} -- Must be at the global level
 local selectedSeqResolutions = {} -- Must be at the global level
-local resolutions = {
-  128, -- "32x" -- 0
-  64, -- "16x" -- 1
-  32, -- "8x" -- 2
-  28, -- "7x" -- 3
-  24, -- "6x" -- 4
-  20, -- "5x" -- 5
-  16, -- "4x" -- 6 <---- FROM HERE: ADD 1 to index to get arp res
-  12, -- "3x" -- 7
-  8, -- "2x" -- 8
-  6, -- "1/1 dot" -- 9
-  4, -- "1/1" -- 10
-  3, -- "1/2 dot" -- 11
-  getTriplet(8), -- "1/1 tri" -- 12
-  2, -- "1/2" -- 13
-  getDotted(1), -- "1/4 dot", -- 14
-  getTriplet(4), -- "1/2 tri", -- 15
-  1, -- "1/4", -- 16
-  getDotted(0.5), -- "1/8 dot", -- 17
-  getTriplet(2), -- "1/4 tri", -- 18
-  0.5,  -- "1/8", -- 19
-  getDotted(0.25), -- "1/16 dot", -- 20
-  getTriplet(1), -- "1/8 tri", -- 21
-  0.25, -- "1/16", -- 22
-  getDotted(0.125), -- "1/32 dot", -- 23
-  getTriplet(0.5), -- "1/16 tri", -- 24
-  0.125, -- "1/32" -- 25
-  getDotted(0.0625), -- "1/64 dot", -- 26
-  getTriplet(0.25), -- "1/32 tri", -- 27
-  0.0625, -- "1/64", -- 28
-  getTriplet(0.125) -- "1/64 tri" -- 29
-}
-local resolutionNames = {
-  "32x", -- 0
-  "16x", -- 1
-  "8x", -- 2
-  "7x", -- 3
-  "6x", -- 4
-  "5x", -- 5
-  "4x", -- 6
-  "3x", -- 7
-  "2x", -- 8
-  "1/1 dot", -- 9
-  "1/1", -- 10
-  "1/2 dot", -- 11
-  "1/1 tri", -- 12 NY
-  "1/2", -- 13
-  "1/4 dot", -- 14
-  "1/2 tri", -- 15
-  "1/4", -- 16
-  "1/8 dot", -- 17
-  "1/4 tri", -- 18
-  "1/8", -- 19
-  "1/16 dot", -- 20
-  "1/8 tri", -- 21
-  "1/16", -- 22
-  "1/32 dot", -- 23
-  "1/16 tri", -- 24
-  "1/32", -- 25
-  "1/64 dot", -- 26
-  "1/32 tri", -- 27
-  "1/64", -- 28
-  "1/64 tri" -- 29
-}
-local even = {}
-local dot = {}
-local tri = {}
 local waveforms = {"Saw", "Square", "Triangle", "Sine", "Noise", "Pulse"}
-
-function setResGroups()
-  local i = 11 -- Start at 1/1 (pos 11)
-  while true do
-    table.insert(even, i)
-    i = i + 1
-    if i >= #resolutions then
-      return
-    end
-    table.insert(dot, i)
-    i = i + 1
-    if i >= #resolutions then
-      return
-    end
-    table.insert(tri, i)
-    i = i + 1
-    if i >= #resolutions then
-      return
-    end
-  end
-end
-setResGroups()
-
-function getResolutionIndex(i)
-  if i > #resolutions then
-    -- If Random is selected, we pick one of the selected resolutions
-    local activeResolutions = {}
-    for j,v in ipairs(selectedSeqResolutions) do
-      if v == true then
-        table.insert(activeResolutions, j)
-      end
-    end
-    if #activeResolutions > 0 then
-      i = activeResolutions[getRandom(#activeResolutions)]
-      print("activeResolutions", #activeResolutions, i, resolutionNames[i])
-    else
-      i = getRandom(#resolutions)
-    end
-  end
-  return i
-end
-
-function getResolution(i)
-  i = getResolutionIndex(i)
-  print("getResolution", resolutionNames[i])
-  return resolutions[i]
-end
-
-function getResolutionName(i)
-  return resolutionNames[i]
-end
-
-function getResolutionNames(max)
-  if type(max) ~= "number" then
-    max = #resolutionNames
-  end
-
-  local res = {}
-  for i,r in ipairs(resolutionNames) do
-    table.insert(res, r)
-    if i == max then
-      break
-    end
-  end
-
-  return res
-end
 
 function formatTimeInSeconds(value)
   if value < 0.01 then
@@ -1421,10 +1281,6 @@ function isEqual(value1, value2)
   return value1 == value2
 end
 
-function percent(value)
-  return string.format("%0.1f %%", (value * 100))
-end
-
 function getWidget(name)
   for _,v in ipairs(tweakables) do
     if v.widget.name == name then
@@ -1434,7 +1290,7 @@ function getWidget(name)
 end
 
 function getSyncedValue(value)
-  for key, res in pairs(resolutions) do
+  for key, res in pairs(getResolutions()) do
     print(key, " -- ", res)
     if isEqual(res, value) then
       print(res, "==", value)
@@ -1737,12 +1593,12 @@ function createAnalog3OscPanel(oscPanel, oscillatorNumber)
   table.insert(tweakables, {widget=oscShapeKnob,min=6,default=10,category="synthesis"})
     
   local oscPhaseKnob = oscPanel:Knob("Osc"..oscillatorNumber.."StartPhase", 0, 0, 1)
+  oscPhaseKnob.unit = Unit.PercentNormalized
   oscPhaseKnob.displayName = "Start Phase"
   oscPhaseKnob.fillColour = knobColour
   oscPhaseKnob.outlineColour = osc1Colour
   oscPhaseKnob.changed = function(self)
     osc1:setParameter("StartPhase"..oscillatorNumber, self.value)
-    self.displayText = percent(self.value)
   end
   oscPhaseKnob:changed()
   table.insert(tweakables, {widget=oscPhaseKnob,default=50,category="synthesis"})
@@ -1944,12 +1800,12 @@ function createOsc1Panel()
     table.insert(tweakables, {widget=osc1PitchKnob,min=-2,max=2,default=80,zero=25,category="synthesis"})
 
     local osc1FeedbackKnob = osc1Panel:Knob("Osc1Feedback", 0, 0, 1)
+    osc1FeedbackKnob.unit = Unit.PercentNormalized
     osc1FeedbackKnob.displayName = "Feedback"
     osc1FeedbackKnob.fillColour = knobColour
     osc1FeedbackKnob.outlineColour = osc1Colour
     osc1FeedbackKnob.changed = function(self)
       osc1:setParameter("Feedback", self.value)
-      self.displayText = percent(self.value)
     end
     osc1FeedbackKnob:changed()
     table.insert(tweakables, {widget=osc1FeedbackKnob,default=60,floor=0.1,ceiling=0.6,probability=50,useDuration=true,category="synthesis"})
@@ -1971,12 +1827,12 @@ else
       table.insert(tweakables, {widget=osc1ShapeKnob,min=6,default=10,category="synthesis"})
     elseif isWavetable then
       local osc1ShapeKnob = osc1Panel:Knob("Osc1Wave", 0, 0, 1)
+      osc1ShapeKnob.unit = Unit.PercentNormalized
       osc1ShapeKnob.displayName = "Wave"
       osc1ShapeKnob.fillColour = knobColour
       osc1ShapeKnob.outlineColour = osc1Colour
       osc1ShapeKnob.changed = function(self)
         osc1Shape:setParameter("Value", self.value)
-        self.displayText = percent(self.value)
       end
       osc1ShapeKnob:changed()
       table.insert(tweakables, {widget=osc1ShapeKnob,default=10,zero=5,probability=50,floor=0.3,ceil=0.6,useDuration=true,category="synthesis"})
@@ -1997,13 +1853,13 @@ else
       table.insert(tweakables, {widget=osc1PartialsKnob,min=256,floor=2,ceiling=64,probability=70,useDuration=true,category="synthesis"})
 
       local osc1EvenOddKnob = osc1Panel:Knob("Osc1EvenOdd", 0, -1, 1)
+      osc1EvenOddKnob.unit = Unit.PercentNormalized
       osc1EvenOddKnob.displayName = "Even/Odd"
       osc1EvenOddKnob.fillColour = knobColour
       osc1EvenOddKnob.outlineColour = osc1Colour
       osc1EvenOddKnob.changed = function(self)
         local value = (self.value + 1) * 0.5
         additiveMacros["osc1EvenOdd"]:setParameter("Value", value)
-        self.displayText = percent(self.value)
       end
       osc1EvenOddKnob:changed()
       table.insert(tweakables, {widget=osc1EvenOddKnob,bipolar=50,default=10,floor=0.3,ceiling=0.9,probability=50,useDuration=true,category="synthesis"})
@@ -2011,12 +1867,12 @@ else
     
     if isAnalog or isWavetable then
       local osc1PhaseKnob = osc1Panel:Knob("Osc1StartPhase", 0, 0, 1)
+      osc1PhaseKnob.unit = Unit.PercentNormalized
       osc1PhaseKnob.displayName = "Start Phase"
       osc1PhaseKnob.fillColour = knobColour
       osc1PhaseKnob.outlineColour = osc1Colour
       osc1PhaseKnob.changed = function(self)
         osc1:setParameter("StartPhase", self.value)
-        self.displayText = percent(self.value)
       end
       osc1PhaseKnob:changed()
       table.insert(tweakables, {widget=osc1PhaseKnob,default=50,probability=50,floor=0,ceiling=0.5,useDuration=true,category="synthesis"})
@@ -2063,36 +1919,36 @@ else
       table.insert(tweakables, {widget=hardsyncKnob,ceiling=12,probability=80,min=36,zero=50,default=50,useDuration=true,category="synthesis"})
 
       local atToHardsycKnob = osc1Panel:Knob("AtToHarsyncosc1", 0, 0, 1)
+      atToHardsycKnob.unit = Unit.PercentNormalized
       atToHardsycKnob.displayName = "AT->Sync"
       atToHardsycKnob.fillColour = knobColour
       atToHardsycKnob.outlineColour = filterColour
       atToHardsycKnob.changed = function(self)
         analogMacros["atToHardsync1"]:setParameter("Value", self.value)
-        self.displayText = percent(self.value)
       end
       atToHardsycKnob:changed()
       table.insert(tweakables, {widget=atToHardsycKnob,zero=25,default=25,excludeWhenTweaking=true,category="synthesis"})
     elseif isWavetable then
       local aftertouchToWaveKnob = osc1Panel:Knob("AftertouchToWave1", 0, -1, 1)
+      aftertouchToWaveKnob.unit = Unit.PercentNormalized
       aftertouchToWaveKnob.displayName = "AT->Wave"
       aftertouchToWaveKnob.fillColour = knobColour
       aftertouchToWaveKnob.outlineColour = filterColour
       aftertouchToWaveKnob.changed = function(self)
         local value = (self.value + 1) * 0.5
         wavetableMacros["atToShape1"]:setParameter("Value", value)
-        self.displayText = percent(self.value)
       end
       aftertouchToWaveKnob:changed()
       table.insert(tweakables, {widget=aftertouchToWaveKnob,bipolar=25,floor=0.5,ceiling=0.8,probability=60,default=50,excludeWhenTweaking=true,category="synthesis"})
 
       local wheelToWaveKnob = osc1Panel:Knob("WheelToWave1", 0, -1, 1)
+      wheelToWaveKnob.unit = Unit.PercentNormalized
       wheelToWaveKnob.displayName = "Wheel->Wave"
       wheelToWaveKnob.fillColour = knobColour
       wheelToWaveKnob.outlineColour = filterColour
       wheelToWaveKnob.changed = function(self)
         local value = (self.value + 1) * 0.5
         wavetableMacros["wheelToShape1"]:setParameter("Value", value)
-        self.displayText = percent(self.value)
       end
       wheelToWaveKnob:changed()
       table.insert(tweakables, {widget=wheelToWaveKnob,bipolar=25,floor=0.3,ceiling=0.5,probability=60,default=50,excludeWhenTweaking=true,category="synthesis"})
@@ -2256,12 +2112,12 @@ function createOsc2Panel()
     table.insert(tweakables, {widget=osc2PitchKnob,min=-24,max=24,integer=true,valueFilter={-24,-12,-5,0,7,12,19,24},floor=-12,ceiling=12,probability=75,default=50,zero=50,useDuration=true,category="synthesis"})
 
     local osc2FeedbackKnob = osc2Panel:Knob("Osc2Feedback", 0, 0, 1)
+    osc2FeedbackKnob.unit = Unit.PercentNormalized
     osc2FeedbackKnob.displayName = "Feedback"
     osc2FeedbackKnob.fillColour = knobColour
     osc2FeedbackKnob.outlineColour = osc2Colour
     osc2FeedbackKnob.changed = function(self)
       osc2:setParameter("Feedback", self.value)
-      self.displayText = percent(self.value)
     end
     osc2FeedbackKnob:changed()
     table.insert(tweakables, {widget=osc2FeedbackKnob,default=60,floor=0.1,ceiling=0.6,probability=50,useDuration=true,category="synthesis"})
@@ -2283,12 +2139,12 @@ function createOsc2Panel()
       table.insert(tweakables, {widget=osc2ShapeKnob,min=6,default=10,category="synthesis"})
     elseif isWavetable then
       local osc2ShapeKnob = osc2Panel:Knob("Osc2Wave", 0, 0, 1)
+      osc2ShapeKnob.unit = Unit.PercentNormalized
       osc2ShapeKnob.displayName = "Wave"
       osc2ShapeKnob.fillColour = knobColour
       osc2ShapeKnob.outlineColour = osc2Colour
       osc2ShapeKnob.changed = function(self)
         osc2Shape:setParameter("Value", self.value)
-        self.displayText = percent(self.value)
       end
       osc2ShapeKnob:changed()
       table.insert(tweakables, {widget=osc2ShapeKnob,default=10,zero=5,probability=50,floor=0.3,ceil=0.6,useDuration=true,category="synthesis"})
@@ -2309,13 +2165,13 @@ function createOsc2Panel()
       table.insert(tweakables, {widget=osc2PartialsKnob,min=256,floor=2,ceiling=64,probability=70,useDuration=true,category="synthesis"})
 
       local osc2EvenOddKnob = osc2Panel:Knob("Osc2EvenOdd", 0, -1, 1)
+      osc2EvenOddKnob.unit = Unit.PercentNormalized
       osc2EvenOddKnob.displayName = "Even/Odd"
       osc2EvenOddKnob.fillColour = knobColour
       osc2EvenOddKnob.outlineColour = osc1Colour
       osc2EvenOddKnob.changed = function(self)
         local value = (self.value + 1) * 0.5
         additiveMacros["osc2EvenOdd"]:setParameter("Value", value)
-        self.displayText = percent(self.value)
       end
       osc2EvenOddKnob:changed()
       table.insert(tweakables, {widget=osc2EvenOddKnob,bipolar=50,floor=0.3,ceiling=0.9,probability=50,default=10,useDuration=true,category="synthesis"})
@@ -2323,12 +2179,12 @@ function createOsc2Panel()
 
     if isAnalog or isWavetable then
       local osc2PhaseKnob = osc2Panel:Knob("Osc2StartPhase", 0, 0, 1)
+      osc2PhaseKnob.unit = Unit.PercentNormalized
       osc2PhaseKnob.displayName = "Start Phase"
       osc2PhaseKnob.fillColour = knobColour
       osc2PhaseKnob.outlineColour = osc2Colour
       osc2PhaseKnob.changed = function(self)
         osc2:setParameter("StartPhase", self.value)
-        self.displayText = percent(self.value)
       end
       osc2PhaseKnob:changed()
       table.insert(tweakables, {widget=osc2PhaseKnob,default=50,probability=50,floor=0.5,ceiling=1,useDuration=true,category="synthesis"})
@@ -2387,13 +2243,13 @@ function createOsc2Panel()
       table.insert(tweakables, {widget=hardsyncKnob,ceiling=12,probability=80,min=36,zero=75,default=50,useDuration=true,category="synthesis"})
     elseif isWavetable then
       local wheelToWaveKnob = osc2Panel:Knob("WheelToWave2", 0, -1, 1)
+      wheelToWaveKnob.unit = Unit.PercentNormalized
       wheelToWaveKnob.displayName = "Wheel->Wave"
       wheelToWaveKnob.fillColour = knobColour
       wheelToWaveKnob.outlineColour = filterColour
       wheelToWaveKnob.changed = function(self)
         local value = (self.value + 1) * 0.5
         wavetableMacros["wheelToShape2"]:setParameter("Value", value)
-        self.displayText = percent(self.value)
       end
       wheelToWaveKnob:changed()
       table.insert(tweakables, {widget=wheelToWaveKnob,bipolar=25,excludeWhenTweaking=true,category="synthesis"})
@@ -2567,6 +2423,7 @@ function createMixerPanel()
   end
 
   local panSpreadKnob = mixerPanel:Knob("PanSpread", 0, 0, 1)
+  panSpreadKnob.unit = Unit.PercentNormalized
   panSpreadKnob.displayName = "Pan Spread"
   panSpreadKnob.y = mixerLabel.y
   if subOscWaveformKnob then
@@ -2579,7 +2436,6 @@ function createMixerPanel()
   panSpreadKnob.outlineColour = unisonColour
   panSpreadKnob.changed = function(self)
     panSpread:setParameter("Value", self.value)
-    self.displayText = percent(self.value)
   end
   panSpreadKnob:changed()
   table.insert(tweakables, {widget=panSpreadKnob,ceiling=0.6,probability=70,default=30,useDuration=true,category="mixer"})
@@ -2609,6 +2465,7 @@ function createMixerPanel()
   local randomPhaseStartKnob
   if isAnalog or isAnalogStack or isAnalog3Osc then
     randomPhaseStartKnob = mixerPanel:Knob("RandomPhaseStart", 0, 0, 1)
+    randomPhaseStartKnob.unit = Unit.PercentNormalized
     randomPhaseStartKnob.displayName = "Rand Phase"
     randomPhaseStartKnob.y = 50
     randomPhaseStartKnob.x = mixerLabel.x
@@ -2624,7 +2481,6 @@ function createMixerPanel()
       else
         analogMacros["randomPhaseStart"]:setParameter("Value", self.value)
       end
-      self.displayText = percent(self.value)
     end
     randomPhaseStartKnob:changed()
     table.insert(tweakables, {widget=randomPhaseStartKnob,ceiling=0.3,probability=70,default=30,zero=30,useDuration=true,category="synthesis"})
@@ -2688,6 +2544,7 @@ function createMixerPanel()
   unisonVoicesKnob.fillColour = knobColour
   unisonVoicesKnob.outlineColour = unisonColour
 
+  unisonDetuneKnob.unit = Unit.PercentNormalized
   unisonDetuneKnob.displayName = "Detune"
   unisonDetuneKnob.y = playModeMenu.y
   unisonDetuneKnob.x = unisonVoicesKnob.x + unisonVoicesKnob.width + marginRight
@@ -2700,7 +2557,6 @@ function createMixerPanel()
     else
       unisonDetune:setParameter("Value", self.value)
     end
-    self.displayText = percent(self.value)
   end
   unisonDetuneKnob:changed()
   table.insert(tweakables, {widget=unisonDetuneKnob,ceiling=0.3,absoluteLimit=0.6,probability=90,default=80,tweakRange=0.2,useDuration=true,excludeWhenTweaking=true,category="synthesis"})
@@ -2710,6 +2566,7 @@ function createMixerPanel()
   else
     stereoSpreadKnob.displayName = "Stereo Spread"
   end
+  stereoSpreadKnob.unit = Unit.PercentNormalized
   stereoSpreadKnob.y = playModeMenu.y
   stereoSpreadKnob.x = unisonDetuneKnob.x + unisonDetuneKnob.width + marginRight
   stereoSpreadKnob.size = knobSize
@@ -2722,7 +2579,6 @@ function createMixerPanel()
     else
       stereoSpread:setParameter("Value", self.value)
     end
-    self.displayText = percent(self.value)
   end
   stereoSpreadKnob:changed()
   table.insert(tweakables, {widget=stereoSpreadKnob,ceiling=0.5,probability=40,default=40,useDuration=true,excludeWhenTweaking=true,category="synthesis"})
@@ -2730,6 +2586,7 @@ function createMixerPanel()
   local waveSpreadKnob
   if isWavetable then
     waveSpreadKnob = mixerPanel:Knob("WaveSpread", 0, 0, 1)
+    waveSpreadKnob.unit = Unit.PercentNormalized
     waveSpreadKnob.displayName = "Wave Spread"
     waveSpreadKnob.y = playModeMenu.y
     waveSpreadKnob.x = stereoSpreadKnob.x + stereoSpreadKnob.width + marginRight
@@ -2738,7 +2595,6 @@ function createMixerPanel()
     waveSpreadKnob.outlineColour = unisonColour
     waveSpreadKnob.changed = function(self)
       wavetableMacros["waveSpread"]:setParameter("Value", self.value)
-      self.displayText = percent(self.value)
     end
     waveSpreadKnob:changed()
     table.insert(tweakables, {widget=waveSpreadKnob,ceiling=0.5,probability=30,default=30,useDuration=true,excludeWhenTweaking=true,category="synthesis"})
@@ -2885,46 +2741,46 @@ function createFilterPanel()
   table.insert(tweakables, {widget=cutoffKnob,floor=0.3,ceiling=0.7,probability=85,zero=25,default=35,useDuration=true,category="filter"})
 
   local filterResonanceKnob = filterPanel:Knob("Resonance", 0, 0, 1)
+  filterResonanceKnob.unit = Unit.PercentNormalized
   filterResonanceKnob.fillColour = knobColour
   filterResonanceKnob.outlineColour = filterColour
   filterResonanceKnob.changed = function(self)
     filterResonance:setParameter("Value", self.value)
-    self.displayText = percent(self.value)
   end
   filterResonanceKnob:changed()
   table.insert(tweakables, {widget=filterResonanceKnob,floor=0.1,ceiling=0.6,probability=60,default=0,zero=30,absoluteLimit=0.8,useDuration=true,category="filter"})
 
   local filterKeyTrackingKnob = filterPanel:Knob("KeyTracking", 0, 0, 1)
+  filterKeyTrackingKnob.unit = Unit.PercentNormalized
   filterKeyTrackingKnob.displayName = "Key Track"
   filterKeyTrackingKnob.fillColour = knobColour
   filterKeyTrackingKnob.outlineColour = filterColour
   filterKeyTrackingKnob.changed = function(self)
     filterKeyTracking:setParameter("Value", self.value)
-    self.displayText = percent(self.value)
   end
   filterKeyTrackingKnob:changed()
   table.insert(tweakables, {widget=filterKeyTrackingKnob,default=40,zero=50,excludeWhenTweaking=true,category="filter"})
 
   local wheelToCutoffKnob = filterPanel:Knob("WheelToCutoff", 0, -1, 1)
+  wheelToCutoffKnob.unit = Unit.PercentNormalized
   wheelToCutoffKnob.displayName = "Modwheel"
   wheelToCutoffKnob.fillColour = knobColour
   wheelToCutoffKnob.outlineColour = filterColour
   wheelToCutoffKnob.changed = function(self)
     local value = (self.value + 1) * 0.5
     wheelToCutoff:setParameter("Value", value)
-    self.displayText = percent(self.value)
   end
   wheelToCutoffKnob:changed()
   table.insert(tweakables, {widget=wheelToCutoffKnob,bipolar=25,floor=0.2,ceiling=0.4,probability=50,excludeWhenTweaking=true,category="filter"})
 
   local atToCutoffKnob = filterPanel:Knob("AftertouchToCutoff", 0, -1, 1)
+  atToCutoffKnob.unit = Unit.PercentNormalized
   atToCutoffKnob.displayName = "Aftertouch"
   atToCutoffKnob.fillColour = knobColour
   atToCutoffKnob.outlineColour = filterColour
   atToCutoffKnob.changed = function(self)
     local value = (self.value + 1) * 0.5
     atToCutoff:setParameter("Value", value)
-    self.displayText = percent(self.value)
   end
   atToCutoffKnob:changed()
   table.insert(tweakables, {widget=atToCutoffKnob,bipolar=25,floor=0.3,ceiling=0.6,probability=50,excludeWhenTweaking=true,category="filter"})
@@ -2960,47 +2816,47 @@ function createHpFilterPanel()
   table.insert(tweakables, {widget=hpfCutoffKnob,ceiling=0.4,probability=90,zero=60,default=20,useDuration=true,category="filter"})
 
   local hpfResonanceKnob = hpFilterPanel:Knob("HpfResonance", 0, 0, 1)
+  hpfResonanceKnob.unit = Unit.PercentNormalized
   hpfResonanceKnob.displayName = "Resonance"
   hpfResonanceKnob.fillColour = knobColour
   hpfResonanceKnob.outlineColour = filterColour
   hpfResonanceKnob.changed = function(self)
     hpfResonance:setParameter("Value", self.value)
-    self.displayText = percent(self.value)
   end
   hpfResonanceKnob:changed()
   table.insert(tweakables, {widget=hpfResonanceKnob,ceiling=0.5,probability=80,absoluteLimit=0.8,default=50,useDuration=true,category="filter"})
 
   local hpfKeyTrackingKnob = hpFilterPanel:Knob("HpfKeyTracking", 0, 0, 1)
+  hpfKeyTrackingKnob.unit = Unit.PercentNormalized
   hpfKeyTrackingKnob.displayName = "Key Track"
   hpfKeyTrackingKnob.fillColour = knobColour
   hpfKeyTrackingKnob.outlineColour = filterColour
   hpfKeyTrackingKnob.changed = function(self)
     hpfKeyTracking:setParameter("Value", self.value)
-    self.displayText = percent(self.value)
   end
   hpfKeyTrackingKnob:changed()
   table.insert(tweakables, {widget=hpfKeyTrackingKnob,floor=0.2,ceiling=0.8,probability=50,excludeWhenTweaking=true,category="filter"})
 
   local wheelToHpfCutoffKnob = hpFilterPanel:Knob("WheelToHpfCutoff", 0, -1, 1)
+  wheelToHpfCutoffKnob.unit = Unit.PercentNormalized
   wheelToHpfCutoffKnob.displayName = "Modwheel"
   wheelToHpfCutoffKnob.fillColour = knobColour
   wheelToHpfCutoffKnob.outlineColour = filterColour
   wheelToHpfCutoffKnob.changed = function(self)
     local value = (self.value + 1) * 0.5
     wheelToHpf:setParameter("Value", value)
-    self.displayText = percent(self.value)
   end
   wheelToHpfCutoffKnob:changed()
   table.insert(tweakables, {widget=wheelToHpfCutoffKnob,bipolar=25,floor=0.2,ceiling=0.4,probability=30,excludeWhenTweaking=true,category="filter"})
 
   local atToHpfCutoffKnob = hpFilterPanel:Knob("AftertouchToHpfCutoff", 0, -1, 1)
+  atToHpfCutoffKnob.unit = Unit.PercentNormalized
   atToHpfCutoffKnob.displayName = "Aftertouch"
   atToHpfCutoffKnob.fillColour = knobColour
   atToHpfCutoffKnob.outlineColour = filterColour
   atToHpfCutoffKnob.changed = function(self)
     local value = (self.value + 1) * 0.5
     atToHpf:setParameter("Value", value)
-    self.displayText = percent(self.value)
   end
   atToHpfCutoffKnob:changed()
   table.insert(tweakables, {widget=atToHpfCutoffKnob,bipolar=25,floor=0.3,ceiling=0.7,probability=30,excludeWhenTweaking=true,category="filter"})
@@ -3071,6 +2927,7 @@ function createFilterEnvPanel()
   table.insert(tweakables, {widget=filterDecayKnob,decay=true,floor=0.01,ceiling=0.75,probability=50,default=10,useDuration=false,category="filter"})
 
   local filterSustainKnob = filterEnvPanel:Knob("FSustain", 1, 0, 1)
+  filterSustainKnob.unit = Unit.PercentNormalized
   filterSustainKnob.displayName="Sustain"
   filterSustainKnob.fillColour = knobColour
   filterSustainKnob.outlineColour = filterEnvColour
@@ -3084,7 +2941,6 @@ function createFilterEnvPanel()
     if activeFilterEnvOsc == 1 or activeFilterEnvOsc == 4 then
       filterEnvNoise:setParameter("SustainLevel", self.value)
     end
-    self.displayText = percent(self.value)
   end
   filterSustainKnob:changed()
   table.insert(tweakables, {widget=filterSustainKnob,floor=0.1,ceil=0.7,probability=80,default=5,zero=15,useDuration=false,category="filter"})
@@ -3174,25 +3030,25 @@ function createFilterEnvTargetsPanel()
   filterEnvTargetsPanel:Label("Filter Env ->")
 
   local envAmtKnob = filterEnvTargetsPanel:Knob("EnvelopeAmt", 0, -1, 1)
+  envAmtKnob.unit = Unit.PercentNormalized
   envAmtKnob.displayName = "LP-Filter"
   envAmtKnob.fillColour = knobColour
   envAmtKnob.outlineColour = filterColour
   envAmtKnob.changed = function(self)
     local value = (self.value + 1) * 0.5
     filterEnvAmount:setParameter("Value", value)
-    self.displayText = percent(self.value)
   end
   envAmtKnob:changed()
   table.insert(tweakables, {widget=envAmtKnob,bipolar=5,floor=0.3,ceiling=0.9,probability=60,default=3,zero=3,useDuration=true,category="filter"})
 
   local hpfEnvAmtKnob = filterEnvTargetsPanel:Knob("HpfEnvelopeAmt", 0, -1, 1)
+  hpfEnvAmtKnob.unit = Unit.PercentNormalized
   hpfEnvAmtKnob.displayName = "HP-Filter"
   hpfEnvAmtKnob.fillColour = knobColour
   hpfEnvAmtKnob.outlineColour = filterColour
   hpfEnvAmtKnob.changed = function(self)
     local value = (self.value + 1) * 0.5
     hpfEnvAmount:setParameter("Value", value)
-    self.displayText = percent(self.value)
   end
   hpfEnvAmtKnob:changed()
   table.insert(tweakables, {widget=hpfEnvAmtKnob,absoluteLimit=0.8,floor=0.1,ceiling=0.3,probability=90,zero=25,default=25,bipolar=25,useDuration=true,category="filter"})
@@ -3248,67 +3104,67 @@ function createFilterEnvOscTargetsPanel()
     table.insert(tweakables, {widget=filterEnvToPitchOsc3Knob,ceiling=0.1,probability=85,default=75,zero=25,category="filter"})
   elseif isFM then
     local filterEnvToOsc1OpBLevelKnob = filterEnvOscTargetsPanel:Knob("Osc1FilterEnvToOpBLevel", 0, 0, 1)
+    filterEnvToOsc1OpBLevelKnob.unit = Unit.PercentNormalized
     filterEnvToOsc1OpBLevelKnob.displayName = "Osc1 OpB Lvl"
     filterEnvToOsc1OpBLevelKnob.fillColour = knobColour
     filterEnvToOsc1OpBLevelKnob.outlineColour = lfoColour
     filterEnvToOsc1OpBLevelKnob.changed = function(self)
       FMMacros["filterEnvToOsc1OpBLevel"]:setParameter("Value", self.value)
-      self.displayText = percent(self.value)
     end
     filterEnvToOsc1OpBLevelKnob:changed()
     table.insert(tweakables, {widget=filterEnvToOsc1OpBLevelKnob,default=50,zero=30,floor=0.1,ceiling=0.6,probability=30,useDuration=true,category="filter"})
 
     local filterEnvToOsc1OpCLevelKnob = filterEnvOscTargetsPanel:Knob("Osc1FilterEnvToOpCLevel", 0, 0, 1)
+    filterEnvToOsc1OpCLevelKnob.unit = Unit.PercentNormalized
     filterEnvToOsc1OpCLevelKnob.displayName = "Osc1 OpC Lvl"
     filterEnvToOsc1OpCLevelKnob.fillColour = knobColour
     filterEnvToOsc1OpCLevelKnob.outlineColour = lfoColour
     filterEnvToOsc1OpCLevelKnob.changed = function(self)
       FMMacros["filterEnvToOsc1OpCLevel"]:setParameter("Value", self.value)
-      self.displayText = percent(self.value)
     end
     filterEnvToOsc1OpCLevelKnob:changed()
     table.insert(tweakables, {widget=filterEnvToOsc1OpCLevelKnob,default=60,zero=40,floor=0.1,ceiling=0.6,probability=30,useDuration=true,category="filter"})
 
     local filterEnvToOsc1OpDLevelKnob = filterEnvOscTargetsPanel:Knob("Osc1FilterEnvToOpDLevel", 0, 0, 1)
+    filterEnvToOsc1OpDLevelKnob.unit = Unit.PercentNormalized
     filterEnvToOsc1OpDLevelKnob.displayName = "Osc1 OpD Lvl"
     filterEnvToOsc1OpDLevelKnob.fillColour = knobColour
     filterEnvToOsc1OpDLevelKnob.outlineColour = lfoColour
     filterEnvToOsc1OpDLevelKnob.changed = function(self)
       FMMacros["filterEnvToOsc1OpDLevel"]:setParameter("Value", self.value)
-      self.displayText = percent(self.value)
     end
     filterEnvToOsc1OpDLevelKnob:changed()
     table.insert(tweakables, {widget=filterEnvToOsc1OpDLevelKnob,default=70,zero=50,floor=0.1,ceiling=0.6,probability=30,useDuration=true,category="filter"})
 
     local filterEnvToOsc2OpBLevelKnob = filterEnvOscTargetsPanel:Knob("Osc2FilterEnvToOpBLevel", 0, 0, 1)
+    filterEnvToOsc2OpBLevelKnob.unit = Unit.PercentNormalized
     filterEnvToOsc2OpBLevelKnob.displayName = "Osc2 OpB Lvl"
     filterEnvToOsc2OpBLevelKnob.fillColour = knobColour
     filterEnvToOsc2OpBLevelKnob.outlineColour = lfoColour
     filterEnvToOsc2OpBLevelKnob.changed = function(self)
       FMMacros["filterEnvToOsc2OpBLevel"]:setParameter("Value", self.value)
-      self.displayText = percent(self.value)
     end
     filterEnvToOsc2OpBLevelKnob:changed()
     table.insert(tweakables, {widget=filterEnvToOsc2OpBLevelKnob,default=50,zero=30,floor=0.1,ceiling=0.6,probability=30,useDuration=true,category="filter"})
 
     local filterEnvToOsc2OpCLevelKnob = filterEnvOscTargetsPanel:Knob("Osc2FilterEnvToOpCLevel", 0, 0, 1)
+    filterEnvToOsc2OpCLevelKnob.unit = Unit.PercentNormalized
     filterEnvToOsc2OpCLevelKnob.displayName = "Osc2 OpC Lvl"
     filterEnvToOsc2OpCLevelKnob.fillColour = knobColour
     filterEnvToOsc2OpCLevelKnob.outlineColour = lfoColour
     filterEnvToOsc2OpCLevelKnob.changed = function(self)
       FMMacros["filterEnvToOsc2OpCLevel"]:setParameter("Value", self.value)
-      self.displayText = percent(self.value)
     end
     filterEnvToOsc2OpCLevelKnob:changed()
     table.insert(tweakables, {widget=filterEnvToOsc2OpCLevelKnob,default=60,zero=40,floor=0.1,ceiling=0.6,probability=30,useDuration=true,category="filter"})
 
     local filterEnvToOsc2OpDLevelKnob = filterEnvOscTargetsPanel:Knob("Osc2FilterEnvToOpDLevel", 0, 0, 1)
+    filterEnvToOsc2OpDLevelKnob.unit = Unit.PercentNormalized
     filterEnvToOsc2OpDLevelKnob.displayName = "Osc2 OpD Lvl"
     filterEnvToOsc2OpDLevelKnob.fillColour = knobColour
     filterEnvToOsc2OpDLevelKnob.outlineColour = lfoColour
     filterEnvToOsc2OpDLevelKnob.changed = function(self)
       FMMacros["filterEnvToOsc2OpDLevel"]:setParameter("Value", self.value)
-      self.displayText = percent(self.value)
     end
     filterEnvToOsc2OpDLevelKnob:changed()
     table.insert(tweakables, {widget=filterEnvToOsc2OpDLevelKnob,default=70,zero=50,floor=0.1,ceiling=0.6,probability=30,useDuration=true,category="filter"})
@@ -3317,36 +3173,36 @@ function createFilterEnvOscTargetsPanel()
 
     if isAnalog then
       local filterEnvToHardsync1Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToHardsync1", 0, 0, 1)
+      filterEnvToHardsync1Knob.unit = Unit.PercentNormalized
       filterEnvToHardsync1Knob.displayName = "Hardsync"
       filterEnvToHardsync1Knob.fillColour = knobColour
       filterEnvToHardsync1Knob.outlineColour = filterEnvColour
       filterEnvToHardsync1Knob.changed = function(self)
         analogMacros["filterEnvToHardsync1"]:setParameter("Value", self.value)
-        self.displayText = percent(self.value)
       end
       filterEnvToHardsync1Knob:changed()
       table.insert(tweakables, {widget=filterEnvToHardsync1Knob,zero=50,default=70,ceiling=0.5,probability=80,useDuration=true,category="filter"})
     elseif isWavetable then
       local filterEnvToWT1Knob = filterEnvOscTargetsPanel:Knob("Osc1FilterEnvToIndex", 0, -1, 1)
+      filterEnvToWT1Knob.unit = Unit.PercentNormalized
       filterEnvToWT1Knob.displayName = "Waveindex"
       filterEnvToWT1Knob.fillColour = knobColour
       filterEnvToWT1Knob.outlineColour = lfoColour
       filterEnvToWT1Knob.changed = function(self)
         local value = (self.value + 1) * 0.5
         wavetableMacros["filterEnvToWT1"]:setParameter("Value", value)
-        self.displayText = percent(self.value)
       end
       filterEnvToWT1Knob:changed()
       table.insert(tweakables, {widget=filterEnvToWT1Knob,bipolar=25,useDuration=true,category="filter"})
     elseif isAdditive then
       local oscFilterEnvAmtKnob = filterEnvOscTargetsPanel:Knob("Osc1FilterEnvelopeAmt", 0, -1, 1)
+      oscFilterEnvAmtKnob.unit = Unit.PercentNormalized
       oscFilterEnvAmtKnob.displayName = "Cutoff"
       oscFilterEnvAmtKnob.fillColour = knobColour
       oscFilterEnvAmtKnob.outlineColour = filterColour
       oscFilterEnvAmtKnob.changed = function(self)
         local value = (self.value + 1) * 0.5
         additiveMacros["filterEnvToCutoff1"]:setParameter("Value", value)
-        self.displayText = percent(self.value)
       end
       oscFilterEnvAmtKnob:changed()
       table.insert(tweakables, {widget=oscFilterEnvAmtKnob,bipolar=25,floor=0,ceiling=0.8,probability=30,useDuration=true,category="filter"})
@@ -3369,36 +3225,36 @@ function createFilterEnvOscTargetsPanel()
 
     if isAnalog then
       local filterEnvToHardsync2Knob = filterEnvOscTargetsPanel:Knob("FilterEnvToHardsync2", 0, 0, 1)
+      filterEnvToHardsync2Knob.unit = Unit.PercentNormalized
       filterEnvToHardsync2Knob.displayName = "Hardsync"
       filterEnvToHardsync2Knob.fillColour = knobColour
       filterEnvToHardsync2Knob.outlineColour = filterEnvColour
       filterEnvToHardsync2Knob.changed = function(self)
         analogMacros["filterEnvToHardsync2"]:setParameter("Value", self.value)
-        self.displayText = percent(self.value)
       end
       filterEnvToHardsync2Knob:changed()
       table.insert(tweakables, {widget=filterEnvToHardsync2Knob,zero=50,default=70,floor=0.1,ceiling=0.4,probability=90,useDuration=true,category="filter"})
     elseif isWavetable then
       local filterEnvToWT2Knob = filterEnvOscTargetsPanel:Knob("Osc2FilterEnvToIndex", 0, -1, 1)
+      filterEnvToWT2Knob.unit = Unit.PercentNormalized
       filterEnvToWT2Knob.displayName = "Waveindex"
       filterEnvToWT2Knob.fillColour = knobColour
       filterEnvToWT2Knob.outlineColour = lfoColour
       filterEnvToWT2Knob.changed = function(self)
         local value = (self.value + 1) * 0.5
         wavetableMacros["filterEnvToWT2"]:setParameter("Value", value)
-        self.displayText = percent(self.value)
       end
       filterEnvToWT2Knob:changed()
       table.insert(tweakables, {widget=filterEnvToWT2Knob,bipolar=25,zero=25,floor=0.2,ceiling=0.7,probability=20,useDuration=true,category="filter"})
     elseif isAdditive then
       local oscFilterEnvAmtKnob = filterEnvOscTargetsPanel:Knob("Osc2FilterEnvelopeAmt", 0, -1, 1)
+      oscFilterEnvAmtKnob.unit = Unit.PercentNormalized
       oscFilterEnvAmtKnob.displayName = "Cutoff"
       oscFilterEnvAmtKnob.fillColour = knobColour
       oscFilterEnvAmtKnob.outlineColour = filterColour
       oscFilterEnvAmtKnob.changed = function(self)
         local value = (self.value + 1) * 0.5
         additiveMacros["filterEnvToCutoff2"]:setParameter("Value", value)
-        self.displayText = percent(self.value)
       end
       oscFilterEnvAmtKnob:changed()
       table.insert(tweakables, {widget=oscFilterEnvAmtKnob,bipolar=25,default=25,floor=0.1,ceiling=0.6,probability=10,useDuration=true,category="filter"})
@@ -3511,7 +3367,7 @@ function createLfoPanel()
       lfoFreqKnob:setValue(lfoFreqKnob.default)
     else
       -- Uses beat ratio when synced: 4 is 1/1, 0.25 is 1/16
-      lfoFreqKnob:setRange(1, #resolutions)
+      lfoFreqKnob:setRange(1, #getResolutions())
       lfoFreqKnob.default = 20
       lfoFreqKnob.mapper = Mapper.Linear
       lfoFreqKnob.changed = function(self)
@@ -3566,6 +3422,7 @@ function createLfoPanel()
   table.insert(tweakables, {widget=lfo2TriggerButton,func=getRandomBoolean,category="modulation"})
 
   local lfoFreqKeyFollowKnob = lfoPanel:Knob("LfoFreqKeyFollow", 0, 0, 1)
+  lfoFreqKeyFollowKnob.unit = Unit.PercentNormalized
   lfoFreqKeyFollowKnob.displayName = "Key Track"
   lfoFreqKeyFollowKnob.fillColour = knobColour
   lfoFreqKeyFollowKnob.outlineColour = lfoColour
@@ -3579,7 +3436,6 @@ function createLfoPanel()
     if activeLfoOsc == 1 or activeLfoOsc == 4 then
       lfoFreqKeyFollow3:setParameter("Value", self.value)
     end
-    self.displayText = percent(self.value)
   end
   lfoFreqKeyFollowKnob:changed()
   table.insert(tweakables, {widget=lfoFreqKeyFollowKnob,ceiling=0.5,probability=50,default=15,zero=75,excludeWhenTweaking=true,category="modulation"})
@@ -3754,6 +3610,7 @@ function createLfoTargetPanel()
   ------- OSC 1+2 ----------
 
   local lfoToCutoffKnob = lfoTargetPanel:Knob("LfoToCutoff", 0, -1, 1)
+  lfoToCutoffKnob.unit = Unit.PercentNormalized
   lfoToCutoffKnob.displayName = "LP-Filter"
   lfoToCutoffKnob.fillColour = knobColour
   lfoToCutoffKnob.outlineColour = lfoColour
@@ -3763,12 +3620,12 @@ function createLfoTargetPanel()
     if lfoNoiseOscOverride == false then
       lfoToNoiseLpf:setParameter("Value", value)
     end
-    self.displayText = percent(self.value)
   end
   lfoToCutoffKnob:changed()
   table.insert(tweakables, {widget=lfoToCutoffKnob,bipolar=25,default=30,floor=0.01,ceiling=0.35,probability=50,useDuration=true,category="modulation"})
 
   local lfoToHpfCutoffKnob = lfoTargetPanel:Knob("LfoToHpfCutoff", 0, -1, 1)
+  lfoToHpfCutoffKnob.unit = Unit.PercentNormalized
   lfoToHpfCutoffKnob.displayName = "HP-Filter"
   lfoToHpfCutoffKnob.fillColour = knobColour
   lfoToHpfCutoffKnob.outlineColour = lfoColour
@@ -3778,12 +3635,12 @@ function createLfoTargetPanel()
     if lfoNoiseOscOverride == false then
       lfoToNoiseHpf:setParameter("Value", value)
     end
-    self.displayText = percent(self.value)
   end
   lfoToHpfCutoffKnob:changed()
   table.insert(tweakables, {widget=lfoToHpfCutoffKnob,bipolar=25,default=50,floor=0.1,ceiling=0.3,probability=50,useDuration=true,category="modulation"})
 
   local lfoToAmpKnob = lfoTargetPanel:Knob("LfoToAmplitude", 0, -1, 1)
+  lfoToAmpKnob.unit = Unit.PercentNormalized
   lfoToAmpKnob.displayName = "Amplitude"
   lfoToAmpKnob.fillColour = knobColour
   lfoToAmpKnob.outlineColour = lfoColour
@@ -3793,30 +3650,29 @@ function createLfoTargetPanel()
     if lfoNoiseOscOverride == false then
       lfoToNoiseAmp:setParameter("Value", value)
     end
-    self.displayText = percent(self.value)
   end
   lfoToAmpKnob:changed()
   table.insert(tweakables, {widget=lfoToAmpKnob,bipolar=25,default=60,floor=0.3,ceiling=0.8,probability=50,useDuration=true,category="modulation"})
 
   local lfoToDetuneKnob = lfoTargetPanel:Knob("LfoToFilterEnvDecay", 0, 0, 1)
+  lfoToDetuneKnob.unit = Unit.PercentNormalized
   lfoToDetuneKnob.displayName = "FDecay"
   lfoToDetuneKnob.tooltip = "LFO to filter envelope decay"
   lfoToDetuneKnob.fillColour = knobColour
   lfoToDetuneKnob.outlineColour = lfoColour
   lfoToDetuneKnob.changed = function(self)
     lfoToDetune:setParameter("Value", self.value)
-    self.displayText = percent(self.value)
   end
   lfoToDetuneKnob:changed()
   table.insert(tweakables, {widget=lfoToDetuneKnob,default=50,ceiling=0.25,probability=30,useDuration=true,category="modulation"})
 
   local wheelToLfoKnob = lfoTargetPanel:Knob("WheelToLfo", 0, 0, 1)
+  wheelToLfoKnob.unit = Unit.PercentNormalized
   wheelToLfoKnob.displayName = "Via Wheel"
   wheelToLfoKnob.fillColour = knobColour
   wheelToLfoKnob.outlineColour = lfoColour
   wheelToLfoKnob.changed = function(self)
     wheelToLfo:setParameter("Value", self.value)
-    self.displayText = percent(self.value)
   end
   wheelToLfoKnob:changed()
   table.insert(tweakables, {widget=wheelToLfoKnob,default=75,floor=0.5,ceiling=1.0,probability=50,excludeWhenTweaking=true,category="modulation"})
@@ -3825,6 +3681,7 @@ function createLfoTargetPanel()
 
   if lfoTargetOscMenu then
     local lfoToNoiseLpfCutoffKnob = lfoTargetPanel:Knob("LfoToNoiseLpfCutoff", 0, -1, 1)
+    lfoToNoiseLpfCutoffKnob.unit = Unit.PercentNormalized
     lfoToNoiseLpfCutoffKnob.displayName = "LP-Filter"
     lfoToNoiseLpfCutoffKnob.x = lfoToCutoffKnob.x
     lfoToNoiseLpfCutoffKnob.y = lfoToCutoffKnob.y
@@ -3833,10 +3690,10 @@ function createLfoTargetPanel()
     lfoToNoiseLpfCutoffKnob.changed = function(self)
       local value = (self.value + 1) * 0.5
       lfoToNoiseLpf:setParameter("Value", value)
-      self.displayText = percent(self.value)
     end
 
     local lfoToNoiseHpfCutoffKnob = lfoTargetPanel:Knob("LfoToNoiseHpfCutoff", 0, -1, 1)
+    lfoToNoiseHpfCutoffKnob.unit = Unit.PercentNormalized
     lfoToNoiseHpfCutoffKnob.displayName = "HP-Filter"
     lfoToNoiseHpfCutoffKnob.x = lfoToHpfCutoffKnob.x
     lfoToNoiseHpfCutoffKnob.y = lfoToHpfCutoffKnob.y
@@ -3845,10 +3702,10 @@ function createLfoTargetPanel()
     lfoToNoiseHpfCutoffKnob.changed = function(self)
       local value = (self.value + 1) * 0.5
       lfoToNoiseHpf:setParameter("Value", value)
-      self.displayText = percent(self.value)
     end
 
     local lfoToNoiseAmpKnob = lfoTargetPanel:Knob("LfoToNoiseAmplitude", 0, -1, 1)
+    lfoToNoiseAmpKnob.unit = Unit.PercentNormalized
     lfoToNoiseAmpKnob.displayName = "Amplitude"
     lfoToNoiseAmpKnob.x = lfoToAmpKnob.x
     lfoToNoiseAmpKnob.y = lfoToAmpKnob.y
@@ -3857,7 +3714,6 @@ function createLfoTargetPanel()
     lfoToNoiseAmpKnob.changed = function(self)
       local value = (self.value + 1) * 0.5
       lfoToNoiseAmp:setParameter("Value", value)
-      self.displayText = percent(self.value)
     end
 
     local lfoToNoiseOverrideButton = lfoTargetPanel:OnOffButton("LfoToNoiseOverride", lfoNoiseOscOverride)
@@ -3932,37 +3788,37 @@ function createLfoTargetPanel1()
     lfoTargetPanel1:Label("LFO -> Osc ->")
 
     local osc1LfoToPWMKnob = lfoTargetPanel1:Knob("LfoToOsc1PWM", 0, 0, 0.5)
+    osc1LfoToPWMKnob.unit = Unit.PercentNormalized
     osc1LfoToPWMKnob.displayName = "PWM 1"
     osc1LfoToPWMKnob.mapper = Mapper.Quadratic
     osc1LfoToPWMKnob.fillColour = knobColour
     osc1LfoToPWMKnob.outlineColour = lfoColour
     osc1LfoToPWMKnob.changed = function(self)
       osc1LfoToPWM:setParameter("Value", self.value)
-      self.displayText = percent(self.value)
     end
     osc1LfoToPWMKnob:changed()
     table.insert(tweakables, {widget=osc1LfoToPWMKnob,ceiling=0.25,probability=90,default=60,useDuration=true,category="modulation"})
 
     local osc2LfoToPWMKnob = lfoTargetPanel1:Knob("LfoToOsc2PWM", 0, 0, 0.5)
+    osc2LfoToPWMKnob.unit = Unit.PercentNormalized
     osc2LfoToPWMKnob.displayName = "PWM 2"
     osc2LfoToPWMKnob.mapper = Mapper.Quadratic
     osc2LfoToPWMKnob.fillColour = knobColour
     osc2LfoToPWMKnob.outlineColour = lfoColour
     osc2LfoToPWMKnob.changed = function(self)
       osc2LfoToPWM:setParameter("Value", self.value)
-      self.displayText = percent(self.value)
     end
     osc2LfoToPWMKnob:changed()
     table.insert(tweakables, {widget=osc2LfoToPWMKnob,ceiling=0.25,probability=90,default=60,useDuration=true,category="modulation"})
 
     local osc3LfoToPWMKnob = lfoTargetPanel1:Knob("LfoToOsc3PWM", 0, 0, 0.5)
+    osc3LfoToPWMKnob.unit = Unit.PercentNormalized
     osc3LfoToPWMKnob.displayName = "PWM 3"
     osc3LfoToPWMKnob.mapper = Mapper.Quadratic
     osc3LfoToPWMKnob.fillColour = knobColour
     osc3LfoToPWMKnob.outlineColour = lfoColour
     osc3LfoToPWMKnob.changed = function(self)
       analogMacros["osc3LfoToPWM"]:setParameter("Value", self.value)
-      self.displayText = percent(self.value)
     end
     osc3LfoToPWMKnob:changed()
     table.insert(tweakables, {widget=osc3LfoToPWMKnob,ceiling=0.25,probability=90,default=60,useDuration=true,category="modulation"})
@@ -3971,13 +3827,13 @@ function createLfoTargetPanel1()
 
     if isAnalog or isAdditive or isWavetable or isAnalogStack then
       local osc1LfoToPWMKnob = lfoTargetPanel1:Knob("LfoToOsc1PWM", 0, 0, 0.5)
+      osc1LfoToPWMKnob.unit = Unit.PercentNormalized
       osc1LfoToPWMKnob.displayName = "PWM"
       osc1LfoToPWMKnob.mapper = Mapper.Quadratic
       osc1LfoToPWMKnob.fillColour = knobColour
       osc1LfoToPWMKnob.outlineColour = lfoColour
       osc1LfoToPWMKnob.changed = function(self)
         osc1LfoToPWM:setParameter("Value", self.value)
-        self.displayText = percent(self.value)
       end
       osc1LfoToPWMKnob:changed()
       table.insert(tweakables, {widget=osc1LfoToPWMKnob,ceiling=0.25,probability=90,default=50,useDuration=true,category="modulation"})
@@ -3985,103 +3841,103 @@ function createLfoTargetPanel1()
 
     if isAnalog then
       local lfoToHardsync1Knob = lfoTargetPanel1:Knob("LfoToHardsync1", 0, 0, 1)
+      lfoToHardsync1Knob.unit = Unit.PercentNormalized
       lfoToHardsync1Knob.displayName = "Hardsync"
       lfoToHardsync1Knob.fillColour = knobColour
       lfoToHardsync1Knob.outlineColour = lfoColour
       lfoToHardsync1Knob.changed = function(self)
         analogMacros["lfoToHardsync1"]:setParameter("Value", self.value)
-        self.displayText = percent(self.value)
       end
       lfoToHardsync1Knob:changed()
       table.insert(tweakables, {widget=lfoToHardsync1Knob,zero=50,default=70,floor=0.1,ceiling=0.6,probability=80,useDuration=true,category="modulation"})
     elseif isAdditive then
       local lfoToEvenOdd1Knob = lfoTargetPanel1:Knob("LfoToEvenOdd1", 0, 0, 1)
+      lfoToEvenOdd1Knob.unit = Unit.PercentNormalized
       lfoToEvenOdd1Knob.displayName = "Even/Odd"
       lfoToEvenOdd1Knob.fillColour = knobColour
       lfoToEvenOdd1Knob.outlineColour = lfoColour
       lfoToEvenOdd1Knob.changed = function(self)
         additiveMacros["lfoToEvenOdd1"]:setParameter("Value", self.value)
-        self.displayText = percent(self.value)
       end
       lfoToEvenOdd1Knob:changed()
       table.insert(tweakables, {widget=lfoToEvenOdd1Knob,zero=50,default=70,floor=0.3,ceiling=0.9,probability=20,category="modulation"})
 
       local lfoToCutoffKnob = lfoTargetPanel1:Knob("LfoToOsc1Cutoff", 0, -1, 1)
+      lfoToCutoffKnob.unit = Unit.PercentNormalized
       lfoToCutoffKnob.displayName = "Cutoff"
       lfoToCutoffKnob.fillColour = knobColour
       lfoToCutoffKnob.outlineColour = lfoColour
       lfoToCutoffKnob.changed = function(self)
         local value = (self.value + 1) * 0.5
         additiveMacros["lfoToOsc1Cutoff"]:setParameter("Value", value)
-        self.displayText = percent(self.value)
       end
       lfoToCutoffKnob:changed()
       table.insert(tweakables, {widget=lfoToCutoffKnob,bipolar=25,default=30,floor=0.1,ceiling=0.5,probability=20,useDuration=true,category="modulation"})
     elseif isWavetable then
       local lfoToWT1Knob = lfoTargetPanel1:Knob("Osc1LfoToWaveIndex", 0, -1, 1)
+      lfoToWT1Knob.unit = Unit.PercentNormalized
       lfoToWT1Knob.displayName = "Waveindex"
       lfoToWT1Knob.fillColour = knobColour
       lfoToWT1Knob.outlineColour = lfoColour
       lfoToWT1Knob.changed = function(self)
         local value = (self.value + 1) * 0.5
         wavetableMacros["lfoToWT1"]:setParameter("Value", value)
-        self.displayText = percent(self.value)
       end
       lfoToWT1Knob:changed()
       table.insert(tweakables, {widget=lfoToWT1Knob,bipolar=25,default=25,floor=0.3,ceiling=0.9,probability=20,useDuration=true,category="modulation"})
 
       local lfoToWaveSpread1Knob = lfoTargetPanel1:Knob("LfoToWaveSpreadOsc1", 0, -1, 1)
+      lfoToWaveSpread1Knob.unit = Unit.PercentNormalized
       lfoToWaveSpread1Knob.displayName = "WaveSpread"
       lfoToWaveSpread1Knob.fillColour = knobColour
       lfoToWaveSpread1Knob.outlineColour = lfoColour
       lfoToWaveSpread1Knob.changed = function(self)
         local value = (self.value + 1) * 0.5
         wavetableMacros["lfoToWaveSpread1"]:setParameter("Value", value)
-        self.displayText = percent(self.value)
       end
       lfoToWaveSpread1Knob:changed()
       table.insert(tweakables, {widget=lfoToWaveSpread1Knob,bipolar=80,default=50,ceiling=0.4,probability=30,useDuration=true,category="modulation"})
     elseif isFM then
       local lfoToOsc1OpBLevelKnob = lfoTargetPanel1:Knob("LfoToOsc1OpBLevel", 0, 0, 1)
+      lfoToOsc1OpBLevelKnob.unit = Unit.PercentNormalized
       lfoToOsc1OpBLevelKnob.displayName = "Op B Level"
       lfoToOsc1OpBLevelKnob.fillColour = knobColour
       lfoToOsc1OpBLevelKnob.outlineColour = lfoColour
       lfoToOsc1OpBLevelKnob.changed = function(self)
         FMMacros["lfoToOsc1OpBLevel"]:setParameter("Value", self.value)
-        self.displayText = percent(self.value)
       end
       lfoToOsc1OpBLevelKnob:changed()
       table.insert(tweakables, {widget=lfoToOsc1OpBLevelKnob,default=50,floor=0.1,ceiling=0.6,probability=20,category="modulation"})
 
       local lfoToOsc1OpCLevelKnob = lfoTargetPanel1:Knob("LfoToOsc1OpCLevel", 0, 0, 1)
+      lfoToOsc1OpCLevelKnob.unit = Unit.PercentNormalized
       lfoToOsc1OpCLevelKnob.displayName = "Op C Level"
       lfoToOsc1OpCLevelKnob.fillColour = knobColour
       lfoToOsc1OpCLevelKnob.outlineColour = lfoColour
       lfoToOsc1OpCLevelKnob.changed = function(self)
         FMMacros["lfoToOsc1OpCLevel"]:setParameter("Value", self.value)
-        self.displayText = percent(self.value)
       end
       lfoToOsc1OpCLevelKnob:changed()
       table.insert(tweakables, {widget=lfoToOsc1OpCLevelKnob,default=50,floor=0.1,ceiling=0.6,probability=20,category="modulation"})
 
       local lfoToOsc1OpDLevelKnob = lfoTargetPanel1:Knob("LfoToOsc1OpDLevel", 0, 0, 1)
+      lfoToOsc1OpDLevelKnob.unit = Unit.PercentNormalized
       lfoToOsc1OpDLevelKnob.displayName = "Op D Level"
       lfoToOsc1OpDLevelKnob.fillColour = knobColour
       lfoToOsc1OpDLevelKnob.outlineColour = lfoColour
       lfoToOsc1OpDLevelKnob.changed = function(self)
         FMMacros["lfoToOsc1OpDLevel"]:setParameter("Value", self.value)
-        self.displayText = percent(self.value)
       end
       lfoToOsc1OpDLevelKnob:changed()
       table.insert(tweakables, {widget=lfoToOsc1OpDLevelKnob,default=50,floor=0.1,ceiling=0.6,probability=20,category="modulation"})
 
       local lfoToOsc1FeedbackKnob = lfoTargetPanel1:Knob("LfoToOsc1Feedback", 0, 0, 1)
+      lfoToOsc1FeedbackKnob.unit = Unit.PercentNormalized
       lfoToOsc1FeedbackKnob.displayName = "Feedback"
       lfoToOsc1FeedbackKnob.fillColour = knobColour
       lfoToOsc1FeedbackKnob.outlineColour = lfoColour
       lfoToOsc1FeedbackKnob.changed = function(self)
         FMMacros["lfoToOsc1Feedback"]:setParameter("Value", self.value)
-        self.displayText = percent(self.value)
       end
       lfoToOsc1FeedbackKnob:changed()
       table.insert(tweakables, {widget=lfoToOsc1FeedbackKnob,default=50,floor=0.1,ceiling=0.6,probability=20,category="modulation"})
@@ -4163,13 +4019,13 @@ function createLfoTargetPanel2()
 
     if isAnalog or isAdditive or isWavetable or isAnalogStack then
       local osc2LfoToPWMKnob = lfoTargetPanel2:Knob("LfoToOsc2PWM", 0, 0, 0.5)
+      osc2LfoToPWMKnob.unit = Unit.PercentNormalized
       osc2LfoToPWMKnob.displayName = "PWM"
       osc2LfoToPWMKnob.mapper = Mapper.Quadratic
       osc2LfoToPWMKnob.fillColour = knobColour
       osc2LfoToPWMKnob.outlineColour = lfoColour
       osc2LfoToPWMKnob.changed = function(self)
         osc2LfoToPWM:setParameter("Value", self.value)
-        self.displayText = percent(self.value)
       end
       osc2LfoToPWMKnob:changed()
       table.insert(tweakables, {widget=osc2LfoToPWMKnob,ceiling=0.25,probability=90,default=50,useDuration=true,category="modulation"})
@@ -4177,103 +4033,103 @@ function createLfoTargetPanel2()
 
     if isAnalog then
       local lfoToHardsync2Knob = lfoTargetPanel2:Knob("LfoToHardsync2", 0, 0, 1)
+      lfoToHardsync2Knob.unit = Unit.PercentNormalized
       lfoToHardsync2Knob.displayName = "Hardsync"
       lfoToHardsync2Knob.fillColour = knobColour
       lfoToHardsync2Knob.outlineColour = lfoColour
       lfoToHardsync2Knob.changed = function(self)
         analogMacros["lfoToHardsync2"]:setParameter("Value", self.value)
-        self.displayText = percent(self.value)
       end
       lfoToHardsync2Knob:changed()
       table.insert(tweakables, {widget=lfoToHardsync2Knob,zero=50,default=70,floor=0.1,ceiling=0.6,probability=20,useDuration=true,category="modulation"})
     elseif isAdditive then
       local lfoToEvenOdd2Knob = lfoTargetPanel2:Knob("LfoToEvenOdd2", 0, 0, 1)
+      lfoToEvenOdd2Knob.unit = Unit.PercentNormalized
       lfoToEvenOdd2Knob.displayName = "Even/Odd"
       lfoToEvenOdd2Knob.fillColour = knobColour
       lfoToEvenOdd2Knob.outlineColour = lfoColour
       lfoToEvenOdd2Knob.changed = function(self)
         additiveMacros["lfoToEvenOdd2"]:setParameter("Value", self.value)
-        self.displayText = percent(self.value)
       end
       lfoToEvenOdd2Knob:changed()
       table.insert(tweakables, {widget=lfoToEvenOdd2Knob,zero=50,default=70,floor=0.1,ceiling=0.6,probability=20,category="modulation"})
 
       local lfoToCutoffKnob = lfoTargetPanel2:Knob("LfoToOsc2Cutoff", 0, -1, 1)
+      lfoToCutoffKnob.unit = Unit.PercentNormalized
       lfoToCutoffKnob.displayName = "Cutoff"
       lfoToCutoffKnob.fillColour = knobColour
       lfoToCutoffKnob.outlineColour = lfoColour
       lfoToCutoffKnob.changed = function(self)
         local value = (self.value + 1) * 0.5
         additiveMacros["lfoToOsc2Cutoff"]:setParameter("Value", value)
-        self.displayText = percent(self.value)
       end
       lfoToCutoffKnob:changed()
       table.insert(tweakables, {widget=lfoToCutoffKnob,bipolar=25,default=30,floor=0.1,ceiling=0.6,probability=20,useDuration=true,category="modulation"})
     elseif isWavetable then
       local lfoToWT2Knob = lfoTargetPanel2:Knob("Osc2LfoToWaveIndex", 0, -1, 1)
+      lfoToWT2Knob.unit = Unit.PercentNormalized
       lfoToWT2Knob.displayName = "Waveindex"
       lfoToWT2Knob.fillColour = knobColour
       lfoToWT2Knob.outlineColour = lfoColour
       lfoToWT2Knob.changed = function(self)
         local value = (self.value + 1) * 0.5
         wavetableMacros["lfoToWT2"]:setParameter("Value", value)
-        self.displayText = percent(self.value)
       end
       lfoToWT2Knob:changed()
       table.insert(tweakables, {widget=lfoToWT2Knob,bipolar=25,default=25,floor=0.1,ceiling=0.9,probability=30,useDuration=true,category="modulation"})
 
       local lfoToWaveSpread2Knob = lfoTargetPanel2:Knob("LfoToWaveSpreadOsc2", 0, -1, 1)
+      lfoToWaveSpread2Knob.unit = Unit.PercentNormalized
       lfoToWaveSpread2Knob.displayName = "WaveSpread"
       lfoToWaveSpread2Knob.fillColour = knobColour
       lfoToWaveSpread2Knob.outlineColour = lfoColour
       lfoToWaveSpread2Knob.changed = function(self)
         local value = (self.value + 1) * 0.5
         wavetableMacros["lfoToWaveSpread2"]:setParameter("Value", value)
-        self.displayText = percent(self.value)
       end
       lfoToWaveSpread2Knob:changed()
       table.insert(tweakables, {widget=lfoToWaveSpread2Knob,bipolar=80,default=50,floor=0.3,ceiling=0.7,probability=25,useDuration=true,category="modulation"})
     elseif isFM then
       local lfoToOsc2OpBLevelKnob = lfoTargetPanel2:Knob("LfoToOsc2OpBLevel", 0, 0, 1)
+      lfoToOsc2OpBLevelKnob.unit = Unit.PercentNormalized
       lfoToOsc2OpBLevelKnob.displayName = "Op B Level"
       lfoToOsc2OpBLevelKnob.fillColour = knobColour
       lfoToOsc2OpBLevelKnob.outlineColour = lfoColour
       lfoToOsc2OpBLevelKnob.changed = function(self)
         FMMacros["lfoToOsc2OpBLevel"]:setParameter("Value", self.value)
-        self.displayText = percent(self.value)
       end
       lfoToOsc2OpBLevelKnob:changed()
       table.insert(tweakables, {widget=lfoToOsc2OpBLevelKnob,default=50,floor=0.1,ceiling=0.6,probability=20,category="modulation"})
 
       local lfoToOsc2OpCLevelKnob = lfoTargetPanel2:Knob("LfoToOsc2OpCLevel", 0, 0, 1)
+      lfoToOsc2OpCLevelKnob.unit = Unit.PercentNormalized
       lfoToOsc2OpCLevelKnob.displayName = "Op C Level"
       lfoToOsc2OpCLevelKnob.fillColour = knobColour
       lfoToOsc2OpCLevelKnob.outlineColour = lfoColour
       lfoToOsc2OpCLevelKnob.changed = function(self)
         FMMacros["lfoToOsc2OpCLevel"]:setParameter("Value", self.value)
-        self.displayText = percent(self.value)
       end
       lfoToOsc2OpCLevelKnob:changed()
       table.insert(tweakables, {widget=lfoToOsc2OpCLevelKnob,default=50,floor=0.1,ceiling=0.6,probability=20,category="modulation"})
 
       local lfoToOsc2OpDLevelKnob = lfoTargetPanel2:Knob("LfoToOsc2OpDLevel", 0, 0, 1)
+      lfoToOsc2OpDLevelKnob.unit = Unit.PercentNormalized
       lfoToOsc2OpDLevelKnob.displayName = "Op D Level"
       lfoToOsc2OpDLevelKnob.fillColour = knobColour
       lfoToOsc2OpDLevelKnob.outlineColour = lfoColour
       lfoToOsc2OpDLevelKnob.changed = function(self)
         FMMacros["lfoToOsc2OpDLevel"]:setParameter("Value", self.value)
-        self.displayText = percent(self.value)
       end
       lfoToOsc2OpDLevelKnob:changed()
       table.insert(tweakables, {widget=lfoToOsc2OpDLevelKnob,default=50,floor=0.1,ceiling=0.6,probability=20,category="modulation"})
 
       local lfoToOsc2FeedbackKnob = lfoTargetPanel2:Knob("LfoToOsc2Feedback", 0, 0, 1)
+      lfoToOsc2FeedbackKnob.unit = Unit.PercentNormalized
       lfoToOsc2FeedbackKnob.displayName = "Feedback"
       lfoToOsc2FeedbackKnob.fillColour = knobColour
       lfoToOsc2FeedbackKnob.outlineColour = lfoColour
       lfoToOsc2FeedbackKnob.changed = function(self)
         FMMacros["lfoToOsc2Feedback"]:setParameter("Value", self.value)
-        self.displayText = percent(self.value)
       end
       lfoToOsc2FeedbackKnob:changed()
       table.insert(tweakables, {widget=lfoToOsc2FeedbackKnob,default=50,floor=0.1,ceiling=0.3,probability=50,category="modulation"})
@@ -4359,6 +4215,7 @@ function createAmpEnvPanel()
   table.insert(tweakables, {widget=ampDecayKnob,decay=true,floor=0.01,ceiling=0.5,probability=50,default=25,useDuration=false,category="synthesis"})
 
   local ampSustainKnob = ampEnvPanel:Knob("Sustain", 1, 0, 1)
+  ampSustainKnob.unit = Unit.PercentNormalized
   ampSustainKnob.fillColour = knobColour
   ampSustainKnob.outlineColour = ampEnvColour
   ampSustainKnob.changed = function(self)
@@ -4371,7 +4228,6 @@ function createAmpEnvPanel()
     if activeAmpEnvOsc == 1 or activeAmpEnvOsc == 4 then
       ampEnvNoise:setParameter("SustainLevel", self.value)
     end
-    self.displayText = percent(self.value)
   end
   ampSustainKnob:changed()
   table.insert(tweakables, {widget=ampSustainKnob,floor=0.3,ceil=0.9,probability=80,default=60,zero=2,useDuration=false,category="synthesis"})
@@ -4486,6 +4342,7 @@ function createEffectsPanel()
   bypassFxButton:changed()
 
   local reverbKnob = effectsPanel:Knob("Reverb", 0, 0, 1)
+  reverbKnob.unit = Unit.PercentNormalized
   reverbKnob.x = 100
   reverbKnob.y = 50
   reverbKnob.size = knobSize
@@ -4494,12 +4351,12 @@ function createEffectsPanel()
   reverbKnob.outlineColour = filterEffectsColour
   reverbKnob.changed = function(self)
     reverbMix:setParameter("Value", self.value)
-    self.displayText = percent(self.value)
   end
   reverbKnob:changed()
   table.insert(tweakables, {widget=reverbKnob,floor=0.1,ceiling=0.6,probability=100,useDuration=true,category="effects"})
 
   local delayKnob = effectsPanel:Knob("Delay", 0, 0, 1)
+  delayKnob.unit = Unit.PercentNormalized
   delayKnob.size = knobSize
   delayKnob.x = 300
   delayKnob.y = reverbKnob.y
@@ -4508,12 +4365,12 @@ function createEffectsPanel()
   delayKnob.outlineColour = filterEffectsColour
   delayKnob.changed = function(self)
     delayMix:setParameter("Value", self.value)
-    self.displayText = percent(self.value)
   end
   delayKnob:changed()
   table.insert(tweakables, {widget=delayKnob,floor=0.01,ceiling=0.6,probability=100,useDuration=true,category="effects"})
 
   local phasorMixKnob = effectsPanel:Knob("Phasor", 0, 0, 1)
+  phasorMixKnob.unit = Unit.PercentNormalized
   phasorMixKnob.size = knobSize
   phasorMixKnob.x = 500
   phasorMixKnob.y = reverbKnob.y
@@ -4522,12 +4379,12 @@ function createEffectsPanel()
   phasorMixKnob.outlineColour = filterEffectsColour
   phasorMixKnob.changed = function(self)
     phasorMix:setParameter("Value", self.value)
-    self.displayText = percent(self.value)
   end
   phasorMixKnob:changed()
   table.insert(tweakables, {widget=phasorMixKnob,default=80,zero=50,ceiling=0.75,probability=20,useDuration=true,category="effects"})
 
   local chorusKnob = effectsPanel:Knob("Chorus", 0, 0, 1)
+  chorusKnob.unit = Unit.PercentNormalized
   chorusKnob.size = knobSize
   chorusKnob.x = reverbKnob.x
   chorusKnob.y = delayKnob.y + delayKnob.height + 20
@@ -4536,12 +4393,12 @@ function createEffectsPanel()
   chorusKnob.outlineColour = filterEffectsColour
   chorusKnob.changed = function(self)
     chorusMix:setParameter("Value", self.value)
-    self.displayText = percent(self.value)
   end
   chorusKnob:changed()
   table.insert(tweakables, {widget=chorusKnob,floor=0.01,ceiling=0.5,probability=60,default=50,useDuration=true,category="effects"})
 
   local driveKnob = effectsPanel:Knob("Drive", 0, 0, 1)
+  driveKnob.unit = Unit.PercentNormalized
   driveKnob.size = knobSize
   driveKnob.x = delayKnob.x
   driveKnob.y = chorusKnob.y
@@ -4550,7 +4407,6 @@ function createEffectsPanel()
   driveKnob.outlineColour = filterEffectsColour
   driveKnob.changed = function(self)
     driveAmount:setParameter("Value", self.value)
-    self.displayText = percent(self.value)
   end
   driveKnob:changed()
   table.insert(tweakables, {widget=driveKnob,ceiling=0.25,probability=90,absoluteLimit=0.6,default=60,useDuration=true,category="effects"})
@@ -4589,6 +4445,7 @@ function createVibratoPanel()
   vibratoPanel:Label("Vibrato")
 
   local vibratoKnob = vibratoPanel:Knob("VibratoDepth", 0, 0, 1)
+  vibratoKnob.unit = Unit.PercentNormalized
   vibratoKnob.displayName="Depth"
   vibratoKnob.fillColour = knobColour
   vibratoKnob.outlineColour = vibratoColour
@@ -4632,23 +4489,23 @@ function createVibratoPanel()
   table.insert(tweakables, {widget=vibratoRiseKnob,factor=5,floor=0.5,ceiling=3.5,probability=50,default=50,category="synthesis"})
 
   local wheelToVibratoKnob = vibratoPanel:Knob("WheelToVibrato", 0, 0, 1)
+  wheelToVibratoKnob.unit = Unit.PercentNormalized
   wheelToVibratoKnob.displayName="Modwheel"
   wheelToVibratoKnob.fillColour = knobColour
   wheelToVibratoKnob.outlineColour = vibratoColour
   wheelToVibratoKnob.changed = function(self)
     wheelToVibrato:setParameter("Value", self.value)
-    self.displayText = percent(self.value)
   end
   wheelToVibratoKnob:changed()
   table.insert(tweakables, {widget=wheelToVibratoKnob,default=50,floor=0.6,ceiling=0.85,probability=60,excludeWhenTweaking=true,category="synthesis"})
 
   local atToVibratoKnob = vibratoPanel:Knob("AftertouchToVibrato", 0, 0, 1)
+  atToVibratoKnob.unit = Unit.PercentNormalized
   atToVibratoKnob.displayName="Aftertouch"
   atToVibratoKnob.fillColour = knobColour
   atToVibratoKnob.outlineColour = vibratoColour
   atToVibratoKnob.changed = function(self)
     atToVibrato:setParameter("Value", self.value)
-    self.displayText = percent(self.value)
   end
   atToVibratoKnob:changed()
   table.insert(tweakables, {widget=atToVibratoKnob,default=50,floor=0.7,ceiling=0.9,probability=70,excludeWhenTweaking=true,category="synthesis"})
@@ -5210,7 +5067,7 @@ function createTwequencerPanel()
     partsTable:setValue(1, 0)
   end
 
-  local roundResolution = tweqPanel:Menu("RoundDuration", getResolutionNames(17))
+  local roundResolution = tweqPanel:Menu("RoundDuration", getResolutionNames({}, 17))
   roundResolution.displayName = "Tweak Duration"
   roundResolution.tooltip = "Set the duration that the tweak should take for each round"
   roundResolution.selected = 9
@@ -5901,8 +5758,6 @@ function createSettingsPanel()
       return formatGainInDb(value)
     elseif v.attack == true or v.release == true or v.decay == true then
       return formatTimeInSeconds(value)
-    elseif (v.widget.min == 0 or v.widget.min == -1) and v.widget.max == 1 then
-      return percent(value)
     end
     return value
   end
@@ -6185,6 +6040,7 @@ function createSettingsPanel()
 
     if isEnabled then
       floorKnob.mapper = v.widget.mapper
+      floorKnob.unit = v.widget.unit
       floorKnob.changed = function(self)
         v.floor = self.value
         local displayText = getWidgetDisplayText(v, self.value)
@@ -6210,6 +6066,7 @@ function createSettingsPanel()
 
     if isEnabled then
       ceilKnob.mapper = v.widget.mapper
+      ceilKnob.unit = v.widget.unit
       ceilKnob.changed = function(self)
         v.ceiling = self.value
         local displayText = getWidgetDisplayText(v, self.value)
@@ -6748,17 +6605,10 @@ end
 
 -- Set start page
 patchmakerPageButton:changed()
---twequencerPageButton:changed()
-
---[[ meter = AudioMeter("OutputLevel", Program, false, 0, true)
-meter.bounds = {0, 320, 720, 20}
-meter["0dBColour"] = "red"
-meter["3dBColour"] = "orange"
-meter["6dBColour"] = "blue"
-meter["10dBColour"] = "green" ]]
 
 setSize(720, 480)
 
+setBackgroundColour("#000066")
 setBackground("./resources/bluesquares.png")
 
 makePerformanceView()

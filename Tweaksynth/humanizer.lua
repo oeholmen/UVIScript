@@ -2,6 +2,8 @@
 -- Humanizer
 --------------------------------------------------------------------------------
 
+require "common"
+
 local menuBackgroundColour = "#bf01011F"
 local menuTextColour = "#9f02ACFE"
 
@@ -30,21 +32,6 @@ amount.backgroundColour = menuBackgroundColour
 amount.textColour = menuTextColour
 amount.x = panel.width / 2
 amount.y = 0
-
-function getRandom(min, max, factor)
-  if type(min) == "number" and type(max) == "number" then
-    local value = math.random(min, max)
-    return value
-  elseif type(min) == "number" then
-    local value = math.random(min)
-    return value
-  end
-  local value = math.random()
-  if type(factor) == "number" then
-    value = value * factor
-  end
-  return value
-end
 
 function onNote(e)
   run(humanize, e)
