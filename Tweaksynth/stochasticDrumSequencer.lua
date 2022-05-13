@@ -9,12 +9,20 @@ local menuBackgroundColour = "#bf01011F"
 local menuTextColour = "#9f02ACFE"
 local menuArrowColour = "#9f09A3F4"
 local menuOutlineColour = "#00000000"
-local arpId = {}
+local activePage = 1
+local nextUp = 1
+local pageButtons = {}
 local paramsPerPart = {}
+local paramsPerPage = {}
 local isPlaying = false
+local numPages = 1
 
 if type(numParts) == "nil" then
   numParts = 4
+end
+
+if type(maxPages) == "nil" then
+  maxPages = 8
 end
 
 if type(title) == "nil" then
@@ -23,13 +31,37 @@ end
 
 setBackgroundColour("#2c2c2c")
 
-for i=1,numParts do
-  table.insert(arpId, 0)
-end
-
 --------------------------------------------------------------------------------
 -- Functions
 --------------------------------------------------------------------------------
+
+-- Get the index for this part in paramsPerPart, given page and part number
+function getPartIndex(part, page)
+  if type(page) == "nil" then
+    page = activePage -- Default is the active page
+  end
+  print("getPartIndex page/part/numParts", page, part, numParts)
+  return (page * numParts) + (part - numParts)
+end
+
+-- Get page from part index
+function getPageFromPartIndex(partIndex)
+  print("getPageFromPartIndex partIndex", partIndex)
+  return math.ceil(partIndex / maxPages)
+end
+
+function gotoNextPage()
+  -- Check that there is actually a a change
+  if activePage == nextUp then
+    return
+  end
+  activePage = nextUp
+  for page,params in ipairs(paramsPerPage) do
+    local isVisible = page == activePage
+    params.sequencerPanel.visible = isVisible
+    pageButtons[page]:setValue(isVisible, false)
+  end
+end
 
 function clearPosition()
   for _,v in ipairs(paramsPerPart) do
@@ -39,23 +71,41 @@ function clearPosition()
   end
 end
 
-function setNumSteps(partIndex)
-  local numSteps = paramsPerPart[partIndex].numStepsBox.value
+function setNumSteps(partIndex, numSteps)
+  print("setNumSteps for partIndex/numSteps", partIndex, numSteps)
+  --local numSteps = paramsPerPart[partIndex].numStepsBox.value
   paramsPerPart[partIndex].positionTable.length = numSteps
   paramsPerPart[partIndex].tieStepTable.length = numSteps
   paramsPerPart[partIndex].seqPitchTable.length = numSteps
   paramsPerPart[partIndex].seqVelTable.length = numSteps
   paramsPerPart[partIndex].seqTriggerProbabilityTable.length = numSteps
   paramsPerPart[partIndex].seqRatchetTable.length = numSteps
+  local page = getPageFromPartIndex(partIndex)
+  setPageDuration(page)
+end
+
+function setPageDuration(page)
+  print("setPageDuration for page", page)
+  local pageResolutions = {}
+  for part=1,numParts do
+    local partIndex = getPartIndex(part, page)
+    print("getResolution for partIndex", partIndex)
+    local partResolution = getResolution(paramsPerPart[partIndex].stepResolution.value) * paramsPerPart[partIndex].numStepsBox.value
+    table.insert(pageResolutions, partResolution)
+    print("Added resolution/part/page", partResolution, part, page)
+  end
+  table.sort(pageResolutions)
+  paramsPerPage[page].pageDuration = pageResolutions[#pageResolutions]
 end
 
 function startPlaying()
   if isPlaying == true then
     return
   end
-  for i,v in ipairs(arpId) do
+  spawn(pageRunner)
+  for i=1,numParts do
     print("Start playing", i)
-    spawn(arpeg, i, v)
+    spawn(arpeg, i)
   end
   isPlaying = true
 end
@@ -64,34 +114,28 @@ function stopPlaying()
   if isPlaying == false then
     return
   end
-  for i=1,#arpId do
-    arpId[i] = arpId[i] + 1
-    print("Stop playing", i)
-  end
+  print("Stop playing")
   isPlaying = false
   clearPosition()
 end
 
 --------------------------------------------------------------------------------
--- Sequencer Panel
+-- Sequencer
 --------------------------------------------------------------------------------
-local tableX = 100
-local tableY = 35
-local tableWidth = 490
-local tableHeight = 105
 
-local sequencerPanel = Panel("Sequencer")
-sequencerPanel.backgroundColour = menuOutlineColour
-sequencerPanel.x = 10
-sequencerPanel.y = 10
-sequencerPanel.width = 700
-if numParts == 1 then
-  sequencerPanel.height = numParts * (tableHeight + 25) + 60
-else
-  sequencerPanel.height = numParts * (tableHeight + 25) + 30
-end
+local headerPanel = Panel("Header")
+headerPanel.backgroundColour = menuOutlineColour
+headerPanel.x = 10
+headerPanel.y = 10
+headerPanel.width = 700
+--[[ if numParts == 1 then
+  headerPanel.height = numParts * (tableHeight + 25) + 60
+else ]]
+  --headerPanel.height = numParts * (tableHeight + 25) + 60
+  headerPanel.height = 30
+--end
 
-local label = sequencerPanel:Label("Label")
+local label = headerPanel:Label("Label")
 label.text = title
 label.align = "left"
 label.backgroundColour = "#272727"
@@ -99,7 +143,7 @@ label.fontSize = 22
 label.position = {0,0}
 label.size = {230,25}
 
-local playButton = sequencerPanel:OnOffButton("Play", false)
+local playButton = headerPanel:OnOffButton("Play", false)
 playButton.persistent = false
 playButton.backgroundColourOff = "#ff084486"
 playButton.backgroundColourOn = "#ff02ACFE"
@@ -108,8 +152,8 @@ playButton.textColourOn = "#efFFFFFF"
 playButton.fillColour = "#dd000061"
 playButton.displayName = "Play"
 playButton.size = {102,22}
-playButton.x = sequencerPanel.width - playButton.width
-playButton.y = 0
+playButton.x = headerPanel.width - playButton.width
+playButton.y = 2
 playButton.changed = function(self)
   if self.value == true then
     startPlaying()
@@ -118,7 +162,7 @@ playButton.changed = function(self)
   end
 end
 
-local autoplayButton = sequencerPanel:OnOffButton("AutoPlay", true)
+local autoplayButton = headerPanel:OnOffButton("AutoPlay", true)
 autoplayButton.backgroundColourOff = "#ff084486"
 autoplayButton.backgroundColourOn = "#ff02ACFE"
 autoplayButton.textColourOff = "#ff22FFFF"
@@ -128,364 +172,529 @@ autoplayButton.displayName = "Auto Play"
 autoplayButton.tooltip = "Play automatically on transport"
 autoplayButton.size = {102,22}
 autoplayButton.x = playButton.x - playButton.width - 5
-autoplayButton.y = 0
+autoplayButton.y = playButton.y
 
--- Add params that are to be editable per part
-for i=1,numParts do
-  print("Set paramsPerPart", i)
+local evolveButton = headerPanel:OnOffButton("EvolveOnOff", false)
+evolveButton.backgroundColourOff = "#ff084486"
+evolveButton.backgroundColourOn = "#ff02ACFE"
+evolveButton.textColourOff = "#ff22FFFF"
+evolveButton.textColourOn = "#efFFFFFF"
+evolveButton.displayName = "Evolve"
+evolveButton.tooltip = "When evolve is active, randomization is written back to the corresponding table. NOTE: Table values are overwritten when activated!"
+evolveButton.fillColour = "#dd000061"
+evolveButton.size = autoplayButton.size
+evolveButton.x = autoplayButton.x - autoplayButton.width - 5
+evolveButton.y = playButton.y
 
-  local isVisible = i <= numParts
-
-  local positionTable = sequencerPanel:Table("Position" .. i, 8, 0, 0, 1, true)
-  positionTable.visible = isVisible
-  positionTable.enabled = false
-  positionTable.persistent = false
-  positionTable.fillStyle = "solid"
-  positionTable.backgroundColour = "#9f02ACFE"
-  positionTable.sliderColour = outlineColour
-  positionTable.width = tableWidth
-  positionTable.height = 3
-  positionTable.x = tableX
-  positionTable.y = tableY
-
-  local seqPitchTableMin = 0
-  if numParts == 1 then
-    seqPitchTableMin = -12
-  end
-  local seqPitchTable = sequencerPanel:Table("Pitch" .. i, 8, 0, seqPitchTableMin, 12, true)
-  seqPitchTable.displayName = "Pitch"
-  seqPitchTable.tooltip = "Pitch offset for this step"
-  seqPitchTable.showPopupDisplay = true
-  seqPitchTable.showLabel = false
-  seqPitchTable.fillStyle = "solid"
-  seqPitchTable.sliderColour = "#3f6c6c6c"
-  if i % 2 == 0 then
-    seqPitchTable.backgroundColour = "#3f606060"
-  else
-    seqPitchTable.backgroundColour = "#3f606060"
-  end
-  seqPitchTable.width = tableWidth
-  if numParts == 1 then
-    seqPitchTable.height = tableHeight * 0.5
-  else
-    seqPitchTable.height = tableHeight * 0.2
-  end
-  seqPitchTable.x = tableX
-  seqPitchTable.y = positionTable.y + positionTable.height + 2
-
-  local tieStepTable = sequencerPanel:Table("TieStep" .. i, 8, 0, 0, 1, true)
-  tieStepTable.tooltip = "Tie with next step"
-  tieStepTable.fillStyle = "solid"
-  if i % 2 == 0 then
-    tieStepTable.backgroundColour = "#3f606060"
-  else
-    tieStepTable.backgroundColour = "#3f606060"
-  end
-  tieStepTable.showLabel = false
-  tieStepTable.sliderColour = "#3fcc3300"
-  tieStepTable.width = tableWidth
-  tieStepTable.height = 6
-  tieStepTable.x = tableX
-  tieStepTable.y = seqPitchTable.y + seqPitchTable.height + 2
-
-  local seqVelTable = sequencerPanel:Table("Velocity" .. i, 8, 100, 1, 127, true)
-  seqVelTable.visible = isVisible
-  seqVelTable.displayName = "Velocity"
-  seqVelTable.tooltip = "Velocity for this step"
-  seqVelTable.showPopupDisplay = true
-  seqVelTable.showLabel = false
-  seqVelTable.fillStyle = "solid"
-  seqVelTable.sliderColour = "#9f09A3F4"
-  if i % 2 == 0 then
-    seqVelTable.backgroundColour = "#3f000000"
-  else
-    seqVelTable.backgroundColour = "#3f000000"
-  end
-  seqVelTable.width = tableWidth
-  seqVelTable.height = tableHeight * 0.3
-  seqVelTable.x = tableX
-  seqVelTable.y = tieStepTable.y + tieStepTable.height + 2
-  
-  local seqTriggerProbabilityTableDefault = 0
-  if numParts == 1 then
-    seqTriggerProbabilityTableDefault = 100
-  end
-  local seqTriggerProbabilityTable = sequencerPanel:Table("Trigger" .. i, 8, seqTriggerProbabilityTableDefault, 0, 100, true)
-  seqTriggerProbabilityTable.displayName = "Trigger"
-  seqTriggerProbabilityTable.tooltip = "Trigger probability for this step"
-  seqTriggerProbabilityTable.showPopupDisplay = true
-  seqTriggerProbabilityTable.showLabel = false
-  seqTriggerProbabilityTable.visible = isVisible
-  seqTriggerProbabilityTable.fillStyle = "solid"
-  seqTriggerProbabilityTable.sliderColour = "#3322FFFF"
-  if i % 2 == 0 then
-    seqTriggerProbabilityTable.backgroundColour = "#3f3e3e3e"
-  else
-    seqTriggerProbabilityTable.backgroundColour = "#3f3e3e3e"
-  end
-  seqTriggerProbabilityTable.width = tableWidth
-  seqTriggerProbabilityTable.height = tableHeight * 0.3
-  seqTriggerProbabilityTable.x = tableX
-  seqTriggerProbabilityTable.y = seqVelTable.y + seqVelTable.height + 2
-  
-  local seqRatchetTable = sequencerPanel:Table("Subdivision" .. i, 8, 1, 1, 4, true)
-  seqRatchetTable.displayName = "Subdivision"
-  seqRatchetTable.tooltip = "Subdivision for this step"
-  seqRatchetTable.showPopupDisplay = true
-  seqRatchetTable.showLabel = false
-  seqRatchetTable.visible = isVisible
-  seqRatchetTable.fillStyle = "solid"
-  seqRatchetTable.sliderColour = "#33229966"
-  if i % 2 == 0 then
-    seqRatchetTable.backgroundColour = "#3f000000"
-  else
-    seqRatchetTable.backgroundColour = "#3f000000"
-  end
-  seqRatchetTable.width = tableWidth
-  seqRatchetTable.height = tableHeight * 0.2
-  seqRatchetTable.x = tableX
-  seqRatchetTable.y = seqTriggerProbabilityTable.y + seqTriggerProbabilityTable.height + 2
-
-  local numBoxHeight = 20
-  local numBoxSpacing = 1
-  if numParts == 1 then
-    numBoxSpacing = 6
-  end
-  local directionProbability = sequencerPanel:NumBox("PartDirectionProbability" .. i, 0, 0, 100, true)
-  directionProbability.displayName = "Backward"
-  directionProbability.visible = isVisible
-  directionProbability.tooltip = "Backward probability amount"
-  directionProbability.unit = Unit.Percent
-  directionProbability.x = tableX + tableWidth + 10
-  directionProbability.y = positionTable.y
-  directionProbability.size = {100,numBoxHeight}
-
-  local pitchRand = sequencerPanel:NumBox("PitchOffsetRandomization" .. i, 0, 0, 100, true)
-  pitchRand.displayName = "Pitch"
-  pitchRand.tooltip = "Set probability pitch from another step will be used"
-  pitchRand.visible = isVisible
-  pitchRand.unit = Unit.Percent
-  pitchRand.size = directionProbability.size
-  pitchRand.x = directionProbability.x
-  pitchRand.y = directionProbability.y + directionProbability.height + numBoxSpacing
-
-  local tieRand = sequencerPanel:NumBox("TieRandomization" .. i, 0, 0, 100, true)
-  tieRand.displayName = "Tie"
-  tieRand.tooltip = "Amount of radomization applied to ties for selected part"
-  tieRand.visible = isVisible
-  tieRand.unit = Unit.Percent
-  tieRand.size = directionProbability.size
-  tieRand.x = directionProbability.x
-  tieRand.y = pitchRand.y + pitchRand.height + numBoxSpacing
-
-  local velRand = sequencerPanel:NumBox("VelocityRandomization" .. i, 0, 0, 100, true)
-  velRand.displayName = "Velocity"
-  velRand.tooltip = "Velocity radomization amount"
-  velRand.visible = isVisible
-  velRand.unit = Unit.Percent
-  velRand.size = directionProbability.size
-  velRand.x = directionProbability.x
-  velRand.y = tieRand.y + tieRand.height + numBoxSpacing
-  
-  local triggerRand = sequencerPanel:NumBox("TriggerRandomization" .. i, 0, 0, 100, true)
-  triggerRand.displayName = "Trigger"
-  triggerRand.tooltip = "Trigger probability radomization amount"
-  triggerRand.visible = isVisible
-  triggerRand.unit = Unit.Percent
-  triggerRand.size = directionProbability.size
-  triggerRand.x = directionProbability.x
-  triggerRand.y = velRand.y + velRand.height + numBoxSpacing
-
-  local ratchetRand = sequencerPanel:NumBox("SubdivisionRandomization" .. i, 0, 0, 100, true)
-  ratchetRand.displayName = "Subdivision"
-  ratchetRand.tooltip = "Subdivision radomization amount"
-  ratchetRand.visible = isVisible
-  ratchetRand.unit = Unit.Percent
-  ratchetRand.size = directionProbability.size
-  ratchetRand.x = directionProbability.x
-  ratchetRand.y = triggerRand.y + triggerRand.height + numBoxSpacing
-
-  --[[ local randomizeTriggerButton = sequencerPanel:Button("RandomizeTrigger" .. i)
-  randomizeTriggerButton.persistent = false
-  randomizeTriggerButton.visible = isVisible
-  randomizeTriggerButton.backgroundColourOff = "#33084486"
-  randomizeTriggerButton.backgroundColourOn = "#9902ACFE"
-  randomizeTriggerButton.textColourOff = "#cc22FFFF"
-  randomizeTriggerButton.textColourOn = "#ccFFFFFF"
-  randomizeTriggerButton.displayName = "Randomize"
-  randomizeTriggerButton.tooltip = "Randomize Trigger Probability"
-  randomizeTriggerButton.fillColour = "#dd000061"
-  randomizeTriggerButton.size = directionProbability.size
-  randomizeTriggerButton.x = directionProbability.x
-  randomizeTriggerButton.y = triggerRand.y + triggerRand.height + 2 ]]
-
-  local muteButton = sequencerPanel:OnOffButton("MutePart" .. i, false)
-  muteButton.visible = isVisible
-  muteButton.backgroundColourOff = "#ff084486"
-  muteButton.backgroundColourOn = "#ff02ACFE"
-  muteButton.textColourOff = "#ff22FFFF"
-  muteButton.textColourOn = "#efFFFFFF"
-  muteButton.fillColour = "#dd000061"
-  muteButton.displayName = "Mute"
-  muteButton.tooltip = "Mute part"
-  muteButton.size = {90,20}
-  muteButton.x = 0
-  muteButton.y = positionTable.y
-
-  local leftButtonSpacing = 1
-  if numParts == 1 then
-    leftButtonSpacing = 6
-  else
-    local types = {"Kick", "Snare", "Hihat", "Clap", "Toms", "Cymbal", "Tambourine", "Perc"}
-    local typeLabel = sequencerPanel:Label("Label" .. i)
-    typeLabel.tooltip = "Part Label"
-    typeLabel.editable = true
-    typeLabel.text = types[i]
-    typeLabel.backgroundColour = menuBackgroundColour
-    typeLabel.backgroundColourWhenEditing = "#cccccc"
-    typeLabel.x = 0
-    typeLabel.y = muteButton.y + muteButton.height + leftButtonSpacing
-    typeLabel.width = 59
-    typeLabel.height = muteButton.height
-  end
-
-  local triggerNote = sequencerPanel:NumBox("TriggerNote" .. i, 36, 0, 127, true)
-  if i == 2 then
-    triggerNote.value = 38
-  elseif i == 3 then
-    triggerNote.value = 42
-  elseif i == 4 then
-    triggerNote.value = 39
-  elseif i == 5 then
-    triggerNote.value = 41
-  elseif i == 6 then
-    triggerNote.value = 49
-  elseif i == 7 then
-    triggerNote.value = 54
-  elseif i == 8 then
-    triggerNote.value = 66
-  end
-  triggerNote.displayName = "Note"
-  triggerNote.tooltip = "The note to trigger"
-  triggerNote.unit = Unit.MidiKey
-  triggerNote.showPopupDisplay = true
-  triggerNote.visible = isVisible
-  triggerNote.showLabel = numParts == 1
-  triggerNote.fillStyle = "solid"
-  triggerNote.backgroundColour = menuBackgroundColour
-  triggerNote.textColour = menuTextColour
-  triggerNote.arrowColour = menuArrowColour
-  triggerNote.outlineColour = menuOutlineColour
-  triggerNote.height = muteButton.height
-  if numParts == 1 then
-    triggerNote.width = muteButton.width
-    triggerNote.x = 0
-    triggerNote.y = muteButton.y + muteButton.height + leftButtonSpacing
-  else
-    triggerNote.width = 30
-    triggerNote.x = 60
-    triggerNote.y = muteButton.y + muteButton.height + leftButtonSpacing
-  end
-
-  local stepResolution = sequencerPanel:Menu("StepResolution" .. i, getResolutionNames())
-  stepResolution.tooltip = "Set the step resolution"
-  stepResolution.showLabel = false
-  stepResolution.visible = isVisible
-  if numParts == 1 then
-    stepResolution.selected = 11
-  else
-    stepResolution.selected = 20
-  end
-  stepResolution.x = 0
-  stepResolution.y = triggerNote.y + triggerNote.height + leftButtonSpacing
-  stepResolution.width = 90
-  stepResolution.height = triggerNote.height
-  stepResolution.backgroundColour = menuBackgroundColour
-  stepResolution.textColour = menuTextColour
-  stepResolution.arrowColour = menuArrowColour
-  stepResolution.outlineColour = menuOutlineColour
-
-  local numStepsBox = sequencerPanel:NumBox("Steps" .. i, 8, 1, 64, true)
-  numStepsBox.displayName = "Steps"
-  numStepsBox.tooltip = "The Number of steps in the part"
-  numStepsBox.visible = isVisible
-  numStepsBox.backgroundColour = menuBackgroundColour
-  numStepsBox.textColour = menuTextColour
-  numStepsBox.arrowColour = menuArrowColour
-  numStepsBox.outlineColour = menuOutlineColour
-  numStepsBox.width = stepResolution.width
-  numStepsBox.height = stepResolution.height
-  numStepsBox.x = 0
-  numStepsBox.y = stepResolution.y + stepResolution.height + leftButtonSpacing
-  numStepsBox.changed = function(self)
-    print("numStepsBox.changed index/value", i, self.value)
-    setNumSteps(i)
-  end
-
-  --[[ randomizeTriggerButton.changed = function()
-    for i=1,numStepsBox.value do
-      if getRandomBoolean(25) then
-        seqTriggerProbabilityTable:setValue(i, 0)
-      elseif getRandomBoolean(25) then
-        seqTriggerProbabilityTable:setValue(i, 100)
-      else
-        seqTriggerProbabilityTable:setValue(i, getRandom(seqTriggerProbabilityTable.min, seqTriggerProbabilityTable.max))
-      end
-    end
-  end ]]
-
-  local ratchetMax = sequencerPanel:NumBox("SubdivisionMax" .. i, 4, 2, 16, true)
-  ratchetMax.displayName = "Subdivision"
-  ratchetMax.tooltip = "Set the maximum allowed subdivision that can be selected for each step"
-  ratchetMax.visible = isVisible
-  ratchetMax.backgroundColour = menuBackgroundColour
-  ratchetMax.textColour = menuTextColour
-  ratchetMax.arrowColour = menuArrowColour
-  ratchetMax.outlineColour = menuOutlineColour
-  ratchetMax.width = numStepsBox.width
-  ratchetMax.height = numStepsBox.height
-  ratchetMax.x = 0
-  ratchetMax.y = numStepsBox.y + numStepsBox.height + leftButtonSpacing
-  ratchetMax.changed = function(self)
-    for i=1, seqRatchetTable.length do
-      if seqRatchetTable:getValue(i) > self.value then
-        seqRatchetTable:setValue(i, self.value)
-      end
-    end
-    seqRatchetTable:setRange(1, self.value)
-  end
-
-  local channelBox = sequencerPanel:NumBox("Channel" .. i, 0, 0, 16, true)
-  channelBox.displayName = "Channel"
-  channelBox.tooltip = "Midi channel that receives trigger from this part. 0 = omni"
-  channelBox.visible = isVisible
-  channelBox.backgroundColour = menuBackgroundColour
-  channelBox.textColour = menuTextColour
-  channelBox.arrowColour = menuArrowColour
-  channelBox.outlineColour = menuOutlineColour
-  channelBox.width = numStepsBox.width
-  channelBox.height = numStepsBox.height
-  channelBox.x = 0
-  channelBox.y = ratchetMax.y + ratchetMax.height + leftButtonSpacing
-
-  table.insert(paramsPerPart, {muteButton=muteButton,pitchRand=pitchRand,tieRand=tieRand,velRand=velRand,triggerRand=triggerRand,ratchetRand=ratchetRand,triggerNote=triggerNote,channelBox=channelBox,positionTable=positionTable,seqPitchTable=seqPitchTable,tieStepTable=tieStepTable,seqVelTable=seqVelTable,seqTriggerProbabilityTable=seqTriggerProbabilityTable,seqRatchetTable=seqRatchetTable,stepResolution=stepResolution,directionProbability=directionProbability,numStepsBox=numStepsBox})
-  tableY = tableY + tableHeight + 25
+local footerPanel = Panel("Footer")
+footerPanel.backgroundColour = menuOutlineColour
+footerPanel.x = 10
+footerPanel.width = 700
+if maxPages == 1 then
+  footerPanel.enabled = false
+  footerPanel.visible = false
+  footerPanel.height = 10
+else
+  footerPanel.height = 30
 end
+
+local changePageProbability = footerPanel:NumBox("ChangePageProbability", 0, 0, 100, true)
+changePageProbability.displayName = "Page Change"
+changePageProbability.tooltip = "Probability of random page change"
+changePageProbability.enabled = false
+changePageProbability.unit = Unit.Percent
+changePageProbability.size = {120,22}
+changePageProbability.x = (33 * maxPages) + 100
+
+local actionMenu = footerPanel:Menu("ActionMenu", {"Actions...", "Randomize triggers"})
+actionMenu.persistent = false
+actionMenu.tooltip = "Select an action. NOTE: This changes data in the affected tables"
+actionMenu.backgroundColour = menuBackgroundColour
+actionMenu.textColour = menuTextColour
+actionMenu.arrowColour = menuArrowColour
+actionMenu.outlineColour = menuOutlineColour
+actionMenu.showLabel = false
+actionMenu.x = changePageProbability.x + changePageProbability.width + 5
+actionMenu.size = {100,22}
+actionMenu.changed = function(self)
+  -- 1 is the menu label...
+  if self.value == 1 then
+    return
+  end
+  -- Randomize tables
+  if self.value == 2 then
+    for part=1,numParts do
+      local partIndex = getPartIndex(part)
+      for i=1,paramsPerPart[partIndex].numStepsBox.value do
+        paramsPerPart[partIndex].seqTriggerProbabilityTable:setValue(i, getRandom(paramsPerPart[partIndex].seqTriggerProbabilityTable.min, paramsPerPart[partIndex].seqTriggerProbabilityTable.max))
+      end
+    end
+  else
+    -- Copy settings from another page
+    local sourcePage = self.value - 2
+    local targetPage = activePage
+    for part=1,numParts do
+      local sourcePartIndex = getPartIndex(part, sourcePage)
+      local targetPartIndex = getPartIndex(part, targetPage)
+      if sourcePartIndex ~= targetPartIndex then
+        local source = paramsPerPart[sourcePartIndex]
+        local target = paramsPerPart[targetPartIndex]
+        target.numStepsBox:setValue(source.numStepsBox.value)
+        for i=1, target.numStepsBox.value do
+          target.seqPitchTable:setValue(i, source.seqPitchTable:getValue(i))
+          target.tieStepTable:setValue(i, source.tieStepTable:getValue(i))
+          target.seqVelTable:setValue(i, source.seqVelTable:getValue(i))
+          target.seqVelTable:setValue(i, source.seqVelTable:getValue(i))
+          target.seqTriggerProbabilityTable:setValue(i, source.seqTriggerProbabilityTable:getValue(i))
+          target.seqRatchetTable:setValue(i, source.seqRatchetTable:getValue(i))
+        end
+        -- Copy Settings
+        target.pitchRand:setValue(source.pitchRand.value)
+        target.tieRand:setValue(source.tieRand.value)
+        target.velRand:setValue(source.velRand.value)
+        target.triggerRand:setValue(source.triggerRand.value)
+        target.ratchetRand:setValue(source.ratchetRand.value)
+        target.stepResolution:setValue(source.stepResolution.value)
+        target.directionProbability:setValue(source.directionProbability.value)
+        target.ratchetMax:setValue(source.ratchetMax.value)
+        target.muteButton:setValue(source.muteButton.value)
+        target.typeLabel.text = source.typeLabel.text
+        target.triggerNote:setValue(source.triggerNote.value)
+        target.channelBox:setValue(source.channelBox.value)
+        end  
+    end
+  end
+  self.selected = 1
+end
+
+local numPagesBox = footerPanel:NumBox("Pages", numPages, 1, maxPages, true)
+numPagesBox.tooltip = "Number of active pages"
+numPagesBox.backgroundColour = menuBackgroundColour
+numPagesBox.textColour = menuTextColour
+numPagesBox.size = {90,22}
+numPagesBox.x = 0
+numPagesBox.changed = function(self)
+  numPages = self.value
+  changePageProbability.enabled = self.value > 1
+  for page=1,self.max do
+    setPageDuration(page)
+    pageButtons[page].enabled = page <= numPages
+  end
+  -- Update action menu
+  local actionMenuItems = {"Actions...", "Randomize triggers"}
+  actionsCount = #actionMenuItems
+  if numParts > 1 then
+    for i=1,numPages do
+      table.insert(actionMenuItems, "Copy settings from page " .. i)
+    end
+  end
+  actionMenu.items = actionMenuItems
+end
+--numPagesBox:changed()
+
+-- Add page buttons
+for page=1,maxPages do
+  local xPadding = 2
+  if page == 1 then
+    xPadding = 0
+  end
+  local pageButton = footerPanel:OnOffButton("PageButton" .. page, (page==1))
+  pageButton.persistent = false
+  pageButton.enabled = page <= numPages
+  pageButton.displayName = "" .. page
+  pageButton.backgroundColourOff = "#ff084486"
+  pageButton.backgroundColourOn = "#ff02ACFE"
+  pageButton.textColourOff = "#ff22FFFF"
+  pageButton.textColourOn = "#efFFFFFF"
+  pageButton.fillColour = "#dd000061"
+  pageButton.size = {30,22}
+  pageButton.x = ((pageButton.width + xPadding) * page) + 70
+  pageButton.changed = function(self)
+    if self.value == true then
+      nextUp = page -- register next up
+      if isPlaying == false then
+        gotoNextPage()
+      end
+    end
+    self:setValue(true, false) -- The clicked button should stay active
+  end
+  table.insert(pageButtons, pageButton)
+end
+
+-- Add params that are to be editable per page / part
+for page=1,maxPages do
+  local tableX = 100
+  local tableY = 0
+  local tableWidth = 490
+  local tableHeight = 105
+
+  local sequencerPanel = Panel("SequencerPage" .. page)
+  sequencerPanel.visible = page == 1
+  sequencerPanel.backgroundColour = menuOutlineColour
+  sequencerPanel.x = 10
+  sequencerPanel.y = headerPanel.height + 15
+  sequencerPanel.width = 700
+  sequencerPanel.height = numParts * (tableHeight + 25) + 0
+  
+  for part=1,numParts do
+    local isVisible = true
+    local i = getPartIndex(part, page)
+    print("Set paramsPerPart, page/part", page, i)
+
+    local positionTable = sequencerPanel:Table("Position" .. i, 8, 0, 0, 1, true)
+    positionTable.visible = isVisible
+    positionTable.enabled = false
+    positionTable.persistent = false
+    positionTable.fillStyle = "solid"
+    positionTable.backgroundColour = "#9f02ACFE"
+    positionTable.sliderColour = outlineColour
+    positionTable.width = tableWidth
+    positionTable.height = 3
+    positionTable.x = tableX
+    positionTable.y = tableY
+
+    local seqPitchTableMin = 0
+    if numParts == 1 then
+      seqPitchTableMin = -12
+    end
+    local seqPitchTable = sequencerPanel:Table("Pitch" .. i, 8, 0, seqPitchTableMin, 12, true)
+    seqPitchTable.visible = isVisible
+    seqPitchTable.displayName = "Pitch"
+    seqPitchTable.tooltip = "Pitch offset for this step"
+    seqPitchTable.showPopupDisplay = true
+    seqPitchTable.showLabel = false
+    seqPitchTable.fillStyle = "solid"
+    seqPitchTable.sliderColour = "#3f6c6c6c"
+    if i % 2 == 0 then
+      seqPitchTable.backgroundColour = "#3f606060"
+    else
+      seqPitchTable.backgroundColour = "#3f606060"
+    end
+    seqPitchTable.width = tableWidth
+    if numParts == 1 then
+      seqPitchTable.height = tableHeight * 0.5
+    else
+      seqPitchTable.height = tableHeight * 0.2
+    end
+    seqPitchTable.x = tableX
+    seqPitchTable.y = positionTable.y + positionTable.height + 2
+
+    local tieStepTable = sequencerPanel:Table("TieStep" .. i, 8, 0, 0, 1, true)
+    tieStepTable.visible = isVisible
+    tieStepTable.tooltip = "Tie with next step"
+    tieStepTable.fillStyle = "solid"
+    if i % 2 == 0 then
+      tieStepTable.backgroundColour = "#3f606060"
+    else
+      tieStepTable.backgroundColour = "#3f606060"
+    end
+    tieStepTable.showLabel = false
+    tieStepTable.sliderColour = "#3fcc3300"
+    tieStepTable.width = tableWidth
+    tieStepTable.height = 6
+    tieStepTable.x = tableX
+    tieStepTable.y = seqPitchTable.y + seqPitchTable.height + 2
+
+    local seqVelTable = sequencerPanel:Table("Velocity" .. i, 8, 100, 1, 127, true)
+    seqVelTable.visible = isVisible
+    seqVelTable.displayName = "Velocity"
+    seqVelTable.tooltip = "Velocity for this step"
+    seqVelTable.showPopupDisplay = true
+    seqVelTable.showLabel = false
+    seqVelTable.fillStyle = "solid"
+    seqVelTable.sliderColour = "#9f09A3F4"
+    if i % 2 == 0 then
+      seqVelTable.backgroundColour = "#3f000000"
+    else
+      seqVelTable.backgroundColour = "#3f000000"
+    end
+    seqVelTable.width = tableWidth
+    seqVelTable.height = tableHeight * 0.3
+    seqVelTable.x = tableX
+    seqVelTable.y = tieStepTable.y + tieStepTable.height + 2
+    
+    local seqTriggerProbabilityTableDefault = 0
+    if numParts == 1 then
+      seqTriggerProbabilityTableDefault = 100
+    end
+    local seqTriggerProbabilityTable = sequencerPanel:Table("Trigger" .. i, 8, seqTriggerProbabilityTableDefault, 0, 100, true)
+    seqTriggerProbabilityTable.displayName = "Trigger"
+    seqTriggerProbabilityTable.tooltip = "Trigger probability for this step"
+    seqTriggerProbabilityTable.showPopupDisplay = true
+    seqTriggerProbabilityTable.showLabel = false
+    seqTriggerProbabilityTable.visible = isVisible
+    seqTriggerProbabilityTable.fillStyle = "solid"
+    seqTriggerProbabilityTable.sliderColour = "#3322FFFF"
+    if i % 2 == 0 then
+      seqTriggerProbabilityTable.backgroundColour = "#3f3e3e3e"
+    else
+      seqTriggerProbabilityTable.backgroundColour = "#3f3e3e3e"
+    end
+    seqTriggerProbabilityTable.width = tableWidth
+    seqTriggerProbabilityTable.height = tableHeight * 0.3
+    seqTriggerProbabilityTable.x = tableX
+    seqTriggerProbabilityTable.y = seqVelTable.y + seqVelTable.height + 2
+    
+    local seqRatchetTable = sequencerPanel:Table("Subdivision" .. i, 8, 1, 1, 4, true)
+    seqRatchetTable.displayName = "Subdivision"
+    seqRatchetTable.tooltip = "Subdivision for this step"
+    seqRatchetTable.showPopupDisplay = true
+    seqRatchetTable.showLabel = false
+    seqRatchetTable.visible = isVisible
+    seqRatchetTable.fillStyle = "solid"
+    seqRatchetTable.sliderColour = "#33229966"
+    if i % 2 == 0 then
+      seqRatchetTable.backgroundColour = "#3f000000"
+    else
+      seqRatchetTable.backgroundColour = "#3f000000"
+    end
+    seqRatchetTable.width = tableWidth
+    seqRatchetTable.height = tableHeight * 0.2
+    seqRatchetTable.x = tableX
+    seqRatchetTable.y = seqTriggerProbabilityTable.y + seqTriggerProbabilityTable.height + 2
+
+    local numBoxHeight = 20
+    local numBoxSpacing = 1
+    if numParts == 1 then
+      numBoxSpacing = 6
+    end
+    local directionProbability = sequencerPanel:NumBox("PartDirectionProbability" .. i, 0, 0, 100, true)
+    directionProbability.displayName = "Backward"
+    directionProbability.visible = isVisible
+    directionProbability.tooltip = "Backward probability amount"
+    directionProbability.unit = Unit.Percent
+    directionProbability.x = tableX + tableWidth + 10
+    directionProbability.y = positionTable.y
+    directionProbability.size = {100,numBoxHeight}
+
+    local pitchRand = sequencerPanel:NumBox("PitchOffsetRandomization" .. i, 0, 0, 100, true)
+    pitchRand.displayName = "Pitch"
+    pitchRand.tooltip = "Set probability pitch from another step will be used"
+    pitchRand.visible = isVisible
+    pitchRand.unit = Unit.Percent
+    pitchRand.size = directionProbability.size
+    pitchRand.x = directionProbability.x
+    pitchRand.y = directionProbability.y + directionProbability.height + numBoxSpacing
+
+    local tieRand = sequencerPanel:NumBox("TieRandomization" .. i, 0, 0, 100, true)
+    tieRand.displayName = "Tie"
+    tieRand.tooltip = "Amount of radomization applied to ties for selected part"
+    tieRand.visible = isVisible
+    tieRand.unit = Unit.Percent
+    tieRand.size = directionProbability.size
+    tieRand.x = directionProbability.x
+    tieRand.y = pitchRand.y + pitchRand.height + numBoxSpacing
+
+    local velRand = sequencerPanel:NumBox("VelocityRandomization" .. i, 0, 0, 100, true)
+    velRand.displayName = "Velocity"
+    velRand.tooltip = "Velocity radomization amount"
+    velRand.visible = isVisible
+    velRand.unit = Unit.Percent
+    velRand.size = directionProbability.size
+    velRand.x = directionProbability.x
+    velRand.y = tieRand.y + tieRand.height + numBoxSpacing
+    
+    local triggerRand = sequencerPanel:NumBox("TriggerRandomization" .. i, 0, 0, 100, true)
+    triggerRand.displayName = "Trigger"
+    triggerRand.tooltip = "Trigger probability radomization amount"
+    triggerRand.visible = isVisible
+    triggerRand.unit = Unit.Percent
+    triggerRand.size = directionProbability.size
+    triggerRand.x = directionProbability.x
+    triggerRand.y = velRand.y + velRand.height + numBoxSpacing
+
+    local ratchetRand = sequencerPanel:NumBox("SubdivisionRandomization" .. i, 0, 0, 100, true)
+    ratchetRand.displayName = "Subdivision"
+    ratchetRand.tooltip = "Subdivision radomization amount"
+    ratchetRand.visible = isVisible
+    ratchetRand.unit = Unit.Percent
+    ratchetRand.size = directionProbability.size
+    ratchetRand.x = directionProbability.x
+    ratchetRand.y = triggerRand.y + triggerRand.height + numBoxSpacing
+
+    local muteButton = sequencerPanel:OnOffButton("MutePart" .. i, false)
+    muteButton.visible = isVisible
+    muteButton.backgroundColourOff = "#ff084486"
+    muteButton.backgroundColourOn = "#ff02ACFE"
+    muteButton.textColourOff = "#ff22FFFF"
+    muteButton.textColourOn = "#efFFFFFF"
+    muteButton.fillColour = "#dd000061"
+    muteButton.displayName = "Mute"
+    muteButton.tooltip = "Mute part"
+    muteButton.size = {90,20}
+    muteButton.x = 0
+    muteButton.y = positionTable.y
+
+    local leftButtonSpacing = 1
+    local typeLabel = sequencerPanel:Label("Label" .. i)
+    if numParts == 1 then
+      leftButtonSpacing = 6
+      typeLabel.visible = false
+    else
+      local types = {"Kick", "Snare", "Hihat", "Clap", "Toms", "Cymbal", "Tambourine", "Perc"}
+      typeLabel.tooltip = "Part Label"
+      typeLabel.visible = isVisible
+      typeLabel.editable = true
+      typeLabel.text = types[part]
+      typeLabel.backgroundColour = menuBackgroundColour
+      typeLabel.backgroundColourWhenEditing = "#cccccc"
+      typeLabel.x = 0
+      typeLabel.y = muteButton.y + muteButton.height + leftButtonSpacing
+      typeLabel.width = 59
+      typeLabel.height = muteButton.height
+    end
+
+    local triggerNote = sequencerPanel:NumBox("TriggerNote" .. i, 36, 0, 127, true)
+    if part == 2 then
+      triggerNote.value = 38
+    elseif part == 3 then
+      triggerNote.value = 42
+    elseif part == 4 then
+      triggerNote.value = 39
+    elseif part == 5 then
+      triggerNote.value = 41
+    elseif part == 6 then
+      triggerNote.value = 49
+    elseif part == 7 then
+      triggerNote.value = 54
+    elseif part == 8 then
+      triggerNote.value = 66
+    end
+    triggerNote.displayName = "Note"
+    triggerNote.tooltip = "The note to trigger"
+    triggerNote.unit = Unit.MidiKey
+    triggerNote.showPopupDisplay = true
+    triggerNote.visible = isVisible
+    triggerNote.showLabel = numParts == 1
+    triggerNote.fillStyle = "solid"
+    triggerNote.backgroundColour = menuBackgroundColour
+    triggerNote.textColour = menuTextColour
+    triggerNote.arrowColour = menuArrowColour
+    triggerNote.outlineColour = menuOutlineColour
+    triggerNote.height = muteButton.height
+    if numParts == 1 then
+      triggerNote.width = muteButton.width
+      triggerNote.x = 0
+      triggerNote.y = muteButton.y + muteButton.height + leftButtonSpacing
+    else
+      triggerNote.width = 30
+      triggerNote.x = 60
+      triggerNote.y = muteButton.y + muteButton.height + leftButtonSpacing
+    end
+
+    local stepResolution = sequencerPanel:Menu("StepResolution" .. i, getResolutionNames())
+    stepResolution.tooltip = "Set the step resolution"
+    stepResolution.showLabel = false
+    stepResolution.visible = isVisible
+    if numParts == 1 then
+      stepResolution.selected = 11
+    else
+      stepResolution.selected = 20
+    end
+    stepResolution.x = 0
+    stepResolution.y = triggerNote.y + triggerNote.height + leftButtonSpacing
+    stepResolution.width = 90
+    stepResolution.height = triggerNote.height
+    stepResolution.backgroundColour = menuBackgroundColour
+    stepResolution.textColour = menuTextColour
+    stepResolution.arrowColour = menuArrowColour
+    stepResolution.outlineColour = menuOutlineColour
+    stepResolution.changed = function(self)
+      setPageDuration(page)
+    end
+
+    local numStepsBox = sequencerPanel:NumBox("Steps" .. i, 8, 1, 64, true)
+    numStepsBox.displayName = "Steps"
+    numStepsBox.tooltip = "The Number of steps in the part"
+    numStepsBox.visible = isVisible
+    numStepsBox.backgroundColour = menuBackgroundColour
+    numStepsBox.textColour = menuTextColour
+    numStepsBox.arrowColour = menuArrowColour
+    numStepsBox.outlineColour = menuOutlineColour
+    numStepsBox.width = stepResolution.width
+    numStepsBox.height = stepResolution.height
+    numStepsBox.x = 0
+    numStepsBox.y = stepResolution.y + stepResolution.height + leftButtonSpacing
+    numStepsBox.changed = function(self)
+      print("numStepsBox.changed index/value", i, self.value)
+      setNumSteps(i, self.value)
+    end
+
+    local ratchetMax = sequencerPanel:NumBox("SubdivisionMax" .. i, 4, 2, 16, true)
+    ratchetMax.displayName = "Subdivision"
+    ratchetMax.tooltip = "Set the maximum allowed subdivision that can be selected for each step"
+    ratchetMax.visible = isVisible
+    ratchetMax.backgroundColour = menuBackgroundColour
+    ratchetMax.textColour = menuTextColour
+    ratchetMax.arrowColour = menuArrowColour
+    ratchetMax.outlineColour = menuOutlineColour
+    ratchetMax.width = numStepsBox.width
+    ratchetMax.height = numStepsBox.height
+    ratchetMax.x = 0
+    ratchetMax.y = numStepsBox.y + numStepsBox.height + leftButtonSpacing
+    ratchetMax.changed = function(self)
+      for i=1, seqRatchetTable.length do
+        if seqRatchetTable:getValue(i) > self.value then
+          seqRatchetTable:setValue(i, self.value)
+        end
+      end
+      seqRatchetTable:setRange(1, self.value)
+    end
+
+    local channelBox = sequencerPanel:NumBox("Channel" .. i, 0, 0, 16, true)
+    channelBox.displayName = "Channel"
+    channelBox.tooltip = "Midi channel that receives trigger from this part. 0 = omni"
+    channelBox.visible = isVisible
+    channelBox.backgroundColour = menuBackgroundColour
+    channelBox.textColour = menuTextColour
+    channelBox.arrowColour = menuArrowColour
+    channelBox.outlineColour = menuOutlineColour
+    channelBox.width = numStepsBox.width
+    channelBox.height = numStepsBox.height
+    channelBox.x = 0
+    channelBox.y = ratchetMax.y + ratchetMax.height + leftButtonSpacing
+
+    table.insert(paramsPerPart, {muteButton=muteButton,ratchetMax=ratchetMax,pitchRand=pitchRand,tieRand=tieRand,velRand=velRand,triggerRand=triggerRand,ratchetRand=ratchetRand,typeLabel=typeLabel,triggerNote=triggerNote,channelBox=channelBox,positionTable=positionTable,seqPitchTable=seqPitchTable,tieStepTable=tieStepTable,seqVelTable=seqVelTable,seqTriggerProbabilityTable=seqTriggerProbabilityTable,seqRatchetTable=seqRatchetTable,stepResolution=stepResolution,directionProbability=directionProbability,numStepsBox=numStepsBox})
+
+    tableY = tableY + tableHeight + 25
+  end
+  table.insert(paramsPerPage, {sequencerPanel=sequencerPanel,pageDuration=4,active=(page==1)})
+  setPageDuration(page)
+end
+
+footerPanel.y = paramsPerPage[1].sequencerPanel.y + paramsPerPage[1].sequencerPanel.height
 
 --------------------------------------------------------------------------------
 -- Sequencer
 --------------------------------------------------------------------------------
 
-function arpeg(partIndex, arpId_)
+function pageRunner()
+  local rounds = 0
+  while isPlaying do
+    rounds = rounds + 1
+
+    local probability = changePageProbability.value
+    if nextUp == activePage and getRandomBoolean(probability) then
+      nextUp = getRandom(numPages)
+    end
+
+    gotoNextPage()
+
+    print("New round on page/duration/round", activePage, paramsPerPage[activePage].pageDuration, rounds)
+    waitBeat(paramsPerPage[activePage].pageDuration)
+  end
+end
+
+function arpeg(part)
   local index = 0
   local partDirectionBackward = false
-  while arpId_ == arpId[partIndex] do
-    -- Set current position and part position
-    local isPartActive = paramsPerPart[partIndex].muteButton.value == false
+  while isPlaying do
+    local partIndex = getPartIndex(part)
     local numStepsInPart = paramsPerPart[partIndex].numStepsBox.value
-    local currentPosition = (index % numStepsInPart) + 1 -- 11 % 4 = 3
+    local currentPosition = (index % numStepsInPart) + 1
+    local isPartActive = paramsPerPart[partIndex].muteButton.value == false
     local channel = paramsPerPart[partIndex].channelBox.value
-    print("Playing part/channel", partIndex, channel)
+    --print("Playing part/channel", partIndex, channel)
     if channel == 0 then
       channel = nil -- Play all channels
     end
@@ -494,19 +703,19 @@ function arpeg(partIndex, arpId_)
       -- Set direction for this part
       local directionProbability = paramsPerPart[partIndex].directionProbability.value
       partDirectionBackward = getRandomBoolean(directionProbability)
-      print("directionProbability/partIndex/partDirectionBackward", directionProbability, partIndex, partDirectionBackward)
+      --print("directionProbability/partIndex/partDirectionBackward", directionProbability, partIndex, partDirectionBackward)
     end
 
     -- If evolve is true, the randomization is written back to the table
-    local evolve = false--evolveButton.value
+    local evolve = evolveButton.value
 
     -- Flip position if playing backwards
-    local startStep = 1
+    --local startStep = 1
     if partDirectionBackward == true then
-      local endStep = startStep + numStepsInPart - 1
-      local diff = currentPosition - startStep
+      local endStep = numStepsInPart
+      local diff = currentPosition - 1
       currentPosition = endStep - diff
-      print("startStep/endStep/diff/currentPosition", startStep, endStep, diff, currentPosition)
+      --print("endStep/diff/currentPosition", endStep, diff, currentPosition)
     end
 
     -- Tables for current step position
@@ -536,7 +745,7 @@ function arpeg(partIndex, arpId_)
       local max = seqRatchetTable.max
       --local max = math.min(seqRatchetTable.max, (math.ceil(seqRatchetTable.max * (ratchetRandomizationAmount/100)) + 1))
       ratchet = getRandom(min, max)
-      print("Randomize ratchet, min/max/ratchet", min, max, ratchet)
+      --print("Randomize ratchet, min/max/ratchet", min, max, ratchet)
       if evolve == true then
         seqRatchetTable:setValue(currentPosition, ratchet)
       end
@@ -547,14 +756,14 @@ function arpeg(partIndex, arpId_)
     if partDirectionBackward == true then
       tieStepPos = currentPosition + 1
     end
-    print("tieStepPos", tieStepPos)
+    --print("tieStepPos", tieStepPos)
 
     -- Hold the number of steps the note in this position should play
     local noteSteps = 1
 
     -- Randomize ties
     if currentPosition < numStepsInPart and getRandomBoolean(tieRandomizationAmount) then
-      print("Before randomized tieNext", tieNext)
+      --print("Before randomized tieNext", tieNext)
       -- Get length of tie
       local min = 2
       local max = math.ceil((numStepsInPart-currentPosition) * (tieRandomizationAmount/100))
@@ -563,7 +772,7 @@ function arpeg(partIndex, arpId_)
       if evolve == true then
         tieStepTable:setValue(currentPosition, tieNext)
       end
-      print("After randomize tieNext", tieNext)
+      --print("After randomize tieNext", tieNext)
     elseif tieNext == 1 then
       local tieStepPos = currentPosition
       while tieStepPos > 0 and tieStepPos < numStepsInPart and tieStepTable:getValue(tieStepPos) == 1 do
@@ -574,7 +783,7 @@ function arpeg(partIndex, arpId_)
           tieStepPos = tieStepPos + 1
         end
       end
-      print("Set tie steps currentPosition/noteSteps", currentPosition, noteSteps)
+      --print("Set tie steps currentPosition/noteSteps", currentPosition, noteSteps)
     end
 
     -- UPDATE STEP POSITION TABLE
@@ -657,7 +866,7 @@ function arpeg(partIndex, arpId_)
         -- Get pitch adjustment from random index in pitch table for current part
         local pitchPos = getRandom(numStepsInPart)
         pitchAdjustment = seqPitchTable:getValue(pitchPos)
-        print("Playing pitch from other pos - currentPosition/pitchPos", currentPosition, pitchPos)
+        --print("Playing pitch from other pos - currentPosition/pitchPos", currentPosition, pitchPos)
       end
 
       -- Play note if trigger probability hits (and part is not turned off)
@@ -665,7 +874,7 @@ function arpeg(partIndex, arpId_)
         local note = paramsPerPart[partIndex].triggerNote.value + pitchAdjustment
         local duration = beat2ms(stepDuration) - 1 -- Make sure note is not played into the next
         playNote(note, vel, duration, nil, channel)
-        print("Playing note/vel/ratchet/stepDuration", note, vel, ratchet, stepDuration)
+        --print("Playing note/vel/ratchet/stepDuration", note, vel, ratchet, stepDuration)
       end
 
       -- WAIT FOR NEXT BEAT
@@ -719,14 +928,14 @@ function onSave()
   local seqTriggerProbabilityTableData = {}
   local seqRatchetTableData = {}
 
-  for i=1, numParts do
-    table.insert(numStepsData, paramsPerPart[i].numStepsBox.value)
-    for j=1, paramsPerPart[i].numStepsBox.value do
-      table.insert(seqPitchTableData, paramsPerPart[i].seqPitchTable:getValue(j))
-      table.insert(tieStepTableData, paramsPerPart[i].tieStepTable:getValue(j))
-      table.insert(seqVelTableData, paramsPerPart[i].seqVelTable:getValue(j))
-      table.insert(seqTriggerProbabilityTableData, paramsPerPart[i].seqTriggerProbabilityTable:getValue(j))
-      table.insert(seqRatchetTableData, paramsPerPart[i].seqRatchetTable:getValue(j))
+  for _,v in ipairs(paramsPerPart) do
+    table.insert(numStepsData, v.numStepsBox.value)
+    for j=1, v.numStepsBox.value do
+      table.insert(seqPitchTableData, v.seqPitchTable:getValue(j))
+      table.insert(tieStepTableData, v.tieStepTable:getValue(j))
+      table.insert(seqVelTableData, v.seqVelTable:getValue(j))
+      table.insert(seqTriggerProbabilityTableData, v.seqTriggerProbabilityTable:getValue(j))
+      table.insert(seqRatchetTableData, v.seqRatchetTable:getValue(j))
     end
   end
 
@@ -765,5 +974,8 @@ function onLoad(data)
       paramsPerPart[i].seqRatchetTable:setValue(j, seqRatchetTableData[dataCounter])
       dataCounter = dataCounter + 1
     end
+  end
+  for page=1,numPages do
+    setPageDuration(page)
   end
 end

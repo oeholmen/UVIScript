@@ -6274,10 +6274,15 @@ function mapMinilogueCC()
   local activeLfoTarget = {cutoff = true, pwm = false, hardsync = false}
   local activeLfoTargetValue = 64
 
-  function controllerValueToWidgetValue(controllerValue, bipolar, factor)
+  function controllerValueToWidgetValue(controllerValue, bipolar, factor, env)
     local max = 127
+    if env == true then
+      return 10 * ((controllerValue / max) ^ 4)
+    end
     if bipolar == 1 then
       max = max / 2
+    else
+      bipolar = 0
     end
     local widgetValue = (controllerValue / max) - bipolar
     if controllerValue == 64 then
@@ -6320,45 +6325,45 @@ function mapMinilogueCC()
   function onController(e)
     print(e)
     local controllerToWidgetMap = {
-      CC16 = {name = "Attack", page = synthesisPageButton},
-      CC17 = {name = "Decay", page = synthesisPageButton},
-      CC18 = {name = "Sustain", bipolar = 0, page = synthesisPageButton},
-      CC19 = {name = "Release", page = synthesisPageButton},
-      CC20 = {name = "FAttack", page = filterPageButton},
-      CC21 = {name = "FDecay", page = filterPageButton},
-      CC22 = {name = "FSustain", bipolar = 0, page = filterPageButton},
-      CC23 = {name = "FRelease", page = filterPageButton},
-      CC24 = {name = "LfoFreq", bipolar = 0, page = modulationPageButton, factor = 20}, -- LFO RATE
-      CC26 = {name = "LfoToTarget", bipolar = 0, page = modulationPageButton}, -- LFO INT
-      CC27 = {name = "Drive", bipolar = 0, page = effectsPageButton}, -- Voice Mode Depth > Drive
-      CC29 = {name = "HpfCutoff", bipolar = 0, page = filterPageButton}, -- HI PASS CUTOFF
+      CC16 = {name = "Attack", env=true, page = synthesisPageButton},
+      CC17 = {name = "Decay", env=true, page = synthesisPageButton},
+      CC18 = {name = "Sustain", page = synthesisPageButton},
+      CC19 = {name = "Release", env=true, page = synthesisPageButton},
+      CC20 = {name = "FAttack", env=true, page = filterPageButton},
+      CC21 = {name = "FDecay", env=true, page = filterPageButton},
+      CC22 = {name = "FSustain", page = filterPageButton},
+      CC23 = {name = "FRelease", env=true, page = filterPageButton},
+      CC24 = {name = "LfoFreq", page = modulationPageButton, factor = 20}, -- LFO RATE
+      CC26 = {name = "LfoToTarget", page = modulationPageButton}, -- LFO INT
+      CC27 = {name = "Drive", page = effectsPageButton}, -- Voice Mode Depth > Drive
+      CC29 = {name = "HpfCutoff", page = filterPageButton}, -- HI PASS CUTOFF
       CC30 = {name = "HpfEnvelopeAmt", bipolar = 1, page = filterPageButton}, -- TIME
-      CC31 = {name = "TweakLevel", bipolar = 0, page = patchmakerPageButton, factor = 100}, -- FEEDBACK > Tweak level
-      CC33 = {name = "NoiseMix", bipolar = 0}, -- NOISE
-      CC34 = {name = "Osc1StartPhase", bipolar = 0, page = synthesisPageButton}, -- VCO 1 PITCH > Start Phase 1
-      CC35 = {name = "Osc2FinePitch", bipolar = 0, page = synthesisPageButton}, -- VCO 2 PITCH > Fine pitch
-      CC36 = {name = "HardsyncOsc1", bipolar = 0, page = synthesisPageButton, factor = 36}, -- VCO1 SHAPE > Hardsync 1
-      CC37 = {name = "HardsyncOsc2", bipolar = 0, page = synthesisPageButton, factor = 36}, -- VCO2 SHAPE > Hardsync 2
-      CC39 = {name = "Osc1Mix", bipolar = 0}, -- VCO1
-      CC40 = {name = "Osc2Mix", bipolar = 0}, -- VCO2
-      CC41 = {name = "FilterEnvToHardsync1", bipolar = 0, page = filterPageButton}, -- CROSS MOD DEPTH > Osc 1 Hardsync FEnv Amt
-      CC42 = {name = "FilterEnvToHardsync2", bipolar = 0, page = filterPageButton}, -- PITCH EG INT > Osc 2 Hardsync FEnv Amt
-      CC43 = {name = "Cutoff", bipolar = 0, page = filterPageButton}, -- CUTOFF > Cutoff
-      CC44 = {name = "Resonance", bipolar = 0, page = filterPageButton}, -- RESONANCE > Resonance
+      CC31 = {name = "TweakLevel", page = patchmakerPageButton, factor = 100}, -- FEEDBACK > Tweak level
+      CC33 = {name = "NoiseMix"}, -- NOISE
+      CC34 = {name = "Osc1StartPhase", page = synthesisPageButton}, -- VCO 1 PITCH > Start Phase 1
+      CC35 = {name = "Osc2FinePitch", page = synthesisPageButton}, -- VCO 2 PITCH > Fine pitch
+      CC36 = {name = "HardsyncOsc1", page = synthesisPageButton, factor = 36}, -- VCO1 SHAPE > Hardsync 1
+      CC37 = {name = "HardsyncOsc2", page = synthesisPageButton, factor = 36}, -- VCO2 SHAPE > Hardsync 2
+      CC39 = {name = "Osc1Mix"}, -- VCO1
+      CC40 = {name = "Osc2Mix"}, -- VCO2
+      CC41 = {name = "FilterEnvToHardsync1", page = filterPageButton}, -- CROSS MOD DEPTH > Osc 1 Hardsync FEnv Amt
+      CC42 = {name = "FilterEnvToHardsync2", page = filterPageButton}, -- PITCH EG INT > Osc 2 Hardsync FEnv Amt
+      CC43 = {name = "Cutoff", page = filterPageButton}, -- CUTOFF > Cutoff
+      CC44 = {name = "Resonance", page = filterPageButton}, -- RESONANCE > Resonance
       CC45 = {name = "EnvelopeAmt", bipolar = 1, page = filterPageButton}, -- EG INT > Cutoff filter env amount
-      CC48 = {name = "Osc1Pitch", bipolar = 0, page = synthesisPageButton}, -- VCO 1 OCTAVE
-      CC49 = {name = "Osc2Pitch", bipolar = 0, page = synthesisPageButton}, -- VCO 2 OCTAVE
-      CC50 = {name = "Osc1Wave", bipolar = 0, page = synthesisPageButton}, -- VCO 1 WAVE
-      CC51 = {name = "Osc2Wave", bipolar = 0, page = synthesisPageButton}, -- VCO 2 WAVE
-      CC56 = {name = "ActiveLfoTargetSelector", bipolar = 0, page = modulationPageButton}, -- TARGET
-      CC57 = {name = "LfoRetrigger", bipolar = 0, page = modulationPageButton}, -- EG MOD > LFO Retrigger/Sync
-      CC58 = {name = "WaveFormTypeMenu", bipolar = 0, page = modulationPageButton}, -- LFO WAVE
-      CC80 = {name = "VibratoDepth", bipolar = 0, page = synthesisPageButton}, -- RING
-      CC81 = {name = "Arp", bipolar = 0}, -- SYNC > Arp on/off
-      CC82 = {name = "VelocityToFilterEnv", bipolar = 0, page = filterPageButton, factor = 20}, -- VELOCITY
-      CC83 = {name = "KeyTracking", bipolar = 0, page = filterPageButton}, -- KEY TRACK
-      CC84 = {name = "FilterDb", bipolar = 0, page = filterPageButton}, -- 2/4-POLE
-      CC88 = {name = "Tweak", bipolar = 0} -- OUTPUT ROUTING > Tweak button
+      CC48 = {name = "Osc1Pitch", page = synthesisPageButton}, -- VCO 1 OCTAVE
+      CC49 = {name = "Osc2Pitch", page = synthesisPageButton}, -- VCO 2 OCTAVE
+      CC50 = {name = "Osc1Wave", page = synthesisPageButton}, -- VCO 1 WAVE
+      CC51 = {name = "Osc2Wave", page = synthesisPageButton}, -- VCO 2 WAVE
+      CC56 = {name = "ActiveLfoTargetSelector", page = modulationPageButton}, -- TARGET
+      CC57 = {name = "LfoRetrigger", page = modulationPageButton}, -- EG MOD > LFO Retrigger/Sync
+      CC58 = {name = "WaveFormTypeMenu", page = modulationPageButton}, -- LFO WAVE
+      CC80 = {name = "VibratoDepth", page = synthesisPageButton}, -- RING
+      CC81 = {name = "Arp"}, -- SYNC > Arp on/off
+      CC82 = {name = "VelocityToFilterEnv", page = filterPageButton, factor = 20}, -- VELOCITY
+      CC83 = {name = "KeyTracking", page = filterPageButton}, -- KEY TRACK
+      CC84 = {name = "FilterDb", page = filterPageButton}, -- 2/4-POLE
+      CC88 = {name = "Tweak"} -- OUTPUT ROUTING > Tweak button
     }
 
     local key = "CC" .. e.controller
@@ -6368,11 +6373,7 @@ function mapMinilogueCC()
       if cc.page then
         cc.page:setValue(true)
       end
-      if type(cc.bipolar) ~= "number" then
-        postEvent(e)
-        return
-      end
-      local value = controllerValueToWidgetValue(e.value, cc.bipolar, cc.factor)
+      local value = controllerValueToWidgetValue(e.value, cc.bipolar, cc.factor, (cc.env==true))
       print("Value in/out:", e.value, value)
 
       if cc.name == "Arp" then
@@ -6534,6 +6535,7 @@ function setPage(page)
 end
 
 synthesisPageButton.changed = function(self)
+  self:setValue(true, false)
   filterPageButton:setValue(false, false)
   effectsPageButton:setValue(false, false)
   modulationPageButton:setValue(false, false)
@@ -6544,6 +6546,7 @@ synthesisPageButton.changed = function(self)
 end
 
 filterPageButton.changed = function(self)
+  self:setValue(true, false)
   synthesisPageButton:setValue(false, false)
   modulationPageButton:setValue(false, false)
   effectsPageButton:setValue(false, false)
@@ -6554,6 +6557,7 @@ filterPageButton.changed = function(self)
 end
 
 modulationPageButton.changed = function(self)
+  self:setValue(true, false)
   synthesisPageButton:setValue(false, false)
   filterPageButton:setValue(false, false)
   effectsPageButton:setValue(false, false)
@@ -6564,6 +6568,7 @@ modulationPageButton.changed = function(self)
 end
 
 twequencerPageButton.changed = function(self)
+  self:setValue(true, false)
   synthesisPageButton:setValue(false, false)
   filterPageButton:setValue(false, false)
   modulationPageButton:setValue(false, false)
@@ -6574,6 +6579,7 @@ twequencerPageButton.changed = function(self)
 end
 
 patchmakerPageButton.changed = function(self)
+  self:setValue(true, false)
   synthesisPageButton:setValue(false, false)
   filterPageButton:setValue(false, false)
   modulationPageButton:setValue(false, false)
@@ -6584,6 +6590,7 @@ patchmakerPageButton.changed = function(self)
 end
 
 effectsPageButton.changed = function(self)
+  self:setValue(true, false)
   synthesisPageButton:setValue(false, false)
   filterPageButton:setValue(false, false)
   modulationPageButton:setValue(false, false)
@@ -6594,6 +6601,7 @@ effectsPageButton.changed = function(self)
 end
 
 settingsPageButton.changed = function(self)
+  self:setValue(true, false)
   synthesisPageButton:setValue(false, false)
   filterPageButton:setValue(false, false)
   modulationPageButton:setValue(false, false)
