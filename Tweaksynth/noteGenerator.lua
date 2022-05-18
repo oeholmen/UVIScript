@@ -879,7 +879,12 @@ function playSubdivision(note, partPos)
           noteToPlay = getNoteAccordingToScale(scale, noteToPlay)
         end
         print("PlaySubdivision partPos/i/noteToPlay/duration/subdivision", partPos, i, noteToPlay, playDuration, note.subdivision)
-        playNote(noteToPlay, getVelocity(partPos, note.step), beat2ms(playDuration))
+        -- If the key is already playing, send a note off event before playing the note
+        if isKeyDown(noteToPlay) then
+          postEvent({type=Event.NoteOff, note=noteToPlay, velocity=0})
+          print("isKeyDown/noteToPlay", isKeyDown(noteToPlay), noteToPlay)
+        end
+        playNote(noteToPlay, getVelocity(partPos, note.step), beat2ms(playDuration)-1)
       end
     else
       local subDivisionNote = note.notes[i]
@@ -1070,6 +1075,8 @@ function arpeg()
     -- Note generator function
     local function getNoteToPlay()
       --print("getNoteToPlay sequenceRepeatProbability", sequenceRepeatProbability)
+      local minNote = paramsPerPart[currentPartPosition].minNote.value
+      local maxNote = paramsPerPart[currentPartPosition].maxNote.value
       local partSequences = sequences[sequencePartIndex]
       if type(partSequences) == "table" and #partSequences >= maxSequences and getRandomBoolean(sequenceRepeatProbability) then
         local sequence = {}
@@ -1090,13 +1097,14 @@ function arpeg()
         local notesAtCurrentStep = {}
         print("Finding note at tablePos", tablePos)
         for _,v in ipairs(sequence) do
-          if v.step == tablePos and notesInclude(notes, v.note) == false then
+          if v.step == tablePos and notesInclude(notes, v.note) == false and v.note >= minNote and v.note <= maxNote then
             table.insert(notesAtCurrentStep, v)
           end
         end
         print("Found notes at current step", #notesAtCurrentStep)
         if #notesAtCurrentStep > 0 then
-          local note = notesAtCurrentStep[getRandom(#notesAtCurrentStep)]
+          --local note = notesAtCurrentStep[getRandom(#notesAtCurrentStep)]
+          local note = notesAtCurrentStep[1]
           print("SEQUENCE note/noteSteps/sequenceCounter/sequenceRepeatProbability", note.note, note.steps, sequenceCounter, sequenceRepeatProbability)
           --note.vel = vel -- Adjust to current vel
           --note.gate = gate -- Adjust to current gate
@@ -1153,8 +1161,6 @@ function arpeg()
         local subdivision = getSubdivision(currentDepth)
         print("Got subdivision/currentDepth", subdivision, currentDepth)
 
-        local minNote = paramsPerPart[currentPartPosition].minNote.value
-        local maxNote = paramsPerPart[currentPartPosition].maxNote.value
         local monoLimit = paramsPerPart[currentPartPosition].monoLimit.value
         local minNoteSteps = paramsPerPart[currentPartPosition].minNoteSteps.value
         local maxNoteSteps = paramsPerPart[currentPartPosition].maxNoteSteps.value
