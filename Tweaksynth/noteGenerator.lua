@@ -804,25 +804,83 @@ function getMaxDepthFromBeatDuration(resolution, partPosition)
   return depth
 end
 
+function getVelocity(part, step, skipRandomize)
+  local seqVelTable = paramsPerPart[part].seqVelTable
+  local velocity = seqVelTable:getValue(step) -- get velocity
+
+  -- Skip randomize
+  if skipRandomize == true then
+    return velocity
+  end
+
+  -- Randomize velocity
+  local velRandomization = paramsPerPart[part].velRandomization.value
+  if getRandomBoolean(velRandomization) then
+    local changeMax = getChangeMax(seqVelTable.max, velRandomization)
+    local min = velocity - changeMax
+    local max = velocity + changeMax
+    if min < seqVelTable.min then
+      min = seqVelTable.min
+    end
+    if max > seqVelTable.max then
+      max = seqVelTable.max
+    end
+    --print("Before randomize vel", vel)
+    velocity = getRandom(min, max)
+    --print("After randomize vel/changeMax/min/max", vel, changeMax, min, max)
+  end
+
+  return velocity
+end
+
+function getGate(part, step, skipRandomize)
+  local seqGateTable = paramsPerPart[part].seqGateTable
+  local gate = seqGateTable:getValue(step)
+
+  -- Skip randomize
+  if skipRandomize == true then
+    return gate
+  end
+
+  -- Randomize gate
+  local gateRandomization = paramsPerPart[part].gateRandomization.value
+  if getRandomBoolean(gateRandomization) then
+    local changeMax = getChangeMax(seqGateTable.max, gateRandomization)
+    local min = gate - changeMax
+    local max = gate + changeMax
+    if min < seqGateTable.min then
+      min = seqGateTable.min
+    end
+    if max > seqGateTable.max then
+      max = seqGateTable.max
+    end
+    --print("Before randomize gate", gate)
+    gate = getRandom(min, max)
+    --print("After randomize gate/changeMax/min/max", gate, changeMax, min, max)
+  end
+
+  return gate
+end
+
 --------------------------------------------------------------------------------
 -- Sequencer
 --------------------------------------------------------------------------------
 
 function playSubdivision(note, partPos)
   local scale = paramsPerPart[partPos].fullScale
-  print("Start playSubdivision", partPos, note.stepDuration, note.steps, note.subdivision, note.gate)
   local waitDuration = (note.stepDuration * note.steps) / note.subdivision
-  print("waitDuration", waitDuration)
-  local playDuration = beat2ms(waitDuration) * (note.gate / 100)
-  print("playDuration", playDuration)
   for i=1,note.subdivision do
     if #note.notes == 0 then
-      local noteToPlay = note.note
-      if #scale > 0 then
-        noteToPlay = getNoteAccordingToScale(scale, noteToPlay)
+      local gate = getGate(partPos, note.step)
+      if gate > 0 then
+        local playDuration = waitDuration * (gate / 100)
+        local noteToPlay = note.note
+        if #scale > 0 then
+          noteToPlay = getNoteAccordingToScale(scale, noteToPlay)
+        end
+        print("PlaySubdivision partPos/i/noteToPlay/duration/subdivision", partPos, i, noteToPlay, playDuration, note.subdivision)
+        playNote(noteToPlay, getVelocity(partPos, note.step), beat2ms(playDuration))
       end
-      print("PlaySubdivision partPos/i/noteToPlay/durartion/subdivision", partPos, i, noteToPlay, playDuration, note.subdivision)
-      playNote(noteToPlay, note.vel, (playDuration-1))
     else
       local subDivisionNote = note.notes[i]
       run(playSubdivision, subDivisionNote, partPos)
@@ -995,16 +1053,15 @@ function arpeg()
       end
     end
 
-    local startStep = partToStepMap[currentPartPosition]
-
     -- Tables for current step position
-    local seqVelTable = paramsPerPart[currentPartPosition].seqVelTable
-    local seqGateTable = paramsPerPart[currentPartPosition].seqGateTable
+    --local seqVelTable = paramsPerPart[currentPartPosition].seqVelTable
+    --local seqGateTable = paramsPerPart[currentPartPosition].seqGateTable
 
     -- Params for current step position
+    local startStep = partToStepMap[currentPartPosition]
     local tablePos = currentPosition - startStep + 1
-    local vel = seqVelTable:getValue(tablePos) -- get velocity
-    local gate = seqGateTable:getValue(tablePos) -- get gate
+    --local vel = getVelocity(currentPartPosition, tablePos)--seqVelTable:getValue(tablePos) -- get velocity
+    --local gate = getGate(currentPartPosition, tablePos)--seqGateTable:getValue(tablePos) -- get gate
 
     --------------------------------------------------------------------------------
     -- Note functions
@@ -1012,41 +1069,6 @@ function arpeg()
 
     -- Note generator function
     local function getNoteToPlay()
-
-      -- Randomize gate
-      local gateRandomization = paramsPerPart[currentPartPosition].gateRandomization.value
-      if getRandomBoolean(gateRandomization) then
-        local changeMax = getChangeMax(seqGateTable.max, gateRandomization)
-        local min = gate - changeMax
-        local max = gate + changeMax
-        if min < seqGateTable.min then
-          min = seqGateTable.min
-        end
-        if max > seqGateTable.max then
-          max = seqGateTable.max
-        end
-        --print("Before randomize gate", gate)
-        gate = getRandom(min, max)
-        --print("After randomize gate/changeMax/min/max", gate, changeMax, min, max)
-      end
-
-      -- Randomize vel
-      local velRandomization = paramsPerPart[currentPartPosition].velRandomization.value
-      if getRandomBoolean(velRandomization) then
-        local changeMax = getChangeMax(seqVelTable.max, velRandomization)
-        local min = vel - changeMax
-        local max = vel + changeMax
-        if min < seqVelTable.min then
-          min = seqVelTable.min
-        end
-        if max > seqVelTable.max then
-          max = seqVelTable.max
-        end
-        --print("Before randomize vel", vel)
-        vel = getRandom(min, max)
-        --print("After randomize vel/changeMax/min/max", vel, changeMax, min, max)
-      end
-
       --print("getNoteToPlay sequenceRepeatProbability", sequenceRepeatProbability)
       local partSequences = sequences[sequencePartIndex]
       if type(partSequences) == "table" and #partSequences >= maxSequences and getRandomBoolean(sequenceRepeatProbability) then
@@ -1066,10 +1088,10 @@ function arpeg()
           print("Getting sequence from random sequenceIndex/#sequences@currentPartPosition", sequenceIndex, #partSequences)
         end
         local notesAtCurrentStep = {}
-        print("Finding note at currentPosition/tablePos", currentPosition, tablePos)
+        print("Finding note at tablePos", tablePos)
         for _,v in ipairs(sequence) do
-          if v.step == tablePos and notesInclude(notes, v.note.note) == false then
-            table.insert(notesAtCurrentStep, v.note)
+          if v.step == tablePos and notesInclude(notes, v.note) == false then
+            table.insert(notesAtCurrentStep, v)
           end
         end
         print("Found notes at current step", #notesAtCurrentStep)
@@ -1085,7 +1107,7 @@ function arpeg()
           for _,v in ipairs(note.notes) do
             table.insert(subDivNotes, v)
           end
-          return {note=note.note,gate=gate,vel=vel,steps=note.steps,stepDuration=mainBeatDuration,notes=subDivNotes,subdivision=note.subdivision,stepCounter=0}
+          return {note=note.note,step=tablePos,steps=note.steps,stepDuration=mainBeatDuration,notes=subDivNotes,subdivision=note.subdivision,stepCounter=0}
         end
       end
 
@@ -1115,9 +1137,8 @@ function arpeg()
       -- Generate note
         -- note: the note to play
         -- notes: the notes to play for subdivision
-        -- gate: gate length
-        -- vel: note velocity
         -- subdivision: the subdivision of the note
+        -- step: the step (tablePos) the note was triggered at
         -- steps: the duration of the note in steps
         -- stepCounter: the counter for how many steps the note has lasted so far
       local function generateNote(stepDuration, currentDepth)
@@ -1168,7 +1189,7 @@ function arpeg()
           steps = 1
         end
 
-        if currentStep == 1 and notesInclude(notes, minNote) == false and getRandomBoolean(baseNoteRandomization) then
+        if currentStep == 1 and currentDepth == 0 and notesInclude(notes, minNote) == false and getRandomBoolean(baseNoteRandomization) then
           note = minNote -- Use the base note
         elseif hasScale == true then
           local scale = getFilteredScale(currentPartPosition, minNote, maxNote)
@@ -1200,8 +1221,7 @@ function arpeg()
 
         return {
           note = note,
-          gate = gate,
-          vel = vel,
+          step = tablePos,
           steps = steps,
           stepDuration = stepDuration,
           subdivision = subdivision,
@@ -1214,9 +1234,9 @@ function arpeg()
     end
 
     --------------------------------------------------------------------------------
-    -- Play this step - If gate is zero no notes will play on this step
+    -- Play this step - If gate is set to zero, no notes will play on this step
     --------------------------------------------------------------------------------
-    if gate > 0 then
+    if getGate(currentPartPosition, tablePos, true) > 0 then
       -- Check how many notes are already playing, and remove number from numberOfNotes if more than max polyphony
       if numberOfNotes + #notes > polyphony then
         numberOfNotes = numberOfNotes - #notes
@@ -1243,9 +1263,9 @@ function arpeg()
     -- PLAY NOTE(S)
     for _,note in ipairs(notes) do
       -- Start playing when step counter is 0 (add an extra check for gate even though no notes should be added when gate is zero)
-      if note.stepCounter == 0 and note.gate > 0 then
+      if note.stepCounter == 0 then
         run(playSubdivision, note, currentPartPosition)
-        table.insert(recordedNotes, {note=note,step=currentPosition})
+        table.insert(recordedNotes, note)
         --print("Playing note/stepDuration/note.gate/note.steps/note.stepDuration", note.note, stepDuration, note.gate, note.steps, note.stepDuration)
       end
       -- Increment step counter
