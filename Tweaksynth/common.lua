@@ -2,6 +2,24 @@
 -- Common methods
 --------------------------------------------------------------------------------
 
+function transpose(note, min, max)
+  --print("Check transpose", note)
+  if note < min then
+    print("note < min", note, min)
+    while note < min do
+      note = note + 12
+      print("transpose note up", note)
+    end
+  elseif note > max then
+    print("note > max", note, max)
+    while note > max do
+      note = note - 12
+      print("transpose note down", note)
+    end
+  end
+  return note
+end
+
 function getRandom(min, max, factor)
   if type(min) == "number" and type(max) == "number" then
     local value = math.random(min, max)

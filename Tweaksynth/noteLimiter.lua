@@ -6,6 +6,8 @@
 -- Duplicate notes are removed
 --------------------------------------------------------------------------------
 
+require "common"
+
 local menuBackgroundColour = "#bf01011F"
 local menuTextColour = "#9f02ACFE"
 local menuArrowColour = "#9f09A3F4"
@@ -104,39 +106,6 @@ function eventsIncludeNote(eventTable, note)
   return false
 end
 
-function transpose(note)
-  print("Check transpose", note)
-  if note < noteMin.value then
-    print("note < noteMin.value", note, noteMin.value)
-    while note < noteMin.value do
-      note = note + 12
-      print("transpose note up", note)
-    end
-  elseif note > noteMax.value then
-    print("note > noteMax.value", note, noteMax.value)
-    while note > noteMax.value do
-      note = note - 12
-      print("transpose note down", note)
-    end
-  end
-  return note
-end
-
-function getRandom(min, max, factor)
-  if type(min) == "number" and type(max) == "number" then
-    local value = math.random(min, max)
-    return value
-  elseif type(min) == "number" then
-    local value = math.random(min)
-    return value
-  end
-  local value = math.random()
-  if type(factor) == "number" then
-    value = value * factor
-  end
-  return value
-end
-
 --------------------------------------------------------------------------------
 -- Handle note events
 --------------------------------------------------------------------------------
@@ -149,7 +118,7 @@ function onNote(e)
     return
   end
   local note = e.note -- The original note without transposition
-  e.note = transpose(e.note)
+  e.note = transpose(e.note, noteMin.value, noteMax.value)
 
   -- Add to held notes, unless duplicate
   if eventsIncludeNote(heldNotes, e.note) == false then
@@ -233,7 +202,7 @@ function onRelease(e)
     return
   end
   print("onRelease note in", e.note)
-  e.note = transpose(e.note) -- Transpose note
+  e.note = transpose(e.note, noteMin.value, noteMax.value) -- Transpose note
   e.velocity = 0 -- Set no velocity on release to avoid any sound on release
   for i,v in ipairs(heldNotes) do
     if v.note == e.note then

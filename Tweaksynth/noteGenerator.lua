@@ -878,6 +878,7 @@ function playSubdivision(note, partPos)
         if #scale > 0 then
           noteToPlay = getNoteAccordingToScale(scale, noteToPlay)
         end
+        noteToPlay = transpose(noteToPlay, paramsPerPart[partPos].minNote.value, paramsPerPart[partPos].maxNote.value)
         print("PlaySubdivision partPos/i/noteToPlay/duration/subdivision", partPos, i, noteToPlay, playDuration, note.subdivision)
         -- If the key is already playing, send a note off event before playing the note
         if isKeyDown(noteToPlay) then
