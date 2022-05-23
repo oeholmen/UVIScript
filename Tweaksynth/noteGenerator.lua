@@ -635,9 +635,9 @@ sequenceMemoryLabel.y = partRandBox.y + partRandBox.height + 5
 sequenceMemoryLabel.width = 200
 sequenceMemoryLabel.height = 20
 
-local maxSequencesBox = sequencerPanel:NumBox("MaxSequences", maxSequences, 1, 32, true)
+local maxSequencesBox = sequencerPanel:NumBox("MaxSequences", maxSequences, 0, 32, true)
 maxSequencesBox.displayName = "Memory"
-maxSequencesBox.tooltip = "How many sequences are remebered? Few means less variation, many means more variation."
+maxSequencesBox.tooltip = "How many sequences are remebered? Few means less variation, many means more variation. Set zero to disble."
 --maxSequencesBox.displayName = "Rounds Before Repeat"
 --maxSequencesBox.tooltip = "How many sequences are generated before we start repeating?"
 maxSequencesBox.width = sequenceMemoryLabel.width
@@ -648,6 +648,12 @@ maxSequencesBox.backgroundColour = menuBackgroundColour
 maxSequencesBox.textColour = menuTextColour
 maxSequencesBox.changed = function(self)
   maxSequences = self.value
+  if maxSequences == 0 then
+    sequences = {}
+    sequenceMemoryLabel.text = sequenceMemoryLabel.displayName .. ' (disabled)'
+  else
+    sequenceMemoryLabel.text = sequenceMemoryLabel.displayName
+  end
 end
 
 local sequencesPerPart = sequencerPanel:OnOffButton("SequencesPerPartOnOff", false)
@@ -925,7 +931,7 @@ function arpeg()
         -- Set start of part
         startOfPart = true
         -- Store the recorded notes before changing parts
-        if #recordedNotes > 0 then
+        if #recordedNotes > 0 and maxSequences > 0 then
 
           local storedSequences = {}
           -- Include the already stored notes
@@ -962,8 +968,8 @@ function arpeg()
           end
 
           --print("SAVE SEQUENCE notes/sequences/currentPartPosition", #recordedNotes, #sequences[sequencePartIndex], currentPartPosition)
-          recordedNotes = {} -- Clear the recored notes
         end
+        recordedNotes = {} -- Clear the recored notes
         -- Update part position
         partWasChanged = currentPartPosition ~= pp
         currentPartPosition = pp
@@ -1022,7 +1028,7 @@ function arpeg()
       end
     end
 
-    if type(sequences[sequencePartIndex]) ~= "table" or #sequences[sequencePartIndex] < maxSequences then
+    if maxSequences > 0 and (type(sequences[sequencePartIndex]) ~= "table" or #sequences[sequencePartIndex] < maxSequences) then
       local seqNum = 1
       if type(sequences[sequencePartIndex]) == "table" then
         seqNum = #sequences[sequencePartIndex] + 1
@@ -1035,7 +1041,7 @@ function arpeg()
       sequenceRepeatProbability = paramsPerPart[currentPartPosition].sequenceRepeatProbability.value
     end
 
-    if startOfPart and isStarting == false and sequenceRepeatProbability > 0 then
+    if startOfPart and isStarting == false and sequenceRepeatProbability > 0 and maxSequences > 0 then
       -- Calculate decay
       local sequenceRepeatProbabilityThreshold = paramsPerPart[currentPartPosition].sequenceRepeatProbabilityThreshold.value
       local changeMax = getChangeMax(sequenceRepeatProbability, sequenceRepeatProbabilityDecay)
