@@ -910,7 +910,7 @@ function arpeg(part)
       -- Play note if trigger probability hits (and part is not turned off)
       if isPartActive and shouldTrigger then
         local note = paramsPerPart[partIndex].triggerNote.value + pitchAdjustment
-        local duration = beat2ms(stepDuration)-- - 1 -- Make sure note is not played into the next
+        local duration = beat2ms(stepDuration) - 1 -- Make sure note is not played into the next
         playNote(note, vel, duration, nil, channel)
         --print("Playing note/vel/ratchet/stepDuration", note, vel, ratchet, stepDuration)
       end
