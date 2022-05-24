@@ -50,6 +50,14 @@ function getPageFromPartIndex(partIndex)
   return math.ceil(partIndex / maxPages)
 end
 
+function advancePage()
+  local next = activePage + 1
+  if next > numPages then
+    next = 1
+  end
+  pageButtons[next]:setValue(true)
+end
+
 function gotoNextPage()
   -- Check that there is actually a a change
   if activePage == nextUp then
@@ -73,7 +81,6 @@ end
 
 function setNumSteps(partIndex, numSteps)
   print("setNumSteps for partIndex/numSteps", partIndex, numSteps)
-  --local numSteps = paramsPerPart[partIndex].numStepsBox.value
   paramsPerPart[partIndex].positionTable.length = numSteps
   paramsPerPart[partIndex].tieStepTable.length = numSteps
   paramsPerPart[partIndex].seqPitchTable.length = numSteps
@@ -117,6 +124,7 @@ function stopPlaying()
   print("Stop playing")
   isPlaying = false
   clearPosition()
+  gotoNextPage()
 end
 
 --------------------------------------------------------------------------------
@@ -149,7 +157,6 @@ playButton.backgroundColourOff = "#ff084486"
 playButton.backgroundColourOn = "#ff02ACFE"
 playButton.textColourOff = "#ff22FFFF"
 playButton.textColourOn = "#efFFFFFF"
-playButton.fillColour = "#dd000061"
 playButton.displayName = "Play"
 playButton.size = {102,22}
 playButton.x = headerPanel.width - playButton.width
@@ -167,7 +174,6 @@ autoplayButton.backgroundColourOff = "#ff084486"
 autoplayButton.backgroundColourOn = "#ff02ACFE"
 autoplayButton.textColourOff = "#ff22FFFF"
 autoplayButton.textColourOn = "#efFFFFFF"
-autoplayButton.fillColour = "#dd000061"
 autoplayButton.displayName = "Auto Play"
 autoplayButton.tooltip = "Play automatically on transport"
 autoplayButton.size = {102,22}
@@ -181,7 +187,6 @@ evolveButton.textColourOff = "#ff22FFFF"
 evolveButton.textColourOn = "#efFFFFFF"
 evolveButton.displayName = "Evolve"
 evolveButton.tooltip = "When evolve is active, randomization is written back to the corresponding table. NOTE: Table values are overwritten when activated!"
-evolveButton.fillColour = "#dd000061"
 evolveButton.size = autoplayButton.size
 evolveButton.x = autoplayButton.x - autoplayButton.width - 5
 evolveButton.y = playButton.y
@@ -199,12 +204,12 @@ else
 end
 
 local changePageProbability = footerPanel:NumBox("ChangePageProbability", 0, 0, 100, true)
-changePageProbability.displayName = "Page Change"
+changePageProbability.displayName = "Random"
 changePageProbability.tooltip = "Probability of random page change"
 changePageProbability.enabled = false
 changePageProbability.unit = Unit.Percent
-changePageProbability.size = {120,22}
-changePageProbability.x = (33 * maxPages) + 100
+changePageProbability.size = {110,22}
+changePageProbability.x = (33 * maxPages) + 102
 
 local actionMenu = footerPanel:Menu("ActionMenu", {"Actions...", "Randomize triggers"})
 actionMenu.persistent = false
@@ -215,18 +220,20 @@ actionMenu.arrowColour = menuArrowColour
 actionMenu.outlineColour = menuOutlineColour
 actionMenu.showLabel = false
 actionMenu.x = changePageProbability.x + changePageProbability.width + 5
-actionMenu.size = {100,22}
+actionMenu.size = {110,22}
 actionMenu.changed = function(self)
   -- 1 is the menu label...
   if self.value == 1 then
     return
   end
-  -- Randomize tables
+  -- Randomize trigger probability table
   if self.value == 2 then
     for part=1,numParts do
       local partIndex = getPartIndex(part)
       for i=1,paramsPerPart[partIndex].numStepsBox.value do
-        paramsPerPart[partIndex].seqTriggerProbabilityTable:setValue(i, getRandom(paramsPerPart[partIndex].seqTriggerProbabilityTable.min, paramsPerPart[partIndex].seqTriggerProbabilityTable.max))
+        if getRandomBoolean() then
+          paramsPerPart[partIndex].seqTriggerProbabilityTable:setValue(i, getRandom(paramsPerPart[partIndex].seqTriggerProbabilityTable.min, paramsPerPart[partIndex].seqTriggerProbabilityTable.max))
+        end
       end
     end
   else
@@ -267,6 +274,33 @@ actionMenu.changed = function(self)
   self.selected = 1
 end
 
+local pageTrigger = footerPanel:NumBox("PageTrigger", 96, 0, 127, true)
+pageTrigger.enabled = false
+pageTrigger.displayName = "Change"
+pageTrigger.tooltip = "Go to next page by triggering this note. Notes immediately above, trigger pages directly."
+pageTrigger.unit = Unit.MidiKey
+pageTrigger.height = actionMenu.height
+pageTrigger.width = 100
+
+local nextPageButton = footerPanel:Button("NextPageButton")
+nextPageButton.persistent = false
+nextPageButton.enabled = numPages > 1
+nextPageButton.displayName = ">"
+nextPageButton.size = {25,22}
+nextPageButton.changed = function(self)
+  advancePage()
+end
+
+local cyclePagesButton = footerPanel:OnOffButton("CyclePagesButton")
+cyclePagesButton.enabled = numPages > 1
+cyclePagesButton.displayName = ">>"
+cyclePagesButton.tooltip = "Play pages in cycle"
+cyclePagesButton.backgroundColourOff = "#6600cc44"
+cyclePagesButton.backgroundColourOn = "#aa00cc44"
+cyclePagesButton.textColourOff = "#cc22FFFF"
+cyclePagesButton.textColourOn = "#ccFFFFFF"
+cyclePagesButton.size = {25,22}
+
 local numPagesBox = footerPanel:NumBox("Pages", numPages, 1, maxPages, true)
 numPagesBox.tooltip = "Number of active pages"
 numPagesBox.backgroundColour = menuBackgroundColour
@@ -276,6 +310,9 @@ numPagesBox.x = 0
 numPagesBox.changed = function(self)
   numPages = self.value
   changePageProbability.enabled = self.value > 1
+  nextPageButton.enabled = self.value > 1
+  cyclePagesButton.enabled = self.value > 1
+  pageTrigger.enabled = self.value > 1
   for page=1,self.max do
     setPageDuration(page)
     pageButtons[page].enabled = page <= numPages
@@ -290,14 +327,10 @@ numPagesBox.changed = function(self)
   end
   actionMenu.items = actionMenuItems
 end
---numPagesBox:changed()
 
 -- Add page buttons
+local xPadding = 1
 for page=1,maxPages do
-  local xPadding = 2
-  if page == 1 then
-    xPadding = 0
-  end
   local pageButton = footerPanel:OnOffButton("PageButton" .. page, (page==1))
   pageButton.persistent = false
   pageButton.enabled = page <= numPages
@@ -306,9 +339,8 @@ for page=1,maxPages do
   pageButton.backgroundColourOn = "#ff02ACFE"
   pageButton.textColourOff = "#ff22FFFF"
   pageButton.textColourOn = "#efFFFFFF"
-  pageButton.fillColour = "#dd000061"
-  pageButton.size = {30,22}
-  pageButton.x = ((pageButton.width + xPadding) * page) + 70
+  pageButton.size = {25,22}
+  pageButton.x = ((pageButton.width + xPadding) * page) + 76
   pageButton.changed = function(self)
     if self.value == true then
       nextUp = page -- register next up
@@ -320,6 +352,12 @@ for page=1,maxPages do
   end
   table.insert(pageButtons, pageButton)
 end
+
+cyclePagesButton.x = pageButtons[#pageButtons].x + pageButtons[#pageButtons].width + xPadding
+nextPageButton.x = cyclePagesButton.x + cyclePagesButton.width + xPadding
+
+pageTrigger.x = actionMenu.x + actionMenu.width + 9
+pageTrigger.y = actionMenu.y
 
 -- Add params that are to be editable per page / part
 for page=1,maxPages do
@@ -335,7 +373,7 @@ for page=1,maxPages do
   sequencerPanel.y = headerPanel.height + 15
   sequencerPanel.width = 700
   sequencerPanel.height = numParts * (tableHeight + 25) + 0
-  
+
   for part=1,numParts do
     local isVisible = true
     local i = getPartIndex(part, page)
@@ -518,7 +556,6 @@ for page=1,maxPages do
     muteButton.backgroundColourOn = "#ff02ACFE"
     muteButton.textColourOff = "#ff22FFFF"
     muteButton.textColourOn = "#efFFFFFF"
-    muteButton.fillColour = "#dd000061"
     muteButton.displayName = "Mute"
     muteButton.tooltip = "Mute part"
     muteButton.size = {90,20}
@@ -563,14 +600,10 @@ for page=1,maxPages do
     triggerNote.displayName = "Note"
     triggerNote.tooltip = "The note to trigger"
     triggerNote.unit = Unit.MidiKey
-    triggerNote.showPopupDisplay = true
     triggerNote.visible = isVisible
     triggerNote.showLabel = numParts == 1
-    triggerNote.fillStyle = "solid"
     triggerNote.backgroundColour = menuBackgroundColour
     triggerNote.textColour = menuTextColour
-    triggerNote.arrowColour = menuArrowColour
-    triggerNote.outlineColour = menuOutlineColour
     triggerNote.height = muteButton.height
     if numParts == 1 then
       triggerNote.width = muteButton.width
@@ -672,10 +705,15 @@ function pageRunner()
   local rounds = 0
   while isPlaying do
     rounds = rounds + 1
-
-    local probability = changePageProbability.value
-    if nextUp == activePage and getRandomBoolean(probability) then
-      nextUp = getRandom(numPages)
+    if rounds > 1 and nextUp == activePage then
+      if getRandomBoolean(changePageProbability.value) then
+        nextUp = getRandom(numPages)
+      elseif cyclePagesButton.value == true then
+        nextUp = activePage + 1
+        if nextUp > numPages then
+          nextUp = 1
+        end
+      end
     end
 
     gotoNextPage()
@@ -872,7 +910,7 @@ function arpeg(part)
       -- Play note if trigger probability hits (and part is not turned off)
       if isPartActive and shouldTrigger then
         local note = paramsPerPart[partIndex].triggerNote.value + pitchAdjustment
-        local duration = beat2ms(stepDuration) - 1 -- Make sure note is not played into the next
+        local duration = beat2ms(stepDuration)-- - 1 -- Make sure note is not played into the next
         playNote(note, vel, duration, nil, channel)
         --print("Playing note/vel/ratchet/stepDuration", note, vel, ratchet, stepDuration)
       end
@@ -895,6 +933,17 @@ end
 --------------------------------------------------------------------------------
 
 function onNote(e)
+  if pageTrigger.enabled == true then
+    for page=1, numPages do
+      if pageTrigger.value == e.note then
+        advancePage()
+        break
+      elseif (pageTrigger.value + page) == e.note then
+        pageButtons[page]:setValue(true)
+        break
+      end
+    end
+  end
   if autoplayButton.value == true then
     postEvent(e)
   else
