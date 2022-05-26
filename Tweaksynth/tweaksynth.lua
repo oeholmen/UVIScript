@@ -620,19 +620,6 @@ function tweakValue(options, value, tweakLevel)
   return getRandom(options.min, options.max, options.factor)
 end
 
-function round(value)
-  local int, frac = math.modf(value)
-  print("int/frac", int, frac)
-  if math.abs(frac) < 0.5 then
-    value = int
-  elseif value < 0 then
-    value = int - 1
-  else
-    value = int + 1
-  end
-  return value
-end
-
 function getEnvelopeTimeForDuration(options, duration)
   local min = options.widget.default * 10000 -- 0,001*10000 = 10
   local max = duration -- Duration is 0.25 = 1/16, 0.5 = 1/8, 1 = 1/4

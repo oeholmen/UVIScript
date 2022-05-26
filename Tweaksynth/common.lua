@@ -20,6 +20,19 @@ function transpose(note, min, max)
   return note
 end
 
+function round(value)
+  local int, frac = math.modf(value)
+  print("int/frac", int, frac)
+  if math.abs(frac) < 0.5 then
+    value = int
+  elseif value < 0 then
+    value = int - 1
+  else
+    value = int + 1
+  end
+  return value
+end
+
 function getRandom(min, max, factor)
   if type(min) == "number" and type(max) == "number" then
     local value = math.random(min, max)
