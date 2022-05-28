@@ -17,8 +17,98 @@ local paramsPerPart = {}
 local partSelect = {}
 local sequences = {} -- Each part has its own sequences
 local maxSequences = 2 -- Max stored sequences for each part - sets the default value for the maxSequencesBox parameter
-local scaleDefinitions = {{1},{2,2,1,2,2,2,1}, {2,1,2,2,1,2,2}, {2,1,2,2,2,1,2}, {2}, {2,2,3,2,3}, {3,2,2,3,2}, {5,2,5}, {7,5}, {12}, {3}, {5}, {7}}
-local chordInversionDefinition = {2,2,3}
+-- Make sure these are in sync with the scale names!
+local scaleDefinitions = {
+  {1}, -- 12 tone
+  {2,2,1,2,2,2,1}, -- Major (Ionian mode)
+  {2,1,2,2,1,2,2}, -- Minor (Aeolian mode)
+  --{2,1,2,2,2,2,1}, -- Harmonic minor
+  {2,1,2,2,2,1,2}, -- Dorian mode
+  {1,2,2,2,1,2,2}, -- Phrygian mode
+  {2,2,2,1,2,2,1}, -- Lydian mode
+  {2,2,1,2,2,1,2}, -- Mixolydian mode
+  {1,2,2,1,2,2,2}, -- Locrian mode
+  {2}, -- Whole tone scale
+  {2,2,3,2,3}, -- Major Pentatonic
+  {3,2,2,3,2}, -- Minor Pentatonic
+  {5,2,5},
+  {7,5},
+  {12},
+  {3},
+  {5},
+  {7}
+}
+local scaleNames = {
+  "12 tone",
+  "Major (Ionian)",
+  "Minor (Aeolian)",
+  --"Harmonic minor",
+  "Dorian",
+  "Phrygian",
+  "Lydian",
+  "Mixolydian",
+  "Locrian",
+  "Whole tone",
+  "Major Pentatonic",
+  "Minor Pentatonic",
+  "1-4-5",
+  "1-5",
+  "1",
+  "Dim",
+  "Fours",
+  "Fives"
+}
+-- *** NOTE *** The chord definitions use index/steps in the selected scale, not semitones.
+-- 2 means two steps up the scale: C-E for a C major scale. A-C for an A minor scale.
+-- Keep in sync with chordDefinitionNames!
+local chordDefinitions = {
+  {2,2,3}, -- Builds triads
+  {2}, -- Builds chords using only thirds (7/9/11 depending on polyphony)
+  {3,1,3}, -- Builds supended chords
+  {2,2,2,1}, -- Builds 7th chords
+  {2,2,1,2}, -- Builds 6th chords
+  {3}, -- Builds chords using only fourths
+  {4}, -- Builds chords using only fifths
+  {1}, -- Builds chords using only seconds
+  {1,1,2,2,1}, -- Builds (close) 7th and 9th chords
+  {1,2,1,2,1}, -- Builds supended chords including 7th and 9ths
+}
+local chordDefinitionNames = {
+  "Pure Triads",
+  "Triads + 7/9/11",
+  "Suspended",
+  "7th chords",
+  "6th chords",
+  "4th chords",
+  "5th chords",
+  "2nd chords",
+  "7th and 9th chords",
+  "Suspended + 7/9",
+}
+local strategyPos = 1
+-- Mono strategies are ways to play chords in mono mode
+local monoStrategies = {
+  {1}, -- Up
+  {-1}, -- Down
+  {2,-1}, -- Alternate up
+  {-2,1}, -- Alternate down
+  {3,-1}, 
+  {2,1},
+  {1,2,3,4},
+  {2,1,-3},
+  {1,1,2,-3},
+  {-1,-1,-2,5},
+  {1,-1},
+  {-1,1},
+  {-1,1,-1,1,-2},
+  {1,-1,1,-2,-1,3},
+  {-1,-1,-1,-1,5},
+  {-1,-1,-1,-1,-3,3,1,1,1,1},
+  {2,3,2,4,2,5,1},
+  {-1,-2},
+  {-1,-2,1,2},
+  {-1,-2,1,2,-1,-2,1,2,1,-3,1},
+}
 local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
 local noteNumberToNoteName = {} -- Used for mapping - does not include octave, only name of note (C, C#...)
 local notenamePos = 1
@@ -80,7 +170,7 @@ sequencerPanel.backgroundColour = menuOutlineColour
 sequencerPanel.x = 10
 sequencerPanel.y = 10
 sequencerPanel.width = tableWidth
-sequencerPanel.height = 400
+sequencerPanel.height = 465
 
 local label = sequencerPanel:Label("Label")
 label.text = "Generative Sequencer"
@@ -123,6 +213,7 @@ editPartMenu.changed = function(self)
     v.monoLimit.visible = isVisible
     v.key.visible = isVisible
     v.scale.visible = isVisible
+    v.harmonizationPropbability.visible = isVisible
     v.velRandomization.visible = isVisible
     v.gateRandomization.visible = isVisible
     v.baseNoteRandomization.visible = isVisible
@@ -134,6 +225,9 @@ editPartMenu.changed = function(self)
     v.subdivisionMinResolution.visible = isVisible
     for _,s in ipairs(v.subdivisions) do
       s.visible = isVisible
+    end
+    for _,c in ipairs(v.chords) do
+      c.visible = isVisible
     end
   end
   setTableWidths()
@@ -167,8 +261,9 @@ numPartsBox.changed = function(self)
       -- Copy initial settings from prev part
       local prev = paramsPerPart[i-1]
       paramsPerPart[i].polyphony.value = prev.polyphony.value
-      paramsPerPart[i].scale.value = prev.scale.value
       paramsPerPart[i].key.value = prev.key.value
+      paramsPerPart[i].scale.value = prev.scale.value
+      paramsPerPart[i].harmonizationPropbability.value = prev.harmonizationPropbability.value
       paramsPerPart[i].minNote.value = prev.minNote.value
       paramsPerPart[i].maxNote.value = prev.maxNote.value
       paramsPerPart[i].monoLimit.value = prev.monoLimit.value
@@ -176,7 +271,6 @@ numPartsBox.changed = function(self)
       paramsPerPart[i].maxNoteSteps.value = prev.maxNoteSteps.value
       paramsPerPart[i].numStepsBox.value = prev.numStepsBox.value
       paramsPerPart[i].stepResolution.value = prev.stepResolution.value
-      --paramsPerPart[i].numSteps = prev.numSteps
       paramsPerPart[i].fullScale = prev.fullScale
       paramsPerPart[i].velRandomization.value = prev.velRandomization.value
       paramsPerPart[i].gateRandomization.value = prev.gateRandomization.value
@@ -188,9 +282,6 @@ numPartsBox.changed = function(self)
       paramsPerPart[i].subdivisionRepeatProbability.value = prev.subdivisionRepeatProbability.value
       paramsPerPart[i].subdivisionMinResolution.value = prev.subdivisionMinResolution.value
       paramsPerPart[i].init = prev.init
-      --[[ for _,s in ipairs(paramsPerPart[i].subdivisions) do
-        s.value = ???
-      end ]]
     end
   end
   clearPosition()
@@ -305,10 +396,6 @@ function setTableWidths()
   end
 end
 
---[[ local noteRangeLabel = sequencerPanel:Label("NoteRangeLabel")
-noteRangeLabel.persistent = false
-noteRangeLabel.text = "Note Range" ]]
-
 -- Add params that are to be editable per part
 for i=1,numPartsBox.max do
   print("Set paramsPerPart", i)
@@ -344,7 +431,7 @@ for i=1,numPartsBox.max do
   seqVelTable.width = positionTable.width
   seqVelTable.height = 70
   seqVelTable.x = positionTable.x
-  seqVelTable.y = partRandBox.y + 130
+  seqVelTable.y = partRandBox.y + 200
   
   local seqGateTable = sequencerPanel:Table("Gate" .. i, totalNumSteps, 100, 0, 120, true)
   seqGateTable.tooltip = "Set step gate length. Randomization available in settings."
@@ -416,13 +503,6 @@ for i=1,numPartsBox.max do
     setNumSteps(i)
   end
 
-  --[[ if i == 1 then
-    noteRangeLabel.x = stepResolution.x + stepResolution.width + 10
-    noteRangeLabel.y = stepResolution.y
-    noteRangeLabel.width = stepResolution.width
-    noteRangeLabel.height = 20
-  end ]]
-
   local generateMinPart = sequencerPanel:NumBox("GenerateMin" .. i, 24, 0, 127, true)
   generateMinPart.unit = Unit.MidiKey
   generateMinPart.showPopupDisplay = true
@@ -460,17 +540,17 @@ for i=1,numPartsBox.max do
   monoLimit.width = generateMaxPart.width
 
   generateMinPart.changed = function(self)
-    --createFilteredScale(i)
     generateMaxPart:setRange(self.value, 127)
   end
 
   generateMaxPart.changed = function(self)
-    --createFilteredScale(i)
     generateMinPart:setRange(0, self.value)
   end
 
   local generateKeyPart = sequencerPanel:Menu("GenerateKey" .. i, notenames)
-  generateKeyPart.displayName = "Key / Scale"
+  generateKeyPart.tooltip = "Key"
+  generateKeyPart.showLabel = false
+  generateKeyPart.height = 20
   generateKeyPart.width = generateMaxPart.width
   generateKeyPart.x = generateMinPart.x + generateMinPart.width + 10
   generateKeyPart.y = stepResolution.y
@@ -478,13 +558,12 @@ for i=1,numPartsBox.max do
   generateKeyPart.textColour = menuTextColour
   generateKeyPart.arrowColour = menuArrowColour
   generateKeyPart.outlineColour = menuOutlineColour
-  generateKeyPart.changed = function (self)
+  generateKeyPart.changed = function(self)
     createFullScale(i)
-    --createFilteredScale(i)
   end
 
-  local generateScalePart = sequencerPanel:Menu("GenerateScale" .. i, {"12 tone", "Major", "Minor", "Dorian", "Whole tone", "Major Pentatonic", "Minor Pentatonic", "1-4-5", "1-5", "1", "Dim", "Fours", "Fives"})
-  generateScalePart.displayName = "Scale"
+  local generateScalePart = sequencerPanel:Menu("GenerateScale" .. i, scaleNames)
+  generateScalePart.tooltip = "Scale"
   generateScalePart.showLabel = false
   generateScalePart.height = 20
   generateScalePart.width = generateKeyPart.width
@@ -494,9 +573,22 @@ for i=1,numPartsBox.max do
   generateScalePart.textColour = menuTextColour
   generateScalePart.arrowColour = menuArrowColour
   generateScalePart.outlineColour = menuOutlineColour
-  generateScalePart.changed = function (self)
+  
+  local harmonizationPropbability = sequencerPanel:NumBox("HarmonizationPropbability" .. i, 100, 0, 100, true)
+  harmonizationPropbability.enabled = false
+  harmonizationPropbability.displayName = "Harmonization"
+  harmonizationPropbability.tooltip = "Set the probability of chord harmonization (only supported scales and polyphony > 1)"
+  harmonizationPropbability.unit = Unit.Percent
+  harmonizationPropbability.height = 20
+  harmonizationPropbability.width = generateScalePart.width
+  harmonizationPropbability.x = generateScalePart.x
+  harmonizationPropbability.y = generateScalePart.y + generateScalePart.height + 5
+  harmonizationPropbability.backgroundColour = menuBackgroundColour
+  harmonizationPropbability.textColour = menuTextColour
+
+  generateScalePart.changed = function(self)
     createFullScale(i)
-    --createFilteredScale(i)
+    harmonizationPropbability.enabled = canHarmonizeScale(self)
   end
 
   local velRandomization = sequencerPanel:NumBox("VelocityRandomization" .. i, 0, 0, 100, true)
@@ -578,7 +670,7 @@ for i=1,numPartsBox.max do
   local subdivisions = {}
   for j=1,8 do
     local subdivision = sequencerPanel:OnOffButton("SubdivisionSelect" .. i .. j, (j<3))
-    subdivision.enabled = j > 1
+    --subdivision.enabled = j > 1
     subdivision.backgroundColourOff = "#ff084486"
     subdivision.backgroundColourOn = "#ff02ACFE"
     subdivision.textColourOff = "#ff22FFFF"
@@ -592,22 +684,6 @@ for i=1,numPartsBox.max do
     subdivision.y = partRandBox.y + (partRandBox.height * 2) + 10
     table.insert(subdivisions, subdivision)
   end
-
-  --[[ for j=9,16 do
-    local subdivision = sequencerPanel:OnOffButton("SubdivisionSelect" .. i .. j, false)
-    subdivision.backgroundColourOff = "#ff084486"
-    subdivision.backgroundColourOn = "#ff02ACFE"
-    subdivision.textColourOff = "#ff22FFFF"
-    subdivision.textColourOn = "#efFFFFFF"
-    subdivision.fillColour = "#dd000061"
-    subdivision.displayName = "" .. j
-    subdivision.tooltip = "Activate subdivision"
-    subdivision.height = 20
-    subdivision.width = 28
-    subdivision.x = 270 + ((j-10) * (subdivision.width+2.8))
-    subdivision.y = partRandBox.y + (partRandBox.height * 4) - 4
-    table.insert(subdivisions, subdivision)
-  end ]]
 
   local subdivisionProbability = sequencerPanel:NumBox("SubdivisionProbability" .. i, 25, 0, 100, true)
   subdivisionProbability.displayName = "Probability"
@@ -641,7 +717,44 @@ for i=1,numPartsBox.max do
   subdivisionMinResolution.arrowColour = menuArrowColour
   subdivisionMinResolution.outlineColour = menuOutlineColour
 
-  table.insert(paramsPerPart, {subdivisionProbability=subdivisionProbability,subdivisions=subdivisions,subdivisionRepeatProbability=subdivisionRepeatProbability,subdivisionMinResolution=subdivisionMinResolution,sequenceRepeatProbability=sequenceRepeatProbability,sequenceRepeatProbabilityDecay=sequenceRepeatProbabilityDecay,sequenceRepeatProbabilityThreshold=sequenceRepeatProbabilityThreshold,velRandomization=velRandomization,gateRandomization=gateRandomization,baseNoteRandomization=baseNoteRandomization,partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,polyphony=generatePolyphonyPart,numStepsBox=numStepsBox,stepResolution=stepResolution,fullScale={},scale=generateScalePart,key=generateKeyPart,minNote=generateMinPart,maxNote=generateMaxPart,monoLimit=monoLimit,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
+  if i == 1 then
+    local chordProbabilityLabel = sequencerPanel:Label("ChordProbabilityProbabilityLabel")
+    chordProbabilityLabel.text = "Chords"
+    chordProbabilityLabel.tooltip = "Choose the probability that chords will be included when harmonizing"
+    chordProbabilityLabel.x = 0
+    chordProbabilityLabel.y = sequenceRepeatProbabilityDecay.y + sequenceRepeatProbabilityDecay.height + 30
+    chordProbabilityLabel.width = 240
+  end
+
+  -- Chords
+  local chords = {}
+  local perRow = 5
+  local columnCount = 0
+  local rowCount = 1
+  for j,v in ipairs(chordDefinitionNames) do
+    local defaultValue = 0
+    if j < 6 then
+      defaultValue = 120 - (j * 20)
+    end
+    local chordProbability = sequencerPanel:NumBox("ChordProbability" .. i .. j, defaultValue, 0, 100, true)
+    chordProbability.displayName = v
+    chordProbability.tooltip = "Probability that " .. v .. " will be included"
+    chordProbability.unit = Unit.Percent
+    chordProbability.height = 20
+    chordProbability.width = 136
+    chordProbability.x = (columnCount * (chordProbability.width+4.5))
+    chordProbability.y = sequenceRepeatProbabilityDecay.y + sequenceRepeatProbabilityDecay.height + 30 + ((chordProbability.height + 5) * rowCount)
+    chordProbability.backgroundColour = menuBackgroundColour
+    chordProbability.textColour = menuTextColour
+    table.insert(chords, chordProbability)
+    columnCount = columnCount + 1
+    if j % perRow == 0 then
+      rowCount = rowCount + 1
+      columnCount = 0
+    end
+  end
+
+  table.insert(paramsPerPart, {chords=chords,subdivisionProbability=subdivisionProbability,subdivisions=subdivisions,subdivisionRepeatProbability=subdivisionRepeatProbability,subdivisionMinResolution=subdivisionMinResolution,sequenceRepeatProbability=sequenceRepeatProbability,sequenceRepeatProbabilityDecay=sequenceRepeatProbabilityDecay,sequenceRepeatProbabilityThreshold=sequenceRepeatProbabilityThreshold,velRandomization=velRandomization,gateRandomization=gateRandomization,baseNoteRandomization=baseNoteRandomization,partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,polyphony=generatePolyphonyPart,numStepsBox=numStepsBox,stepResolution=stepResolution,fullScale={},scale=generateScalePart,key=generateKeyPart,harmonizationPropbability=harmonizationPropbability,minNote=generateMinPart,maxNote=generateMaxPart,monoLimit=monoLimit,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
 end
 
 local sequenceMemoryLabel = sequencerPanel:Label("SequenceMemory")
@@ -719,6 +832,37 @@ numPartsBox:changed()
 -- Scale and note functions
 --------------------------------------------------------------------------------
 
+function getChordPositionFromStragegy(chordPosititon, chord, strategyIndex)
+  local strategy = monoStrategies[strategyIndex]
+  -- Reset strategy pos if needed
+  if strategyPos > #strategy then
+    strategyPos = 1
+  end
+  print("Get strategy strategyIndex, strategyPos, increment", strategyIndex, strategyPos, strategy[strategyPos])
+  chordPosititon = chordPosititon + strategy[strategyPos]
+  print("Set chord position", chordPosititon)
+  if chordPosititon > #chord then
+    chordPosititon = 1
+    strategyPos = 1
+    print("Reset chord position", chordPosititon)
+  elseif chordPosititon < 1 then
+    chordPosititon = #chord
+    strategyPos = 1
+    print("Reset chord position", chordPosititon)
+  else
+    -- Increment strategy pos
+    if #strategy > 1 then
+      strategyPos = strategyPos + 1
+      print("Increment strategy pos", strategyPos)
+    end
+  end
+  return chordPosititon
+end
+
+function getSemitonesBetweenNotes(note1, note2)
+  return math.max(note1, note2) - math.min(note1, note1)
+end
+
 function getFilteredScale(part, minNote, maxNote)
   local filteredScale = {}
   if type(minNote) ~= "number" then
@@ -737,6 +881,11 @@ function getFilteredScale(part, minNote, maxNote)
   end
   --print("Filtered scale contains notes:", #paramsPerPart[part].filteredScale)
   return filteredScale
+end
+
+function canHarmonizeScale(selectedScale)
+  -- We can only harmonize scales with 7 notes
+  return #scaleDefinitions[selectedScale.value] == 7
 end
 
 function createFullScale(part)
@@ -759,6 +908,30 @@ function createFullScale(part)
     end
   end
   --print("Full scale contains notes:", #paramsPerPart[part].fullScale)
+end
+
+function getScaleIndexFromNote(note, scale)
+  for i,v in ipairs(scale) do
+    if v == note then
+      print("Found index", i)
+      return i
+    end
+  end
+  return 1
+end
+
+-- Use the selected chord definition to find the index for the next note in the chord
+function getNextScaleIndex(note, scale, chordDefinitionIndex, inversionIndex)
+  local index = getScaleIndexFromNote(note, scale)
+  local increment = chordDefinitions[chordDefinitionIndex][inversionIndex]
+  return index + increment
+end
+
+-- Use the selected chord definition to find the index for the previous note in the chord
+function getPrevScaleIndex(note, scale, chordDefinitionIndex, inversionIndex)
+  local index = getScaleIndexFromNote(note, scale)
+  local decrement = chordDefinitions[chordDefinitionIndex][inversionIndex]
+  return index - decrement
 end
 
 function notesInclude(notesTable, note)
@@ -914,6 +1087,7 @@ end
 function arpeg()
   local index = 0
   local currentStep = 0 -- Holds the current step in the round that is being played
+  local currentRound = 0 -- Counter for rounds
   local currentPartPosition = 1 -- Holds the currently playing part
   local notes = {} -- Holds the playing notes - notes are removed when they are finished playing
   local sequenceRepeatProbability = nil
@@ -922,6 +1096,12 @@ function arpeg()
   local sequencePartIndex = 0 -- The part to play sequences from
   local sequenceCounter = 0 -- Holds the pointer for what sequence to select notes from
   local isStarting = true
+  local chord = {} -- The chord playing on this step in poly mode or this round in mono mode
+  local inversionIndex = 1
+  local chordPosititon = 1 -- Used for mono mode
+  local strategyIndex = 1 -- Default
+  local chordDefinitionIndex = 1
+  strategyPos = 1
   -- START ARP LOOP
   while isPlaying do
     -- SET VALUES
@@ -929,7 +1109,6 @@ function arpeg()
     local currentPosition = (index % totalNumSteps) + 1
     local startOfPart = false
     local partWasChanged = false
-    local chord = {} -- The chord playing on this step - if polyphony
     if sequencesPerPart.value == true then
       sequencePartIndex = currentPartPosition
     else
@@ -941,6 +1120,7 @@ function arpeg()
       if sp == currentPosition then
         -- Set start of part
         startOfPart = true
+        currentRound = currentRound + 1 -- Increment round counter
         -- Store the recorded notes before changing parts
         if #recordedNotes > 0 and maxSequences > 0 then
 
@@ -994,34 +1174,6 @@ function arpeg()
       currentStep = 1
     end
 
-    -- Set the inversion to use - always use the first inversion at the start of a part
-    local invertionIndex = 1 -- Counter for inversion progress
-    local chordInversions = {} -- The chord inversions to traverse by invertionIndex to build chords
-    --local chordRandomization = 50
-    -- TODO Param Randomize the chord inversion to use?
-    -- TODO Set a probability for each type of chord?
-    local inversionOption = getRandom(100) -- Pick option by random
-    if inversionOption > 80 then
-      chordInversions = {2,2,2} -- Builds 7/9/11 depending on polyphony
-    elseif inversionOption > 70 then
-      chordInversions = {4,1,3} -- Builds supended chord
-    elseif inversionOption > 50 then
-      chordInversions = {2,2,2,1} -- Builds 7 chords
-    else
-      -- Default inversions builds basic triads
-      chordInversions = chordInversionDefinition
-    end
-
-    -- Always use the first inversion at the start of a part
-    -- Otherwise we select an inversion by random
-    if startOfPart == false then
-      invertionIndex = getRandom(#chordInversions)
-      print("Set random invertionIndex", invertionIndex)
-    end
-
-    -- Holds the selected inversion for this step
-    local selectedInversion = invertionIndex
-
     -- Check if we are at the start of a part
     if startOfPart and numParts > 1 then
       if focusButton.value == true then
@@ -1046,6 +1198,38 @@ function arpeg()
     local numberOfNotes = polyphony -- Default is "mono"
     local mainBeatDuration = getResolution(paramsPerPart[currentPartPosition].stepResolution.value)
     local maxDepth = getMaxDepthFromBeatDuration(mainBeatDuration, currentPartPosition)
+
+    -- Set the inversion to use - always use the first inversion at the start of a part
+    if startOfPart == true or polyphony > 1 then
+      --strategyIndex = #monoStrategies
+      strategyIndex = getRandom(#monoStrategies) -- TODO Param?
+      chord = {} -- Reset chord
+      inversionIndex = 1 -- Reset counter for inversion progress
+      chordPosititon = 1 -- Reset counter for chord progress
+      chordDefinitionIndex = 1 -- Set default
+      -- Find chord types to include
+      local chords = paramsPerPart[currentPartPosition].chords
+      local activeChordDefinitions = {}
+      for i,v in ipairs(chords) do
+        if getRandomBoolean(v.value) == true then
+          table.insert(activeChordDefinitions, i)
+        end
+      end
+
+      if #activeChordDefinitions > 0 then
+        -- Get a chord def index from the active definitions
+        chordDefinitionIndex = activeChordDefinitions[getRandom(#activeChordDefinitions)]
+        print("Chord inversions selected by random/#activeChordDefinitions", chordDefinitionIndex, #activeChordDefinitions)
+      end
+
+      -- Always use the first inversion at the start of a part
+      -- Otherwise we select an inversion by random
+      if startOfPart == false and polyphony > 1 then
+        inversionIndex = getRandom(#chordDefinitions[chordDefinitionIndex])
+        --chordPosititon = inversionIndex
+        print("Set random inversionIndex", inversionIndex)
+      end
+    end
 
     if partWasChanged then
       print("currentPartPosition after/partWasChanged", currentPartPosition, partWasChanged)
@@ -1117,6 +1301,7 @@ function arpeg()
       local minNote = paramsPerPart[currentPartPosition].minNote.value
       local maxNote = paramsPerPart[currentPartPosition].maxNote.value
       local partSequences = sequences[sequencePartIndex]
+      -- Recall memory from stored sequence
       if type(partSequences) == "table" and #partSequences >= maxSequences and getRandomBoolean(sequenceRepeatProbability) then
         local sequence = {}
         if #partSequences > 0 and getRandomBoolean(sequenceRepeatProbability) then
@@ -1152,9 +1337,11 @@ function arpeg()
         end
       end
 
+      -- Get the subdivision to use
       local function getSubdivision(currentDepth)
         local subdivisionProbability = paramsPerPart[currentPartPosition].subdivisionProbability.value
         -- Calculate depth decay
+        -- TODO If decay, there should be a setting for it...
         if currentDepth > 1 then
           subdivisionProbability = math.ceil(subdivisionProbability / (currentDepth / 2)) -- TODO Adjust
           print("subdivisionProbability/currentDepth", subdivisionProbability, currentDepth)
@@ -1175,7 +1362,7 @@ function arpeg()
         return subdivision
       end
 
-      -- Generate note
+      -- Generate note method
         -- note: the note to play
         -- notes: the notes to play for subdivision
         -- subdivision: the subdivision of the note
@@ -1199,23 +1386,94 @@ function arpeg()
         local maxNoteSteps = paramsPerPart[currentPartPosition].maxNoteSteps.value
         local baseNoteRandomization = paramsPerPart[currentPartPosition].baseNoteRandomization.value
         local hasScale = #paramsPerPart[currentPartPosition].fullScale > 0
+        local hasHarmonizeableScale = canHarmonizeScale(paramsPerPart[currentPartPosition].scale)
         local minResolution = getResolution(paramsPerPart[currentPartPosition].subdivisionMinResolution.value)
         local steps = getRandom(minNoteSteps, maxNoteSteps)
         local note = nil
 
-        if currentDepth == 0 then
+        if currentDepth == 0 and polyphony > 1 then
           if hasNoteBelowMonoLimit(notes, currentPartPosition) == true then
             -- Ensure we only have one note below the mono limit
             minNote = monoLimit
             print("Adjust minNote to mono limit", minNote)
-          else
-            -- Ensure we have a note within the mono limit if polyphony > 1 (TODO Param?)
-            if polyphony > 1 and monoLimit > minNote then
-              maxNote = monoLimit
-              print("Adjust maxNote to mono limit", maxNote)
+          elseif monoLimit > minNote then
+            -- Ensure we have a note within the mono limit if polyphony > 1
+            maxNote = monoLimit
+            print("Adjust maxNote to mono limit", maxNote)
+          end
+        end
+
+        local function getChord(currentNote)
+          local noteName = noteNumberToNoteName[currentNote+1]
+          -- Register the first note in the chord
+          chord = {currentNote}
+          print("Add note to chord - baseNote/noteName/chordDefinitionIndex/inversionIndex", currentNote, noteName, chordDefinitionIndex, inversionIndex)
+
+          -- Get the remaining notes for the chord
+          local fullScale = paramsPerPart[currentPartPosition].fullScale
+          local inversionPos = inversionIndex
+          while true do
+            -- Find the scale index for the current note
+            local scaleIndex = getNextScaleIndex(currentNote, fullScale, chordDefinitionIndex, inversionPos)
+            -- Set the current note and note name
+            currentNote = fullScale[scaleIndex]
+            noteName = noteNumberToNoteName[currentNote+1]
+            if polyphony == 1 and currentNote > maxNote then
+              print("Found notes for chord in monomode", #chord)
+              break
+            end
+            table.insert(chord, currentNote)
+            print("Add note to chord note, noteName, scaleIndex, inversionPos", currentNote, noteName, scaleIndex, inversionPos)
+            -- In polymode we stop building the chord when it contains the notes from the current chord definition
+            if polyphony > 1 and #chordDefinitions[chordDefinitionIndex] == #chord then
+              print("Found notes for chord in polymode", #chord)
+              break
+            end
+            -- Increment inversion pos
+            inversionPos = inversionPos + 1
+            if inversionPos > #chordDefinitions[chordDefinitionIndex] then
+              inversionPos = 1
             end
           end
+          return chord
+        end
 
+        local function getBaseNote()
+          local baseNote = minNote -- Start from the lowest note
+          local useBaseNote = currentStep == 1
+          if polyphony == 1 then
+            useBaseNote = (currentRound % paramsPerPart[currentPartPosition].numStepsBox.value) - 1 == 0
+            print("useBaseNote/currentRound/modulo", useBaseNote, currentRound, (currentRound % paramsPerPart[currentPartPosition].numStepsBox.value) - 1)
+          end
+          if useBaseNote and getRandomBoolean(baseNoteRandomization) then
+            while isRootNote(baseNote, currentPartPosition) == false and baseNote <= maxNote do
+              baseNote = baseNote + 1 -- increment note to find the base note
+            end
+            --note = baseNote
+            print("Get root note: note/minNote/maxNote", baseNote, minNote, maxNote)
+          else
+            local noteRange = maxNote - minNote
+            if polyphony == 1 then
+              noteRange = 12 -- Get a note from the lowest octave
+              --noteRange = math.max(12, math.ceil(noteRange / paramsPerPart[currentPartPosition].numStepsBox.value))
+              print("Get note range in monomode", noteRange)
+            elseif monoLimit < minNote then
+              -- If there is no mono limit, we ajust the note range by polyphony to get a base note range
+              noteRange = math.ceil(noteRange / polyphony)
+              print("Calculate range for base note minNote/maxNote/noteRange", minNote, maxNote, noteRange)
+            end
+            baseNote = baseNote + getRandom(noteRange) - 1
+            if hasScale == true then
+              local scale = getFilteredScale(currentPartPosition, minNote, maxNote)
+              baseNote = getNoteAccordingToScale(scale, baseNote)
+            end
+            print("Get random note from the low range: note/minNote/monoLimit/maxNote/noteRange", baseNote, minNote, monoLimit, maxNote, noteRange)
+          end
+
+          return baseNote
+        end
+
+        if currentDepth == 0 or polyphony == 1 then
           -- Adjust steps so note does not last beyond the part length
           local maxSteps = (paramsPerPart[currentPartPosition].numStepsBox.value - tablePos) + 1
           if steps > maxSteps then
@@ -1223,57 +1481,57 @@ function arpeg()
             steps = maxSteps
           end
 
-          -- Harmonize notes starting at this step if polyphony > 1 and we have a scale
-          local harmonizationPropbability = 100 -- TODO Param
-          if polyphony > 1 and hasScale == true and getRandomBoolean(harmonizationPropbability) == true then
-            local startingNotes = {}
-            for _,v in ipairs(notes) do
-              if v.stepCounter == 0 then
-                table.insert(startingNotes, v.note)
-                print("Insert into startingNotes", v.note)
+          -- Harmonize notes starting at this step if we have a compatible scale
+          local harmonizationPropbability = paramsPerPart[currentPartPosition].harmonizationPropbability.value
+          if hasHarmonizeableScale == true and getRandomBoolean(harmonizationPropbability) == true then
+            if polyphony == 1 then
+              if #chord == 0 then
+                chord = getChord(getBaseNote())
               end
-            end
-            if #startingNotes > 0 then
-              -- If we have notes added, use them as the basis for the next note
-              print("startingNotes", #startingNotes)
-              local fullScale = paramsPerPart[currentPartPosition].fullScale
-              local prevNote = startingNotes[#startingNotes]
-              local prevIndex = 1
-              print("Found prevNote", prevNote)
-              if prevNote < minNote then
-                prevNote = transpose(prevNote, minNote, maxNote)
-                print("Transposing prevNote to within range", prevNote)
-              end
-              for i,v in ipairs(fullScale) do
-                if v == prevNote then
-                  prevIndex = i
-                  print("Found prevIndex", prevIndex)
-                  break
+              chordPosititon = getChordPositionFromStragegy(chordPosititon, chord, strategyIndex)
+              note = chord[chordPosititon]
+              print("Found note from chord - note, chordPosititon", note, chordPosititon)
+            else
+              local startingNotes = {}
+              for _,v in ipairs(notes) do
+                if v.stepCounter == 0 then
+                  table.insert(startingNotes, v.note)
+                  print("Insert into startingNotes", v.note)
                 end
               end
-              local increment = chordInversions[invertionIndex]
-              local scaleIndex = prevIndex + increment
-              note = transpose(fullScale[scaleIndex], minNote, maxNote)
-              print("Found note from prev note - note, prevNote, prevIndex, increment, invertionIndex, #chordInversions", note, prevNote, prevIndex, increment, invertionIndex, #chordInversions)
-              -- Adjust octave to fit available note range
-              local noteRange = maxNote - prevNote
-              local octaveRange = math.floor(noteRange / 12)
-              local notesLeft = polyphony - #notes
-              local octave = math.floor(octaveRange / notesLeft)
-              if octave > 0 and note > maxNote / 2 and getRandomBoolean() then -- TODO Param
-                octave = -octave
-                print("Negative octave", octave)
-              end
-              local octaveOffset = octave * 12
-              print("Calculate octave adjustment - noteRange/octaveRange/notesLeft/octave", noteRange, octaveRange, notesLeft, octave)
-              if octaveOffset > 0 and note + octaveOffset <= maxNote then-- and getRandomBoolean(octaveProbability) then
-                note = note + octaveOffset
-                print("Octave adjusted octave/octaveOffset/note", octave, octaveOffset, note)
-              end
-              -- Increment invertion index
-              invertionIndex = invertionIndex + 1
-              if invertionIndex > #chordInversions then
-                invertionIndex = 1
+              if #startingNotes > 0 then
+                -- If we have notes added, use them as the basis for the next note
+                print("startingNotes", #startingNotes)
+                local prevNote = startingNotes[#startingNotes]
+                print("Found prevNote", prevNote)
+                if prevNote < minNote then
+                  prevNote = transpose(prevNote, minNote, maxNote)
+                  print("Transposing prevNote to within range", prevNote)
+                end
+  
+                local fullScale = paramsPerPart[currentPartPosition].fullScale
+                local scaleIndex = getNextScaleIndex(prevNote, fullScale, chordDefinitionIndex, inversionIndex)
+                -- Ensure note is within range
+                note = transpose(fullScale[scaleIndex], minNote, maxNote)
+                local noteRange = maxNote - prevNote
+                local octaveRange = math.floor(noteRange / 12)
+                local notesLeft = polyphony - #notes
+                local octave = math.floor(octaveRange / notesLeft)
+                if octave > 0 and note > maxNote / 2 and getRandomBoolean() then
+                  octave = -octave
+                  print("Negative octave", octave)
+                end
+                local octaveOffset = octave * 12
+                print("Calculate octave adjustment - noteRange/octaveRange/notesLeft/octave", noteRange, octaveRange, notesLeft, octave)
+                if octaveOffset > 0 and note + octaveOffset <= maxNote then
+                  note = note + octaveOffset
+                  print("Octave adjusted octave/octaveOffset/note", octave, octaveOffset, note)
+                end
+                inversionIndex = inversionIndex + 1
+                if inversionIndex > #chordDefinitions[chordDefinitionIndex] then
+                  inversionIndex = 1
+                end
+                print("Found note from prev note - note, prevNote", note, prevNote)
               end
             end
           end
@@ -1285,63 +1543,45 @@ function arpeg()
           steps = 1
         end
 
-        -- Base note
-        if type(note) == "nil" and currentDepth == 0 and #notes == 0 then
-          local baseNote = minNote -- Start from the lowest note
-          if currentStep == 1 and getRandomBoolean(baseNoteRandomization) then
-            while(isRootNote(baseNote, currentPartPosition) == false and baseNote <= maxNote) do
-              baseNote = baseNote + 1 -- increment note to find the base note
-            end
-            note = baseNote
-            print("Get root note: note/minNote/maxNote", note, minNote, maxNote)
-          elseif polyphony > 1 then
-            local noteRange = maxNote - minNote
-            if monoLimit < minNote then
-              -- If there is no mono limit, we ajust the note range by polyphony to get a base note range
-              noteRange = math.ceil(noteRange / polyphony)
-              print("Calculate range for base note minNote/maxNote/noteRange", minNote, maxNote, noteRange)
-              note = baseNote + getRandom(baseNoteRange) - 1
-            end
-            note = baseNote + getRandom(noteRange) - 1
-            if hasScale == true then
-              local scale = getFilteredScale(currentPartPosition, minNote, maxNote)
-              note = getNoteAccordingToScale(scale, note)
-            end
-            print("Get random note from the low range: note/minNote/monoLimit/maxNote/noteRange", note, minNote, monoLimit, maxNote, noteRange)
-          end
-          -- TODO Use chord info when getting notes to create more variation
-          -- *** NOTE *** DISABLED SINCE IT IS NOT USED ANYWHERE YET
-          if false and hasScale == true and polyphony > 1 then
-            -- When we have a scale, register the note names for the chord being played on this step
-            local noteName = noteNumberToNoteName[note+1]
-            chord = {noteName} -- Reset chord
-            print("Add noteName to chord - baseNote/noteName", note, noteName)
-            local fullScale = paramsPerPart[currentPartPosition].fullScale
-            local prevNote = note
-            local inversionPos = selectedInversion
-            for i=1, (#chordInversions - 1) do
-              -- Find the scale index for the current note
-              local noteIndex = 1
-              for i,v in ipairs(fullScale) do
-                if v == prevNote then
-                  noteIndex = i
-                  print("Found noteIndex", noteIndex)
-                  break
+        -- Get base note
+        if type(note) == "nil" and polyphony > 1 and hasHarmonizeableScale == true and currentDepth == 0 and #notes == 0 then
+          note = getBaseNote()
+          -- Use chord info when getting notes to create more variation
+          -- TODO Check for repeated basenote+inversionDefinition+inversion
+          local function validateBaseNote()
+            chord = getChord(note)
+            local valid = true
+            -- chordDefinitionIndex 3 == suspended - not valid if tritone
+            if chordDefinitionIndex == 3 then
+              for i,v in ipairs(chord) do 
+                if i == 1 then
+                  if getSemitonesBetweenNotes(v, chord[#chord]) == 6 then
+                    valid = false
+                    break
+                  end
+                end
+                if i < #chord then
+                  if getSemitonesBetweenNotes(v, chord[i+1]) == 6 then
+                    valid = false
+                    break
+                  end
                 end
               end
-              local increment = chordInversions[inversionPos]
-              local scaleIndex = noteIndex + increment
-              -- Update the note and note name
-              prevNote = fullScale[scaleIndex]
-              noteName = noteNumberToNoteName[prevNote+1]
-              table.insert(chord, noteName)
-              print("Add noteName to chord noteName, increment, scaleIndex, prevNote, inversionPos", noteName, increment, scaleIndex, prevNote, inversionPos)
-              -- Increment pos
-              inversionPos = inversionPos + 1
-              if inversionPos > #chordInversions then
-                inversionPos = 1
-              end
             end
+            print("valid", valid)
+            return valid
+          end
+          local maxAttempts = 3
+          local counter = 0
+          local valid = validateBaseNote()
+          while valid == false and counter < maxAttempts and type(note) == "number" do
+            note = getBaseNote()
+            valid = validateBaseNote()
+            counter = counter + 1
+            print("Retry getting basenote/tries/valid", note, counter, valid)
+          end
+          if valid == false then
+            note = nil
           end
         end
 
@@ -1351,7 +1591,7 @@ function arpeg()
           note = scale[getRandom(#scale)]
           print("Get random note from scale: note/minNote/maxNote", note, minNote, maxNote)
         end
-        
+
          -- Get random note
         if type(note) == "nil" then
           note = getRandom(minNote, maxNote)
