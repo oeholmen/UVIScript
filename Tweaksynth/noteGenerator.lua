@@ -16,7 +16,7 @@ local totalNumSteps = 8
 local paramsPerPart = {}
 local partSelect = {}
 local sequences = {} -- Each part has its own sequences
-local maxSequences = 2 -- Max stored sequences for each part - sets the default value for the maxSequencesBox parameter
+local maxSequences = 0 -- Max stored sequences for each part - sets the default value for the maxSequencesBox parameter
 -- Make sure these are in sync with the scale names!
 local scaleDefinitions = {
   {1}, -- 12 tone
@@ -67,11 +67,11 @@ local chordDefinitions = {
   {3,1,3}, -- Builds supended chords
   {2,2,2,1}, -- Builds 7th chords
   {2,2,1,2}, -- Builds 6th chords
-  {3}, -- Builds chords using only fourths
+  --[[ {3}, -- Builds chords using only fourths
   {4}, -- Builds chords using only fifths
   {1}, -- Builds chords using only seconds
   {1,1,2,2,1}, -- Builds (close) 7th and 9th chords
-  {1,2,1,2,1}, -- Builds supended chords including 7th and 9ths
+  {1,2,1,2,1}, -- Builds supended chords including 7th and 9ths ]]
 }
 local chordDefinitionNames = {
   "Pure Triads",
@@ -79,11 +79,11 @@ local chordDefinitionNames = {
   "Suspended",
   "7th chords",
   "6th chords",
-  "4th chords",
+  --[[ "4th chords", -- This can be achieved using tonal/melodic strategies on scales
   "5th chords",
   "2nd chords",
   "7th and 9th chords",
-  "Suspended + 7/9",
+  "Suspended + 7/9", ]]
 }
 local strategyPos = 1
 -- Strategies are ways to play chords and scales
@@ -92,6 +92,7 @@ local strategies = {
   {-1}, -- Down
   {2,-1}, -- Alternate up
   {-2,1}, -- Alternate down
+  --{3} -- Fourths
   --[[ {3,-1}, 
   {2,1},
   {1,-1},
@@ -879,8 +880,9 @@ for i=1,numPartsBox.max do
   end
 
   local sequenceRepeatProbability = sequencerPanel:NumBox("SequenceRepeatProbability" .. i, 100, 0, 100, true)
+  sequenceRepeatProbability.enabled = false
   sequenceRepeatProbability.displayName = "Repeat Probability"
-  sequenceRepeatProbability.tooltip = "Probability that sequences will be repeated in part or fully"
+  sequenceRepeatProbability.tooltip = "Probability that sequences will be repeated in part or fully (requires sequence memory to be activated)"
   sequenceRepeatProbability.unit = Unit.Percent
   sequenceRepeatProbability.width = 227
   sequenceRepeatProbability.x = 0
@@ -889,6 +891,7 @@ for i=1,numPartsBox.max do
   sequenceRepeatProbability.textColour = menuTextColour
 
   local sequenceRepeatProbabilityDecay = sequencerPanel:NumBox("SequenceRepeatProbabilityDecay" .. i, 25, 0, 100, true)
+  sequenceRepeatProbabilityDecay.enabled = false
   sequenceRepeatProbabilityDecay.displayName = "Repeat Probability Decay"
   sequenceRepeatProbabilityDecay.tooltip = "How much will the repeat probability decay for each round?"
   sequenceRepeatProbabilityDecay.unit = Unit.Percent
@@ -899,6 +902,7 @@ for i=1,numPartsBox.max do
   sequenceRepeatProbabilityDecay.textColour = menuTextColour
 
   local sequenceRepeatProbabilityThreshold = sequencerPanel:NumBox("SequenceRepeatProbabilityThreshold" .. i, 50, 0, 100, true)
+  sequenceRepeatProbabilityThreshold.enabled = false
   sequenceRepeatProbabilityThreshold.displayName = "Decay Threshold"
   sequenceRepeatProbabilityThreshold.tooltip = "How low can the repeat probability decay before it is reset?"
   sequenceRepeatProbabilityThreshold.unit = Unit.Percent
@@ -1010,7 +1014,7 @@ end
 
 local sequenceMemoryLabel = sequencerPanel:Label("SequenceMemory")
 sequenceMemoryLabel.displayName = "Sequence Memory" -- Used to hold default value
-sequenceMemoryLabel.text = sequenceMemoryLabel.displayName
+sequenceMemoryLabel.text = sequenceMemoryLabel.displayName .. " (disabled)"
 sequenceMemoryLabel.x = 499
 sequenceMemoryLabel.y = partRandBox.y + partRandBox.height + 5
 sequenceMemoryLabel.width = 200
@@ -1447,12 +1451,22 @@ function arpeg()
         end
 
         local function getChord(currentNote, basic)
+          local fullScale = paramsPerPart[currentPartPosition].fullScale
           local noteName = noteNumberToNoteName[currentNote+1]
+          local maxBase = fullScale[#fullScale]
+          local i = #fullScale
+          while maxBase >= maxNote and i >= 0 do
+            local scaleNoteIndex = fullScale[i] + 1 -- note index is 1 higher than note number
+            local noteIndex = currentNote + 1 -- note index is 1 higher than note number
+            if noteNumberToNoteName[scaleNoteIndex] == noteNumberToNoteName[noteIndex] then
+              maxBase = fullScale[i]
+            end
+            i = i - 1 -- Decrement counter
+          end
           -- Register the first note in the chord
           local chordTable = {currentNote}
           print("Add note to chord - baseNote/noteName/chordDefinitionIndex/inversionIndex", currentNote, noteName, chordDefinitionIndex, inversionIndex)
           -- Get the remaining notes for the chord
-          local fullScale = paramsPerPart[currentPartPosition].fullScale
           local inversionPos = inversionIndex
           while hasHarmonizeableScale == true do
             -- Find the scale index for the current note
@@ -1461,7 +1475,7 @@ function arpeg()
             currentNote = fullScale[scaleIndex]
             noteName = noteNumberToNoteName[currentNote+1]
             -- In full mode we stop building the chord when the current note is higher that max note
-            if currentNote > maxNote then
+            if currentNote >= maxBase then
               print("Found notes for chord", #chordTable)
               break
             end
@@ -1519,7 +1533,7 @@ function arpeg()
           if getRandomBoolean(strategyPropbability) == true and polyphony == 1 or currentDepth > 0 then
             if #chord == 0 then
               local baseNote = getBaseNote()
-              if hasHarmonizeableScale == true and polyphony == 1 and getRandomBoolean() then
+              if hasHarmonizeableScale == true and polyphony == 1 and getRandomBoolean(harmonizationPropbability) == true then
                 chord = getChord(baseNote)
                 print("Get notes from chord")
               else
@@ -1527,11 +1541,12 @@ function arpeg()
                 print("Get notes from scale")
               end
             end
-            local changeFreq = 3 -- TODO Param
-            if getRandomBoolean(10) or (tablePos % changeFreq) - 1 == 0 or (polyphony > 1 and currentDepth == 1) then
+            --[[ local changeFreq = paramsPerPart[currentPartPosition].numStepsBox.value -- TODO Param
+            local randomStrategyChangeProbability = 0 -- TODO Param
+            if getRandomBoolean(randomStrategyChangeProbability) or ((tablePos % changeFreq) - 1 == 0) or (polyphony > 1 and currentDepth == 1) then
               strategyIndex = getRandom(#strategies)
               print("Change strategy by random")
-            end
+            end ]]
             chordPosititon = getPositionFromStragegy(chordPosititon, chord, strategyIndex)
             note = chord[chordPosititon]
             print("Found note from chord - note, chordPosititon, strategyIndex", note, chordPosititon, strategyIndex)
