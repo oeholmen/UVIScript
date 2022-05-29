@@ -160,6 +160,238 @@ function stopPlaying()
 end
 
 --------------------------------------------------------------------------------
+-- Scale and note functions
+--------------------------------------------------------------------------------
+
+function getPositionFromStragegy(posititon, notesTable, strategyIndex)
+  local strategy = strategies[strategyIndex]
+  -- Reset strategy pos if needed
+  if strategyPos > #strategy then
+    strategyPos = 1
+  end
+  print("Get strategy strategyIndex, strategyPos, increment", strategyIndex, strategyPos, strategy[strategyPos])
+  posititon = posititon + strategy[strategyPos]
+  print("Set position", posititon)
+  if posititon > #notesTable then
+    posititon = 1
+    strategyPos = 1
+    print("Reset position", posititon)
+  elseif posititon < 1 then
+    posititon = #notesTable
+    strategyPos = 1
+    print("Reset position", posititon)
+  else
+    -- Increment strategy pos
+    if #strategy > 1 then
+      strategyPos = strategyPos + 1
+      print("Increment strategy pos", strategyPos)
+    end
+  end
+  return posititon
+end
+
+function getSemitonesBetweenNotes(note1, note2)
+  return math.max(note1, note2) - math.min(note1, note1)
+end
+
+function getFilteredScale(part, minNote, maxNote)
+  local filteredScale = {}
+  if type(minNote) ~= "number" then
+    minNote = paramsPerPart[part].minNote.value
+  end
+  if type(maxNote) ~= "number" then
+    maxNote = paramsPerPart[part].maxNote.value
+  end
+  if #paramsPerPart[part].fullScale > 0 then
+    -- Filter out notes outside min/max
+    for i=1,#paramsPerPart[part].fullScale do
+      if paramsPerPart[part].fullScale[i] >= minNote and paramsPerPart[part].fullScale[i] <= maxNote then
+        table.insert(filteredScale, paramsPerPart[part].fullScale[i])
+      end
+    end
+  end
+  --print("Filtered scale contains notes:", #paramsPerPart[part].filteredScale)
+  return filteredScale
+end
+
+function canHarmonizeScale(selectedScale)
+  -- We can only harmonize scales with 7 notes
+  return #scaleDefinitions[selectedScale.value] == 7
+end
+
+function createFullScale(part)
+  paramsPerPart[part].fullScale = {}
+  -- Find scale definition
+  local definition = scaleDefinitions[paramsPerPart[part].scale.value]
+  -- Find root note
+  local root = paramsPerPart[part].key.value - 1
+  -- Find notes for scale
+  local pos = 0
+  while root < 128 do
+    table.insert(paramsPerPart[part].fullScale, root)
+    pos = pos + 1
+    root = root + definition[pos]
+    if pos == #definition then
+      pos = 0
+    end
+  end
+  --print("Full scale contains notes:", #paramsPerPart[part].fullScale)
+end
+
+function getScaleIndexFromNote(note, scale)
+  for i,v in ipairs(scale) do
+    if v == note then
+      print("Found index", i)
+      return i
+    end
+  end
+  return 1
+end
+
+-- Use the selected chord definition to find the index for the next note in the chord
+function getNextScaleIndex(note, scale, chordDefinitionIndex, inversionIndex)
+  local index = getScaleIndexFromNote(note, scale)
+  local increment = chordDefinitions[chordDefinitionIndex][inversionIndex]
+  return index + increment
+end
+
+function notesInclude(notesTable, note)
+  for _,v in pairs(notesTable) do
+    if v.note == note then
+      --print("Note already included", note)
+      return true
+    end
+  end
+  return false
+end
+
+function hasNoteBelowMonoLimit(notesTable, partPos)
+  local monoLimit = paramsPerPart[partPos].monoLimit.value
+  for _,v in pairs(notesTable) do
+    if v.note < monoLimit then
+      --print("Note already added below limit", note)
+      return true
+    end
+  end
+  return false
+end
+
+function getNoteAccordingToScale(scale, noteToPlay)
+  for _,note in ipairs(scale) do
+    if note == noteToPlay then
+      return noteToPlay
+    elseif note > noteToPlay then
+      print("Change from noteToPlay to note", noteToPlay, note)
+      return note
+    end
+  end
+  return noteToPlay
+end
+
+function getMaxDepthFromBeatDuration(resolution, partPosition)
+  local depth = 1
+  local subdivision = 1
+  local subdivisions = {}
+  local minResolution = getResolution(paramsPerPart[partPosition].subdivisionMinResolution.value)
+
+  -- Find active subdivisions
+  for i,v in ipairs(paramsPerPart[partPosition].subdivisions) do
+    if v.value == true then
+      table.insert(subdivisions, i)
+    end
+  end
+
+  if #subdivisions > 0 then
+    subdivision = subdivisions[#subdivisions]
+  end
+
+  if subdivision > 1 then
+    depth = math.ceil(math.abs((math.log((minResolution/resolution))/math.log(subdivision))))
+  end
+
+  print("Found depth/resolution/subdivision/minResolution", depth, resolution, subdivision, minResolution)
+
+  return depth
+end
+
+function getVelocity(part, step, skipRandomize)
+  local seqVelTable = paramsPerPart[part].seqVelTable
+  local velocity = seqVelTable:getValue(step) -- get velocity
+
+  -- Skip randomize
+  if skipRandomize == true then
+    return velocity
+  end
+
+  -- Randomize velocity
+  local velRandomization = paramsPerPart[part].velRandomization.value
+  if getRandomBoolean(velRandomization) then
+    local changeMax = getChangeMax(seqVelTable.max, velRandomization)
+    local min = velocity - changeMax
+    local max = velocity + changeMax
+    if min < seqVelTable.min then
+      min = seqVelTable.min
+    end
+    if max > seqVelTable.max then
+      max = seqVelTable.max
+    end
+    --print("Before randomize vel", vel)
+    velocity = getRandom(min, max)
+    --print("After randomize vel/changeMax/min/max", vel, changeMax, min, max)
+  end
+
+  return velocity
+end
+
+function createStrategy()
+  local strategy = {} -- Table to hold strategy
+  local ln = getRandom(4) -- Length
+  for i=1, ln do
+    local value = 1
+    if getRandomBoolean(20) then
+      value = 2
+    elseif getRandomBoolean(5) then
+      value = 3
+    end
+    if getRandomBoolean() then
+      value = -value
+    end
+    table.insert(strategy, value)
+    print("Add value to strategy", value)
+  end
+  return strategy
+end
+
+function getGate(part, step, skipRandomize)
+  local seqGateTable = paramsPerPart[part].seqGateTable
+  local gate = seqGateTable:getValue(step)
+
+  -- Skip randomize
+  if skipRandomize == true then
+    return gate
+  end
+
+  -- Randomize gate
+  local gateRandomization = paramsPerPart[part].gateRandomization.value
+  if getRandomBoolean(gateRandomization) then
+    local changeMax = getChangeMax(seqGateTable.max, gateRandomization)
+    local min = gate - changeMax
+    local max = gate + changeMax
+    if min < seqGateTable.min then
+      min = seqGateTable.min
+    end
+    if max > seqGateTable.max then
+      max = seqGateTable.max
+    end
+    --print("Before randomize gate", gate)
+    gate = getRandom(min, max)
+    --print("After randomize gate/changeMax/min/max", gate, changeMax, min, max)
+  end
+
+  return gate
+end
+
+--------------------------------------------------------------------------------
 -- Sequencer Panel
 --------------------------------------------------------------------------------
 
@@ -215,6 +447,7 @@ editPartMenu.changed = function(self)
     v.key.visible = isVisible
     v.scale.visible = isVisible
     v.harmonizationPropbability.visible = isVisible
+    v.strategyPropbability.visible = isVisible
     v.velRandomization.visible = isVisible
     v.gateRandomization.visible = isVisible
     v.baseNoteRandomization.visible = isVisible
@@ -265,6 +498,7 @@ numPartsBox.changed = function(self)
       paramsPerPart[i].key.value = prev.key.value
       paramsPerPart[i].scale.value = prev.scale.value
       paramsPerPart[i].harmonizationPropbability.value = prev.harmonizationPropbability.value
+      paramsPerPart[i].strategyPropbability.value = prev.strategyPropbability.value
       paramsPerPart[i].minNote.value = prev.minNote.value
       paramsPerPart[i].maxNote.value = prev.maxNote.value
       paramsPerPart[i].monoLimit.value = prev.monoLimit.value
@@ -399,7 +633,7 @@ end
 
 -- Add params that are to be editable per part
 for i=1,numPartsBox.max do
-  print("Set paramsPerPart", i)
+  --print("Set paramsPerPart", i)
 
   local partsTable = sequencerPanel:Table("Parts" .. i, 1, 0, 0, 1, true)
   partsTable.enabled = false
@@ -445,7 +679,7 @@ for i=1,numPartsBox.max do
   seqGateTable.x = seqVelTable.x
   seqGateTable.y = seqVelTable.y + seqVelTable.height + 5
 
-  local generatePolyphonyPart = sequencerPanel:NumBox("GeneratePolyphony" .. i, 1, 1, 16, true)
+  local generatePolyphonyPart = sequencerPanel:NumBox("GeneratePolyphony" .. i, 1, 1, 8, true)
   generatePolyphonyPart.displayName = "Polyphony"
   generatePolyphonyPart.tooltip = "How many notes are played at once"
   generatePolyphonyPart.backgroundColour = menuBackgroundColour
@@ -479,11 +713,13 @@ for i=1,numPartsBox.max do
   end
 
   local stepResolution = sequencerPanel:Menu("StepResolution" .. i, getResolutionNames())
-  stepResolution.displayName = "Step Duration"
+  stepResolution.tooltip = "The duration of each step in the part"
+  stepResolution.showLabel = false
   stepResolution.selected = 20
+  stepResolution.height = 20
+  stepResolution.width = generateMaxNoteStepsPart.width
   stepResolution.x = generatePolyphonyPart.x + generatePolyphonyPart.width + 10
   stepResolution.y = generatePolyphonyPart.y
-  stepResolution.width = generateMaxNoteStepsPart.width
   stepResolution.backgroundColour = menuBackgroundColour
   stepResolution.textColour = menuTextColour
   stepResolution.arrowColour = menuArrowColour
@@ -503,6 +739,18 @@ for i=1,numPartsBox.max do
   numStepsBox.changed = function(self)
     setNumSteps(i)
   end
+
+  local strategyPropbability = sequencerPanel:NumBox("StrategyPropbability" .. i, 100, 0, 100, true)
+  --strategyPropbability.enabled = false
+  strategyPropbability.displayName = "Strategy"
+  strategyPropbability.tooltip = "Set the probability of that a playing strategy will be used"
+  strategyPropbability.unit = Unit.Percent
+  strategyPropbability.height = 20
+  strategyPropbability.width = numStepsBox.width
+  strategyPropbability.x = numStepsBox.x
+  strategyPropbability.y = numStepsBox.y + numStepsBox.height + 5
+  strategyPropbability.backgroundColour = menuBackgroundColour
+  strategyPropbability.textColour = menuTextColour
 
   local generateMinPart = sequencerPanel:NumBox("GenerateMin" .. i, 24, 0, 127, true)
   generateMinPart.unit = Unit.MidiKey
@@ -578,7 +826,7 @@ for i=1,numPartsBox.max do
   local harmonizationPropbability = sequencerPanel:NumBox("HarmonizationPropbability" .. i, 100, 0, 100, true)
   harmonizationPropbability.enabled = false
   harmonizationPropbability.displayName = "Harmonization"
-  harmonizationPropbability.tooltip = "Set the probability of chord harmonization (only supported scales and polyphony > 1)"
+  harmonizationPropbability.tooltip = "Set the probability of chord harmonization"
   harmonizationPropbability.unit = Unit.Percent
   harmonizationPropbability.height = 20
   harmonizationPropbability.width = generateScalePart.width
@@ -755,7 +1003,9 @@ for i=1,numPartsBox.max do
     end
   end
 
-  table.insert(paramsPerPart, {chords=chords,subdivisionProbability=subdivisionProbability,subdivisions=subdivisions,subdivisionRepeatProbability=subdivisionRepeatProbability,subdivisionMinResolution=subdivisionMinResolution,sequenceRepeatProbability=sequenceRepeatProbability,sequenceRepeatProbabilityDecay=sequenceRepeatProbabilityDecay,sequenceRepeatProbabilityThreshold=sequenceRepeatProbabilityThreshold,velRandomization=velRandomization,gateRandomization=gateRandomization,baseNoteRandomization=baseNoteRandomization,partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,polyphony=generatePolyphonyPart,numStepsBox=numStepsBox,stepResolution=stepResolution,fullScale={},scale=generateScalePart,key=generateKeyPart,harmonizationPropbability=harmonizationPropbability,minNote=generateMinPart,maxNote=generateMaxPart,monoLimit=monoLimit,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
+  table.insert(paramsPerPart, {chords=chords,subdivisionProbability=subdivisionProbability,subdivisions=subdivisions,subdivisionRepeatProbability=subdivisionRepeatProbability,subdivisionMinResolution=subdivisionMinResolution,sequenceRepeatProbability=sequenceRepeatProbability,sequenceRepeatProbabilityDecay=sequenceRepeatProbabilityDecay,sequenceRepeatProbabilityThreshold=sequenceRepeatProbabilityThreshold,velRandomization=velRandomization,gateRandomization=gateRandomization,baseNoteRandomization=baseNoteRandomization,partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,polyphony=generatePolyphonyPart,numStepsBox=numStepsBox,stepResolution=stepResolution,fullScale={},scale=generateScalePart,key=generateKeyPart,strategyPropbability=strategyPropbability,harmonizationPropbability=harmonizationPropbability,minNote=generateMinPart,maxNote=generateMaxPart,monoLimit=monoLimit,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
+
+  createFullScale(i)
 end
 
 local sequenceMemoryLabel = sequencerPanel:Label("SequenceMemory")
@@ -777,6 +1027,11 @@ maxSequencesBox.backgroundColour = menuBackgroundColour
 maxSequencesBox.textColour = menuTextColour
 maxSequencesBox.changed = function(self)
   maxSequences = self.value
+  for _,v in ipairs(paramsPerPart) do
+    v.sequenceRepeatProbability.enabled = maxSequences > 0
+    v.sequenceRepeatProbabilityDecay.enabled = maxSequences > 0
+    v.sequenceRepeatProbabilityThreshold.enabled = maxSequences > 0
+  end
   if maxSequences == 0 then
     sequences = {}
     sequenceMemoryLabel.text = sequenceMemoryLabel.displayName .. ' (disabled)'
@@ -828,241 +1083,6 @@ end
 
 editPartMenu:changed()
 numPartsBox:changed()
-
---------------------------------------------------------------------------------
--- Scale and note functions
---------------------------------------------------------------------------------
-
-function getPositionFromStragegy(posititon, notesTable, strategyIndex)
-  local strategy = strategies[strategyIndex]
-  -- Reset strategy pos if needed
-  if strategyPos > #strategy then
-    strategyPos = 1
-  end
-  print("Get strategy strategyIndex, strategyPos, increment", strategyIndex, strategyPos, strategy[strategyPos])
-  posititon = posititon + strategy[strategyPos]
-  print("Set position", posititon)
-  if posititon > #notesTable then
-    posititon = 1
-    strategyPos = 1
-    print("Reset position", posititon)
-  elseif posititon < 1 then
-    posititon = #notesTable
-    strategyPos = 1
-    print("Reset position", posititon)
-  else
-    -- Increment strategy pos
-    if #strategy > 1 then
-      strategyPos = strategyPos + 1
-      print("Increment strategy pos", strategyPos)
-    end
-  end
-  return posititon
-end
-
-function getSemitonesBetweenNotes(note1, note2)
-  return math.max(note1, note2) - math.min(note1, note1)
-end
-
-function getFilteredScale(part, minNote, maxNote)
-  local filteredScale = {}
-  if type(minNote) ~= "number" then
-    minNote = paramsPerPart[part].minNote.value
-  end
-  if type(maxNote) ~= "number" then
-    maxNote = paramsPerPart[part].maxNote.value
-  end
-  if #paramsPerPart[part].fullScale > 0 then
-    -- Filter out notes outside min/max
-    for i=1,#paramsPerPart[part].fullScale do
-      if paramsPerPart[part].fullScale[i] >= minNote and paramsPerPart[part].fullScale[i] <= maxNote then
-        table.insert(filteredScale, paramsPerPart[part].fullScale[i])
-      end
-    end
-  end
-  --print("Filtered scale contains notes:", #paramsPerPart[part].filteredScale)
-  return filteredScale
-end
-
-function canHarmonizeScale(selectedScale)
-  -- We can only harmonize scales with 7 notes
-  return #scaleDefinitions[selectedScale.value] == 7
-end
-
-function createFullScale(part)
-  paramsPerPart[part].fullScale = {}
-  if paramsPerPart[part].scale.value == 1 then
-    return
-  end
-  -- Find scale definition
-  local definition = scaleDefinitions[paramsPerPart[part].scale.value]
-  -- Find root note
-  local root = paramsPerPart[part].key.value - 1
-  -- Find notes for scale
-  local pos = 0
-  while root < 128 do
-    table.insert(paramsPerPart[part].fullScale, root)
-    pos = pos + 1
-    root = root + definition[pos]
-    if pos == #definition then
-      pos = 0
-    end
-  end
-  --print("Full scale contains notes:", #paramsPerPart[part].fullScale)
-end
-
-function getScaleIndexFromNote(note, scale)
-  for i,v in ipairs(scale) do
-    if v == note then
-      print("Found index", i)
-      return i
-    end
-  end
-  return 1
-end
-
--- Use the selected chord definition to find the index for the next note in the chord
-function getNextScaleIndex(note, scale, chordDefinitionIndex, inversionIndex)
-  local index = getScaleIndexFromNote(note, scale)
-  local increment = chordDefinitions[chordDefinitionIndex][inversionIndex]
-  return index + increment
-end
-
-function notesInclude(notesTable, note)
-  for _,v in pairs(notesTable) do
-    if v.note == note then
-      --print("Note already included", note)
-      return true
-    end
-  end
-  return false
-end
-
-function hasNoteBelowMonoLimit(notesTable, partPos)
-  local monoLimit = paramsPerPart[partPos].monoLimit.value
-  for _,v in pairs(notesTable) do
-    if v.note < monoLimit then
-      --print("Note already added below limit", note)
-      return true
-    end
-  end
-  return false
-end
-
-function getNoteAccordingToScale(scale, noteToPlay)
-  for _,note in ipairs(scale) do
-    if note == noteToPlay then
-      return noteToPlay
-    elseif note > noteToPlay then
-      print("Change from noteToPlay to note", noteToPlay, note)
-      return note
-    end
-  end
-  return noteToPlay
-end
-
-function getMaxDepthFromBeatDuration(resolution, partPosition)
-  local depth = 1
-  local subdivision = 1
-  local subdivisions = {}
-  local minResolution = getResolution(paramsPerPart[partPosition].subdivisionMinResolution.value)
-
-  -- Find active subdivisions
-  for i,v in ipairs(paramsPerPart[partPosition].subdivisions) do
-    if v.value == true then
-      table.insert(subdivisions, i)
-    end
-  end
-
-  if #subdivisions > 0 then
-    subdivision = subdivisions[#subdivisions]
-  end
-
-  if subdivision > 1 then
-    depth = math.ceil(math.abs((math.log((minResolution/resolution))/math.log(subdivision))))
-  end
-
-  print("Found depth/resolution/subdivision/minResolution", depth, resolution, subdivision, minResolution)
-
-  return depth
-end
-
-function getVelocity(part, step, skipRandomize)
-  local seqVelTable = paramsPerPart[part].seqVelTable
-  local velocity = seqVelTable:getValue(step) -- get velocity
-
-  -- Skip randomize
-  if skipRandomize == true then
-    return velocity
-  end
-
-  -- Randomize velocity
-  local velRandomization = paramsPerPart[part].velRandomization.value
-  if getRandomBoolean(velRandomization) then
-    local changeMax = getChangeMax(seqVelTable.max, velRandomization)
-    local min = velocity - changeMax
-    local max = velocity + changeMax
-    if min < seqVelTable.min then
-      min = seqVelTable.min
-    end
-    if max > seqVelTable.max then
-      max = seqVelTable.max
-    end
-    --print("Before randomize vel", vel)
-    velocity = getRandom(min, max)
-    --print("After randomize vel/changeMax/min/max", vel, changeMax, min, max)
-  end
-
-  return velocity
-end
-
-function createStrategy()
-  local strategy = {} -- Table to hold strategy
-  local ln = getRandom(4) -- Length
-  for i=1, ln do
-    local value = 1
-    if getRandomBoolean(20) then
-      value = 2
-    elseif getRandomBoolean(5) then
-      value = 3
-    end
-    if getRandomBoolean() then
-      value = -value
-    end
-    table.insert(strategy, value)
-    print("Add value to strategy", value)
-  end
-  return strategy
-end
-
-function getGate(part, step, skipRandomize)
-  local seqGateTable = paramsPerPart[part].seqGateTable
-  local gate = seqGateTable:getValue(step)
-
-  -- Skip randomize
-  if skipRandomize == true then
-    return gate
-  end
-
-  -- Randomize gate
-  local gateRandomization = paramsPerPart[part].gateRandomization.value
-  if getRandomBoolean(gateRandomization) then
-    local changeMax = getChangeMax(seqGateTable.max, gateRandomization)
-    local min = gate - changeMax
-    local max = gate + changeMax
-    if min < seqGateTable.min then
-      min = seqGateTable.min
-    end
-    if max > seqGateTable.max then
-      max = seqGateTable.max
-    end
-    --print("Before randomize gate", gate)
-    gate = getRandom(min, max)
-    --print("After randomize gate/changeMax/min/max", gate, changeMax, min, max)
-  end
-
-  return gate
-end
 
 --------------------------------------------------------------------------------
 -- Sequencer
@@ -1406,7 +1426,6 @@ function arpeg()
         local minNoteSteps = paramsPerPart[currentPartPosition].minNoteSteps.value
         local maxNoteSteps = paramsPerPart[currentPartPosition].maxNoteSteps.value
         local baseNoteRandomization = paramsPerPart[currentPartPosition].baseNoteRandomization.value
-        local hasScale = #paramsPerPart[currentPartPosition].fullScale > 0
         local hasHarmonizeableScale = canHarmonizeScale(paramsPerPart[currentPartPosition].scale)
         local minResolution = getResolution(paramsPerPart[currentPartPosition].subdivisionMinResolution.value)
         local steps = getRandom(minNoteSteps, maxNoteSteps)
@@ -1414,7 +1433,8 @@ function arpeg()
         local baseMin = minNote
         local baseMax = maxNote
 
-        if currentDepth == 0 and polyphony > 1 then
+        --if currentDepth == 0 and polyphony > 1 then
+        if polyphony > 1 then
           if hasNoteBelowMonoLimit(notes, currentPartPosition) == true then
             -- Ensure we only have one note below the mono limit
             baseMin = monoLimit
@@ -1431,11 +1451,10 @@ function arpeg()
           -- Register the first note in the chord
           local chordTable = {currentNote}
           print("Add note to chord - baseNote/noteName/chordDefinitionIndex/inversionIndex", currentNote, noteName, chordDefinitionIndex, inversionIndex)
-
           -- Get the remaining notes for the chord
           local fullScale = paramsPerPart[currentPartPosition].fullScale
           local inversionPos = inversionIndex
-          while true do
+          while hasHarmonizeableScale == true do
             -- Find the scale index for the current note
             local scaleIndex = getNextScaleIndex(currentNote, fullScale, chordDefinitionIndex, inversionPos)
             -- Set the current note and note name
@@ -1485,10 +1504,8 @@ function arpeg()
               print("Calculate range for base note baseMin/baseMax/noteRange", baseMin, baseMax, noteRange)
             end
             baseNote = baseNote + getRandom(noteRange) - 1
-            if hasScale == true then
-              local scale = getFilteredScale(currentPartPosition, baseMin, baseMax)
-              baseNote = getNoteAccordingToScale(scale, baseNote)
-            end
+            local scale = getFilteredScale(currentPartPosition, baseMin, baseMax)
+            baseNote = getNoteAccordingToScale(scale, baseNote)
             print("Get random note from the low range: note/baseMin/monoLimit/baseMax/noteRange", baseNote, baseMin, monoLimit, baseMax, noteRange)
           end
 
@@ -1497,8 +1514,9 @@ function arpeg()
 
         -- Harmonize notes starting at this step if we have a compatible scale
         local harmonizationPropbability = paramsPerPart[currentPartPosition].harmonizationPropbability.value
+        local strategyPropbability = paramsPerPart[currentPartPosition].strategyPropbability.value
         if getRandomBoolean(harmonizationPropbability) == true then
-          if polyphony == 1 or currentDepth > 0 then
+          if getRandomBoolean(strategyPropbability) == true and polyphony == 1 or currentDepth > 0 then
             if #chord == 0 then
               local baseNote = getBaseNote()
               if hasHarmonizeableScale == true and polyphony == 1 and getRandomBoolean() then
@@ -1620,34 +1638,34 @@ function arpeg()
         end
 
         -- Get a random or strategic note from the current scale / chord
-        if type(note) == "nil" and hasScale == true then
+        if type(note) == "nil" then
           if #chord > 0 and getRandomBoolean() then
-            if getRandomBoolean(75) then
-              note = chord[getRandom(#chord)]
-              print("Get random note from chord: note/baseMin/baseMax", note, baseMin, baseMax)
-            else
+            if getRandomBoolean(strategyPropbability) == true then
               chordPosititon = getPositionFromStragegy(chordPosititon, chord, strategyIndex)
               note = chord[chordPosititon]
               print("Get note from chord using strategy: note/baseMin/baseMax/strategyIndex", note, baseMin, baseMax, strategyIndex)
+            else
+              note = chord[getRandom(#chord)]
+              print("Get random note from chord: note/baseMin/baseMax", note, baseMin, baseMax)
             end
           else
             local scale = getFilteredScale(currentPartPosition, baseMin, baseMax)
-            if getRandomBoolean(75) then
-              note = scale[getRandom(#scale)]
-              print("Get random note from scale: note/baseMin/baseMax", note, baseMin, baseMax)
-            else
+            if getRandomBoolean(strategyPropbability) == true then
               chordPosititon = getPositionFromStragegy(chordPosititon, scale, strategyIndex)
               note = scale[chordPosititon]
               print("Get note from scale using strategy: note/baseMin/baseMax/strategyIndex", note, baseMin, baseMax, strategyIndex)
+            else
+              note = scale[getRandom(#scale)]
+              print("Get random note from scale: note/baseMin/baseMax", note, baseMin, baseMax)
             end
           end
         end
 
          -- Get random note
-        if type(note) == "nil" then
+        --[[ if type(note) == "nil" then
           note = getRandom(baseMin, baseMax)
           print("Get random note: note/baseMin/baseMax", note, baseMin, baseMax)
-        end
+        end ]]
 
         -- Check for minimum duration
         local subdivisionNotes = {}
