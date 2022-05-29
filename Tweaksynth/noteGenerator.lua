@@ -86,29 +86,30 @@ local chordDefinitionNames = {
   "Suspended + 7/9",
 }
 local strategyPos = 1
--- Mono strategies are ways to play chords in mono mode
-local monoStrategies = {
+-- Strategies are ways to play chords and scales
+local strategies = {
   {1}, -- Up
   {-1}, -- Down
   {2,-1}, -- Alternate up
   {-2,1}, -- Alternate down
-  {3,-1}, 
+  --[[ {3,-1}, 
   {2,1},
-  {1,2,3,4},
-  {2,1,-3},
-  {1,1,2,-3},
-  {-1,-1,-2,5},
   {1,-1},
   {-1,1},
-  {-1,1,-1,1,-2},
-  {1,-1,1,-2,-1,3},
-  {-1,-1,-1,-1,5},
-  {-1,-1,-1,-1,-3,3,1,1,1,1},
-  {2,3,2,4,2,5,1},
   {-1,-2},
+  {2,1,-3},
+  {1,2,3,4},
+  {1,1,2,-3},
   {-1,-2,1,2},
-  {-1,-2,1,2,-1,-2,1,2,1,-3,1},
+  {-1,-1,-2,5},
+  {-1,1,-1,1,-2},
+  {-1,-1,-1,-1,5},
+  {2,3,2,4,2,5,1},
+  {1,-1,1,-2,-1,3},
+  {-1,-1,-1,-1,-3,3,1,1,1,1},
+  {-1,-2,1,2,-1,-2,1,2,1,-3,1}, ]]
 }
+local numStrategies = #strategies
 local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
 local noteNumberToNoteName = {} -- Used for mapping - does not include octave, only name of note (C, C#...)
 local notenamePos = 1
@@ -832,23 +833,23 @@ numPartsBox:changed()
 -- Scale and note functions
 --------------------------------------------------------------------------------
 
-function getChordPositionFromStragegy(chordPosititon, chord, strategyIndex)
-  local strategy = monoStrategies[strategyIndex]
+function getPositionFromStragegy(posititon, notesTable, strategyIndex)
+  local strategy = strategies[strategyIndex]
   -- Reset strategy pos if needed
   if strategyPos > #strategy then
     strategyPos = 1
   end
   print("Get strategy strategyIndex, strategyPos, increment", strategyIndex, strategyPos, strategy[strategyPos])
-  chordPosititon = chordPosititon + strategy[strategyPos]
-  print("Set chord position", chordPosititon)
-  if chordPosititon > #chord then
-    chordPosititon = 1
+  posititon = posititon + strategy[strategyPos]
+  print("Set position", posititon)
+  if posititon > #notesTable then
+    posititon = 1
     strategyPos = 1
-    print("Reset chord position", chordPosititon)
-  elseif chordPosititon < 1 then
-    chordPosititon = #chord
+    print("Reset position", posititon)
+  elseif posititon < 1 then
+    posititon = #notesTable
     strategyPos = 1
-    print("Reset chord position", chordPosititon)
+    print("Reset position", posititon)
   else
     -- Increment strategy pos
     if #strategy > 1 then
@@ -856,7 +857,7 @@ function getChordPositionFromStragegy(chordPosititon, chord, strategyIndex)
       print("Increment strategy pos", strategyPos)
     end
   end
-  return chordPosititon
+  return posititon
 end
 
 function getSemitonesBetweenNotes(note1, note2)
@@ -925,13 +926,6 @@ function getNextScaleIndex(note, scale, chordDefinitionIndex, inversionIndex)
   local index = getScaleIndexFromNote(note, scale)
   local increment = chordDefinitions[chordDefinitionIndex][inversionIndex]
   return index + increment
-end
-
--- Use the selected chord definition to find the index for the previous note in the chord
-function getPrevScaleIndex(note, scale, chordDefinitionIndex, inversionIndex)
-  local index = getScaleIndexFromNote(note, scale)
-  local decrement = chordDefinitions[chordDefinitionIndex][inversionIndex]
-  return index - decrement
 end
 
 function notesInclude(notesTable, note)
@@ -1022,6 +1016,25 @@ function getVelocity(part, step, skipRandomize)
   return velocity
 end
 
+function createStrategy()
+  local strategy = {} -- Table to hold strategy
+  local ln = getRandom(4) -- Length
+  for i=1, ln do
+    local value = 1
+    if getRandomBoolean(20) then
+      value = 2
+    elseif getRandomBoolean(5) then
+      value = 3
+    end
+    if getRandomBoolean() then
+      value = -value
+    end
+    table.insert(strategy, value)
+    print("Add value to strategy", value)
+  end
+  return strategy
+end
+
 function getGate(part, step, skipRandomize)
   local seqGateTable = paramsPerPart[part].seqGateTable
   local gate = seqGateTable:getValue(step)
@@ -1098,7 +1111,7 @@ function arpeg()
   local isStarting = true
   local chord = {} -- The chord playing on this step in poly mode or this round in mono mode
   local inversionIndex = 1
-  local chordPosititon = 1 -- Used for mono mode
+  local chordPosititon = 1
   local strategyIndex = 1 -- Default
   local chordDefinitionIndex = 1
   strategyPos = 1
@@ -1201,8 +1214,17 @@ function arpeg()
 
     -- Set the inversion to use - always use the first inversion at the start of a part
     if startOfPart == true or polyphony > 1 then
-      --strategyIndex = #monoStrategies
-      strategyIndex = getRandom(#monoStrategies) -- TODO Param?
+      -- Create random strategies
+      if (currentRound % paramsPerPart[currentPartPosition].numStepsBox.value) - 1 == 0 then
+        for i=1, numStrategies do
+          local strategy = createStrategy()
+          table.insert(strategies, (i+numStrategies), strategy)
+          print("Created #strategy/#strategies/pos", #strategy, #strategies, (i+numStrategies))
+        end
+      end
+      strategyIndex = getRandom(#strategies)
+      --strategyIndex = 1
+      --strategyIndex = #strategies
       chord = {} -- Reset chord
       inversionIndex = 1 -- Reset counter for inversion progress
       chordPosititon = 1 -- Reset counter for chord progress
@@ -1226,7 +1248,6 @@ function arpeg()
       -- Otherwise we select an inversion by random
       if startOfPart == false and polyphony > 1 then
         inversionIndex = getRandom(#chordDefinitions[chordDefinitionIndex])
-        --chordPosititon = inversionIndex
         print("Set random inversionIndex", inversionIndex)
       end
     end
@@ -1390,23 +1411,25 @@ function arpeg()
         local minResolution = getResolution(paramsPerPart[currentPartPosition].subdivisionMinResolution.value)
         local steps = getRandom(minNoteSteps, maxNoteSteps)
         local note = nil
+        local baseMin = minNote
+        local baseMax = maxNote
 
         if currentDepth == 0 and polyphony > 1 then
           if hasNoteBelowMonoLimit(notes, currentPartPosition) == true then
             -- Ensure we only have one note below the mono limit
-            minNote = monoLimit
-            print("Adjust minNote to mono limit", minNote)
-          elseif monoLimit > minNote then
-            -- Ensure we have a note within the mono limit if polyphony > 1
-            maxNote = monoLimit
-            print("Adjust maxNote to mono limit", maxNote)
+            baseMin = monoLimit
+            print("Adjust baseMin to mono limit", baseMin)
+          elseif monoLimit > baseMin then
+            -- Ensure we have a note within the mono limit
+            baseMax = monoLimit
+            print("Adjust baseMax to mono limit", baseMax)
           end
         end
 
-        local function getChord(currentNote)
+        local function getChord(currentNote, basic)
           local noteName = noteNumberToNoteName[currentNote+1]
           -- Register the first note in the chord
-          chord = {currentNote}
+          local chordTable = {currentNote}
           print("Add note to chord - baseNote/noteName/chordDefinitionIndex/inversionIndex", currentNote, noteName, chordDefinitionIndex, inversionIndex)
 
           -- Get the remaining notes for the chord
@@ -1418,24 +1441,25 @@ function arpeg()
             -- Set the current note and note name
             currentNote = fullScale[scaleIndex]
             noteName = noteNumberToNoteName[currentNote+1]
-            if polyphony == 1 and currentNote > maxNote then
-              print("Found notes for chord in monomode", #chord)
+            -- In full mode we stop building the chord when the current note is higher that max note
+            if currentNote > maxNote then
+              print("Found notes for chord", #chordTable)
               break
             end
-            table.insert(chord, currentNote)
+            -- In basic mode we stop building the chord when it contains the notes from the current chord definition
+            if basic == true and #chordDefinitions[chordDefinitionIndex] == #chordTable then
+              print("Found notes for chord in basic mode", #chordTable)
+              break
+            end
+            table.insert(chordTable, currentNote)
             print("Add note to chord note, noteName, scaleIndex, inversionPos", currentNote, noteName, scaleIndex, inversionPos)
-            -- In polymode we stop building the chord when it contains the notes from the current chord definition
-            if polyphony > 1 and #chordDefinitions[chordDefinitionIndex] == #chord then
-              print("Found notes for chord in polymode", #chord)
-              break
-            end
             -- Increment inversion pos
             inversionPos = inversionPos + 1
             if inversionPos > #chordDefinitions[chordDefinitionIndex] then
               inversionPos = 1
             end
           end
-          return chord
+          return chordTable
         end
 
         local function getBaseNote()
@@ -1446,122 +1470,132 @@ function arpeg()
             print("useBaseNote/currentRound/modulo", useBaseNote, currentRound, (currentRound % paramsPerPart[currentPartPosition].numStepsBox.value) - 1)
           end
           if useBaseNote and getRandomBoolean(baseNoteRandomization) then
-            while isRootNote(baseNote, currentPartPosition) == false and baseNote <= maxNote do
+            while isRootNote(baseNote, currentPartPosition) == false and baseNote <= baseMax do
               baseNote = baseNote + 1 -- increment note to find the base note
             end
-            --note = baseNote
-            print("Get root note: note/minNote/maxNote", baseNote, minNote, maxNote)
+            print("Get root note: note/baseMin/baseMax", baseNote, baseMin, baseMax)
           else
-            local noteRange = maxNote - minNote
+            local noteRange = baseMax - baseMin
             if polyphony == 1 then
               noteRange = 12 -- Get a note from the lowest octave
-              --noteRange = math.max(12, math.ceil(noteRange / paramsPerPart[currentPartPosition].numStepsBox.value))
               print("Get note range in monomode", noteRange)
-            elseif monoLimit < minNote then
+            elseif monoLimit < baseMin then
               -- If there is no mono limit, we ajust the note range by polyphony to get a base note range
               noteRange = math.ceil(noteRange / polyphony)
-              print("Calculate range for base note minNote/maxNote/noteRange", minNote, maxNote, noteRange)
+              print("Calculate range for base note baseMin/baseMax/noteRange", baseMin, baseMax, noteRange)
             end
             baseNote = baseNote + getRandom(noteRange) - 1
             if hasScale == true then
-              local scale = getFilteredScale(currentPartPosition, minNote, maxNote)
+              local scale = getFilteredScale(currentPartPosition, baseMin, baseMax)
               baseNote = getNoteAccordingToScale(scale, baseNote)
             end
-            print("Get random note from the low range: note/minNote/monoLimit/maxNote/noteRange", baseNote, minNote, monoLimit, maxNote, noteRange)
+            print("Get random note from the low range: note/baseMin/monoLimit/baseMax/noteRange", baseNote, baseMin, monoLimit, baseMax, noteRange)
           end
 
           return baseNote
         end
 
-        if currentDepth == 0 or polyphony == 1 then
+        -- Harmonize notes starting at this step if we have a compatible scale
+        local harmonizationPropbability = paramsPerPart[currentPartPosition].harmonizationPropbability.value
+        if getRandomBoolean(harmonizationPropbability) == true then
+          if polyphony == 1 or currentDepth > 0 then
+            if #chord == 0 then
+              local baseNote = getBaseNote()
+              if hasHarmonizeableScale == true and polyphony == 1 and getRandomBoolean() then
+                chord = getChord(baseNote)
+                print("Get notes from chord")
+              else
+                chord = getFilteredScale(currentPartPosition, baseNote, baseMax)
+                print("Get notes from scale")
+              end
+            end
+            local changeFreq = 3 -- TODO Param
+            if getRandomBoolean(10) or (tablePos % changeFreq) - 1 == 0 or (polyphony > 1 and currentDepth == 1) then
+              strategyIndex = getRandom(#strategies)
+              print("Change strategy by random")
+            end
+            chordPosititon = getPositionFromStragegy(chordPosititon, chord, strategyIndex)
+            note = chord[chordPosititon]
+            print("Found note from chord - note, chordPosititon, strategyIndex", note, chordPosititon, strategyIndex)
+          end
+          if currentDepth == 0 and polyphony > 1 and hasHarmonizeableScale == true then
+            local startingNotes = {}
+            for _,v in ipairs(notes) do
+              if v.stepCounter == 0 then
+                table.insert(startingNotes, v.note)
+                print("Insert into startingNotes", v.note)
+              end
+            end
+            if #startingNotes > 0 then
+              -- If we have notes added, use them as the basis for the next note
+              print("startingNotes", #startingNotes)
+              local prevNote = startingNotes[#startingNotes]
+              print("Found prevNote", prevNote)
+              if prevNote < baseMin then
+                prevNote = transpose(prevNote, baseMin, baseMax)
+                print("Transposing prevNote to within range", prevNote)
+              end
+
+              local fullScale = paramsPerPart[currentPartPosition].fullScale
+              local scaleIndex = getNextScaleIndex(prevNote, fullScale, chordDefinitionIndex, inversionIndex)
+              -- Ensure note is within range
+              note = transpose(fullScale[scaleIndex], baseMin, baseMax)
+              local noteRange = baseMax - prevNote
+              local octaveRange = math.floor(noteRange / 12)
+              local notesLeft = polyphony - #notes
+              local octave = math.floor(octaveRange / notesLeft)
+              if octave > 0 and note > baseMax / 2 and getRandomBoolean() then
+                octave = -octave
+                print("Negative octave", octave)
+              end
+              local octaveOffset = octave * 12
+              print("Calculate octave adjustment - noteRange/octaveRange/notesLeft/octave", noteRange, octaveRange, notesLeft, octave)
+              if octaveOffset > 0 and note + octaveOffset <= baseMax then
+                note = note + octaveOffset
+                print("Octave adjusted octave/octaveOffset/note", octave, octaveOffset, note)
+              end
+              inversionIndex = inversionIndex + 1
+              if inversionIndex > #chordDefinitions[chordDefinitionIndex] then
+                inversionIndex = 1
+              end
+              print("Found note from prev note - note, prevNote", note, prevNote)
+            end
+          end
+        end
+
+        if currentDepth == 0 then
           -- Adjust steps so note does not last beyond the part length
           local maxSteps = (paramsPerPart[currentPartPosition].numStepsBox.value - tablePos) + 1
           if steps > maxSteps then
             print("maxSteps/steps", maxSteps, steps)
             steps = maxSteps
           end
-
-          -- Harmonize notes starting at this step if we have a compatible scale
-          local harmonizationPropbability = paramsPerPart[currentPartPosition].harmonizationPropbability.value
-          if hasHarmonizeableScale == true and getRandomBoolean(harmonizationPropbability) == true then
-            if polyphony == 1 then
-              if #chord == 0 then
-                chord = getChord(getBaseNote())
-              end
-              chordPosititon = getChordPositionFromStragegy(chordPosititon, chord, strategyIndex)
-              note = chord[chordPosititon]
-              print("Found note from chord - note, chordPosititon", note, chordPosititon)
-            else
-              local startingNotes = {}
-              for _,v in ipairs(notes) do
-                if v.stepCounter == 0 then
-                  table.insert(startingNotes, v.note)
-                  print("Insert into startingNotes", v.note)
-                end
-              end
-              if #startingNotes > 0 then
-                -- If we have notes added, use them as the basis for the next note
-                print("startingNotes", #startingNotes)
-                local prevNote = startingNotes[#startingNotes]
-                print("Found prevNote", prevNote)
-                if prevNote < minNote then
-                  prevNote = transpose(prevNote, minNote, maxNote)
-                  print("Transposing prevNote to within range", prevNote)
-                end
-  
-                local fullScale = paramsPerPart[currentPartPosition].fullScale
-                local scaleIndex = getNextScaleIndex(prevNote, fullScale, chordDefinitionIndex, inversionIndex)
-                -- Ensure note is within range
-                note = transpose(fullScale[scaleIndex], minNote, maxNote)
-                local noteRange = maxNote - prevNote
-                local octaveRange = math.floor(noteRange / 12)
-                local notesLeft = polyphony - #notes
-                local octave = math.floor(octaveRange / notesLeft)
-                if octave > 0 and note > maxNote / 2 and getRandomBoolean() then
-                  octave = -octave
-                  print("Negative octave", octave)
-                end
-                local octaveOffset = octave * 12
-                print("Calculate octave adjustment - noteRange/octaveRange/notesLeft/octave", noteRange, octaveRange, notesLeft, octave)
-                if octaveOffset > 0 and note + octaveOffset <= maxNote then
-                  note = note + octaveOffset
-                  print("Octave adjusted octave/octaveOffset/note", octave, octaveOffset, note)
-                end
-                inversionIndex = inversionIndex + 1
-                if inversionIndex > #chordDefinitions[chordDefinitionIndex] then
-                  inversionIndex = 1
-                end
-                print("Found note from prev note - note, prevNote", note, prevNote)
-              end
-            end
-          end
-        end
-
-        -- When we are not on the top level, always play just one step.
-        -- Variation in length are handled by subdivsions at the lower levels.
-        if currentDepth > 0 then
+        else
+          -- When we are not on the top level, always play just one step.
+          -- Variation in length are handled by subdivsions at the lower levels.
           steps = 1
         end
 
         -- Get base note
-        if type(note) == "nil" and polyphony > 1 and hasHarmonizeableScale == true and currentDepth == 0 and #notes == 0 then
-          note = getBaseNote()
-          -- Use chord info when getting notes to create more variation
-          -- TODO Check for repeated basenote+inversionDefinition+inversion
-          local function validateBaseNote()
-            chord = getChord(note)
+        if type(note) == "nil" and polyphony > 1 and currentDepth == 0 and #notes == 0 then
+          local function validateBaseNote(baseNote)
             local valid = true
+            if hasHarmonizeableScale == false then
+              -- Always valid if scale does not support harmonization
+              return valid
+            end
+            local baseChord = getChord(baseNote, true)
             -- chordDefinitionIndex 3 == suspended - not valid if tritone
             if chordDefinitionIndex == 3 then
-              for i,v in ipairs(chord) do 
+              for i,v in ipairs(baseChord) do 
                 if i == 1 then
-                  if getSemitonesBetweenNotes(v, chord[#chord]) == 6 then
+                  if getSemitonesBetweenNotes(v, baseChord[#baseChord]) == 6 then
                     valid = false
                     break
                   end
                 end
-                if i < #chord then
-                  if getSemitonesBetweenNotes(v, chord[i+1]) == 6 then
+                if i < #baseChord then
+                  if getSemitonesBetweenNotes(v, baseChord[i+1]) == 6 then
                     valid = false
                     break
                   end
@@ -1573,29 +1607,46 @@ function arpeg()
           end
           local maxAttempts = 3
           local counter = 0
-          local valid = validateBaseNote()
-          while valid == false and counter < maxAttempts and type(note) == "number" do
-            note = getBaseNote()
-            valid = validateBaseNote()
+          -- TODO Check for repeated basenote+inversionDefinition+inversion
+          while counter < maxAttempts do
+            local baseNote = getBaseNote()
+            if validateBaseNote(baseNote) == true then
+              note = baseNote
+              break
+            end
             counter = counter + 1
             print("Retry getting basenote/tries/valid", note, counter, valid)
           end
-          if valid == false then
-            note = nil
-          end
         end
 
-        -- Get a random note from the current scale
+        -- Get a random or strategic note from the current scale / chord
         if type(note) == "nil" and hasScale == true then
-          local scale = getFilteredScale(currentPartPosition, minNote, maxNote)
-          note = scale[getRandom(#scale)]
-          print("Get random note from scale: note/minNote/maxNote", note, minNote, maxNote)
+          if #chord > 0 and getRandomBoolean() then
+            if getRandomBoolean(75) then
+              note = chord[getRandom(#chord)]
+              print("Get random note from chord: note/baseMin/baseMax", note, baseMin, baseMax)
+            else
+              chordPosititon = getPositionFromStragegy(chordPosititon, chord, strategyIndex)
+              note = chord[chordPosititon]
+              print("Get note from chord using strategy: note/baseMin/baseMax/strategyIndex", note, baseMin, baseMax, strategyIndex)
+            end
+          else
+            local scale = getFilteredScale(currentPartPosition, baseMin, baseMax)
+            if getRandomBoolean(75) then
+              note = scale[getRandom(#scale)]
+              print("Get random note from scale: note/baseMin/baseMax", note, baseMin, baseMax)
+            else
+              chordPosititon = getPositionFromStragegy(chordPosititon, scale, strategyIndex)
+              note = scale[chordPosititon]
+              print("Get note from scale using strategy: note/baseMin/baseMax/strategyIndex", note, baseMin, baseMax, strategyIndex)
+            end
+          end
         end
 
          -- Get random note
         if type(note) == "nil" then
-          note = getRandom(minNote, maxNote)
-          print("Get random note: note/minNote/maxNote", note, minNote, maxNote)
+          note = getRandom(baseMin, baseMax)
+          print("Get random note: note/baseMin/baseMax", note, baseMin, baseMax)
         end
 
         -- Check for minimum duration
