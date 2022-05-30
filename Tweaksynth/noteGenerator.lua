@@ -15,8 +15,7 @@ local partRandomizationAmount = 0
 local totalNumSteps = 8
 local paramsPerPart = {}
 local partSelect = {}
-local sequences = {} -- Each part has its own sequences
-local maxSequences = 0 -- Max stored sequences for each part - sets the default value for the maxSequencesBox parameter
+local notePosititon = 0
 -- Make sure these are in sync with the scale names!
 local scaleDefinitions = {
   {1}, -- 12 tone
@@ -187,13 +186,13 @@ function getPositionFromStragegy(posititon, notesTable, strategyIndex, partPos)
   posititon = posititon + strategy[strategyPos]
   print("Set position", posititon)
   if posititon > #notesTable then
-    posititon = 1
+    print("Reset posititon > #notesTable", posititon, #notesTable)
+    posititon = 0
     strategyPos = 1
-    print("Reset position", posititon)
   elseif posititon < 1 then
+    print("Reset posititon < 1", posititon)
     posititon = #notesTable
     strategyPos = 1
-    print("Reset position", posititon)
   else
     -- Increment strategy pos
     if #strategy > 1 then
@@ -234,6 +233,7 @@ function canHarmonizeScale(selectedScale)
 end
 
 function createFullScale(part)
+  notePosititon = 0 -- Reset note position
   paramsPerPart[part].fullScale = {}
   -- Find scale definition
   local definition = scaleDefinitions[paramsPerPart[part].scale.value]
@@ -358,6 +358,7 @@ function getVelocity(part, step, skipRandomize)
 end
 
 function createStrategy(part)
+  notePosititon = 0 -- Reset note position
   local numSteps = paramsPerPart[part].numStepsBox.value
   local maxLength = math.min(math.ceil(numSteps * 0.75), 9) -- 8 * 0.75 = 6
   local strategy = {} -- Table to hold strategy
@@ -423,7 +424,7 @@ sequencerPanel.backgroundColour = menuOutlineColour
 sequencerPanel.x = 10
 sequencerPanel.y = 10
 sequencerPanel.width = tableWidth
-sequencerPanel.height = 465
+sequencerPanel.height = 400
 
 local label = sequencerPanel:Label("Label")
 label.text = "Generative Sequencer"
@@ -468,15 +469,12 @@ editPartMenu.changed = function(self)
     v.scale.visible = isVisible
     v.harmonizationPropbability.visible = isVisible
     v.strategyInput.visible = isVisible
-    v.strategyButton.visible = isVisible
+    v.createStrategyButton.visible = isVisible
     v.autoStrategyButton.visible = isVisible
     v.strategyPropbability.visible = isVisible
     v.velRandomization.visible = isVisible
     v.gateRandomization.visible = isVisible
     v.baseNoteRandomization.visible = isVisible
-    v.sequenceRepeatProbability.visible = isVisible
-    v.sequenceRepeatProbabilityDecay.visible = isVisible
-    v.sequenceRepeatProbabilityThreshold.visible = isVisible
     v.subdivisionProbability.visible = isVisible
     v.subdivisionRepeatProbability.visible = isVisible
     v.subdivisionMinResolution.visible = isVisible
@@ -535,9 +533,6 @@ numPartsBox.changed = function(self)
       paramsPerPart[i].velRandomization.value = prev.velRandomization.value
       paramsPerPart[i].gateRandomization.value = prev.gateRandomization.value
       paramsPerPart[i].baseNoteRandomization.value = prev.baseNoteRandomization.value
-      paramsPerPart[i].sequenceRepeatProbability.value = prev.sequenceRepeatProbability.value
-      paramsPerPart[i].sequenceRepeatProbabilityDecay.value = prev.sequenceRepeatProbabilityDecay.value
-      paramsPerPart[i].sequenceRepeatProbabilityThreshold.value = prev.sequenceRepeatProbabilityThreshold.value
       paramsPerPart[i].subdivisionProbability.value = prev.subdivisionProbability.value
       paramsPerPart[i].subdivisionRepeatProbability.value = prev.subdivisionRepeatProbability.value
       paramsPerPart[i].subdivisionMinResolution.value = prev.subdivisionMinResolution.value
@@ -656,6 +651,16 @@ function setTableWidths()
   end
 end
 
+local subdivisionProbabilityLabel = sequencerPanel:Label("SubdivisionProbabilityLabel")
+subdivisionProbabilityLabel.text = "Subdivision"
+
+local chordProbabilityLabel = sequencerPanel:Label("ChordProbabilityProbabilityLabel")
+chordProbabilityLabel.text = "Chords"
+chordProbabilityLabel.tooltip = "Choose the probability that chords will be included when harmonizing"
+
+local strategyLabel = sequencerPanel:Label("StrategyLabel")
+strategyLabel.text = "Strategy"
+
 -- Add params that are to be editable per part
 for i=1,numPartsBox.max do
   --print("Set paramsPerPart", i)
@@ -691,7 +696,7 @@ for i=1,numPartsBox.max do
   seqVelTable.width = positionTable.width
   seqVelTable.height = 70
   seqVelTable.x = positionTable.x
-  seqVelTable.y = partRandBox.y + 200
+  seqVelTable.y = partRandBox.y + 125
   
   local seqGateTable = sequencerPanel:Table("Gate" .. i, totalNumSteps, 100, 0, 120, true)
   seqGateTable.tooltip = "Set step gate length. Randomization available in settings."
@@ -738,10 +743,11 @@ for i=1,numPartsBox.max do
   end
 
   local stepResolution = sequencerPanel:Menu("StepResolution" .. i, getResolutionNames())
+  stepResolution.displayName = "Step Duration"
   stepResolution.tooltip = "The duration of each step in the part"
-  stepResolution.showLabel = false
   stepResolution.selected = 20
-  stepResolution.height = 20
+  --stepResolution.showLabel = false
+  --stepResolution.height = 20
   stepResolution.width = generateMaxNoteStepsPart.width
   stepResolution.x = generatePolyphonyPart.x + generatePolyphonyPart.width + 10
   stepResolution.y = generatePolyphonyPart.y
@@ -764,18 +770,6 @@ for i=1,numPartsBox.max do
   numStepsBox.changed = function(self)
     setNumSteps(i)
   end
-
-  local strategyPropbability = sequencerPanel:NumBox("StrategyPropbability" .. i, 100, 0, 100, true)
-  --strategyPropbability.enabled = false
-  strategyPropbability.displayName = "Strategy"
-  strategyPropbability.tooltip = "Set the probability of that a playing strategy will be used"
-  strategyPropbability.unit = Unit.Percent
-  strategyPropbability.height = 20
-  strategyPropbability.width = numStepsBox.width
-  strategyPropbability.x = numStepsBox.x
-  strategyPropbability.y = numStepsBox.y + numStepsBox.height + 5
-  strategyPropbability.backgroundColour = menuBackgroundColour
-  strategyPropbability.textColour = menuTextColour
 
   local generateMinPart = sequencerPanel:NumBox("GenerateMin" .. i, 24, 0, 127, true)
   generateMinPart.unit = Unit.MidiKey
@@ -850,8 +844,8 @@ for i=1,numPartsBox.max do
   
   local harmonizationPropbability = sequencerPanel:NumBox("HarmonizationPropbability" .. i, 100, 0, 100, true)
   harmonizationPropbability.enabled = false
-  harmonizationPropbability.displayName = "Harmonization"
-  harmonizationPropbability.tooltip = "Set the probability of chord harmonization"
+  harmonizationPropbability.displayName = "Harmonize"
+  harmonizationPropbability.tooltip = "When harmonizing, we get notes from the currently playing chord. Otherwise notes are selected from the current scale."
   harmonizationPropbability.unit = Unit.Percent
   harmonizationPropbability.height = 20
   harmonizationPropbability.width = generateScalePart.width
@@ -896,58 +890,14 @@ for i=1,numPartsBox.max do
   baseNoteRandomization.textColour = menuTextColour
 
   if i == 1 then
-    local sequenceProbabilityLabel = sequencerPanel:Label("SequenceProbabilityLabel")
-    sequenceProbabilityLabel.text = "Repetition"
-    sequenceProbabilityLabel.x = 0
-    sequenceProbabilityLabel.y = partRandBox.y + partRandBox.height + 5
-    sequenceProbabilityLabel.width = 227
-  end
-
-  local sequenceRepeatProbability = sequencerPanel:NumBox("SequenceRepeatProbability" .. i, 100, 0, 100, true)
-  sequenceRepeatProbability.enabled = false
-  sequenceRepeatProbability.displayName = "Repeat Probability"
-  sequenceRepeatProbability.tooltip = "Probability that sequences will be repeated in part or fully (requires sequence memory to be activated)"
-  sequenceRepeatProbability.unit = Unit.Percent
-  sequenceRepeatProbability.width = 227
-  sequenceRepeatProbability.x = 0
-  sequenceRepeatProbability.y = partRandBox.y + (partRandBox.height * 2) + 10
-  sequenceRepeatProbability.backgroundColour = menuBackgroundColour
-  sequenceRepeatProbability.textColour = menuTextColour
-
-  local sequenceRepeatProbabilityDecay = sequencerPanel:NumBox("SequenceRepeatProbabilityDecay" .. i, 25, 0, 100, true)
-  sequenceRepeatProbabilityDecay.enabled = false
-  sequenceRepeatProbabilityDecay.displayName = "Repeat Probability Decay"
-  sequenceRepeatProbabilityDecay.tooltip = "How much will the repeat probability decay for each round?"
-  sequenceRepeatProbabilityDecay.unit = Unit.Percent
-  sequenceRepeatProbabilityDecay.width = sequenceRepeatProbability.width
-  sequenceRepeatProbabilityDecay.x = 0
-  sequenceRepeatProbabilityDecay.y = sequenceRepeatProbability.y + sequenceRepeatProbability.height + 5
-  sequenceRepeatProbabilityDecay.backgroundColour = menuBackgroundColour
-  sequenceRepeatProbabilityDecay.textColour = menuTextColour
-
-  local sequenceRepeatProbabilityThreshold = sequencerPanel:NumBox("SequenceRepeatProbabilityThreshold" .. i, 50, 0, 100, true)
-  sequenceRepeatProbabilityThreshold.enabled = false
-  sequenceRepeatProbabilityThreshold.displayName = "Decay Threshold"
-  sequenceRepeatProbabilityThreshold.tooltip = "How low can the repeat probability decay before it is reset?"
-  sequenceRepeatProbabilityThreshold.unit = Unit.Percent
-  sequenceRepeatProbabilityThreshold.width = sequenceRepeatProbability.width
-  sequenceRepeatProbabilityThreshold.x = 0
-  sequenceRepeatProbabilityThreshold.y = sequenceRepeatProbabilityDecay.y + sequenceRepeatProbabilityDecay.height + 5
-  sequenceRepeatProbabilityThreshold.backgroundColour = menuBackgroundColour
-  sequenceRepeatProbabilityThreshold.textColour = menuTextColour
-
-  if i == 1 then
-    local subdivisionProbabilityLabel = sequencerPanel:Label("SubdivisionProbabilityLabel")
-    subdivisionProbabilityLabel.text = "Subdivision"
-    subdivisionProbabilityLabel.x = sequenceRepeatProbabilityThreshold.width + 5
+    subdivisionProbabilityLabel.width = 245
+    subdivisionProbabilityLabel.x = 0
     subdivisionProbabilityLabel.y = partRandBox.y + partRandBox.height + 5
-    subdivisionProbabilityLabel.width = 227
   end
 
   local subdivisions = {}
   for j=1,8 do
     local subdivision = sequencerPanel:OnOffButton("SubdivisionSelect" .. i .. j, (j<3))
-    --subdivision.enabled = j > 1
     subdivision.backgroundColourOff = "#ff084486"
     subdivision.backgroundColourOn = "#ff02ACFE"
     subdivision.textColourOff = "#ff22FFFF"
@@ -957,8 +907,8 @@ for i=1,numPartsBox.max do
     subdivision.tooltip = "Activate subdivision"
     subdivision.height = 20
     subdivision.width = 28
-    subdivision.x = 270 + ((j-2) * (subdivision.width+2.8))
-    subdivision.y = partRandBox.y + (partRandBox.height * 2) + 10
+    subdivision.x = 30 + ((j-2) * (subdivision.width+2.8))
+    subdivision.y = subdivisionProbabilityLabel.y + subdivisionProbabilityLabel.height + 5
     table.insert(subdivisions, subdivision)
   end
 
@@ -988,24 +938,21 @@ for i=1,numPartsBox.max do
   subdivisionMinResolution.selected = 23
   subdivisionMinResolution.x = subdivisionProbability.x + subdivisionProbability.width + 10
   subdivisionMinResolution.y = subdivisionProbability.y
-  subdivisionMinResolution.width = subdivisionProbability.width
+  subdivisionMinResolution.width = subdivisionProbability.width - 7
   subdivisionMinResolution.backgroundColour = menuBackgroundColour
   subdivisionMinResolution.textColour = menuTextColour
   subdivisionMinResolution.arrowColour = menuArrowColour
   subdivisionMinResolution.outlineColour = menuOutlineColour
 
   if i == 1 then
-    local chordProbabilityLabel = sequencerPanel:Label("ChordProbabilityProbabilityLabel")
-    chordProbabilityLabel.text = "Chords"
-    chordProbabilityLabel.tooltip = "Choose the probability that chords will be included when harmonizing"
-    chordProbabilityLabel.x = 0
-    chordProbabilityLabel.y = sequenceRepeatProbabilityDecay.y + sequenceRepeatProbabilityDecay.height + 30
-    chordProbabilityLabel.width = 90
+    chordProbabilityLabel.width = 240
+    chordProbabilityLabel.x = subdivisionProbabilityLabel.x + subdivisionProbabilityLabel.width + 10
+    chordProbabilityLabel.y = subdivisionProbabilityLabel.y
   end
 
   -- Chords
   local chords = {}
-  local perRow = 3
+  local perRow = 2
   local columnCount = 0
   local rowCount = 1
   for j,v in ipairs(chordDefinitionNames) do
@@ -1019,8 +966,8 @@ for i=1,numPartsBox.max do
     chordProbability.unit = Unit.Percent
     chordProbability.height = 20
     chordProbability.width = 117
-    chordProbability.x = (columnCount * (chordProbability.width+4.5))
-    chordProbability.y = sequenceRepeatProbabilityDecay.y + sequenceRepeatProbabilityDecay.height + 30 + ((chordProbability.height + 5) * rowCount)
+    chordProbability.x = chordProbabilityLabel.x + (columnCount * (chordProbability.width+4.5))
+    chordProbability.y = chordProbabilityLabel.y + ((chordProbability.height + 5) * rowCount)
     chordProbability.backgroundColour = menuBackgroundColour
     chordProbability.textColour = menuTextColour
     table.insert(chords, chordProbability)
@@ -1032,123 +979,63 @@ for i=1,numPartsBox.max do
   end
 
   if i == 1 then
-    local strategyLabel = sequencerPanel:Label("StrategyLabel")
-    strategyLabel.text = "Strategy"
-    strategyLabel.x = subdivisionMinResolution.x
-    strategyLabel.y = sequenceRepeatProbabilityDecay.y + sequenceRepeatProbabilityDecay.height + 30
-    strategyLabel.width = 90
+    strategyLabel.x = chordProbabilityLabel.x + chordProbabilityLabel.width + 10
+    strategyLabel.y = chordProbabilityLabel.y
+    strategyLabel.width = 194
   end
+
+  local strategyPropbability = sequencerPanel:NumBox("StrategyPropbability" .. i, 100, 0, 100, true)
+  strategyPropbability.displayName = "Probability"
+  strategyPropbability.tooltip = "Set the probability that a playing strategy will be used to select the next note. Otherwise notes will be selected by random."
+  strategyPropbability.unit = Unit.Percent
+  strategyPropbability.height = 20
+  strategyPropbability.width = strategyLabel.width * 0.66
+  strategyPropbability.x = strategyLabel.x
+  strategyPropbability.y = strategyLabel.y + strategyLabel.height + 5
+  strategyPropbability.backgroundColour = menuBackgroundColour
+  strategyPropbability.textColour = menuTextColour
 
   local strategyInput = sequencerPanel:Label("StrategyInput" .. i)
   strategyInput.text = table.concat(strategies[#strategies], ",")
+  strategyInput.tooltip = "Strategies are ways to play chords and scales. Numbers represent steps up or down the scale or chord that is currently playing."
   strategyInput.editable = true
   strategyInput.backgroundColour = menuBackgroundColour
   strategyInput.backgroundColourWhenEditing = "#cccccc"
-  strategyInput.x = subdivisionMinResolution.x
-  strategyInput.y = sequenceRepeatProbabilityDecay.y + sequenceRepeatProbabilityDecay.height + 55
-  strategyInput.width = 120
+  strategyInput.x = strategyLabel.x
+  strategyInput.y = strategyPropbability.y + strategyPropbability.height + 5
+  strategyInput.width = strategyLabel.width
 
-  local strategyButton = sequencerPanel:Button("StrategyButton" .. i)
-  strategyButton.displayName = "Suggest"
-  strategyButton.persistent = false
-  strategyButton.width = 60
-  strategyButton.x = strategyInput.x + strategyInput.width + 5
-  strategyButton.y = strategyInput.y
-  strategyButton.changed = function()
+  local createStrategyButton = sequencerPanel:Button("CreateStrategyButton" .. i)
+  createStrategyButton.displayName = "Create New Strategy"
+  createStrategyButton.tooltip = "Replace the current strategy with a new one."
+  createStrategyButton.persistent = false
+  createStrategyButton.width = strategyLabel.width
+  createStrategyButton.x = strategyInput.x
+  createStrategyButton.y = strategyInput.y + strategyInput.height + 5
+  createStrategyButton.changed = function()
     local strategy = createStrategy(i)
     strategyInput.text = table.concat(strategy, ",")
   end
 
   local autoStrategyButton = sequencerPanel:OnOffButton("AutoStrategyButton" .. i, false)
   autoStrategyButton.displayName = "Auto"
+  autoStrategyButton.tooltip = "Strategies are automatically created and randomly changed while playing."
   autoStrategyButton.backgroundColourOff = "#ff084486"
   autoStrategyButton.backgroundColourOn = "#ff02ACFE"
   autoStrategyButton.textColourOff = "#ff22FFFF"
   autoStrategyButton.textColourOn = "#efFFFFFF"
   autoStrategyButton.width = 60
-  autoStrategyButton.x = strategyButton.x + strategyButton.width + 5
-  autoStrategyButton.y = strategyButton.y
+  autoStrategyButton.x = strategyPropbability.x + strategyPropbability.width + 5
+  autoStrategyButton.y = strategyPropbability.y
   autoStrategyButton.changed = function(self)
+    notePosititon = 0 -- Reset note position
     strategyInput.enabled = self.value == false
-    strategyButton.enabled = self.value == false
+    createStrategyButton.enabled = self.value == false
   end
 
-  table.insert(paramsPerPart, {chords=chords,subdivisionProbability=subdivisionProbability,subdivisions=subdivisions,subdivisionRepeatProbability=subdivisionRepeatProbability,subdivisionMinResolution=subdivisionMinResolution,sequenceRepeatProbability=sequenceRepeatProbability,sequenceRepeatProbabilityDecay=sequenceRepeatProbabilityDecay,sequenceRepeatProbabilityThreshold=sequenceRepeatProbabilityThreshold,velRandomization=velRandomization,gateRandomization=gateRandomization,baseNoteRandomization=baseNoteRandomization,partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,polyphony=generatePolyphonyPart,numStepsBox=numStepsBox,stepResolution=stepResolution,fullScale={},scale=generateScalePart,key=generateKeyPart,strategyButton=strategyButton,strategyInput=strategyInput,autoStrategyButton=autoStrategyButton,strategyPropbability=strategyPropbability,harmonizationPropbability=harmonizationPropbability,minNote=generateMinPart,maxNote=generateMaxPart,monoLimit=monoLimit,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
+  table.insert(paramsPerPart, {chords=chords,subdivisionProbability=subdivisionProbability,subdivisions=subdivisions,subdivisionRepeatProbability=subdivisionRepeatProbability,subdivisionMinResolution=subdivisionMinResolution,velRandomization=velRandomization,gateRandomization=gateRandomization,baseNoteRandomization=baseNoteRandomization,partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,polyphony=generatePolyphonyPart,numStepsBox=numStepsBox,stepResolution=stepResolution,fullScale={},scale=generateScalePart,key=generateKeyPart,createStrategyButton=createStrategyButton,strategyInput=strategyInput,autoStrategyButton=autoStrategyButton,strategyPropbability=strategyPropbability,harmonizationPropbability=harmonizationPropbability,minNote=generateMinPart,maxNote=generateMaxPart,monoLimit=monoLimit,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
 
   createFullScale(i)
-end
-
-local sequenceMemoryLabel = sequencerPanel:Label("SequenceMemory")
-sequenceMemoryLabel.displayName = "Sequence Memory" -- Used to hold default value
-sequenceMemoryLabel.text = sequenceMemoryLabel.displayName .. " (disabled)"
-sequenceMemoryLabel.x = 499
-sequenceMemoryLabel.y = partRandBox.y + partRandBox.height + 5
-sequenceMemoryLabel.width = 200
-sequenceMemoryLabel.height = 20
-
-local maxSequencesBox = sequencerPanel:NumBox("MaxSequences", maxSequences, 0, 32, true)
-maxSequencesBox.displayName = "Memory"
-maxSequencesBox.tooltip = "How many sequences are remembered? Few means less variation, many means more variation. Set zero to disble."
-maxSequencesBox.width = sequenceMemoryLabel.width
-maxSequencesBox.height = sequenceMemoryLabel.height
-maxSequencesBox.x = sequenceMemoryLabel.x
-maxSequencesBox.y = sequenceMemoryLabel.y + sequenceMemoryLabel.height + 5
-maxSequencesBox.backgroundColour = menuBackgroundColour
-maxSequencesBox.textColour = menuTextColour
-maxSequencesBox.changed = function(self)
-  maxSequences = self.value
-  for _,v in ipairs(paramsPerPart) do
-    v.sequenceRepeatProbability.enabled = maxSequences > 0
-    v.sequenceRepeatProbabilityDecay.enabled = maxSequences > 0
-    v.sequenceRepeatProbabilityThreshold.enabled = maxSequences > 0
-  end
-  if maxSequences == 0 then
-    sequences = {}
-    sequenceMemoryLabel.text = sequenceMemoryLabel.displayName .. ' (disabled)'
-  else
-    sequenceMemoryLabel.text = sequenceMemoryLabel.displayName
-  end
-end
-
-local sequencesPerPart = sequencerPanel:OnOffButton("SequencesPerPartOnOff", false)
-sequencesPerPart.displayName = "Per Part"
-sequencesPerPart.tooltip = "When this is selected, each part has it's own sequences. That means more variation between parts."
-sequencesPerPart.backgroundColourOff = "#ff084486"
-sequencesPerPart.backgroundColourOn = "#ff02ACFE"
-sequencesPerPart.textColourOff = "#ff22FFFF"
-sequencesPerPart.textColourOn = "#efFFFFFF"
-sequencesPerPart.fillColour = "#dd000061"
-sequencesPerPart.height = maxSequencesBox.height
-sequencesPerPart.width = (maxSequencesBox.width / 2) - 2
-sequencesPerPart.x = maxSequencesBox.x
-sequencesPerPart.y = maxSequencesBox.y + maxSequencesBox.height + 5
-
-local replaceSequence = sequencerPanel:OnOffButton("ReplaceSequenceOnOff", false)
-replaceSequence.displayName = "Replace"
-replaceSequence.tooltip = "When this is selected, the sequence is replaced for each round when the buffer is full. That means more variation between rounds."
-replaceSequence.backgroundColourOff = "#ff084486"
-replaceSequence.backgroundColourOn = "#ff02ACFE"
-replaceSequence.textColourOff = "#ff22FFFF"
-replaceSequence.textColourOn = "#efFFFFFF"
-replaceSequence.fillColour = "#dd000061"
-replaceSequence.height = sequencesPerPart.height
-replaceSequence.width = sequencesPerPart.width
-replaceSequence.x = sequencesPerPart.x + sequencesPerPart.width + 5
-replaceSequence.y = sequencesPerPart.y
-
-local clearSequences = sequencerPanel:Button("ClearSequences")
-clearSequences.displayName = "Clear Sequence Memory"
-clearSequences.tooltip = "This will purge all sequences currently remembered"
-clearSequences.persistent = false
-clearSequences.x = sequenceMemoryLabel.x
-clearSequences.y = replaceSequence.y + replaceSequence.height + 5
-clearSequences.width = sequenceMemoryLabel.width
-clearSequences.height = sequenceMemoryLabel.height
-
-clearSequences.changed = function()
-  sequences = {}
-  sequenceMemoryLabel.text = sequenceMemoryLabel.displayName
-  print("Sequences cleared!", #sequences)
 end
 
 editPartMenu:changed()
@@ -1193,15 +1080,10 @@ function arpeg()
   local currentRound = 0 -- Counter for rounds
   local currentPartPosition = 1 -- Holds the currently playing part
   local notes = {} -- Holds the playing notes - notes are removed when they are finished playing
-  local sequenceRepeatProbability = nil
-  local recordedNotes = {}
   local heldNoteIndex = 0
-  local sequencePartIndex = 0 -- The part to play sequences from
-  local sequenceCounter = 0 -- Holds the pointer for what sequence to select notes from
   local isStarting = true
   local chord = {} -- The chord playing on this step in poly mode or this round in mono mode
   local inversionIndex = 1
-  local chordPosititon = 0
   local strategyIndex = 1 -- Default
   local chordDefinitionIndex = 1
   strategyPos = 1
@@ -1212,11 +1094,6 @@ function arpeg()
     local currentPosition = (index % totalNumSteps) + 1
     local startOfPart = false
     local partWasChanged = false
-    if sequencesPerPart.value == true then
-      sequencePartIndex = currentPartPosition
-    else
-      sequencePartIndex = 1
-    end
     print("currentPosition", currentPosition)
     -- Set part position
     for pp,sp in ipairs(partToStepMap) do
@@ -1224,46 +1101,6 @@ function arpeg()
         -- Set start of part
         startOfPart = true
         currentRound = currentRound + 1 -- Increment round counter
-        -- Store the recorded notes before changing parts
-        if #recordedNotes > 0 and maxSequences > 0 then
-
-          local storedSequences = {}
-          -- Include the already stored notes
-          if type(sequences[sequencePartIndex]) == "table" then
-            storedSequences = sequences[sequencePartIndex]
-          end
-
-          if type(sequences[sequencePartIndex]) ~= "table" or #sequences[sequencePartIndex] < maxSequences then
-            -- Add the recorded notes
-            table.insert(storedSequences, recordedNotes)
-            print("Added the recorded notes to #storedSequences", #storedSequences)
-          elseif replaceSequence.value == true then
-            -- When buffer is full, we insert the recorded notes at the current position (if replaceSequence option is true)
-            table.remove(storedSequences, sequenceCounter)
-            table.insert(storedSequences, sequenceCounter, recordedNotes)
-            print("Updated storedSequences index", sequenceCounter)
-          end
-
-          -- Increment sequence counter
-          if #storedSequences >= maxSequences then
-            sequenceCounter = sequenceCounter + 1
-            print("Increment sequenceCounter", sequenceCounter)
-            if sequenceCounter > maxSequences then
-              sequenceCounter = 1
-              print("Reset sequenceCounter", sequenceCounter)
-            end
-          end
-
-          table.remove(sequences, currentPartPosition)
-          table.insert(sequences, currentPartPosition, storedSequences)
-
-          if sequenceCounter > 0 then
-            sequenceMemoryLabel.text = sequenceMemoryLabel.displayName .. " (Recalling memory " .. sequenceCounter .. ")"
-          end
-
-          --print("SAVE SEQUENCE notes/sequences/currentPartPosition", #recordedNotes, #sequences[sequencePartIndex], currentPartPosition)
-        end
-        recordedNotes = {} -- Clear the recored notes
         -- Update part position
         partWasChanged = currentPartPosition ~= pp
         currentPartPosition = pp
@@ -1316,7 +1153,7 @@ function arpeg()
       --strategyIndex = 1
       chord = {} -- Reset chord
       inversionIndex = 1 -- Reset counter for inversion progress
-      chordPosititon = 0 -- Reset counter for chord progress TODO Param for this?
+      notePosititon = 0 -- Reset counter for chord progress TODO Param for this?
       chordDefinitionIndex = 1 -- Set default
       -- Find chord types to include
       local chords = paramsPerPart[currentPartPosition].chords
@@ -1342,53 +1179,6 @@ function arpeg()
       end
     end
 
-    if partWasChanged then
-      print("currentPartPosition after/partWasChanged", currentPartPosition, partWasChanged)
-      print("currentPosition after", currentPosition)
-      sequenceRepeatProbability = paramsPerPart[currentPartPosition].sequenceRepeatProbability.value
-      if sequencesPerPart.value == true then
-        sequencePartIndex = currentPartPosition
-      end
-      if type(sequences[sequencePartIndex]) == "table" then
-        if sequencesPerPart.value == true then
-          sequenceCounter = 1
-          print("Sequence counter reset due to part change", sequenceCounter)
-        else
-          print("No change needed for sequenceCounter", sequenceCounter)
-        end
-      else
-        sequenceCounter = 0
-        print("Sequence counter reset due to part change", sequenceCounter)
-      end
-    end
-
-    if maxSequences > 0 and (type(sequences[sequencePartIndex]) ~= "table" or #sequences[sequencePartIndex] < maxSequences) then
-      local seqNum = 1
-      if type(sequences[sequencePartIndex]) == "table" then
-        seqNum = #sequences[sequencePartIndex] + 1
-      end
-      sequenceMemoryLabel.text = sequenceMemoryLabel.displayName .. " (Generating sequence " .. (seqNum) .. ")"
-    end
-
-    local sequenceRepeatProbabilityDecay = paramsPerPart[currentPartPosition].sequenceRepeatProbabilityDecay.value
-    if type(sequenceRepeatProbability) ~= "number" then
-      sequenceRepeatProbability = paramsPerPart[currentPartPosition].sequenceRepeatProbability.value
-    end
-
-    if startOfPart and isStarting == false and sequenceRepeatProbability > 0 and maxSequences > 0 then
-      -- Calculate decay
-      local sequenceRepeatProbabilityThreshold = paramsPerPart[currentPartPosition].sequenceRepeatProbabilityThreshold.value
-      local changeMax = getChangeMax(sequenceRepeatProbability, sequenceRepeatProbabilityDecay)
-      local decay = math.ceil(changeMax / maxSequences)
-      print("Before decay/changeMax/sequenceRepeatProbability/sequenceRepeatProbabilityDecay", decay, changeMax, sequenceRepeatProbability, sequenceRepeatProbabilityDecay)
-      sequenceRepeatProbability = sequenceRepeatProbability - decay -- Decay
-      print("After decay sequenceRepeatProbability", sequenceRepeatProbability)
-      if sequenceRepeatProbability < sequenceRepeatProbabilityThreshold or sequenceRepeatProbabilityDecay == 0 then
-        sequenceRepeatProbability = paramsPerPart[currentPartPosition].sequenceRepeatProbability.value
-        print("Reset sequenceRepeatProbability", sequenceRepeatProbability)
-      end
-    end
-
     -- Get subdivision info
     local subdivisionRepeatProbability = paramsPerPart[currentPartPosition].subdivisionRepeatProbability.value
     local subdivisions = {}
@@ -1411,42 +1201,6 @@ function arpeg()
     local function getNoteToPlay()
       local minNote = paramsPerPart[currentPartPosition].minNote.value
       local maxNote = paramsPerPart[currentPartPosition].maxNote.value
-      local partSequences = sequences[sequencePartIndex]
-      -- Recall memory from stored sequence
-      if type(partSequences) == "table" and #partSequences >= maxSequences and getRandomBoolean(sequenceRepeatProbability) then
-        local sequence = {}
-        if #partSequences > 0 and getRandomBoolean(sequenceRepeatProbability) then
-          -- Select sequence by counter - check counter is valid!
-          if sequenceCounter > #partSequences then
-            sequenceCounter = #partSequences
-          elseif sequenceCounter == 0 then
-            sequenceCounter = 1
-          end
-          sequence = partSequences[sequenceCounter]
-          print("Getting sequence from sequenceCounter/#partSequences", sequenceCounter, #partSequences)
-        else
-          local sequenceIndex = getRandom(#partSequences)
-          sequence = partSequences[sequenceIndex]
-          print("Getting sequence from random sequenceIndex/#sequences@currentPartPosition", sequenceIndex, #partSequences)
-        end
-        local notesAtCurrentStep = {}
-        print("Finding note at tablePos", tablePos)
-        for _,v in ipairs(sequence) do
-          if v.step == tablePos and notesInclude(notes, v.note) == false and v.note >= minNote and v.note <= maxNote then
-            table.insert(notesAtCurrentStep, v)
-          end
-        end
-        print("Found notes at current step", #notesAtCurrentStep)
-        if #notesAtCurrentStep > 0 then
-          local note = notesAtCurrentStep[1]
-          print("SEQUENCE note/noteSteps/sequenceCounter/sequenceRepeatProbability", note.note, note.steps, sequenceCounter, sequenceRepeatProbability)
-          local subDivNotes = {}
-          for _,v in ipairs(note.notes) do
-            table.insert(subDivNotes, v)
-          end
-          return {note=note.note,step=tablePos,steps=note.steps,stepDuration=mainBeatDuration,notes=subDivNotes,subdivision=note.subdivision,stepCounter=0}
-        end
-      end
 
       -- Get the subdivision to use
       local function getSubdivision(currentDepth)
@@ -1613,9 +1367,9 @@ function arpeg()
             strategyIndex = getRandom(#strategies)
             print("Change strategy by random")
           end ]]
-          chordPosititon = getPositionFromStragegy(chordPosititon, chord, strategyIndex, currentPartPosition)
-          note = chord[chordPosititon]
-          print("Found note from chord - note, chordPosititon, strategyIndex", note, chordPosititon, strategyIndex)
+          notePosititon = getPositionFromStragegy(notePosititon, chord, strategyIndex, currentPartPosition)
+          note = chord[notePosititon]
+          print("Found note from chord - note, notePosititon, strategyIndex", note, notePosititon, strategyIndex)
         elseif getRandomBoolean(harmonizationPropbability) == true and currentDepth == 0 and polyphony > 1 and hasHarmonizeableScale == true then
           local startingNotes = {}
           for _,v in ipairs(notes) do
@@ -1720,8 +1474,8 @@ function arpeg()
         if type(note) == "nil" then
           if #chord > 0 and getRandomBoolean() then
             if getRandomBoolean(strategyPropbability) == true then
-              chordPosititon = getPositionFromStragegy(chordPosititon, chord, strategyIndex, currentPartPosition)
-              note = chord[chordPosititon]
+              notePosititon = getPositionFromStragegy(notePosititon, chord, strategyIndex, currentPartPosition)
+              note = chord[notePosititon]
               print("Get note from chord using strategy: note/baseMin/baseMax/strategyIndex", note, baseMin, baseMax, strategyIndex)
             else
               note = chord[getRandom(#chord)]
@@ -1730,8 +1484,8 @@ function arpeg()
           else
             local scale = getFilteredScale(currentPartPosition, baseMin, baseMax)
             if getRandomBoolean(strategyPropbability) == true then
-              chordPosititon = getPositionFromStragegy(chordPosititon, scale, strategyIndex, currentPartPosition)
-              note = scale[chordPosititon]
+              notePosititon = getPositionFromStragegy(notePosititon, scale, strategyIndex, currentPartPosition)
+              note = scale[notePosititon]
               print("Get note from scale using strategy: note/baseMin/baseMax/strategyIndex", note, baseMin, baseMax, strategyIndex)
             else
               note = scale[getRandom(#scale)]
@@ -1739,12 +1493,6 @@ function arpeg()
             end
           end
         end
-
-         -- Get random note
-        --[[ if type(note) == "nil" then
-          note = getRandom(baseMin, baseMax)
-          print("Get random note: note/baseMin/baseMax", note, baseMin, baseMax)
-        end ]]
 
         -- Check for minimum duration
         local subdivisionNotes = {}
@@ -1797,7 +1545,6 @@ function arpeg()
       local monoLimit = paramsPerPart[currentPartPosition].monoLimit.value
       while noteCounter < numberOfNotes and roundCounter < maxRounds do
         local noteToPlay = getNoteToPlay()
-        --if notesInclude(notes, noteToPlay.note) == false and (hasNoteWithinMonoLimit(notes, currentPartPosition) and noteToPlay.note < monoLimit) == false then
         if notesInclude(notes, noteToPlay.note) == false then
           table.insert(notes, noteToPlay)
           print("Insert note", noteToPlay.note)
@@ -1814,7 +1561,6 @@ function arpeg()
       -- Start playing when step counter is 0 (add an extra check for gate even though no notes should be added when gate is zero)
       if note.stepCounter == 0 then
         run(playSubdivision, note, currentPartPosition)
-        table.insert(recordedNotes, note)
         --print("Playing note/stepDuration/note.gate/note.steps/note.stepDuration", note.note, stepDuration, note.gate, note.steps, note.stepDuration)
       end
       -- Increment step counter
@@ -1897,29 +1643,32 @@ function onSave()
   local numStepsData = {}
   local seqVelTableData = {}
   local seqGateTableData = {}
+  local strategyInputData = {}
 
   for i=1, numParts do
     table.insert(numStepsData, paramsPerPart[i].numStepsBox.value)
+    table.insert(strategyInputData, paramsPerPart[i].strategyInput.text)
     for j=1, paramsPerPart[i].numStepsBox.value do
       table.insert(seqVelTableData, paramsPerPart[i].seqVelTable:getValue(j))
       table.insert(seqGateTableData, paramsPerPart[i].seqGateTable:getValue(j))
     end
   end
 
-  return {numStepsData, seqVelTableData, seqGateTableData, sequences}
+  return {numStepsData, seqVelTableData, seqGateTableData, strategyInputData}
 end
 
 function onLoad(data)
   local numStepsData = data[1]
   local seqVelTableData = data[2]
   local seqGateTableData = data[3]
-  sequences = data[4]
+  local strategyInputData = data[4]
 
   numPartsBox:setValue(#numStepsData)
 
   local dataCounter = 1
   for i,v in ipairs(numStepsData) do
     paramsPerPart[i].numStepsBox:setValue(v)
+    paramsPerPart[i].strategyInput.text = strategyInputData[i]
     paramsPerPart[i].seqVelTable.length = v
     paramsPerPart[i].seqGateTable.length = v
     for j=1, v do
