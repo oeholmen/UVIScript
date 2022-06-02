@@ -1227,7 +1227,7 @@ function arpeg(selectedPart)
 
       -- Always use the first inversion at the start of a part
       -- Otherwise we select an inversion by random
-      if startOfPart == false and polyphony > 1 then
+      if startOfPart == false then
         -- TODO Param for inversions
         inversionIndex = getRandom(#chordDefinitions[chordDefinitionIndex])
         print("Set random inversionIndex", inversionIndex)
