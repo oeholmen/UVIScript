@@ -31,14 +31,14 @@ local scaleDefinitions = {
   {2,2,1,2,2,1,2}, -- Mixolydian mode
   {1,2,2,1,2,2,2}, -- Locrian mode
   {2}, -- Whole tone scale
-  {2,2,3,2,3}, -- Major Pentatonic
+  --[[ {2,2,3,2,3}, -- Major Pentatonic
   {3,2,2,3,2}, -- Minor Pentatonic
   {5,2,5},
   {7,5},
   {12},
   {3},
   {5},
-  {7}
+  {7} ]]
 }
 local scaleNames = {
   "12 tone",
@@ -51,14 +51,14 @@ local scaleNames = {
   "Mixolydian",
   "Locrian",
   "Whole tone",
-  "Major Pentatonic",
+  --[[ "Major Pentatonic",
   "Minor Pentatonic",
   "1-4-5",
   "1-5",
   "1",
   "Dim",
   "Fours",
-  "Fives"
+  "Fives" ]]
 }
 -- *** NOTE *** The chord definitions use steps in the selected scale, not semitones.
 -- 2 means two steps up the scale: C-E for a C major scale. A-C for an A minor scale.
@@ -68,9 +68,9 @@ local chordDefinitions = {
   {2,2,2,1}, -- Builds 7th chords
   {3,1,3}, -- Builds supended chords
   {2,2,1,2}, -- Builds 6th chords
-  {2,2,2}, -- Builds 7/9/11/13 chords depending on polyphony
+  {2}, -- Builds 7/9/11/13 chords depending on polyphony
   {1,1,2,2,1}, -- Builds (close) 7th and 9th chords
-  {3}, -- Builds chords using only fourths
+  {4,3}, -- Builds open chords (no3)
   {1}, -- Builds chords using only seconds
   {1,2,1,2,1}, -- Builds supended chords including 7th and 9ths
 }
@@ -81,7 +81,7 @@ local chordDefinitionNames = {
   "6th",
   "7/9/11/13",
   "7th/9th",
-  "4th chords", -- This can be achieved using tonal/melodic strategies on scales
+  "No 3",
   "2nd chords",
   "Sus + 7/9",
 }
@@ -94,9 +94,11 @@ local strategies = {
   {-1,1,-2,-1,3}, -- Generated 1
   {3,1,-1,2}, -- Generated 2
   {-3,2}, -- Generated 3
-  {2,2,3}, -- Triads up
-  {-3,-2,-2}, -- Triads down
-  {-1,1}, -- Back and forth
+  {2,2,3}, -- Up v 2
+  {-3,-2,-2}, -- Down v 2
+  {3,-2,7},
+  {-5,4,4},
+  {7,7,-5},
 }
 local notes = {} -- Holds the playing notes - notes are removed when they are finished playing
 local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
@@ -273,32 +275,6 @@ function getNoteAccordingToScale(scale, noteToPlay)
     end
   end
   return noteToPlay
-end
-
-function getMaxDepthFromBeatDuration(resolution, partPosition)
-  local depth = 1
-  local subdivision = 1
-  local subdivisions = {}
-  local minResolution = getResolution(paramsPerPart[partPosition].subdivisionMinResolution.value)
-
-  -- Find active subdivisions
-  for i,v in ipairs(paramsPerPart[partPosition].subdivisions) do
-    if v.value == true then
-      table.insert(subdivisions, i)
-    end
-  end
-
-  if #subdivisions > 0 then
-    subdivision = subdivisions[#subdivisions]
-  end
-
-  if subdivision > 1 then
-    depth = math.ceil(math.abs((math.log((minResolution/resolution))/math.log(subdivision))))
-  end
-
-  print("Found depth/resolution/subdivision/minResolution", depth, resolution, subdivision, minResolution)
-
-  return depth
 end
 
 function getVelocity(part, step, skipRandomize)
@@ -519,6 +495,7 @@ numPartsBox.changed = function(self)
     table.insert(partSelect, "Part " .. i)
     if paramsPerPart[i].init == false then
       -- Copy initial settings from prev part
+      print("Copy initial settings from prev part", i-1)
       local prev = paramsPerPart[i-1]
       paramsPerPart[i].polyphony.value = prev.polyphony.value
       paramsPerPart[i].key.value = prev.key.value
@@ -538,7 +515,7 @@ numPartsBox.changed = function(self)
       paramsPerPart[i].subdivisionProbability.value = prev.subdivisionProbability.value
       paramsPerPart[i].subdivisionRepeatProbability.value = prev.subdivisionRepeatProbability.value
       paramsPerPart[i].subdivisionMinResolution.value = prev.subdivisionMinResolution.value
-      paramsPerPart[i].init = prev.init
+      paramsPerPart[i].init = true
     end
   end
   clearPosition()
@@ -1059,7 +1036,7 @@ function arpeg()
   local isStarting = true
   --local chord = {} -- The chord the generator can choose from.
   local scale = {} -- The scale the generator can choose from.
-  local inversionIndex = 1
+  local inversionIndex = 0
   local chordDefinitionIndex = 1
   local notePosition = {0} -- Holds the current note position in chord/scale (per voice)
   local strategyIndex = {1} -- Holds the selected strategy (per voice)
@@ -1113,21 +1090,23 @@ function arpeg()
     -- Number of simultainious notes are set by polyphony
     local polyphony = paramsPerPart[currentPartPosition].polyphony.value
     local mainBeatDuration = getResolution(paramsPerPart[currentPartPosition].stepResolution.value)
-    local maxDepth = getMaxDepthFromBeatDuration(mainBeatDuration, currentPartPosition)
 
     if startOfPart == true then
       if getRandomBoolean() then
         table.insert(strategies, createStrategy(currentPartPosition))
         print("Added a new strategy. Total strategies are: ", #strategies)
       end
-      for voice=1, #strategyIndex do
-        strategyIndex[voice] = getRandom(#strategies)
+      for voice=1,#strategyIndex do
+        strategyIndex[voice] = getRandom(#strategies) -- Set random strategy
+      end
+      for voice=1,#notePosition do
+        notePosition[voice] = 0 -- Reset note positions at the start of each part
       end
     end
 
     --chord = {} -- Reset chord
     scale = {} -- Reset scale
-    inversionIndex = 1 -- Reset counter for inversion progress
+    inversionIndex = 0 -- Reset counter for inversion progress
     chordDefinitionIndex = 1 -- Set default
     -- Find chord types to include
     local chords = paramsPerPart[currentPartPosition].chords
@@ -1187,7 +1166,7 @@ function arpeg()
 
       -- Ensure voice has a strategy!
       if type(strategyIndex[voice]) == "nil" then
-        strategyIndex[voice] = getRandom(#strategies)
+        strategyIndex[voice] = 1--getRandom(#strategies)
         print("Set strategy index for voice", strategyIndex[voice], voice)
       end
 
@@ -1207,17 +1186,12 @@ function arpeg()
           print("subdivisionProbability/currentDepth", subdivisionProbability, currentDepth)
         end
         local subdivision = 1 -- Set default
-        if currentDepth == maxDepth then
-          -- Ensure we do not subdivide deeper
-          print("Max depth reached", currentDepth)
-        else
-          if #subdivisions == 1 then
-            subdivision = subdivisions[1]
-            print("SET SELECTED subdivision", subdivision)
-          elseif #subdivisions > 1 and getRandomBoolean(subdivisionProbability) then
-            subdivision = subdivisions[getRandom(#subdivisions)]
-            print("SET RANDOM subdivision", subdivision)
-          end
+        if #subdivisions == 1 then
+          subdivision = subdivisions[1]
+          print("SET SELECTED subdivision", subdivision)
+        elseif #subdivisions > 1 and getRandomBoolean(subdivisionProbability) then
+          subdivision = subdivisions[getRandom(#subdivisions)]
+          print("SET RANDOM subdivision", subdivision)
         end
         return subdivision
       end
@@ -1283,6 +1257,11 @@ function arpeg()
           -- Get the remaining notes for the note selection
           local inversionPos = inversionIndex
           while hasHarmonizeableScale == true do
+            -- Increment inversion pos
+            inversionPos = inversionPos + 1
+            if inversionPos > #chordDefinitions[chordDefinitionIndex] then
+              inversionPos = 1
+            end
             -- Find the scale index for the current note
             local scaleIndex = getNextScaleIndex(currentNote, fullScale, chordDefinitionIndex, inversionPos)
             -- Set the current note and note name
@@ -1300,11 +1279,6 @@ function arpeg()
             end
             table.insert(chordTable, currentNote)
             print("Add note to chord note, noteName, scaleIndex, inversionPos", currentNote, noteName, scaleIndex, inversionPos)
-            -- Increment inversion pos
-            inversionPos = inversionPos + 1
-            if inversionPos > #chordDefinitions[chordDefinitionIndex] then
-              inversionPos = 1
-            end
           end
           return chordTable
         end
@@ -1324,13 +1298,13 @@ function arpeg()
               noteRange = math.ceil(noteRange / polyphony)
               print("Calculate range for base note baseMin/baseMax/noteRange", baseMin, baseMax, noteRange)
             end
-            --if type(notePosition[voice]) == "nil" then
+            if notePosition[voice] == 0 then
               baseNote = getNoteAccordingToScale(scale, (baseNote + getRandom(noteRange) - 1))
               notePosition[voice] = getIndexFromValue(baseNote, scale)
-            --end
+            end
             notePosition, strategyPos = getNotePositionFromStrategy(scale, notePosition, strategyIndex, strategyPos, currentPartPosition, voice)
             baseNote = scale[notePosition[voice]]
-            print("Get base note from scale using strategy: note/minNote/maxNote/strategyIndex", note, minNote, maxNote, strategyIndex[voice])
+            print("Get base note from scale using strategy: note/minNote/maxNote/strategyIndex", baseNote, baseMin, baseMax, strategyIndex[voice])
           end
 
           return baseNote
@@ -1373,7 +1347,7 @@ function arpeg()
             if validateBaseNote(baseNote) == true then
               note = baseNote
               -- Create chord from the base note
-              --chord = getChord(baseNote)
+              --chord = getChord(note)
               --print("Get #chord", #chord)
               break
             end
@@ -1401,7 +1375,11 @@ function arpeg()
               prevNote = transpose(prevNote, baseMin, baseMax)
               print("Transposing prevNote to within range", prevNote)
             end
-
+            -- Increment inversion index
+            inversionIndex = inversionIndex + 1
+            if inversionIndex > #chordDefinitions[chordDefinitionIndex] then
+              inversionIndex = 1
+            end
             local fullScale = paramsPerPart[currentPartPosition].fullScale
             local scaleIndex = getNextScaleIndex(prevNote, fullScale, chordDefinitionIndex, inversionIndex)
             -- Ensure note is within range
@@ -1419,10 +1397,6 @@ function arpeg()
             if octaveOffset > 0 and note + octaveOffset <= baseMax then
               note = note + octaveOffset
               print("Octave adjusted octave/octaveOffset/note", octave, octaveOffset, note)
-            end
-            inversionIndex = inversionIndex + 1
-            if inversionIndex > #chordDefinitions[chordDefinitionIndex] then
-              inversionIndex = 1
             end
             print("Found note from prev note - note, prevNote", note, prevNote)
           end

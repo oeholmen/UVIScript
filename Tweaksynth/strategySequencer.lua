@@ -90,6 +90,9 @@ local strategies = {
   {-3,2}, -- Generated 3
   {2,2,3}, -- Up v 2
   {-3,-2,-2}, -- Down v 2
+  {3,-2,7},
+  {-5,4,4},
+  {7,7,-5},
 }
 local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
 local noteNumberToNoteName = {} -- Used for mapping - does not include octave, only name of note (C, C#...)
@@ -108,7 +111,19 @@ setBackgroundColour(backgroundColour)
 -- Scale and note functions
 --------------------------------------------------------------------------------
 
-function getNotePositionFromStrategy(notesTable, notePosition, strategyIndex, strategyPos, partPos)
+function getNotePositionFromHeldNotes(partPos, scale)
+  local minNote = paramsPerPart[partPos].minNote.value
+  local maxNote = paramsPerPart[partPos].maxNote.value
+  local noteInput = transpose(getNoteAccordingToScale(scale, heldNotes[#heldNotes].note), minNote, maxNote)  
+  local index = getIndexFromValue(noteInput, scale)
+  print("Resetting to noteInput/notePosition", noteInput, index)
+  return index
+end
+
+function getNoteFromStrategy(notePosition, strategyIndex, strategyPos, partPos)
+  local minNote = paramsPerPart[partPos].minNote.value
+  local maxNote = paramsPerPart[partPos].maxNote.value
+  local scale = paramsPerPart[partPos].fullScale
   local strategy = {}
   local input = paramsPerPart[partPos].strategyInput
   if input.enabled == true and string.len(input.text) > 0 then
@@ -130,27 +145,33 @@ function getNotePositionFromStrategy(notesTable, notePosition, strategyIndex, st
   print("Get strategy strategyIndex, strategyPos, increment, notePosition", strategyIndex, strategyPos, strategy[strategyPos], notePosition)
   if notePosition == 0 then
     -- Start at the last held note
-    local noteInput = getNoteAccordingToScale(paramsPerPart[partPos].fullScale, heldNotes[#heldNotes].note)
-    notePosition = getIndexFromValue(noteInput, notesTable)
+    notePosition = getNotePositionFromHeldNotes(partPos, scale)
     if paramsPerPart[partPos].strategyRestart.value == 1 then
       strategyPos = 1
     end
-    print("Set notePosition from notesTable", notePosition, #notesTable)
   else
     -- Get next notePosition from strategy
     notePosition = notePosition + strategy[strategyPos]
     print("Set notePosition", notePosition)
-    if notePosition > #notesTable then
-      print("Reset notePosition > #notesTable", notePosition, #notesTable)
-      local noteInput = getNoteAccordingToScale(paramsPerPart[partPos].fullScale, heldNotes[#heldNotes].note)
-      notePosition = getIndexFromValue(noteInput, notesTable)
+    if scale[notePosition] > maxNote then
+      print("Reset scale[notePosition] > maxNote", scale[notePosition], maxNote)
+      -- TODO Param for options
+      -- Option 1: Transpose to lowest octave in range
+      --local transposedNote = transpose(scale[notePosition], minNote, (minNote+12))
+      --notePosition = getIndexFromValue(transposedNote, scale)
+      -- Option 2: Reset to the input note from heldnotes
+      notePosition = getNotePositionFromHeldNotes(partPos, scale)
       if paramsPerPart[partPos].strategyRestart.value == 2 then
         strategyPos = 1
       end
-    elseif notePosition < 1 then
-      print("Reset notePosition < 1", notePosition)
-      local noteInput = getNoteAccordingToScale(paramsPerPart[partPos].fullScale, heldNotes[#heldNotes].note)
-      notePosition = getIndexFromValue(noteInput, notesTable)
+    elseif scale[notePosition] < minNote then
+      print("Reset scale[notePosition] < minNote", scale[notePosition], minNote)
+      -- TODO Param for options
+      -- Option 1: Transpose to top octave
+      local transposedNote = transpose(scale[notePosition], (maxNote-12), maxNote)
+      notePosition = getIndexFromValue(transposedNote, scale)
+      -- Option 2: Reset to the input note from heldnotes
+      --notePosition = getNotePositionFromHeldNotes(partPos, scale)
       if paramsPerPart[partPos].strategyRestart.value == 2 then
         strategyPos = 1
       end
@@ -162,7 +183,8 @@ function getNotePositionFromStrategy(notesTable, notePosition, strategyIndex, st
       end
     end
   end
-  return notePosition, strategyPos
+  local note = scale[notePosition]
+  return note, notePosition, strategyPos
 end
 
 function getFilteredScale(part, minNote, maxNote)
@@ -987,6 +1009,9 @@ function arpeg()
       end
       if paramsPerPart[currentPartPosition].strategyRestart.value == 1 or paramsPerPart[currentPartPosition].strategyRestart.value == 4 then
         notePosition = 0 -- Reset counter for note position
+        if paramsPerPart[currentPartPosition].strategyRestart.value == 4 then
+          strategyPos = 1 -- Reset strategy position
+        end
       end
     end
 
@@ -1062,13 +1087,14 @@ function arpeg()
         end
 
         local note = nil
-        local scale = getFilteredScale(currentPartPosition)--paramsPerPart[currentPartPosition].fullScale
+        --local scale = getFilteredScale(currentPartPosition)
+        --local scale = paramsPerPart[currentPartPosition].fullScale
         local strategyPropbability = paramsPerPart[currentPartPosition].strategyPropbability.value
         if getRandomBoolean(strategyPropbability) == true then
-          notePosition, strategyPos = getNotePositionFromStrategy(scale, notePosition, strategyIndex, strategyPos, currentPartPosition)
-          note = scale[notePosition]
-          print("Get note from scale using strategy: note/strategyIndex", note, strategyIndex)
+          note, notePosition, strategyPos = getNoteFromStrategy(notePosition, strategyIndex, strategyPos, currentPartPosition)
+          print("Get note from scale using strategy: note/strategyPos/strategyIndex", note, strategyPos, strategyIndex)
         else
+          local scale = getFilteredScale(currentPartPosition)
           note = scale[getRandom(#scale)]
           print("Get random note from scale: note/minNote/maxNote", note, minNote, maxNote)
         end
@@ -1112,7 +1138,7 @@ function arpeg()
     -- Play this step - If gate is set to zero, no notes will play on this step
     --------------------------------------------------------------------------------
 
-    if getGate(currentPartPosition, tablePos, true) > 0 and #notes == 0 then
+    if getGate(currentPartPosition, tablePos) > 0 and #notes == 0 then
       table.insert(notes, getNoteToPlay())
       print("Added note for step", tablePos)
     end
