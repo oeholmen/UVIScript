@@ -121,6 +121,7 @@ function getNotePositionFromStrategy(notesTable, notePosition, strategyIndex, st
   if notePosition == 0 then
     -- Start at a random notePosition
     notePosition = getRandom(#notesTable)
+    strategyPos = 1
     print("Set random notePosition from notesTable", notePosition, #notesTable)
   else
     -- Get next notePosition from strategy

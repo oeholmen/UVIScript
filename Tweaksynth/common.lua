@@ -20,6 +20,16 @@ function transpose(note, min, max)
   return note
 end
 
+function getIndexFromValue(value, selection)
+  for i,v in ipairs(selection) do
+    if v == value then
+      print("Found index", i)
+      return i
+    end
+  end
+  return 1
+end
+
 function round(value)
   local int, frac = math.modf(value)
   print("int/frac", int, frac)

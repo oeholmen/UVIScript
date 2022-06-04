@@ -19,10 +19,11 @@ panel.height = 50
 local label = panel:Label("Label")
 label.text = "Humanizer"
 label.alpha = 0.5
-label.backgroundColour = "#020202"
+label.backgroundColour = "#2C2891"
+label.textColour = "white"
 label.fontSize = 22
 label.position = {0,0}
-label.size = {120,25}
+label.size = {105,25}
 
 local amount = panel:Knob("Amount", 0, 0, 100, true)
 amount.unit = Unit.Percent
