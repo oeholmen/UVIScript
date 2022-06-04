@@ -123,6 +123,9 @@ function getNotePositionFromStrategy(notesTable, notePosition, strategyIndex, st
   -- Reset strategy position
   if strategyPos > #strategy then
     strategyPos = 1
+    if paramsPerPart[partPos].strategyRestart.value == 3 or paramsPerPart[partPos].strategyRestart.value == 4 then
+      notePosition = 0 -- Reset counter for note position
+    end
   end
   print("Get strategy strategyIndex, strategyPos, increment, notePosition", strategyIndex, strategyPos, strategy[strategyPos], notePosition)
   if notePosition == 0 then
@@ -206,13 +209,6 @@ function createFullScale(part)
   --print("Full scale contains notes:", #paramsPerPart[part].fullScale)
 end
 
--- Use the selected chord definition to find the index for the next note in the chord
---[[ function getNextScaleIndex(note, scale, chordDefinitionIndex, inversionIndex)
-  local index = getIndexFromValue(note, scale)
-  local increment = chordDefinitions[chordDefinitionIndex][inversionIndex]
-  return index + increment
-end ]]
-
 function getNoteAccordingToScale(scale, noteToPlay)
   for _,note in ipairs(scale) do
     if note == noteToPlay then
@@ -223,32 +219,6 @@ function getNoteAccordingToScale(scale, noteToPlay)
     end
   end
   return noteToPlay
-end
-
-function getMaxDepthFromBeatDuration(resolution, partPosition)
-  local depth = 1
-  local subdivision = 1
-  local subdivisions = {}
-  local minResolution = getResolution(paramsPerPart[partPosition].subdivisionMinResolution.value)
-
-  -- Find active subdivisions
-  for i,v in ipairs(paramsPerPart[partPosition].subdivisions) do
-    if v.value == true then
-      table.insert(subdivisions, i)
-    end
-  end
-
-  if #subdivisions > 0 then
-    subdivision = subdivisions[#subdivisions]
-  end
-
-  if subdivision > 1 then
-    depth = math.ceil(math.abs((math.log((minResolution/resolution))/math.log(subdivision))))
-  end
-
-  print("Found depth/resolution/subdivision/minResolution", depth, resolution, subdivision, minResolution)
-
-  return depth
 end
 
 function getVelocity(part, step, skipRandomize)
@@ -378,37 +348,6 @@ holdButton.changed = function(self)
   end
 end
 
---[[ local autoplayButton = sequencerPanel:OnOffButton("AutoPlay", true)
-autoplayButton.backgroundColourOff = "#ff084486"
-autoplayButton.backgroundColourOn = "#ff02ACFE"
-autoplayButton.textColourOff = "#ff22FFFF"
-autoplayButton.textColourOn = "#efFFFFFF"
-autoplayButton.fillColour = "#dd000061"
-autoplayButton.displayName = "Auto Play"
-autoplayButton.tooltip = "Play automatically on transport"
-autoplayButton.size = {102,22}
-autoplayButton.x = focusButton.x + focusButton.width + 5
-autoplayButton.y = 0
-
-local playButton = sequencerPanel:OnOffButton("Play", false)
-playButton.persistent = false
-playButton.backgroundColourOff = "#ff084486"
-playButton.backgroundColourOn = "#ff02ACFE"
-playButton.textColourOff = "#ff22FFFF"
-playButton.textColourOn = "#efFFFFFF"
-playButton.fillColour = "#dd000061"
-playButton.displayName = "Play"
-playButton.size = {102,22}
-playButton.x = autoplayButton.x + autoplayButton.width + 5
-playButton.y = 0
-playButton.changed = function(self)
-  if self.value == true then
-    startPlaying()
-  else
-    stopPlaying()
-  end
-end ]]
-
 local editPartMenu = sequencerPanel:Menu("EditPart", partSelect)
 editPartMenu.backgroundColour = menuBackgroundColour
 editPartMenu.textColour = menuTextColour
@@ -440,7 +379,6 @@ editPartMenu.changed = function(self)
     v.maxNote.visible = isVisible
     v.key.visible = isVisible
     v.scale.visible = isVisible
-    --v.harmonizationPropbability.visible = isVisible
     v.strategyInput.visible = isVisible
     v.createStrategyButton.visible = isVisible
     v.autoStrategyButton.visible = isVisible
@@ -454,14 +392,9 @@ editPartMenu.changed = function(self)
     for _,s in ipairs(v.subdivisions) do
       s.visible = isVisible
     end
-    --[[ for _,c in ipairs(v.chords) do
-      c.visible = isVisible
-    end ]]
   end
   setTableWidths()
 end
-
---local polyButton = sequencerPanel:OnOffButton("PolyButton", false)
 
 local numPartsBox = sequencerPanel:NumBox("Parts", 1, 1, 8, true)
 numPartsBox.tooltip = "The number of parts in the sequence"
@@ -492,7 +425,6 @@ numPartsBox.changed = function(self)
       local prev = paramsPerPart[i-1]
       paramsPerPart[i].key.value = prev.key.value
       paramsPerPart[i].scale.value = prev.scale.value
-      --paramsPerPart[i].harmonizationPropbability.value = prev.harmonizationPropbability.value
       paramsPerPart[i].strategyInput.value = prev.strategyInput.value
       paramsPerPart[i].strategyPropbability.value = prev.strategyPropbability.value
       paramsPerPart[i].strategyRestart.value = prev.strategyRestart.value
@@ -513,9 +445,6 @@ numPartsBox.changed = function(self)
     end
   end
   clearPosition()
-  --[[ if polyButton.value == true then
-    stopPlaying()
-  end ]]
   editPartMenu.items = partSelect
   editPartMenu:setValue(#partSelect)
 end
@@ -532,20 +461,6 @@ partRandBox.y = editPartMenu.y + editPartMenu.height + 5
 partRandBox.changed = function(self)
   partRandomizationAmount = self.value
 end
-
---[[ polyButton.displayName = "Poly"
-polyButton.tooltip = "In poly mode, parts are played in parallell, instead of sequential."
-polyButton.width = numPartsBox.width - 5
-polyButton.x = numPartsBox.x + numPartsBox.width + 5
-polyButton.y = numPartsBox.y
-polyButton.backgroundColourOff = "#ff084486"
-polyButton.backgroundColourOn = "#ff02ACFE"
-polyButton.textColourOff = "#ff22FFFF"
-polyButton.textColourOn = "#efFFFFFF"
-polyButton.changed = function(self)
-  partRandBox.enabled = self.value == false
-  stopPlaying()
-end ]]
 
 --------------------------------------------------------------------------------
 -- Functions
@@ -571,14 +486,8 @@ function startPlaying()
   if isPlaying == true then
     return
   end
-  --[[ if polyButton.value == true then
-    for i=1,numPartsBox.value do
-      spawn(arpeg, i)
-    end
-  else ]]
-    spawn(arpeg)
-  --end
   isPlaying = true
+  spawn(arpeg)
 end
 
 function stopPlaying()
@@ -640,17 +549,11 @@ end
 local subdivisionProbabilityLabel = sequencerPanel:Label("SubdivisionProbabilityLabel")
 subdivisionProbabilityLabel.text = "Subdivision"
 
---[[ local chordProbabilityLabel = sequencerPanel:Label("ChordProbabilityProbabilityLabel")
-chordProbabilityLabel.text = "Chords"
-chordProbabilityLabel.tooltip = "Choose the probability that chords will be included when harmonizing" ]]
-
 local strategyLabel = sequencerPanel:Label("StrategyLabel")
 strategyLabel.text = "Strategy"
 
 -- Add params that are to be editable per part
 for i=1,numPartsBox.max do
-  --print("Set paramsPerPart", i)
-
   local partsTable = sequencerPanel:Table("Parts" .. i, 1, 0, 0, 1, true)
   partsTable.enabled = false
   partsTable.persistent = false
@@ -807,22 +710,8 @@ for i=1,numPartsBox.max do
   generateScalePart.textColour = menuTextColour
   generateScalePart.arrowColour = menuArrowColour
   generateScalePart.outlineColour = menuOutlineColour
-
---[[   local harmonizationPropbability = sequencerPanel:NumBox("HarmonizationPropbability" .. i, 100, 0, 100, true)
-  harmonizationPropbability.enabled = false
-  harmonizationPropbability.displayName = "Harmonize"
-  harmonizationPropbability.tooltip = "When harmonizing, we get notes from the currently playing chord. Otherwise notes are selected from the current scale."
-  harmonizationPropbability.unit = Unit.Percent
-  harmonizationPropbability.height = 20
-  harmonizationPropbability.width = generateScalePart.width
-  harmonizationPropbability.x = generateScalePart.x
-  harmonizationPropbability.y = generateScalePart.y + generateScalePart.height + 5
-  harmonizationPropbability.backgroundColour = menuBackgroundColour
-  harmonizationPropbability.textColour = menuTextColour
- ]]
   generateScalePart.changed = function(self)
     createFullScale(i)
-    --harmonizationPropbability.enabled = canHarmonizeScale(self)
   end
 
   local velRandomization = sequencerPanel:NumBox("VelocityRandomization" .. i, 0, 0, 100, true)
@@ -862,7 +751,6 @@ for i=1,numPartsBox.max do
     subdivision.tooltip = "Activate subdivision"
     subdivision.height = 20
     subdivision.width = 25
-    --subdivision.x = (subdivisionProbabilityLabel.x+28) + ((j-2) * (subdivision.width+3.0))
     subdivision.x = subdivisionProbabilityLabel.x + ((j-1) * (subdivision.width+2.8))
     subdivision.y = subdivisionProbabilityLabel.y + subdivisionProbabilityLabel.height + 5
     table.insert(subdivisions, subdivision)
@@ -900,40 +788,6 @@ for i=1,numPartsBox.max do
   subdivisionRepeatProbability.backgroundColour = menuBackgroundColour
   subdivisionRepeatProbability.textColour = menuTextColour
 
---[[   if i == 1 then
-    chordProbabilityLabel.width = editPartMenu.width
-    chordProbabilityLabel.x = stepResolution.x
-    chordProbabilityLabel.y = subdivisionProbabilityLabel.y
-  end
- ]]
-  -- Chords
---[[   local chords = {}
-  local perRow = 2
-  local columnCount = 0
-  local rowCount = 1
-  for j,v in ipairs(chordDefinitionNames) do
-    local defaultValue = 0
-    if j < 6 then
-      defaultValue = 120 - (j * 20)
-    end
-    local chordProbability = sequencerPanel:NumBox("ChordProbability" .. i .. j, defaultValue, 0, 100, true)
-    chordProbability.displayName = v
-    chordProbability.tooltip = "Probability that " .. v .. " will be included"
-    chordProbability.unit = Unit.Percent
-    chordProbability.height = 20
-    chordProbability.width = editPartMenu.width
-    chordProbability.x = chordProbabilityLabel.x + (columnCount * (chordProbability.width + 10))
-    chordProbability.y = chordProbabilityLabel.y + ((chordProbability.height + 5) * rowCount)
-    chordProbability.backgroundColour = menuBackgroundColour
-    chordProbability.textColour = menuTextColour
-    table.insert(chords, chordProbability)
-    columnCount = columnCount + 1
-    if j % perRow == 0 then
-      rowCount = rowCount + 1
-      columnCount = 0
-    end
-  end ]]
-
   if i == 1 then
     strategyLabel.x = editPartMenu.x
     strategyLabel.y = subdivisionProbabilityLabel.y
@@ -952,7 +806,7 @@ for i=1,numPartsBox.max do
   strategyPropbability.backgroundColour = menuBackgroundColour
   strategyPropbability.textColour = menuTextColour
 
-  local strategyRestart = sequencerPanel:Menu("StrategyRestart" .. i, {"Restart each round", "Out of range", "When finished"})
+  local strategyRestart = sequencerPanel:Menu("StrategyRestart" .. i, {"Restart each round", "Out of range", "When finished", "Finished+round"})
   strategyRestart.tooltip = "Choose when a strategy restarts"
   strategyRestart.showLabel = false
   strategyRestart.height = 20
@@ -985,7 +839,7 @@ for i=1,numPartsBox.max do
 
   local strategyInput = sequencerPanel:Label("StrategyInput" .. i)
   strategyInput.text = table.concat(strategies[getRandom(#strategies)], ",")
-  strategyInput.tooltip = "Strategies are ways to play chords and scales. Numbers represent steps up or down the scale or chord that is currently playing."
+  strategyInput.tooltip = "Strategies are ways to play chords and scales. Numbers represent steps up or down the scale or chord that is currently playing. Feel free to type your own strategies here."
   strategyInput.editable = true
   strategyInput.backgroundColour = menuBackgroundColour
   strategyInput.backgroundColourWhenEditing = "purple"
@@ -1029,14 +883,7 @@ function playSubdivision(note, partPos)
       if gate > 0 then
         local playDuration = waitDuration * (gate / 100)
         local noteToPlay = note.note
-        --local noteToPlay = getNoteAccordingToScale(scale, note.note)
-        --noteToPlay = transpose(noteToPlay, paramsPerPart[partPos].minNote.value, paramsPerPart[partPos].maxNote.value)
         print("PlaySubdivision partPos/i/noteToPlay/noteName/duration/subdivision", partPos, i, noteToPlay, noteNumberToNoteName[noteToPlay+1], playDuration, note.subdivision)
-        -- If the key is already playing, send a note off event before playing the note
-        --[[ if isKeyDown(noteToPlay) then
-          postEvent({type=Event.NoteOff, note=noteToPlay, velocity=0})
-          print("isKeyDown/noteToPlay", isKeyDown(noteToPlay), noteToPlay)
-        end ]]
         playNote(noteToPlay, getVelocity(partPos, note.step), beat2ms(playDuration)-1)
       end
     else
@@ -1047,26 +894,20 @@ function playSubdivision(note, partPos)
   end
 end
 
-function arpeg(selectedPart)
+function arpeg()
   local index = 0
   local currentStep = 0 -- Holds the current step in the round that is being played
   local currentRound = 0 -- Counter for rounds
   local currentPartPosition = 1 -- Holds the currently playing part
   local notes = {} -- Holds the playing notes - notes are removed when they are finished playing
   local isStarting = true
-  --local chord = {} -- The chord the generator can choose from.
-  --local scale = {} -- The scale the generator can choose from.
-  --local inversionIndex = 1
-  --local chordDefinitionIndex = 1
   local strategyIndex = 1 -- Holds the selected strategy
   local strategyPos = 1 -- Holds the position in the selected strategy
-  local polyMode = type(selectedPart) == "number"
+  print("Start playing!")
 
   -- START ARP LOOP
   while isPlaying do
 
-    -- Reset notes table
-    --local notes = {} -- Holds the note(s) that plays at this position
     local offset = 0
     if #heldNotes == 0 then
       local buffer = 1 -- How long to wait for notes before stopping the sequencer
@@ -1076,8 +917,7 @@ function arpeg(selectedPart)
     end
     if #heldNotes == 0 then
       print("#heldNotes == 0 - stopping sequencer")
-      clearPosition()
-      isPlaying = false
+      stopPlaying()
       break
     end
 
@@ -1092,11 +932,9 @@ function arpeg(selectedPart)
         -- Set start of part
         startOfPart = true
         currentRound = currentRound + 1 -- Increment round counter
-        if polyMode == false then
-          -- Update part position
-          partWasChanged = currentPartPosition ~= pp
-          currentPartPosition = pp
-        end
+        -- Update part position
+        partWasChanged = currentPartPosition ~= pp
+        currentPartPosition = pp
         break
       end
     end
@@ -1109,10 +947,7 @@ function arpeg(selectedPart)
 
     -- Check if we are at the start of a part
     if startOfPart and numParts > 1 then
-      if polyMode == true then
-        partWasChanged = false
-        currentPartPosition = selectedPart
-      elseif focusButton.value == true then
+      if focusButton.value == true then
         partWasChanged = currentPartPosition ~= editPartMenu.value
         currentPartPosition = editPartMenu.value
       elseif isStarting == false and getRandomBoolean(partRandomizationAmount) then
@@ -1129,9 +964,7 @@ function arpeg(selectedPart)
       index = currentPosition - 1
     end
 
-    -- Number of simultainious notes are set by polyphony
     local mainBeatDuration = getResolution(paramsPerPart[currentPartPosition].stepResolution.value)
-    local maxDepth = getMaxDepthFromBeatDuration(mainBeatDuration, currentPartPosition)
 
     if startOfPart == true then
       -- Create a random strategy
@@ -1152,28 +985,9 @@ function arpeg(selectedPart)
       if autoStrategy == true then
         paramsPerPart[currentPartPosition].strategyInput.text = table.concat(strategies[strategyIndex], ",")
       end
-      --chord = {} -- Reset chord
-      --scale = {} -- Reset scale
-      --inversionIndex = 1 -- Reset counter for inversion progress
-      if true then -- TODO Param
+      if paramsPerPart[currentPartPosition].strategyRestart.value == 1 or paramsPerPart[currentPartPosition].strategyRestart.value == 4 then
         notePosition = 0 -- Reset counter for note position
       end
-      --chordDefinitionIndex = 1 -- Set default
-      -- Find chord types to include
-      --[[ local chords = paramsPerPart[currentPartPosition].chords
-      local activeChordDefinitions = {}
-      for i,v in ipairs(chords) do
-        if getRandomBoolean(v.value) == true then
-          table.insert(activeChordDefinitions, i)
-        end
-      end
-
-      if #activeChordDefinitions > 0 then
-        -- Get a chord def index from the active definitions
-        chordDefinitionIndex = activeChordDefinitions[getRandom(#activeChordDefinitions)]
-        print("Chord inversions selected by random/#activeChordDefinitions", chordDefinitionIndex, #activeChordDefinitions)
-        inversionIndex = getRandom(#chordDefinitions[chordDefinitionIndex]) -- Randomize inversion
-      end ]]
     end
 
     -- Get subdivision info
@@ -1206,17 +1020,12 @@ function arpeg(selectedPart)
           print("subdivisionProbability/currentDepth", subdivisionProbability, currentDepth)
         end
         local subdivision = 1 -- Set default
-        if currentDepth == maxDepth then
-          -- Ensure we do not subdivide deeper
-          print("Max depth reached", currentDepth)
-        else
-          if #subdivisions == 1 then
-            subdivision = subdivisions[1]
-            print("SET SELECTED subdivision", subdivision)
-          elseif #subdivisions > 1 and getRandomBoolean(subdivisionProbability) then
-            subdivision = subdivisions[getRandom(#subdivisions)]
-            print("SET RANDOM subdivision", subdivision)
-          end
+        if #subdivisions == 1 then
+          subdivision = subdivisions[1]
+          print("SET SELECTED subdivision", subdivision)
+        elseif #subdivisions > 1 and getRandomBoolean(subdivisionProbability) then
+          subdivision = subdivisions[getRandom(#subdivisions)]
+          print("SET RANDOM subdivision", subdivision)
         end
         return subdivision
       end
@@ -1238,34 +1047,6 @@ function arpeg(selectedPart)
         local hasHarmonizeableScale = canHarmonizeScale(paramsPerPart[currentPartPosition].scale)
         local minResolution = getResolution(paramsPerPart[currentPartPosition].subdivisionMinResolution.value)
         local steps = getRandom(minNoteSteps, maxNoteSteps)
-
-        --[[ local function getChord(currentNote)
-          local fullScale = paramsPerPart[currentPartPosition].fullScale
-          -- Register the first note in the chord
-          local chordTable = {currentNote}
-          print("Add note to chord - baseNote/noteName/chordDefinitionIndex/inversionIndex", currentNote, noteName, chordDefinitionIndex, inversionIndex)
-          -- Get the remaining notes for the chord
-          local inversionPos = inversionIndex
-          while hasHarmonizeableScale == true do
-            -- Find the scale index for the current note
-            local scaleIndex = getNextScaleIndex(currentNote, fullScale, chordDefinitionIndex, inversionPos)
-            -- Set the current note and note name
-            currentNote = fullScale[scaleIndex]
-            -- We stop building the chord when the current note has reached the max note
-            if currentNote >= maxNote then
-              print("Found notes for chord", #chordTable)
-              break
-            end
-            table.insert(chordTable, currentNote)
-            print("Add note to chord note, noteName, scaleIndex, inversionPos", currentNote, noteNumberToNoteName[currentNote + 1], scaleIndex, inversionPos)
-            -- Increment inversion pos
-            inversionPos = inversionPos + 1
-            if inversionPos > #chordDefinitions[chordDefinitionIndex] then
-              inversionPos = 1
-            end
-          end
-          return chordTable
-        end ]]
 
         if currentDepth == 0 then
           -- Adjust steps so note does not last beyond the part length
@@ -1346,38 +1127,27 @@ function arpeg(selectedPart)
       note.stepCounter = note.stepCounter + 1
     end
 
-    --[[ if polyButton.value == true then
-      -- UPDATE STEP POSITION TABLE
-      for i=1, paramsPerPart[currentPartPosition].numStepsBox.value do
-        if i == currentPosition - startStep + 1 then
-          paramsPerPart[currentPartPosition].positionTable:setValue(i, 1)
+    -- UPDATE STEP POSITION TABLE
+    for i=1, numParts do
+      for j=1, paramsPerPart[i].numStepsBox.value do
+        if i == currentPartPosition and j == currentPosition - startStep + 1 then
+          paramsPerPart[i].positionTable:setValue(j, 1)
         else
-          paramsPerPart[currentPartPosition].positionTable:setValue(i, 0)
+          paramsPerPart[i].positionTable:setValue(j, 0)
         end
       end
-    else ]]
-      -- UPDATE STEP POSITION TABLE
-      for i=1, numParts do
-        for j=1, paramsPerPart[i].numStepsBox.value do
-          if i == currentPartPosition and j == currentPosition - startStep + 1 then
-            paramsPerPart[i].positionTable:setValue(j, 1)
-          else
-            paramsPerPart[i].positionTable:setValue(j, 0)
-          end
-        end
-      end
+    end
 
-      -- UPDATE PART POSITION TABLE
-      if startOfPart then
-        for i=1, numParts do
-          if i == currentPartPosition then
-            paramsPerPart[i].partsTable:setValue(1, 1)
-          else
-            paramsPerPart[i].partsTable:setValue(1, 0)
-          end
+    -- UPDATE PART POSITION TABLE
+    if startOfPart then
+      for i=1, numParts do
+        if i == currentPartPosition then
+          paramsPerPart[i].partsTable:setValue(1, 1)
+        else
+          paramsPerPart[i].partsTable:setValue(1, 0)
         end
       end
-    --end
+    end
 
     -- INCREMENT POSITION
     index = (index + 1) % totalNumSteps -- increment position
@@ -1431,34 +1201,9 @@ function onRelease(e)
         table.remove(heldNotes, i)
       end
     end
-    if #heldNotes == 0 then
-      stopPlaying()
-    end
     postEvent(e)
   end
 end
-
---[[ function onNote(e)
-  if autoplayButton.value == true then
-    postEvent(e)
-  else
-    playButton:setValue(true)
-  end
-end
-
-function onRelease(e)
-  if autoplayButton.value == true then
-    postEvent(e)
-  else
-    playButton:setValue(false)
-  end
-end
-
-function onTransport(start)
-  if autoplayButton.value == true then
-    playButton:setValue(start)
-  end
-end ]]
 
 --------------------------------------------------------------------------------
 -- Save / Load

@@ -388,7 +388,7 @@ channelButton.backgroundColourOn = "#ff02ACFE"
 channelButton.textColourOff = "#ff22FFFF"
 channelButton.textColourOn = "#efFFFFFF"
 channelButton.displayName = "Multichannel"
-channelButton.tooltip = "When multichannel each voice is sent to a separate channel"
+channelButton.tooltip = "When multichannel mode is enabled, each voice is sent to a separate channel"
 channelButton.fillColour = "#dd000061"
 channelButton.size = {90,22}
 channelButton.x = 324
@@ -524,9 +524,6 @@ numPartsBox.changed = function(self)
       paramsPerPart[i].key.value = prev.key.value
       paramsPerPart[i].scale.value = prev.scale.value
       paramsPerPart[i].harmonizationPropbability.value = prev.harmonizationPropbability.value
-      --paramsPerPart[i].strategyInput.value = prev.strategyInput.value
-      --paramsPerPart[i].strategyPropbability.value = prev.strategyPropbability.value
-      --paramsPerPart[i].autoStrategyButton.value = prev.autoStrategyButton.value
       paramsPerPart[i].minNote.value = prev.minNote.value
       paramsPerPart[i].maxNote.value = prev.maxNote.value
       paramsPerPart[i].monoLimit.value = prev.monoLimit.value
@@ -657,9 +654,6 @@ local inversionProbabilityLabel = sequencerPanel:Label("ChordProbabilityProbabil
 inversionProbabilityLabel.text = "Chord inversions"
 inversionProbabilityLabel.tooltip = "Choose the probability that inversions will be used when harmonizing"
 
---[[ local strategyLabel = sequencerPanel:Label("StrategyLabel")
-strategyLabel.text = "Strategy" ]]
-
 -- Add params that are to be editable per part
 for i=1,numPartsBox.max do
   local chords = {}
@@ -709,7 +703,7 @@ for i=1,numPartsBox.max do
   seqGateTable.x = seqVelTable.x
   seqGateTable.y = seqVelTable.y + seqVelTable.height + 5
 
-  local generatePolyphonyPart = sequencerPanel:NumBox("GeneratePolyphony" .. i, 4, 1, 8, true)
+  local generatePolyphonyPart = sequencerPanel:NumBox("GeneratePolyphony" .. i, 4, 1, 16, true)
   generatePolyphonyPart.displayName = "Polyphony"
   generatePolyphonyPart.tooltip = "How many notes are played at once"
   generatePolyphonyPart.backgroundColour = menuBackgroundColour
@@ -1084,6 +1078,9 @@ function arpeg()
         -- Set start of part
         startOfPart = true
         currentRound = currentRound + 1 -- Increment round counter
+        -- Update part position
+        partWasChanged = currentPartPosition ~= pp
+        currentPartPosition = pp
         break
       end
     end
