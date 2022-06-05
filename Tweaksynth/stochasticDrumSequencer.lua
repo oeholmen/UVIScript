@@ -883,7 +883,7 @@ function arpeg(part)
       local shouldTrigger = getRandomBoolean(triggerProbability) ]]
 
       -- Randomize velocity
-      if getRandomBoolean(velocityRandomizationAmount) then
+      if velocityRandomizationAmount > 0 then
         local changeMax = getChangeMax(seqVelTable.max, velocityRandomizationAmount)
         local min = vel - changeMax
         local max = vel + changeMax

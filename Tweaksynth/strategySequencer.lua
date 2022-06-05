@@ -4,14 +4,21 @@
 
 require "common"
 
-local backgroundColour = "#5f5f5f"
-local labelBackgoundColour = "#111D5E"
-local labelTextColour = "#fefefe"
-local outlineColour = "#FFB5FF"
-local menuBackgroundColour = "#bf01011F"
-local menuTextColour = "#9f02ACFE"
-local menuArrowColour = "#9f09A3F4"
-local menuOutlineColour = "#000000"
+local backgroundColour = "5f5f5f" -- Light or Dark
+local widgetBackgroundColour = "111D5E" -- Dark
+local widgetTextColour = "9f02ACFE" -- Light
+local labelTextColour = "AEFEFF" -- Light
+local menuBackgroundColour = "01011F"
+local menuArrowColour = "66" .. labelTextColour
+local labelBackgoundColour = widgetBackgroundColour
+local menuOutlineColour = "5f" .. widgetTextColour
+local sliderColour = "5FB5FF"
+local selectedPartColour = "cc33cc44"
+local backgroundColourOff = "ff084486"
+local backgroundColourOn = "ff02ACFE"
+local textColourOff = "ff22FFFF"
+local textColourOn = "efFFFFFF"
+
 local isPlaying = false
 local heldNotes = {}
 local notePosition = 0 -- Holds the current note position
@@ -258,7 +265,7 @@ function getVelocity(part, step, skipRandomize)
 
   -- Randomize velocity
   local velRandomization = paramsPerPart[part].velRandomization.value
-  if getRandomBoolean(velRandomization) then
+  if velRandomization > 0 then
     local changeMax = getChangeMax(seqVelTable.max, velRandomization)
     local min = velocity - changeMax
     local max = velocity + changeMax
@@ -300,7 +307,7 @@ function getGate(part, step, skipRandomize)
 
   -- Randomize gate
   local gateRandomization = paramsPerPart[part].gateRandomization.value
-  if getRandomBoolean(gateRandomization) then
+  if gateRandomization > 0 then
     local changeMax = getChangeMax(seqGateTable.max, gateRandomization)
     local min = gate - changeMax
     local max = gate + changeMax
@@ -343,13 +350,12 @@ label.position = {0,0}
 label.size = {170,25}
 
 local focusButton = sequencerPanel:OnOffButton("FocusPartOnOff", false)
-focusButton.backgroundColourOff = "#ff084486"
-focusButton.backgroundColourOn = "#ff02ACFE"
-focusButton.textColourOff = "#ff22FFFF"
-focusButton.textColourOn = "#efFFFFFF"
+focusButton.backgroundColourOff = backgroundColourOff
+focusButton.backgroundColourOn = backgroundColourOn
+focusButton.textColourOff = textColourOff
+focusButton.textColourOn = textColourOn
 focusButton.displayName = "Focus Part"
 focusButton.tooltip = "When focus is active, only the part selected for editing is shown and played"
-focusButton.fillColour = "#dd000061"
 focusButton.size = {102,22}
 focusButton.x = (sequencerPanel.width / 2) + 140
 focusButton.y = 0
@@ -358,12 +364,11 @@ focusButton.changed = function(self)
 end
 
 local holdButton = sequencerPanel:OnOffButton("HoldOnOff", false)
-holdButton.backgroundColourOff = "#ff084486"
-holdButton.backgroundColourOn = "#ff02ACFE"
-holdButton.textColourOff = "#ff22FFFF"
-holdButton.textColourOn = "#efFFFFFF"
+holdButton.backgroundColourOff = backgroundColourOff
+holdButton.backgroundColourOn = backgroundColourOn
+holdButton.textColourOff = textColourOff
+holdButton.textColourOn = textColourOn
 holdButton.displayName = "Hold"
-holdButton.fillColour = "#dd000061"
 holdButton.size = {102,22}
 holdButton.x = focusButton.x + focusButton.width + 5
 holdButton.y = 0
@@ -376,7 +381,7 @@ end
 
 local editPartMenu = sequencerPanel:Menu("EditPart", partSelect)
 editPartMenu.backgroundColour = menuBackgroundColour
-editPartMenu.textColour = menuTextColour
+editPartMenu.textColour = widgetTextColour
 editPartMenu.arrowColour = menuArrowColour
 editPartMenu.outlineColour = menuOutlineColour
 editPartMenu.displayName = "Edit part"
@@ -390,11 +395,14 @@ editPartMenu.changed = function(self)
     local isVisible = self.value == i
 
     if isVisible then
-      v.partsTable.backgroundColour = "#cc33cc44"
+      --v.partsTable.backgroundColour = "#cc33cc44" -- TODO Handle these
+      v.partsTable.backgroundColour = selectedPartColour
     elseif i % 2 == 0 then
-      v.partsTable.backgroundColour = "#3f09A3F4"
+      --v.partsTable.backgroundColour = "#3f09A3F4"
+      v.partsTable.backgroundColour = "3c" .. sliderColour
     else
-      v.partsTable.backgroundColour = "#1f09A3F4"
+      --v.partsTable.backgroundColour = "#1f09A3F4"
+      v.partsTable.backgroundColour = "1a" .. sliderColour
     end
 
     v.numStepsBox.visible = isVisible
@@ -429,7 +437,7 @@ end
 local numPartsBox = sequencerPanel:NumBox("Parts", 1, 1, 8, true)
 numPartsBox.tooltip = "The number of parts in the sequence"
 numPartsBox.backgroundColour = menuBackgroundColour
-numPartsBox.textColour = menuTextColour
+numPartsBox.textColour = widgetTextColour
 numPartsBox.width = (boxWidth / 2) - 2
 numPartsBox.height = 20
 numPartsBox.x = editPartMenu.x + editPartMenu.width + 2
@@ -481,7 +489,7 @@ end
 
 local partRandBox = sequencerPanel:NumBox("PartRandomization", 0, 0, 100, true)
 partRandBox.backgroundColour = menuBackgroundColour
-partRandBox.textColour = menuTextColour
+partRandBox.textColour = widgetTextColour
 partRandBox.displayName = "Part Order"
 partRandBox.tooltip = "Amount of radomization applied to the order of playing parts"
 partRandBox.unit = Unit.Percent
@@ -589,7 +597,7 @@ for i=1,numPartsBox.max do
   partsTable.persistent = false
   partsTable.fillStyle = "solid"
   partsTable.backgroundColour = "#1f09A3F4"
-  partsTable.sliderColour = "#5FB5FF"
+  partsTable.sliderColour = sliderColour
   partsTable.width = tableWidth
   partsTable.height = 10
   partsTable.x = 0
@@ -599,8 +607,8 @@ for i=1,numPartsBox.max do
   positionTable.enabled = false
   positionTable.persistent = false
   positionTable.fillStyle = "solid"
-  positionTable.backgroundColour = menuTextColour
-  positionTable.sliderColour = outlineColour
+  positionTable.backgroundColour = widgetTextColour
+  positionTable.sliderColour = sliderColour
   positionTable.width = partsTable.width
   positionTable.height = partsTable.height
   positionTable.x = partsTable.x
@@ -611,7 +619,7 @@ for i=1,numPartsBox.max do
   seqVelTable.showPopupDisplay = true
   seqVelTable.showLabel = true
   seqVelTable.fillStyle = "solid"
-  seqVelTable.sliderColour = menuArrowColour
+  seqVelTable.sliderColour = sliderColour
   seqVelTable.width = positionTable.width
   seqVelTable.height = 70
   seqVelTable.x = positionTable.x
@@ -622,7 +630,7 @@ for i=1,numPartsBox.max do
   seqGateTable.showPopupDisplay = true
   seqGateTable.showLabel = true
   seqGateTable.fillStyle = "solid"
-  seqGateTable.sliderColour = menuArrowColour
+  seqGateTable.sliderColour = sliderColour
   seqGateTable.width = seqVelTable.width
   seqGateTable.height = seqVelTable.height
   seqGateTable.x = seqVelTable.x
@@ -632,7 +640,7 @@ for i=1,numPartsBox.max do
   generateMinNoteStepsPart.displayName = "Min Steps"
   generateMinNoteStepsPart.tooltip = "The minimum number of steps can a note last"
   generateMinNoteStepsPart.backgroundColour = menuBackgroundColour
-  generateMinNoteStepsPart.textColour = menuTextColour
+  generateMinNoteStepsPart.textColour = widgetTextColour
   generateMinNoteStepsPart.enabled = false
   generateMinNoteStepsPart.width = boxWidth
   generateMinNoteStepsPart.x = editPartMenu.x + boxWidth + 10
@@ -642,7 +650,7 @@ for i=1,numPartsBox.max do
   generateMaxNoteStepsPart.displayName = "Max Steps"
   generateMaxNoteStepsPart.tooltip = "The maximium number of steps can a note last"
   generateMaxNoteStepsPart.backgroundColour = menuBackgroundColour
-  generateMaxNoteStepsPart.textColour = menuTextColour
+  generateMaxNoteStepsPart.textColour = widgetTextColour
   generateMaxNoteStepsPart.width = generateMinNoteStepsPart.width
   generateMaxNoteStepsPart.x = generateMinNoteStepsPart.x
   generateMaxNoteStepsPart.y = generateMinNoteStepsPart.y + generateMinNoteStepsPart.height + 5
@@ -661,7 +669,7 @@ for i=1,numPartsBox.max do
   stepResolution.x = generateMinNoteStepsPart.x + generateMinNoteStepsPart.width + 10
   stepResolution.y = generateMinNoteStepsPart.y
   stepResolution.backgroundColour = menuBackgroundColour
-  stepResolution.textColour = menuTextColour
+  stepResolution.textColour = widgetTextColour
   stepResolution.arrowColour = menuArrowColour
   stepResolution.outlineColour = menuOutlineColour
   stepResolution.changed = function(self)
@@ -672,7 +680,7 @@ for i=1,numPartsBox.max do
   numStepsBox.displayName = "Steps"
   numStepsBox.tooltip = "The Number of steps in the part"
   numStepsBox.backgroundColour = menuBackgroundColour
-  numStepsBox.textColour = menuTextColour
+  numStepsBox.textColour = widgetTextColour
   numStepsBox.width = stepResolution.width
   numStepsBox.x = stepResolution.x
   numStepsBox.y = stepResolution.y + stepResolution.height + 5
@@ -687,7 +695,7 @@ for i=1,numPartsBox.max do
   generateMinPart.showPopupDisplay = true
   generateMinPart.showLabel = true
   generateMinPart.backgroundColour = menuBackgroundColour
-  generateMinPart.textColour = menuTextColour
+  generateMinPart.textColour = widgetTextColour
   generateMinPart.displayName = "Min Note"
   generateMinPart.tooltip = "Lowest note"
   generateMinPart.x = stepResolution.x + stepResolution.width + 10
@@ -699,7 +707,7 @@ for i=1,numPartsBox.max do
   generateMaxPart.showPopupDisplay = true
   generateMaxPart.showLabel = true
   generateMaxPart.backgroundColour = menuBackgroundColour
-  generateMaxPart.textColour = menuTextColour
+  generateMaxPart.textColour = widgetTextColour
   generateMaxPart.displayName = "Max Note"
   generateMaxPart.tooltip = "Highest note"
   generateMaxPart.x = generateMinPart.x
@@ -722,7 +730,7 @@ for i=1,numPartsBox.max do
   generateKeyPart.x = generateMinPart.x + generateMinPart.width + 10
   generateKeyPart.y = stepResolution.y
   generateKeyPart.backgroundColour = menuBackgroundColour
-  generateKeyPart.textColour = menuTextColour
+  generateKeyPart.textColour = widgetTextColour
   generateKeyPart.arrowColour = menuArrowColour
   generateKeyPart.outlineColour = menuOutlineColour
   generateKeyPart.changed = function(self)
@@ -737,7 +745,7 @@ for i=1,numPartsBox.max do
   generateScalePart.x = generateKeyPart.x
   generateScalePart.y = generateKeyPart.y + generateKeyPart.height + 5
   generateScalePart.backgroundColour = menuBackgroundColour
-  generateScalePart.textColour = menuTextColour
+  generateScalePart.textColour = widgetTextColour
   generateScalePart.arrowColour = menuArrowColour
   generateScalePart.outlineColour = menuOutlineColour
   generateScalePart.changed = function(self)
@@ -752,7 +760,7 @@ for i=1,numPartsBox.max do
   velRandomization.x = generateKeyPart.x + generateKeyPart.width + 10
   velRandomization.y = editPartMenu.y
   velRandomization.backgroundColour = menuBackgroundColour
-  velRandomization.textColour = menuTextColour
+  velRandomization.textColour = widgetTextColour
 
   local gateRandomization = sequencerPanel:NumBox("GateRandomization" .. i, 0, 0, 100, true)
   gateRandomization.displayName = "Gate"
@@ -762,7 +770,7 @@ for i=1,numPartsBox.max do
   gateRandomization.x = velRandomization.x
   gateRandomization.y = velRandomization.y + velRandomization.height + 5
   gateRandomization.backgroundColour = menuBackgroundColour
-  gateRandomization.textColour = menuTextColour
+  gateRandomization.textColour = widgetTextColour
 
   if i == 1 then
     subdivisionProbabilityLabel.width = boxWidth
@@ -773,10 +781,10 @@ for i=1,numPartsBox.max do
   local subdivisions = {}
   for j=1,4 do
     local subdivision = sequencerPanel:OnOffButton("SubdivisionSelect" .. i .. j, (j<3))
-    subdivision.backgroundColourOff = "#ff084486"
-    subdivision.backgroundColourOn = "#ff02ACFE"
-    subdivision.textColourOff = "#ff22FFFF"
-    subdivision.textColourOn = "#efFFFFFF"
+    subdivision.backgroundColourOff = backgroundColourOff
+    subdivision.backgroundColourOn = backgroundColourOn
+    subdivision.textColourOff = textColourOff
+    subdivision.textColourOn = textColourOn
     subdivision.displayName = "" .. j
     subdivision.tooltip = "Activate subdivision"
     subdivision.height = 20
@@ -794,7 +802,7 @@ for i=1,numPartsBox.max do
   subdivisionProbability.x = subdivisionProbabilityLabel.x
   subdivisionProbability.y = subdivisions[1].y + subdivisions[1].height + 5
   subdivisionProbability.backgroundColour = menuBackgroundColour
-  subdivisionProbability.textColour = menuTextColour
+  subdivisionProbability.textColour = widgetTextColour
 
   local subdivisionMinResolution = sequencerPanel:Menu("SubdivisionMinResolution" .. i, getResolutionNames())
   subdivisionMinResolution.displayName = "Min Resolution"
@@ -804,7 +812,7 @@ for i=1,numPartsBox.max do
   subdivisionMinResolution.y = subdivisionProbabilityLabel.y
   subdivisionMinResolution.width = velRandomization.width
   subdivisionMinResolution.backgroundColour = menuBackgroundColour
-  subdivisionMinResolution.textColour = menuTextColour
+  subdivisionMinResolution.textColour = widgetTextColour
   subdivisionMinResolution.arrowColour = menuArrowColour
   subdivisionMinResolution.outlineColour = menuOutlineColour
 
@@ -816,7 +824,7 @@ for i=1,numPartsBox.max do
   subdivisionRepeatProbability.x = subdivisionMinResolution.x
   subdivisionRepeatProbability.y = subdivisionMinResolution.y + subdivisionMinResolution.height + 5
   subdivisionRepeatProbability.backgroundColour = menuBackgroundColour
-  subdivisionRepeatProbability.textColour = menuTextColour
+  subdivisionRepeatProbability.textColour = widgetTextColour
 
   if i == 1 then
     strategyLabel.x = editPartMenu.x
@@ -834,7 +842,7 @@ for i=1,numPartsBox.max do
   strategyPropbability.x = strategyLabel.x
   strategyPropbability.y = strategyLabel.y + strategyLabel.height + 5
   strategyPropbability.backgroundColour = menuBackgroundColour
-  strategyPropbability.textColour = menuTextColour
+  strategyPropbability.textColour = widgetTextColour
 
   local strategyRestart = sequencerPanel:Menu("StrategyRestart" .. i, {"Restart each round", "Out of range", "When finished", "Finished+round"})
   strategyRestart.tooltip = "Choose when a strategy restarts"
@@ -844,17 +852,17 @@ for i=1,numPartsBox.max do
   strategyRestart.x = strategyPropbability.x
   strategyRestart.y = strategyPropbability.y + strategyPropbability.height + 5
   strategyRestart.backgroundColour = menuBackgroundColour
-  strategyRestart.textColour = menuTextColour
+  strategyRestart.textColour = widgetTextColour
   strategyRestart.arrowColour = menuArrowColour
   strategyRestart.outlineColour = menuOutlineColour
 
   local autoStrategyButton = sequencerPanel:OnOffButton("AutoStrategyButton" .. i, false)
   autoStrategyButton.displayName = "Auto"
   autoStrategyButton.tooltip = "Strategies are automatically created and randomly changed while playing."
-  autoStrategyButton.backgroundColourOff = "#ff084486"
-  autoStrategyButton.backgroundColourOn = "#ff02ACFE"
-  autoStrategyButton.textColourOff = "#ff22FFFF"
-  autoStrategyButton.textColourOn = "#efFFFFFF"
+  autoStrategyButton.backgroundColourOff = backgroundColourOff
+  autoStrategyButton.backgroundColourOn = backgroundColourOn
+  autoStrategyButton.textColourOff = textColourOff
+  autoStrategyButton.textColourOn = textColourOn
   autoStrategyButton.width = 60
   autoStrategyButton.x = strategyPropbability.x + strategyPropbability.width + 5
   autoStrategyButton.y = strategyPropbability.y
@@ -872,8 +880,8 @@ for i=1,numPartsBox.max do
   strategyInput.tooltip = "Strategies are ways to play chords and scales. Numbers represent steps up or down the scale or chord that is currently playing. Feel free to type your own strategies here."
   strategyInput.editable = true
   strategyInput.backgroundColour = menuBackgroundColour
-  strategyInput.backgroundColourWhenEditing = "purple"
-  strategyInput.textColour = "#00ee00"
+  strategyInput.backgroundColourWhenEditing = "black"
+  strategyInput.textColour = labelTextColour
   strategyInput.textColourWhenEditing = "white"
   strategyInput.x = autoStrategyButton.x + autoStrategyButton.width + 10
   strategyInput.y = autoStrategyButton.y
@@ -885,8 +893,10 @@ for i=1,numPartsBox.max do
   local strategySlots = {}
   for j=1,8 do
     local strategySlot = sequencerPanel:Button("StrategySlot" .. i .. j)
-    strategySlot.backgroundColourOff = labelBackgoundColour
-    strategySlot.textColourOff = labelTextColour
+    strategySlot.backgroundColourOff = backgroundColourOff
+    strategySlot.backgroundColourOn = backgroundColourOn
+    strategySlot.textColourOff = textColourOff
+    strategySlot.textColourOn = textColourOn
     strategySlot.displayName = "" .. j
     strategySlot.enabled = false
     strategySlot.tooltip = "Unused"
@@ -914,7 +924,7 @@ for i=1,numPartsBox.max do
   strategyActions.x = strategySlots[#strategySlots].x + strategySlots[#strategySlots].width + 5
   strategyActions.y = strategySlots[#strategySlots].y
   strategyActions.backgroundColour = menuBackgroundColour
-  strategyActions.textColour = menuTextColour
+  strategyActions.textColour = widgetTextColour
   strategyActions.arrowColour = menuArrowColour
   strategyActions.outlineColour = menuOutlineColour
   strategyActions.changed = function(self)
@@ -1070,7 +1080,19 @@ function arpeg()
         end
         local strategy = createStrategy(currentPartPosition)
         table.insert(strategies, strategy)
-        paramsPerPart[currentPartPosition].strategyActions:addItem(table.concat(strategy, ","))
+        -- TODO Set limit? Follow maxStrategies?
+        -- Check for duplicates
+        local strategyText = table.concat(strategy, ",")
+        local wasFound = false
+        for _,v in ipairs(paramsPerPart[currentPartPosition].strategyActions.items) do
+          if v == strategyText then
+            wasFound = true
+            break
+          end
+        end
+        if wasFound == false then
+          paramsPerPart[currentPartPosition].strategyActions:addItem(table.concat(strategy, ","))
+        end
         print("Created #strategy/#strategies", #strategy, #strategies)
       end
       strategyIndex = getRandom(#strategies)

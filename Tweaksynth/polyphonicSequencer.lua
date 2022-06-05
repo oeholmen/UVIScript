@@ -458,7 +458,7 @@ function arpeg(partIndex)
     end
 
     -- Randomize gate
-    if getRandomBoolean(gateRandomizationAmount) then
+    if gateRandomizationAmount > 0 then
       local changeMax = getChangeMax(seqGateTable.max, gateRandomizationAmount)
       local min = gate - changeMax
       local max = gate + changeMax
@@ -480,7 +480,7 @@ function arpeg(partIndex)
     -- Play subdivision
     for ratchetIndex=1, ratchet do
       -- Randomize velocity
-      if getRandomBoolean(velocityRandomizationAmount) then
+      if velocityRandomizationAmount > 0 then
         local changeMax = getChangeMax(seqVelTable.max, velocityRandomizationAmount)
         local min = vel - changeMax
         local max = vel + changeMax

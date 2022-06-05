@@ -8,15 +8,18 @@
 
 require "common"
 
-local menuBackgroundColour = "#bf01011F"
-local menuTextColour = "#9f02ACFE"
-local menuArrowColour = "#9f09A3F4"
-local menuOutlineColour = "#00000000"
+local backgroundColour = "1a4245" -- Light or Dark
+local widgetBackgroundColour = "072227" -- Dark
+local widgetTextColour = "4FBDBA" -- Light
+local labelTextColour = "AEFEFF" -- Light
+local menuArrowColour = "aa" .. widgetTextColour
+local labelBackgoundColour = "ff" .. widgetBackgroundColour
+local menuOutlineColour = "5f" .. widgetTextColour
 
-setBackgroundColour("#292929")
+setBackgroundColour(backgroundColour)
 
 local panel = Panel("Limiter")
-panel.backgroundColour = "#00000000"
+panel.backgroundColour = backgroundColour
 panel.x = 10
 panel.y = 10
 panel.width = 700
@@ -25,8 +28,8 @@ panel.height = 60
 local label = panel:Label("Label")
 label.text = "Note Limiter"
 label.alpha = 0.5
-label.backgroundColour = "#1F441E"
-label.textColour = "white"
+label.backgroundColour = labelBackgoundColour
+label.textColour = labelTextColour
 label.fontSize = 22
 label.position = {0,0}
 label.size = {120,25}
@@ -38,8 +41,8 @@ rangeLabel.y = 3
 
 local noteMin = panel:NumBox("NoteMin", 0, 0, 127, true)
 noteMin.unit = Unit.MidiKey
-noteMin.backgroundColour = menuBackgroundColour
-noteMin.textColour = menuTextColour
+noteMin.backgroundColour = widgetBackgroundColour
+noteMin.textColour = widgetTextColour
 noteMin.displayName = "Min"
 noteMin.tooltip = "Lowest note - notes below this are transposed to closest octave within range"
 noteMin.x = rangeLabel.x
@@ -47,8 +50,8 @@ noteMin.y = rangeLabel.y + rangeLabel.height + 5
 
 local noteMax = panel:NumBox("NoteMax", 127, 0, 127, true)
 noteMax.unit = Unit.MidiKey
-noteMax.backgroundColour = menuBackgroundColour
-noteMax.textColour = menuTextColour
+noteMax.backgroundColour = widgetBackgroundColour
+noteMax.textColour = widgetTextColour
 noteMax.displayName = "Max"
 noteMax.tooltip = "Highest note - notes above this are transposed to closest octave within range"
 noteMax.x = noteMin.x + noteMin.width + 10
@@ -64,8 +67,8 @@ noteMax.changed = function(self)
 end
 
 local priority = panel:Menu("Priority", {"As Played", "Lowest", "Highest", "Random"})
-priority.backgroundColour = menuBackgroundColour
-priority.textColour = menuTextColour
+priority.backgroundColour = widgetBackgroundColour
+priority.textColour = widgetTextColour
 priority.arrowColour = menuArrowColour
 priority.outlineColour = menuOutlineColour
 priority.displayName = "Priority"
@@ -76,15 +79,15 @@ priority.y = rangeLabel.y
 local polyphony = panel:NumBox("Polyphony", 16, 0, 16, true)
 polyphony.displayName = "Polyphony"
 polyphony.tooltip = "Limit polyphony to the set number of notes - 0 blocks all incoming notes"
-polyphony.backgroundColour = menuBackgroundColour
-polyphony.textColour = menuTextColour
+polyphony.backgroundColour = widgetBackgroundColour
+polyphony.textColour = widgetTextColour
 polyphony.x = priority.x + priority.width + 50
 polyphony.y = priority.y
 
 local buffer = panel:NumBox("Buffer", 1, 0, 100, true)
 buffer.unit = Unit.MilliSeconds
-buffer.backgroundColour = menuBackgroundColour
-buffer.textColour = menuTextColour
+buffer.backgroundColour = widgetBackgroundColour
+buffer.textColour = widgetTextColour
 buffer.displayName = "Buffer"
 buffer.tooltip = "Time to wait for incoming notes - if input is from a human, 20-30 ms is recommended, 0 means no buffer (NOTE: this disables the polyphony limit)"
 buffer.x = polyphony.x
