@@ -153,7 +153,11 @@ function getNoteFromStrategy(notePosition, strategyIndex, strategyPos, partPos)
     -- Get next notePosition from strategy
     notePosition = notePosition + strategy[strategyPos]
     print("Set notePosition", notePosition)
-    if scale[notePosition] > maxNote then
+    if type(scale[notePosition]) == "nil" then
+      -- This is just a safeguard if scale is changed while playing
+      notePosition = 1
+      return minNote, notePosition, strategyPos
+    elseif scale[notePosition] > maxNote then
       print("Reset scale[notePosition] > maxNote", scale[notePosition], maxNote)
       -- TODO Param for options
       -- Option 1: Transpose to lowest octave in range
@@ -406,12 +410,16 @@ editPartMenu.changed = function(self)
     v.autoStrategyButton.visible = isVisible
     v.strategyPropbability.visible = isVisible
     v.strategyRestart.visible = isVisible
+    v.strategyActions.visible = isVisible
     v.velRandomization.visible = isVisible
     v.gateRandomization.visible = isVisible
     v.subdivisionProbability.visible = isVisible
     v.subdivisionRepeatProbability.visible = isVisible
     v.subdivisionMinResolution.visible = isVisible
     for _,s in ipairs(v.subdivisions) do
+      s.visible = isVisible
+    end
+    for _,s in ipairs(v.strategySlots) do
       s.visible = isVisible
     end
   end
@@ -870,8 +878,70 @@ for i=1,numPartsBox.max do
   strategyInput.x = autoStrategyButton.x + autoStrategyButton.width + 10
   strategyInput.y = autoStrategyButton.y
   strategyInput.width = 260
-  strategyInput.height = 45
-  strategyInput.fontSize = 24
+  strategyInput.height = 22
+  strategyInput.fontSize = 20
+
+  local actions = {"Actions..."}
+  local strategySlots = {}
+  for j=1,8 do
+    local strategySlot = sequencerPanel:Button("StrategySlot" .. i .. j)
+    strategySlot.backgroundColourOff = labelBackgoundColour
+    strategySlot.textColourOff = labelTextColour
+    strategySlot.displayName = "" .. j
+    strategySlot.enabled = false
+    strategySlot.tooltip = "Unused"
+    strategySlot.height = 20
+    strategySlot.width = 20
+    strategySlot.x = strategyInput.x + ((j-1) * (strategySlot.width+2))
+    strategySlot.y = strategyInput.y + strategyInput.height + 5
+    strategySlot.changed = function(self)
+      strategyInput.text = strategySlot.tooltip
+    end
+    table.insert(strategySlots, strategySlot)
+    table.insert(actions, "Save to " .. j)
+  end
+
+  table.insert(actions, "--- Load ---")
+  for _,v in ipairs(strategies) do
+    table.insert(actions, table.concat(v, ","))
+  end
+
+  local strategyActions = sequencerPanel:Menu("StrategyActions" .. i, actions)
+  strategyActions.tooltip = "Choose when a strategy restarts"
+  strategyActions.showLabel = false
+  strategyActions.height = 20
+  strategyActions.width = 80
+  strategyActions.x = strategySlots[#strategySlots].x + strategySlots[#strategySlots].width + 5
+  strategyActions.y = strategySlots[#strategySlots].y
+  strategyActions.backgroundColour = menuBackgroundColour
+  strategyActions.textColour = menuTextColour
+  strategyActions.arrowColour = menuArrowColour
+  strategyActions.outlineColour = menuOutlineColour
+  strategyActions.changed = function(self)
+    -- 1 is the menu label...
+    if self.value == 1 then
+      return
+    end
+
+    local actionIndex = self.value - 1
+
+    -- Save strategy
+    if actionIndex <= #strategySlots then
+      if string.len(strategyInput.text) > 0 then
+        strategySlots[actionIndex].tooltip = strategyInput.text
+        strategySlots[actionIndex].enabled = true
+      else
+        strategySlots[actionIndex].tooltip = "Unused"
+        strategySlots[actionIndex].enabled = false
+      end
+      print("Strategy saved to slot", strategyInput.text, actionIndex)
+    elseif actionIndex > #strategySlots + 1 then
+      strategyInput.text = self.selectedText
+    end
+
+    -- Must be last
+    self.selected = 1
+  end
 
   autoStrategyButton.changed = function(self)
     notePosition = 0 -- Reset note position
@@ -884,7 +954,7 @@ for i=1,numPartsBox.max do
     strategyInput.text = table.concat(strategy, ",")
   end
 
-  table.insert(paramsPerPart, {strategyRestart=strategyRestart,subdivisionProbability=subdivisionProbability,subdivisions=subdivisions,subdivisionRepeatProbability=subdivisionRepeatProbability,subdivisionMinResolution=subdivisionMinResolution,velRandomization=velRandomization,gateRandomization=gateRandomization,partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,numStepsBox=numStepsBox,stepResolution=stepResolution,fullScale={},scale=generateScalePart,key=generateKeyPart,createStrategyButton=createStrategyButton,strategyInput=strategyInput,autoStrategyButton=autoStrategyButton,strategyPropbability=strategyPropbability,minNote=generateMinPart,maxNote=generateMaxPart,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
+  table.insert(paramsPerPart, {strategySlots=strategySlots,strategyActions=strategyActions,strategyRestart=strategyRestart,subdivisionProbability=subdivisionProbability,subdivisions=subdivisions,subdivisionRepeatProbability=subdivisionRepeatProbability,subdivisionMinResolution=subdivisionMinResolution,velRandomization=velRandomization,gateRandomization=gateRandomization,partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,numStepsBox=numStepsBox,stepResolution=stepResolution,fullScale={},scale=generateScalePart,key=generateKeyPart,createStrategyButton=createStrategyButton,strategyInput=strategyInput,autoStrategyButton=autoStrategyButton,strategyPropbability=strategyPropbability,minNote=generateMinPart,maxNote=generateMaxPart,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
 
   createFullScale(i)
 end
@@ -1000,6 +1070,7 @@ function arpeg()
         end
         local strategy = createStrategy(currentPartPosition)
         table.insert(strategies, strategy)
+        paramsPerPart[currentPartPosition].strategyActions:addItem(table.concat(strategy, ","))
         print("Created #strategy/#strategies", #strategy, #strategies)
       end
       strategyIndex = getRandom(#strategies)
@@ -1087,8 +1158,6 @@ function arpeg()
         end
 
         local note = nil
-        --local scale = getFilteredScale(currentPartPosition)
-        --local scale = paramsPerPart[currentPartPosition].fullScale
         local strategyPropbability = paramsPerPart[currentPartPosition].strategyPropbability.value
         if getRandomBoolean(strategyPropbability) == true then
           note, notePosition, strategyPos = getNoteFromStrategy(notePosition, strategyIndex, strategyPos, currentPartPosition)

@@ -1034,7 +1034,6 @@ function arpeg()
   local currentPartPosition = 1 -- Holds the currently playing part
   local heldNoteIndex = 0
   local isStarting = true
-  --local chord = {} -- The chord the generator can choose from.
   local scale = {} -- The scale the generator can choose from.
   local inversionIndex = 0
   local chordDefinitionIndex = 1
@@ -1104,7 +1103,6 @@ function arpeg()
       end
     end
 
-    --chord = {} -- Reset chord
     scale = {} -- Reset scale
     inversionIndex = 0 -- Reset counter for inversion progress
     chordDefinitionIndex = 1 -- Set default
@@ -1346,9 +1344,6 @@ function arpeg()
             local baseNote = getBaseNote()
             if validateBaseNote(baseNote) == true then
               note = baseNote
-              -- Create chord from the base note
-              --chord = getChord(note)
-              --print("Get #chord", #chord)
               break
             end
             counter = counter + 1
