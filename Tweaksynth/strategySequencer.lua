@@ -100,6 +100,7 @@ local strategies = {
   {3,-2,7},
   {-5,4,4},
   {7,7,-5},
+  {7,5,6},
 }
 local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
 local noteNumberToNoteName = {} -- Used for mapping - does not include octave, only name of note (C, C#...)
@@ -395,13 +396,10 @@ editPartMenu.changed = function(self)
     local isVisible = self.value == i
 
     if isVisible then
-      --v.partsTable.backgroundColour = "#cc33cc44" -- TODO Handle these
       v.partsTable.backgroundColour = selectedPartColour
     elseif i % 2 == 0 then
-      --v.partsTable.backgroundColour = "#3f09A3F4"
       v.partsTable.backgroundColour = "3c" .. sliderColour
     else
-      --v.partsTable.backgroundColour = "#1f09A3F4"
       v.partsTable.backgroundColour = "1a" .. sliderColour
     end
 
@@ -830,6 +828,7 @@ for i=1,numPartsBox.max do
     strategyLabel.x = editPartMenu.x
     strategyLabel.y = subdivisionProbabilityLabel.y
     strategyLabel.width = boxWidth
+    --strategyLabel.backgroundColour = "red"
   end
 
   -- TODO Add param for strategy probability decay?
@@ -838,7 +837,7 @@ for i=1,numPartsBox.max do
   strategyPropbability.tooltip = "Set the probability that a playing strategy will be used to select the next note. Otherwise notes will be selected by random from the current scale."
   strategyPropbability.unit = Unit.Percent
   strategyPropbability.height = 20
-  strategyPropbability.width = boxWidth + 20
+  strategyPropbability.width = boxWidth + 28
   strategyPropbability.x = strategyLabel.x
   strategyPropbability.y = strategyLabel.y + strategyLabel.height + 5
   strategyPropbability.backgroundColour = menuBackgroundColour
@@ -863,15 +862,15 @@ for i=1,numPartsBox.max do
   autoStrategyButton.backgroundColourOn = backgroundColourOn
   autoStrategyButton.textColourOff = textColourOff
   autoStrategyButton.textColourOn = textColourOn
-  autoStrategyButton.width = 60
-  autoStrategyButton.x = strategyPropbability.x + strategyPropbability.width + 5
-  autoStrategyButton.y = strategyPropbability.y
+  autoStrategyButton.width = 80
+  autoStrategyButton.x = strategyPropbability.x + strategyPropbability.width + 10
+  autoStrategyButton.y = strategyLabel.y + 5
 
   local createStrategyButton = sequencerPanel:Button("CreateStrategyButton" .. i)
   createStrategyButton.displayName = "Create"
   createStrategyButton.tooltip = "Replace the current strategy with a new one."
   createStrategyButton.persistent = false
-  createStrategyButton.width = 60
+  createStrategyButton.width = autoStrategyButton.width
   createStrategyButton.x = autoStrategyButton.x
   createStrategyButton.y = autoStrategyButton.y + autoStrategyButton.height + 5
 
@@ -883,16 +882,16 @@ for i=1,numPartsBox.max do
   strategyInput.backgroundColourWhenEditing = "black"
   strategyInput.textColour = labelTextColour
   strategyInput.textColourWhenEditing = "white"
-  strategyInput.x = autoStrategyButton.x + autoStrategyButton.width + 10
-  strategyInput.y = autoStrategyButton.y
-  strategyInput.width = 260
-  strategyInput.height = 22
-  strategyInput.fontSize = 20
+  strategyInput.x = numStepsBox.x
+  strategyInput.y = strategyLabel.y + 5
+  strategyInput.width = 228
+  strategyInput.height = 45
+  strategyInput.fontSize = 30
 
   local actions = {"Actions..."}
   local strategySlots = {}
-  for j=1,8 do
-    local strategySlot = sequencerPanel:Button("StrategySlot" .. i .. j)
+  for j=1,9 do
+    local strategySlot = sequencerPanel:OnOffButton("StrategySlot" .. i .. j)
     strategySlot.backgroundColourOff = backgroundColourOff
     strategySlot.backgroundColourOn = backgroundColourOn
     strategySlot.textColourOff = textColourOff
@@ -901,11 +900,12 @@ for i=1,numPartsBox.max do
     strategySlot.enabled = false
     strategySlot.tooltip = "Unused"
     strategySlot.height = 20
-    strategySlot.width = 20
-    strategySlot.x = strategyInput.x + ((j-1) * (strategySlot.width+2))
+    strategySlot.width = 24
+    strategySlot.x = strategyInput.x + ((j-1) * (strategySlot.width+1.5))
     strategySlot.y = strategyInput.y + strategyInput.height + 5
     strategySlot.changed = function(self)
       strategyInput.text = strategySlot.tooltip
+      self.value = false
     end
     table.insert(strategySlots, strategySlot)
     table.insert(actions, "Save to " .. j)
@@ -920,9 +920,9 @@ for i=1,numPartsBox.max do
   strategyActions.tooltip = "Choose when a strategy restarts"
   strategyActions.showLabel = false
   strategyActions.height = 20
-  strategyActions.width = 80
-  strategyActions.x = strategySlots[#strategySlots].x + strategySlots[#strategySlots].width + 5
-  strategyActions.y = strategySlots[#strategySlots].y
+  strategyActions.width = createStrategyButton.width
+  strategyActions.x = createStrategyButton.x
+  strategyActions.y = createStrategyButton.y + createStrategyButton.height + 5
   strategyActions.backgroundColour = menuBackgroundColour
   strategyActions.textColour = widgetTextColour
   strategyActions.arrowColour = menuArrowColour
@@ -976,22 +976,14 @@ numPartsBox:changed()
 -- Sequencer
 --------------------------------------------------------------------------------
 
-function playSubdivision(note, partPos)
-  local scale = paramsPerPart[partPos].fullScale
-  local waitDuration = (note.stepDuration * note.steps) / note.subdivision
-  for i=1,note.subdivision do
-    if #note.notes == 0 then
-      local gate = getGate(partPos, note.step)
-      if gate > 0 then
-        local playDuration = waitDuration * (gate / 100)
-        local noteToPlay = note.note
-        print("PlaySubdivision partPos/i/noteToPlay/noteName/duration/subdivision", partPos, i, noteToPlay, noteNumberToNoteName[noteToPlay+1], playDuration, note.subdivision)
-        playNote(noteToPlay, getVelocity(partPos, note.step), beat2ms(playDuration)-1)
-      end
-    else
-      local subDivisionNote = note.notes[i]
-      run(playSubdivision, subDivisionNote, partPos)
-    end
+function playSubdivision(structure, partPos)
+  local gate = getGate(partPos, structure.step)
+  for i,node in ipairs(structure.notes) do
+    local waitDuration = (node.stepDuration / node.subdivision) * node.steps
+    local playDuration = waitDuration * (gate / 100)
+    local noteToPlay = node.note
+    print("PlaySubdivision partPos/i/noteToPlay/noteName/duration", partPos, i, noteToPlay, noteNumberToNoteName[noteToPlay+1], playDuration)
+    playNote(noteToPlay, getVelocity(partPos, structure.step), beat2ms(playDuration)-1)
     waitBeat(waitDuration)
   end
 end
@@ -1005,6 +997,7 @@ function arpeg()
   local isStarting = true
   local strategyIndex = 1 -- Holds the selected strategy
   local strategyPos = 1 -- Holds the position in the selected strategy
+  local structureMemory = nil
   print("Start playing!")
 
   -- START ARP LOOP
@@ -1068,6 +1061,10 @@ function arpeg()
 
     local mainBeatDuration = getResolution(paramsPerPart[currentPartPosition].stepResolution.value)
 
+    if partWasChanged == true or getRandomBoolean() == true then
+      structureMemory = nil -- Reset structure memory
+    end
+
     if startOfPart == true then
       -- Create a random strategy
       local maxStrategies = 32
@@ -1128,7 +1125,41 @@ function arpeg()
 
     -- Note generator function
     local function getNoteToPlay()
-      -- Get the subdivision to use
+      local function generateNote(nodePos)
+        local note = nil
+        local hasHarmonizeableScale = canHarmonizeScale(paramsPerPart[currentPartPosition].scale)
+        local strategyPropbability = paramsPerPart[currentPartPosition].strategyPropbability.value
+        if getRandomBoolean(strategyPropbability) == true then
+          note, notePosition, strategyPos = getNoteFromStrategy(notePosition, strategyIndex, strategyPos, currentPartPosition)
+          print("Get note from scale using strategy: note/strategyPos/strategyIndex", note, strategyPos, strategyIndex)
+        else
+          local scale = getFilteredScale(currentPartPosition)
+          note = scale[getRandom(#scale)]
+          print("Get random note from scale: note/minNote/maxNote", note, minNote, maxNote)
+        end
+        return note
+      end
+
+      --local function getNotesFromNodes(nodes)
+      local function setNotesOnNodes(nodes)
+        --local noteCollection = {}
+        for i,node in ipairs(nodes) do
+          -- This is where we add the notes to the node
+          if i > 1 and getRandomBoolean(subdivisionRepeatProbability) then
+            -- TODO Repeat first or prev???
+            --node.note = noteCollection[i-1].note -- Repeat prev note
+            node.note = nodes[1].note -- Repeat first note
+            print("Note repeated", node.note)
+          else
+            node.note = generateNote(i)
+            print("Note generated", node.note)
+          end
+          --table.insert(noteCollection, node)
+        end
+        --return noteCollection
+      end
+
+      -- Get the subdivision to use for building the struncture
       local function getSubdivision(currentDepth)
         local subdivisionProbability = paramsPerPart[currentPartPosition].subdivisionProbability.value
         -- Calculate depth decay
@@ -1138,17 +1169,18 @@ function arpeg()
           print("subdivisionProbability/currentDepth", subdivisionProbability, currentDepth)
         end
         local subdivision = 1 -- Set default
-        if #subdivisions == 1 then
-          subdivision = subdivisions[1]
-          print("SET SELECTED subdivision", subdivision)
-        elseif #subdivisions > 1 and getRandomBoolean(subdivisionProbability) then
-          subdivision = subdivisions[getRandom(#subdivisions)]
-          print("SET RANDOM subdivision", subdivision)
+        if #subdivisions > 0 then
+          subdivision = subdivisions[1] -- First is default
+          if #subdivisions > 1 and getRandomBoolean(subdivisionProbability) then
+            subdivision = subdivisions[getRandom(#subdivisions)]
+            print("SET RANDOM subdivision", subdivision)
+          end
         end
         return subdivision
       end
 
-      local function getNote(stepDuration, currentDepth)
+      --local function getNote(stepDuration, currentDepth)
+      local function generateStructure(steps, stepDuration, currentDepth)
         if type(stepDuration) == "nil" then
           stepDuration = mainBeatDuration
         end
@@ -1160,69 +1192,104 @@ function arpeg()
         local subdivision = getSubdivision(currentDepth)
         print("Got subdivision/currentDepth", subdivision, currentDepth)
 
-        local minNoteSteps = paramsPerPart[currentPartPosition].minNoteSteps.value
+        --[[ local minNoteSteps = paramsPerPart[currentPartPosition].minNoteSteps.value
         local maxNoteSteps = paramsPerPart[currentPartPosition].maxNoteSteps.value
-        local hasHarmonizeableScale = canHarmonizeScale(paramsPerPart[currentPartPosition].scale)
+        local steps = getRandom(minNoteSteps, maxNoteSteps) ]]
         local minResolution = getResolution(paramsPerPart[currentPartPosition].subdivisionMinResolution.value)
-        local steps = getRandom(minNoteSteps, maxNoteSteps)
-
-        if currentDepth == 0 then
-          -- Adjust steps so note does not last beyond the part length
-          local maxSteps = (paramsPerPart[currentPartPosition].numStepsBox.value - tablePos) + 1
-          if steps > maxSteps then
-            print("maxSteps/steps", maxSteps, steps)
-            steps = maxSteps
-          end
-        else
-          -- When we are not on the top level, always play just one step.
-          -- Variation in length are handled by subdivsions at the lower levels.
-          steps = 1
-        end
-
-        local note = nil
-        local strategyPropbability = paramsPerPart[currentPartPosition].strategyPropbability.value
-        if getRandomBoolean(strategyPropbability) == true then
-          note, notePosition, strategyPos = getNoteFromStrategy(notePosition, strategyIndex, strategyPos, currentPartPosition)
-          print("Get note from scale using strategy: note/strategyPos/strategyIndex", note, strategyPos, strategyIndex)
-        else
-          local scale = getFilteredScale(currentPartPosition)
-          note = scale[getRandom(#scale)]
-          print("Get random note from scale: note/minNote/maxNote", note, minNote, maxNote)
-        end
 
         -- Check for minimum duration
-        local subdivisionNotes = {}
-        local subDivDuration = (stepDuration * steps) / subdivision
+        local subdivisionStructures = {}
+        local subDivDuration = (stepDuration / subdivision) * steps
         if subDivDuration < minResolution then
           subdivision = 1
+          print("The minimum resolution was reached - no further subdivisions are made subDivDuration/minResolution", subDivDuration, minResolution)
         end
         if subdivision > 1 then
           currentDepth = currentDepth + 1
           print("Incrementing depth/stepDuration/subDivDuration", currentDepth, stepDuration, subDivDuration)
-          for i=1,subdivision do
-            local subDivNote = getNote(subDivDuration, currentDepth)
-            if i == 1 or getRandomBoolean(subdivisionRepeatProbability) then
-              subDivNote.note = note
+          --for i=1,subdivision do
+          local subDivPos = 1
+          while subDivPos <= subdivision do
+            local subdivisionSteps = 1 -- Set default
+            local maxSteps = (subdivision - subDivPos) + 1
+            if maxSteps == subdivision then
+              maxSteps = maxSteps - 1 -- Avoid it lasting the whole subdivision
             end
-            table.insert(subdivisionNotes, subDivNote)
-            print("generateSubdivision note/subdivisionNum/subDivDuration/currentDepth", subDivNote.note, i, subDivDuration, currentDepth)
+            local subdivisionTieProbability = 25 -- TODO Param
+            if maxSteps > 1 and getRandomBoolean(subdivisionTieProbability) then
+              subdivisionSteps = getRandom(maxSteps)
+              print("Set subdivisionSteps by random subdivisionSteps/maxSteps", subdivisionSteps, maxSteps)
+            end
+            -- Create the recursive structure tree
+            print("Generating structure for subdivisionNum/subdivisionSteps/subDivDuration/currentDepth", subDivPos, subdivisionSteps, subDivDuration, currentDepth)
+            local subdivisionStructure = generateStructure(subdivisionSteps, subDivDuration, currentDepth)
+            table.insert(subdivisionStructures, subdivisionStructure)
+            subDivPos = subDivPos + subdivisionSteps -- Increment pos
           end
         end
 
-        print("Generated note", note)
-
         return {
-          note = note,
-          step = tablePos,
           steps = steps,
           stepDuration = stepDuration,
           subdivision = subdivision,
-          notes = subdivisionNotes,
-          stepCounter = 0
+          children = subdivisionStructures,
         }
       end
     
-      return getNote()
+
+      -- Get the number of steps this structure will last
+      local minNoteSteps = paramsPerPart[currentPartPosition].minNoteSteps.value
+      local maxNoteSteps = paramsPerPart[currentPartPosition].maxNoteSteps.value
+      local steps = getRandom(minNoteSteps, maxNoteSteps)
+      
+      -- Adjust steps so note does not last beyond the part length
+      local maxSteps = (paramsPerPart[currentPartPosition].numStepsBox.value - tablePos) + 1
+      if steps > maxSteps then
+        print("maxSteps/steps", maxSteps, steps)
+        steps = maxSteps
+      end
+
+      local nodes = {}
+
+      stepRepeatProbability = 75 -- TODO Param
+      if getRandomBoolean(stepRepeatProbability) and type(structureMemory) == "table" then
+        nodes = structureMemory -- Load structure from memory
+        print("Load structure from memory")
+      else
+        local function parseTree(structureTree)
+          -- Traverse the tree until we find the levels with no child nodes
+          for i=1,structureTree.subdivision do
+            if #structureTree.children == 0 then
+              print("Add final node from structure steps/stepDuration", structureTree.steps, structureTree.stepDuration)
+              table.insert(nodes, structureTree)
+            else
+              print("Parsing further down the tree #children/subdvision", #structureTree.children, structureTree.subdivision)
+              if type(structureTree.children[i]) == "table" then
+                parseTree(structureTree.children[i]) -- Parse next level
+              end
+            end
+          end
+        end
+  
+        local structureTree = generateStructure(steps, mainBeatDuration) -- Gets the structrure / rythmic pattern to use
+        parseTree(structureTree) -- Parses the tree and finds the nodes on the lowest level
+        print("Generated #nodes/step", #nodes, tablePos)
+        structureMemory = nodes
+      end
+
+      -- Get notes for each node in the tree
+      --local noteNodes = getNotesFromNodes(nodes)
+      setNotesOnNodes(nodes)
+      local notesToPlay = {
+        notes = nodes,
+        note = nodes[1].note, -- The base note
+        step = tablePos,
+        steps = steps,
+        stepCounter = 0
+      }
+
+      --return getNote()
+      return notesToPlay
     end
 
     --------------------------------------------------------------------------------
