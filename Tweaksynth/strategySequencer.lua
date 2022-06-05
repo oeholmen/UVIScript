@@ -1309,17 +1309,23 @@ function onSave()
   local seqVelTableData = {}
   local seqGateTableData = {}
   local strategyInputData = {}
+  local strategySlotsData = {}
+  local strategyActionsData = {}
 
   for i=1, numParts do
     table.insert(numStepsData, paramsPerPart[i].numStepsBox.value)
     table.insert(strategyInputData, paramsPerPart[i].strategyInput.text)
+    table.insert(strategyActionsData, paramsPerPart[i].strategyActions.items)
+    for _,v in ipairs(paramsPerPart[i].strategySlots) do
+      table.insert(strategySlotsData, v.tooltip)
+    end
     for j=1, paramsPerPart[i].numStepsBox.value do
       table.insert(seqVelTableData, paramsPerPart[i].seqVelTable:getValue(j))
       table.insert(seqGateTableData, paramsPerPart[i].seqGateTable:getValue(j))
     end
   end
 
-  return {numStepsData, seqVelTableData, seqGateTableData, strategyInputData}
+  return {numStepsData, seqVelTableData, seqGateTableData, strategyInputData, strategySlotsData, strategyActionsData}
 end
 
 function onLoad(data)
@@ -1327,15 +1333,24 @@ function onLoad(data)
   local seqVelTableData = data[2]
   local seqGateTableData = data[3]
   local strategyInputData = data[4]
+  local strategySlotsData = data[5]
+  local strategyActionsData = data[6]
 
   numPartsBox:setValue(#numStepsData)
 
   local dataCounter = 1
+  local strategySlotsDataCounter = 1
   for i,v in ipairs(numStepsData) do
     paramsPerPart[i].numStepsBox:setValue(v)
+    paramsPerPart[i].strategyActions.items = strategyActionsData[i]
     paramsPerPart[i].strategyInput.text = strategyInputData[i]
     paramsPerPart[i].seqVelTable.length = v
     paramsPerPart[i].seqGateTable.length = v
+    for _,v in ipairs(paramsPerPart[i].strategySlots) do
+      v.tooltip = strategySlotsData[strategySlotsDataCounter]
+      v.enabled = v.tooltip ~= "Unused"
+      strategySlotsDataCounter = strategySlotsDataCounter + 1
+    end
     for j=1, v do
       paramsPerPart[i].seqVelTable:setValue(j, seqVelTableData[dataCounter])
       paramsPerPart[i].seqGateTable:setValue(j, seqGateTableData[dataCounter])
