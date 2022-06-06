@@ -27,9 +27,9 @@ local paramsPerPart = {}
 local partSelect = {}
 local numParts = 1
 
--- Make sure these are in sync with the scale names!
+-- Make sure these are in sync with the scale names
+-- Scales are defined by distance to the next step
 local scaleDefinitions = {
-  {1}, -- 12 tone
   {2,2,1,2,2,2,1}, -- Major (Ionian mode)
   {2,1,2,2,1,2,2}, -- Minor (Aeolian mode)
   {2,1,2,2,2,2,1}, -- Harmonic minor
@@ -38,10 +38,11 @@ local scaleDefinitions = {
   {2,2,2,1,2,2,1}, -- Lydian mode
   {2,2,1,2,2,1,2}, -- Mixolydian mode
   {1,2,2,1,2,2,2}, -- Locrian mode
+  {1}, -- Chromatic
   {2}, -- Whole tone scale
 }
+
 local scaleNames = {
-  "12 tone",
   "Major (Ionian)",
   "Minor (Aeolian)",
   "Harmonic minor",
@@ -50,12 +51,13 @@ local scaleNames = {
   "Lydian",
   "Mixolydian",
   "Locrian",
+  "Chromatic",
   "Whole tone",
 }
 
 -- *** NOTE *** The chord definitions use steps in the selected scale, not semitones.
 -- 2 means two steps up the scale: C-E for a C major scale. A-C for an A minor scale.
--- Keep in sync with chordDefinitionNames!
+-- Keep in sync with chordDefinitionNames
 local chordDefinitions = {
   {2,2,3}, -- Builds triads
   {2,2,2,1}, -- Builds 7th chords
@@ -215,28 +217,8 @@ function getSemitonesBetweenNotes(note1, note2)
   return math.max(note1, note2) - math.min(note1, note1)
 end
 
-function getFilteredScale(part, minNote, maxNote)
-  local filteredScale = {}
-  if type(minNote) ~= "number" then
-    minNote = paramsPerPart[part].minNote.value
-  end
-  if type(maxNote) ~= "number" then
-    maxNote = paramsPerPart[part].maxNote.value
-  end
-  if #paramsPerPart[part].fullScale > 0 then
-    -- Filter out notes outside min/max
-    for i=1,#paramsPerPart[part].fullScale do
-      if paramsPerPart[part].fullScale[i] >= minNote and paramsPerPart[part].fullScale[i] <= maxNote then
-        table.insert(filteredScale, paramsPerPart[part].fullScale[i])
-      end
-    end
-  end
-  --print("Filtered scale contains notes:", #paramsPerPart[part].filteredScale)
-  return filteredScale
-end
-
 function canHarmonizeScale(selectedScale)
-  -- We can only harmonize scales with 7 notes
+  -- We can (currently) only harmonize scales with 7 notes
   return #scaleDefinitions[selectedScale.value] == 7
 end
 
@@ -256,7 +238,6 @@ function createFullScale(part)
       pos = 0
     end
   end
-  --print("Full scale contains notes:", #paramsPerPart[part].fullScale)
 end
 
 -- Use the selected chord definition to find the index for the next note in the chord
@@ -858,7 +839,6 @@ for i=1,numPartsBox.max do
   generateScalePart.outlineColour = menuOutlineColour
   
   local harmonizationPropbability = sequencerPanel:NumBox("HarmonizationPropbability" .. i, 100, 0, 100, true)
-  harmonizationPropbability.enabled = false
   harmonizationPropbability.displayName = "Harmonize"
   harmonizationPropbability.tooltip = "When harmonizing, we get notes from the currently playing chord. Otherwise notes are selected from the current scale."
   harmonizationPropbability.unit = Unit.Percent
@@ -919,7 +899,7 @@ for i=1,numPartsBox.max do
 
   local subdivisions = {}
   for j=1,8 do
-    local subdivision = sequencerPanel:OnOffButton("SubdivisionSelect" .. i .. j, (j<3))
+    local subdivision = sequencerPanel:OnOffButton("SubdivisionSelect" .. i .. j, false)
     subdivision.backgroundColourOff = "#ff084486"
     subdivision.backgroundColourOn = "#ff02ACFE"
     subdivision.textColourOff = "#ff22FFFF"
@@ -936,7 +916,7 @@ for i=1,numPartsBox.max do
 
   local subdivisionProbability = sequencerPanel:NumBox("SubdivisionProbability" .. i, 25, 0, 100, true)
   subdivisionProbability.displayName = "Probability"
-  subdivisionProbability.tooltip = "Probability that subdivisions will occur"
+  subdivisionProbability.tooltip = "Probability that subdivisions will occur (if activated)"
   subdivisionProbability.unit = Unit.Percent
   subdivisionProbability.width = 120
   subdivisionProbability.x = subdivisions[1].x
@@ -993,7 +973,6 @@ for i=1,numPartsBox.max do
       defaultValue = 120 - (j * 20)
     end
     local chordProbability = sequencerPanel:NumBox("ChordProbability" .. i .. j, defaultValue, 0, 100, true)
-    chordProbability.enabled = false
     chordProbability.displayName = v
     chordProbability.tooltip = "Probability that " .. v .. " will be included"
     chordProbability.unit = Unit.Percent
@@ -1023,7 +1002,6 @@ for i=1,numPartsBox.max do
   local rowCount = 1
   for inversion=1,3 do
     local inversionProbability = sequencerPanel:NumBox("InversionsProbability" .. i .. inversion, 100, 0, 100, true)
-    inversionProbability.enabled = false
     inversionProbability.displayName = "Inv " .. inversion
     inversionProbability.tooltip = "Probability that inversion " .. inversion .. " will be included"
     inversionProbability.unit = Unit.Percent
@@ -1043,7 +1021,7 @@ for i=1,numPartsBox.max do
 
   table.insert(paramsPerPart, {inversions=inversions,chords=chords,subdivisionProbability=subdivisionProbability,subdivisions=subdivisions,subdivisionRepeatProbability=subdivisionRepeatProbability,subdivisionTieProbability=subdivisionTieProbability,subdivisionMinResolution=subdivisionMinResolution,velRandomization=velRandomization,stepRepeatProbability=stepRepeatProbability,gateRandomization=gateRandomization,baseNoteRandomization=baseNoteRandomization,partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,polyphony=generatePolyphonyPart,numStepsBox=numStepsBox,stepResolution=stepResolution,fullScale={},scale=generateScalePart,key=generateKeyPart,harmonizationPropbability=harmonizationPropbability,minNote=generateMinPart,maxNote=generateMaxPart,monoLimit=monoLimit,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
 
-  createFullScale(i)
+  generateScalePart:changed()
 end
 
 local strategyPanel = Panel("StrategyPanel")
@@ -1151,6 +1129,7 @@ function arpeg()
   local strategyIndex = {} -- Holds the selected strategy (per voice)
   local strategyPos = {1} -- Holds the position in the selected strategy (per voice)
   local structureMemory = {}
+  notes = {} -- Ensure notes are reset when seqencer starts
 
   -- START ARP LOOP
   while isPlaying do
@@ -1201,9 +1180,13 @@ function arpeg()
     local polyphony = paramsPerPart[currentPartPosition].polyphony.value
     local subdivisionTieProbability = paramsPerPart[currentPartPosition].subdivisionTieProbability.value
     local stepRepeatProbability = paramsPerPart[currentPartPosition].stepRepeatProbability.value
+    local subdivisionRepeatProbability = paramsPerPart[currentPartPosition].subdivisionRepeatProbability.value
     local minNote = paramsPerPart[currentPartPosition].minNote.value
     local maxNote = paramsPerPart[currentPartPosition].maxNote.value
+    local minResolution = getResolution(paramsPerPart[currentPartPosition].subdivisionMinResolution.value)
     local mainBeatDuration = getResolution(paramsPerPart[currentPartPosition].stepResolution.value)
+    local minNoteSteps = paramsPerPart[currentPartPosition].minNoteSteps.value
+    local maxNoteSteps = paramsPerPart[currentPartPosition].maxNoteSteps.value
 
     if startOfPart == true then
       -- TODO Param
@@ -1219,7 +1202,6 @@ function arpeg()
       end
     end
 
-    --scale = {} -- Reset scale
     inversionIndex = 0 -- Reset counter for inversion progress
     chordDefinitionIndex = 1 -- Set default
     -- Find chord types to include
@@ -1255,13 +1237,28 @@ function arpeg()
       end
     end
 
-    -- Get subdivision info
-    local subdivisionRepeatProbability = paramsPerPart[currentPartPosition].subdivisionRepeatProbability.value
+    -- Get subdivisions
     local subdivisions = {}
     for i,v in ipairs(paramsPerPart[currentPartPosition].subdivisions) do
       if v.value == true then
         table.insert(subdivisions, i)
         print("Added subdivision", i)
+      end
+    end
+
+    -- Automatically add subdivisions
+    local numSubdivisions = #subdivisions
+    for i=1,numSubdivisions do
+      subdivision = subdivisions[i]
+      local duration = mainBeatDuration
+      while duration >= minResolution do
+        subdivision = subdivision * 2
+        duration = (mainBeatDuration / subdivision) * maxNoteSteps
+        print("Found subdivision/duration/minResolution", subdivision, duration, minResolution)
+        if duration >= minResolution and tableIncludes(subdivisions, subdivision) == false then
+          table.insert(subdivisions, subdivision)
+          print("Added subdivision", subdivision)
+        end
       end
     end
 
@@ -1307,7 +1304,6 @@ function arpeg()
           print("Adjust baseMax to mono limit", baseMax)
         end
 
-        --scale = getFilteredScale(currentPartPosition, baseMin, baseMax)
         scale = paramsPerPart[currentPartPosition].fullScale
 
         local function getChord(currentNote, basic)
@@ -1374,9 +1370,7 @@ function arpeg()
               baseNote = getNoteAccordingToScale(scale, (baseNote + getRandom(noteRange) - 1))
               notePosition[voice] = getIndexFromValue(baseNote, scale)
             end
-            --notePosition, strategyPos = getNotePositionFromStrategy(scale, notePosition, strategyIndex, strategyPos, currentPartPosition, voice)
             baseNote, notePosition, strategyPos = getNoteFromStrategy(notePosition, strategyIndex, strategyPos, currentPartPosition, voice, baseMin, baseMax)
-            --baseNote = scale[notePosition[voice]]
             print("Get base note from scale using strategy: note/minNote/maxNote/strategyIndex", baseNote, baseMin, baseMax, strategyIndex[voice])
           end
 
@@ -1485,8 +1479,6 @@ function arpeg()
 
         -- Get note from scale using strategy
         if type(note) == "nil" then
-          --notePosition, strategyPos = getNotePositionFromStrategy(scale, notePosition, strategyIndex, strategyPos, currentPartPosition, voice)
-          --note = scale[notePosition[voice]]
           note, notePosition, strategyPos = getNoteFromStrategy(notePosition, strategyIndex, strategyPos, currentPartPosition, voice, baseMin, baseMax)
           print("Get note from scale using strategy: note/minNote/maxNote/strategyIndex", note, minNote, maxNote, strategyIndex[voice])
         end
@@ -1494,39 +1486,40 @@ function arpeg()
         return note
       end
 
-      --local function getNotesFromNodes(nodes)
       local function setNotesOnNodes(nodes)
-        --local noteCollection = {}
         for i,node in ipairs(nodes) do
           -- This is where we add the notes to the node
           if i > 1 and getRandomBoolean(subdivisionRepeatProbability) then
-            -- TODO Repeat first or prev???
-            --node.note = noteCollection[i-1].note -- Repeat prev note
             node.note = nodes[1].note -- Repeat first note
             print("Note repeated", node.note)
           else
             node.note = generateNote(i)
             print("Note generated", node.note)
           end
-          --table.insert(noteCollection, node)
         end
-        --return noteCollection
       end
 
       -- Get the subdivision to use for building the struncture
-      local function getSubdivision(currentDepth)
+      local function getSubdivision(stepDuration, steps)
         local subdivisionProbability = paramsPerPart[currentPartPosition].subdivisionProbability.value
         -- Calculate depth decay
         -- TODO If decay, there should be a setting for it...
-        if currentDepth > 1 then
+        --[[ if currentDepth > 1 then
           subdivisionProbability = math.ceil(subdivisionProbability / (currentDepth / 2)) -- TODO Adjust
           print("subdivisionProbability/currentDepth", subdivisionProbability, currentDepth)
-        end
+        end ]]
         local subdivision = 1 -- Set default
-        if #subdivisions > 0 then
-          subdivision = subdivisions[1] -- First is default
-          if #subdivisions > 1 and getRandomBoolean(subdivisionProbability) then
-            subdivision = subdivisions[getRandom(#subdivisions)]
+        -- Check what subdivisions can be used whit the given duration
+        local validSubdivisions = {}
+        for _,v in ipairs(subdivisions) do
+          if (stepDuration / v) * steps >= minResolution then
+            table.insert(validSubdivisions, v)
+          end
+        end
+        if #validSubdivisions > 0 then
+          subdivision = validSubdivisions[1] -- First is default
+          if #validSubdivisions > 1 and getRandomBoolean(subdivisionProbability) then
+            subdivision = validSubdivisions[getRandom(#validSubdivisions)]
             print("SET RANDOM subdivision", subdivision)
           end
         end
@@ -1534,15 +1527,13 @@ function arpeg()
       end
 
       -- Recursive method for generating the rythmic structure
-      local function generateStructure(steps, stepDuration, currentDepth)
+      local function generateStructure(stepDuration, steps, currentDepth)
         if type(currentDepth) == "nil" then
           currentDepth = 0
         end
 
-        local subdivision = getSubdivision(currentDepth)
+        local subdivision = getSubdivision(stepDuration, steps)
         print("Got subdivision/currentDepth/voice", subdivision, currentDepth,voice)
-
-        local minResolution = getResolution(paramsPerPart[currentPartPosition].subdivisionMinResolution.value)
 
         -- Check for minimum duration
         local subdivisionStructures = {}
@@ -1554,7 +1545,6 @@ function arpeg()
         if subdivision > 1 then
           currentDepth = currentDepth + 1
           print("Incrementing depth/stepDuration/subDivDuration", currentDepth, stepDuration, subDivDuration)
-          --for i=1,subdivision do
           local subDivPos = 1
           while subDivPos <= subdivision do
             local subdivisionSteps = 1 -- Set default
@@ -1568,7 +1558,7 @@ function arpeg()
             end
             -- Create the recursive structure tree
             print("Generating structure for subdivisionNum/subdivisionSteps/subDivDuration/currentDepth", subDivPos, subdivisionSteps, subDivDuration, currentDepth)
-            local subdivisionStructure = generateStructure(subdivisionSteps, subDivDuration, currentDepth)
+            local subdivisionStructure = generateStructure(subDivDuration, subdivisionSteps, currentDepth)
             table.insert(subdivisionStructures, subdivisionStructure)
             subDivPos = subDivPos + subdivisionSteps -- Increment pos
           end
@@ -1583,8 +1573,6 @@ function arpeg()
       end
 
       -- Get the number of steps this structure will last
-      local minNoteSteps = paramsPerPart[currentPartPosition].minNoteSteps.value
-      local maxNoteSteps = paramsPerPart[currentPartPosition].maxNoteSteps.value
       local steps = getRandom(minNoteSteps, maxNoteSteps)
       
       -- Adjust steps so note does not last beyond the part length
@@ -1615,7 +1603,7 @@ function arpeg()
           end
         end
   
-        local structureTree = generateStructure(steps, mainBeatDuration) -- Gets the structrure / rythmic pattern to use
+        local structureTree = generateStructure(mainBeatDuration, steps) -- Gets the structrure / rythmic pattern to use
         parseTree(structureTree) -- Parses the tree and finds the nodes on the lowest level
         print("Generated #nodes/step/voice", #nodes, tablePos, voice)
         table.insert(structureMemory, voice, nodes)

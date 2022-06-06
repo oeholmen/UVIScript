@@ -28,9 +28,9 @@ local totalNumSteps = 8
 local paramsPerPart = {}
 local partSelect = {}
 local numParts = 1
--- Make sure these are in sync with the scale names!
+-- Make sure these are in sync with the scale names
+-- Scales are defined by distance to the next step
 local scaleDefinitions = {
-  {1}, -- 12 tone
   {2,2,1,2,2,2,1}, -- Major (Ionian mode)
   {2,1,2,2,1,2,2}, -- Minor (Aeolian mode)
   {2,1,2,2,2,1,2}, -- Dorian mode
@@ -38,6 +38,9 @@ local scaleDefinitions = {
   {2,2,2,1,2,2,1}, -- Lydian mode
   {2,2,1,2,2,1,2}, -- Mixolydian mode
   {1,2,2,1,2,2,2}, -- Locrian mode
+  {2,2,2,1,2,1,2}, -- Acoustic
+  {2,1,2,1,1,3,2}, -- Blues
+  {1}, -- Chomatic
   {2}, -- Whole tone scale
   {2,2,3,2,3}, -- Major Pentatonic
   {3,2,2,3,2}, -- Minor Pentatonic
@@ -49,7 +52,6 @@ local scaleDefinitions = {
   {7}
 }
 local scaleNames = {
-  "12 tone",
   "Major (Ionian)",
   "Minor (Aeolian)",
   "Dorian",
@@ -57,6 +59,9 @@ local scaleNames = {
   "Lydian",
   "Mixolydian",
   "Locrian",
+  "Acoustic",
+  "Blues",
+  "Chomatic",
   "Whole tone",
   "Major Pentatonic",
   "Minor Pentatonic",
@@ -69,7 +74,7 @@ local scaleNames = {
 }
 -- *** NOTE *** The chord definitions use steps in the selected scale, not semitones.
 -- 2 means two steps up the scale: C-E for a C major scale. A-C for an A minor scale.
--- Keep in sync with chordDefinitionNames!
+-- Keep in sync with chordDefinitionNames
 local chordDefinitions = {
   {2,2,3}, -- Builds triads
   {2,2,2,1}, -- Builds 7th chords
@@ -1060,6 +1065,9 @@ function arpeg()
     end
 
     local mainBeatDuration = getResolution(paramsPerPart[currentPartPosition].stepResolution.value)
+    local minResolution = getResolution(paramsPerPart[currentPartPosition].subdivisionMinResolution.value)
+    local minNoteSteps = paramsPerPart[currentPartPosition].minNoteSteps.value
+    local maxNoteSteps = paramsPerPart[currentPartPosition].maxNoteSteps.value
 
     if partWasChanged == true or getRandomBoolean() == true then
       structureMemory = nil -- Reset structure memory
@@ -1105,13 +1113,29 @@ function arpeg()
       end
     end
 
-    -- Get subdivision info
+    -- Get subdivisions
     local subdivisionRepeatProbability = paramsPerPart[currentPartPosition].subdivisionRepeatProbability.value
     local subdivisions = {}
     for i,v in ipairs(paramsPerPart[currentPartPosition].subdivisions) do
       if v.value == true then
         table.insert(subdivisions, i)
         print("Added subdivision", i)
+      end
+    end
+
+    -- Automatically add subdivisions
+    local numSubdivisions = #subdivisions
+    for i=1,numSubdivisions do
+      subdivision = subdivisions[i]
+      local duration = mainBeatDuration
+      while duration >= minResolution do
+        subdivision = subdivision * 2
+        duration = (mainBeatDuration / subdivision) * maxNoteSteps
+        print("Found subdivision/duration/minResolution", subdivision, duration, minResolution)
+        if duration >= minResolution and tableIncludes(subdivisions, subdivision) == false then
+          table.insert(subdivisions, subdivision)
+          print("Added subdivision", subdivision)
+        end
       end
     end
 
@@ -1142,37 +1166,39 @@ function arpeg()
 
       --local function getNotesFromNodes(nodes)
       local function setNotesOnNodes(nodes)
-        --local noteCollection = {}
         for i,node in ipairs(nodes) do
           -- This is where we add the notes to the node
           if i > 1 and getRandomBoolean(subdivisionRepeatProbability) then
-            -- TODO Repeat first or prev???
-            --node.note = noteCollection[i-1].note -- Repeat prev note
             node.note = nodes[1].note -- Repeat first note
             print("Note repeated", node.note)
           else
             node.note = generateNote(i)
             print("Note generated", node.note)
           end
-          --table.insert(noteCollection, node)
         end
-        --return noteCollection
       end
 
       -- Get the subdivision to use for building the struncture
-      local function getSubdivision(currentDepth)
+      local function getSubdivision(stepDuration, steps)
         local subdivisionProbability = paramsPerPart[currentPartPosition].subdivisionProbability.value
         -- Calculate depth decay
         -- TODO If decay, there should be a setting for it...
-        if currentDepth > 1 then
+        --[[ if currentDepth > 1 then
           subdivisionProbability = math.ceil(subdivisionProbability / (currentDepth / 2)) -- TODO Adjust
           print("subdivisionProbability/currentDepth", subdivisionProbability, currentDepth)
-        end
+        end ]]
         local subdivision = 1 -- Set default
-        if #subdivisions > 0 then
-          subdivision = subdivisions[1] -- First is default
-          if #subdivisions > 1 and getRandomBoolean(subdivisionProbability) then
-            subdivision = subdivisions[getRandom(#subdivisions)]
+        -- Check what subdivisions can be used whit the given duration
+        local validSubdivisions = {}
+        for _,v in ipairs(subdivisions) do
+          if (stepDuration / v) * steps >= minResolution then
+            table.insert(validSubdivisions, v)
+          end
+        end
+        if #validSubdivisions > 0 then
+          subdivision = validSubdivisions[1] -- First is default
+          if #validSubdivisions > 1 and getRandomBoolean(subdivisionProbability) then
+            subdivision = validSubdivisions[getRandom(#validSubdivisions)]
             print("SET RANDOM subdivision", subdivision)
           end
         end
@@ -1189,13 +1215,9 @@ function arpeg()
           currentDepth = 0
         end
 
-        local subdivision = getSubdivision(currentDepth)
+        --local subdivision = getSubdivision(currentDepth)
+        local subdivision = getSubdivision(stepDuration, steps)
         print("Got subdivision/currentDepth", subdivision, currentDepth)
-
-        --[[ local minNoteSteps = paramsPerPart[currentPartPosition].minNoteSteps.value
-        local maxNoteSteps = paramsPerPart[currentPartPosition].maxNoteSteps.value
-        local steps = getRandom(minNoteSteps, maxNoteSteps) ]]
-        local minResolution = getResolution(paramsPerPart[currentPartPosition].subdivisionMinResolution.value)
 
         -- Check for minimum duration
         local subdivisionStructures = {}
@@ -1235,13 +1257,10 @@ function arpeg()
           children = subdivisionStructures,
         }
       end
-    
 
       -- Get the number of steps this structure will last
-      local minNoteSteps = paramsPerPart[currentPartPosition].minNoteSteps.value
-      local maxNoteSteps = paramsPerPart[currentPartPosition].maxNoteSteps.value
       local steps = getRandom(minNoteSteps, maxNoteSteps)
-      
+
       -- Adjust steps so note does not last beyond the part length
       local maxSteps = (paramsPerPart[currentPartPosition].numStepsBox.value - tablePos) + 1
       if steps > maxSteps then
@@ -1251,7 +1270,7 @@ function arpeg()
 
       local nodes = {}
 
-      stepRepeatProbability = 75 -- TODO Param
+      stepRepeatProbability = 0 -- TODO Param
       if getRandomBoolean(stepRepeatProbability) and type(structureMemory) == "table" then
         nodes = structureMemory -- Load structure from memory
         print("Load structure from memory")

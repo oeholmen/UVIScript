@@ -20,6 +20,15 @@ function transpose(note, min, max)
   return note
 end
 
+function tableIncludes(theTable, theItem)
+  for _,v in pairs(theTable) do
+    if v == theItem then
+      return true
+    end
+  end
+  return false
+end
+
 function getIndexFromValue(value, selection)
   for i,v in ipairs(selection) do
     if v == value then
