@@ -80,7 +80,7 @@ function getChangeMax(max, probabilityLevel)
 end
 
 function getDotted(value)
-  return value + (value / 2)
+  return value * 1.5
 end
 
 function getTriplet(value)

@@ -898,18 +898,22 @@ for i=1,numPartsBox.max do
   end
 
   local subdivisions = {}
-  for j=1,3 do
+  for j=1,4 do
     local subdivision = sequencerPanel:OnOffButton("SubdivisionSelect" .. i .. j, (j<3))
-    subdivision.backgroundColourOff = "#ff084486"
-    subdivision.backgroundColourOn = "#ff02ACFE"
-    subdivision.textColourOff = "#ff22FFFF"
-    subdivision.textColourOn = "#efFFFFFF"
-    subdivision.fillColour = "#dd000061"
-    subdivision.displayName = "" .. j
-    subdivision.tooltip = "Activate base - subdivision bases will divide until the minimum resolution is reached (or 1 is included, and selected by random)"
+    subdivision.backgroundColourOff = backgroundColourOff
+    subdivision.backgroundColourOn = backgroundColourOn
+    subdivision.textColourOff = textColourOff
+    subdivision.textColourOn = textColourOn
+    if j == 4 then
+      subdivision.displayName = "."
+      subdivision.tooltip = "Allow dotted subdivisions to create syncopes"
+    else
+      subdivision.displayName = "" .. j
+      subdivision.tooltip = "Activate base - subdivision bases will divide until the minimum resolution is reached (or 1 is included, and selected by random)"
+    end
     subdivision.height = 20
-    subdivision.width = 36
-    subdivision.x = ((j-1) * (subdivision.width + 5.8))
+    subdivision.width = 24
+    subdivision.x = subdivisionProbabilityLabel.x + ((j-1) * (subdivision.width+3.8))
     subdivision.y = subdivisionProbabilityLabel.y + subdivisionProbabilityLabel.height + 5
     table.insert(subdivisions, subdivision)
   end
@@ -1240,8 +1244,9 @@ function arpeg()
 
     -- Get subdivisions
     local subdivisions = {}
-    for i,v in ipairs(paramsPerPart[currentPartPosition].subdivisions) do
-      if v.value == true then
+    local allowDotted = paramsPerPart[currentPartPosition].subdivisions[4].value
+    for i=1,3 do
+      if paramsPerPart[currentPartPosition].subdivisions[i].value == true then
         table.insert(subdivisions, i)
         print("Added subdivision", i)
       end
@@ -1528,7 +1533,7 @@ function arpeg()
       end
 
       -- Recursive method for generating the rythmic structure
-      local function generateStructure(stepDuration, steps, currentDepth)
+      local function generateStructure(stepDuration, steps, currentDepth, stop)
         if type(currentDepth) == "nil" then
           currentDepth = 0
         end
@@ -1538,28 +1543,53 @@ function arpeg()
 
         -- Check for minimum duration
         local subdivisionStructures = {}
-        local subDivDuration = (stepDuration / subdivision) * steps
-        if subDivDuration < minResolution then
+        local fullDuration = stepDuration * steps
+        local subDivDuration = fullDuration / subdivision
+        local remainderDuration = subDivDuration -- Default remainderDuration is the full subdivision duration
+        if subDivDuration < minResolution or stop == true then
           subdivision = 1
-          print("The minimum resolution was reached - no further subdivisions are made subDivDuration/minResolution", subDivDuration, minResolution)
+          print("The minimum resolution or stop was reached - no further subdivisions are made subDivDuration/minResolution/stop", subDivDuration, minResolution, stop)
         end
         if subdivision > 1 then
           currentDepth = currentDepth + 1
           print("Incrementing depth/stepDuration/subDivDuration", currentDepth, stepDuration, subDivDuration)
+          local dotted = allowDotted == true and subdivision % 4 == 0 and getRandomBoolean(25) -- TODO Param
+          print("Dotted is", dotted, subdivision)
+          if dotted == true then
+            stop = true
+            subDivDuration = getDotted(subDivDuration)
+            remainderDuration = fullDuration % subDivDuration -- Adjust remainder duration
+            subdivision = math.ceil(fullDuration / subDivDuration) -- Adjust subdivision
+            if remainderDuration < minResolution then
+              remainderDuration = remainderDuration + subDivDuration
+              subdivision = subdivision - 1 -- Adjust subdivision
+            end
+            print("Dotted subdivision/duration/fullDuration/remainderDuration", subdivision, subDivDuration, fullDuration, remainderDuration)
+          end
           local subDivPos = 1
           while subDivPos <= subdivision do
             local subdivisionSteps = 1 -- Set default
-            local maxSteps = (subdivision - subDivPos) + 1
-            if maxSteps == subdivision then
-              maxSteps = maxSteps - 1 -- Avoid it lasting the whole subdivision
+            if dotted == false then
+              local maxSteps = (subdivision - subDivPos) + 1
+              if maxSteps == subdivision then
+                maxSteps = maxSteps - 1 -- Avoid it lasting the whole subdivision
+              end
+              if maxSteps > 1 and getRandomBoolean(subdivisionTieProbability) then
+                subdivisionSteps = getRandom(maxSteps)
+                if subdivisionSteps > 1 then
+                  stop = subdivisionSteps % 2 > 0 -- Stop subdividing if not an even number
+                  print("subdivisionSteps % 2", (subdivisionSteps % 2))
+                end
+                print("Set subdivisionSteps by random subdivisionSteps/maxSteps/stop", subdivisionSteps, maxSteps, stop)
+              end
             end
-            if maxSteps > 1 and getRandomBoolean(subdivisionTieProbability) then
-              subdivisionSteps = getRandom(maxSteps)
-              print("Set subdivisionSteps by random subdivisionSteps/maxSteps", subdivisionSteps, maxSteps)
+            -- Use the remainder on the last step
+            if subDivPos == subdivision then
+              subDivDuration = remainderDuration
             end
             -- Create the recursive structure tree
             print("Generating structure for subdivisionNum/subdivisionSteps/subDivDuration/currentDepth", subDivPos, subdivisionSteps, subDivDuration, currentDepth)
-            local subdivisionStructure = generateStructure(subDivDuration, subdivisionSteps, currentDepth)
+            local subdivisionStructure = generateStructure(subdivisionSteps, subDivDuration, currentDepth, stop)
             table.insert(subdivisionStructures, subdivisionStructure)
             subDivPos = subDivPos + subdivisionSteps -- Increment pos
           end
@@ -1585,7 +1615,7 @@ function arpeg()
 
       local nodes = {}
 
-      if getRandomBoolean(stepRepeatProbability) and tablePos > 1 and type(structureMemory[voice]) == "table" then
+      if getRandomBoolean(stepRepeatProbability) and type(structureMemory[voice]) == "table" then --  and tablePos > 1
         nodes = structureMemory[voice] -- Load structure from memory
         print("Load structure from memory for voice", voice)
       else
