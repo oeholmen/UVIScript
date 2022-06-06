@@ -782,24 +782,24 @@ for i=1,numPartsBox.max do
   end
 
   local subdivisions = {}
-  for j=1,4 do
+  for j=1,3 do
     local subdivision = sequencerPanel:OnOffButton("SubdivisionSelect" .. i .. j, (j<3))
     subdivision.backgroundColourOff = backgroundColourOff
     subdivision.backgroundColourOn = backgroundColourOn
     subdivision.textColourOff = textColourOff
     subdivision.textColourOn = textColourOn
     subdivision.displayName = "" .. j
-    subdivision.tooltip = "Activate subdivision"
+    subdivision.tooltip = "Activate base - subdivision bases will divide until the minimum resolution is reached (or 1 is included, and selected by random)"
     subdivision.height = 20
-    subdivision.width = 25
-    subdivision.x = subdivisionProbabilityLabel.x + ((j-1) * (subdivision.width+2.8))
+    subdivision.width = 33
+    subdivision.x = subdivisionProbabilityLabel.x + ((j-1) * (subdivision.width+4))
     subdivision.y = subdivisionProbabilityLabel.y + subdivisionProbabilityLabel.height + 5
     table.insert(subdivisions, subdivision)
   end
 
   local subdivisionProbability = sequencerPanel:NumBox("SubdivisionProbability" .. i, 25, 0, 100, true)
   subdivisionProbability.displayName = "Probability"
-  subdivisionProbability.tooltip = "Probability that subdivisions will occur"
+  subdivisionProbability.tooltip = "Probability that active subdivisions will be selected by random - if set to 0, the first selected subdivision will be used"
   subdivisionProbability.unit = Unit.Percent
   subdivisionProbability.width = generateScalePart.width
   subdivisionProbability.x = subdivisionProbabilityLabel.x
@@ -1128,7 +1128,7 @@ function arpeg()
     for i=1,numSubdivisions do
       subdivision = subdivisions[i]
       local duration = mainBeatDuration
-      while duration >= minResolution do
+      while duration > minResolution do
         subdivision = subdivision * 2
         duration = (mainBeatDuration / subdivision) * maxNoteSteps
         print("Found subdivision/duration/minResolution", subdivision, duration, minResolution)

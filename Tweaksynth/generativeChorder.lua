@@ -881,9 +881,9 @@ for i=1,numPartsBox.max do
   gateRandomization.backgroundColour = menuBackgroundColour
   gateRandomization.textColour = widgetTextColour
 
-  local baseNoteRandomization = sequencerPanel:NumBox("BaseNoteProbability" .. i, 0, 0, 100, true)
-  baseNoteRandomization.displayName = "Base note"
-  baseNoteRandomization.tooltip = "Probability that first note in part will be the base note"
+  local baseNoteRandomization = sequencerPanel:NumBox("BaseNoteProbability" .. i, 75, 0, 100, true)
+  baseNoteRandomization.displayName = "Base Chord"
+  baseNoteRandomization.tooltip = "Probability that first chord in the part will be the root chord"
   baseNoteRandomization.unit = Unit.Percent
   baseNoteRandomization.width = gateRandomization.width
   baseNoteRandomization.x = gateRandomization.x
@@ -898,7 +898,7 @@ for i=1,numPartsBox.max do
   end
 
   local subdivisions = {}
-  for j=1,8 do
+  for j=1,3 do
     local subdivision = sequencerPanel:OnOffButton("SubdivisionSelect" .. i .. j, false)
     subdivision.backgroundColourOff = "#ff084486"
     subdivision.backgroundColourOn = "#ff02ACFE"
@@ -906,23 +906,24 @@ for i=1,numPartsBox.max do
     subdivision.textColourOn = "#efFFFFFF"
     subdivision.fillColour = "#dd000061"
     subdivision.displayName = "" .. j
-    subdivision.tooltip = "Activate subdivision"
+    subdivision.tooltip = "Activate base - subdivision bases will divide until the minimum resolution is reached (or 1 is included, and selected by random)"
     subdivision.height = 20
-    subdivision.width = 25
-    subdivision.x = 30 + ((j-2) * (subdivision.width+3.3))
+    subdivision.width = 36
+    subdivision.x = ((j-1) * (subdivision.width + 5.8))
     subdivision.y = subdivisionProbabilityLabel.y + subdivisionProbabilityLabel.height + 5
     table.insert(subdivisions, subdivision)
   end
 
   local subdivisionProbability = sequencerPanel:NumBox("SubdivisionProbability" .. i, 25, 0, 100, true)
   subdivisionProbability.displayName = "Probability"
-  subdivisionProbability.tooltip = "Probability that subdivisions will occur (if activated)"
+  subdivisionProbability.tooltip = "Probability that active subdivisions will be selected by random - if set to 0, the first selected subdivision will be used"
   subdivisionProbability.unit = Unit.Percent
   subdivisionProbability.width = 120
-  subdivisionProbability.x = subdivisions[1].x
+  subdivisionProbability.x = subdivisionProbabilityLabel.x
   subdivisionProbability.y = subdivisions[1].y + subdivisions[1].height + 5
   subdivisionProbability.backgroundColour = menuBackgroundColour
   subdivisionProbability.textColour = widgetTextColour
+
   local subdivisionRepeatProbability = sequencerPanel:NumBox("SubdivisionRepeatProbability" .. i, 0, 0, 100, true)
   subdivisionRepeatProbability.displayName = "Note Repeat"
   subdivisionRepeatProbability.tooltip = "What is the probability that the same note will be played in the subdivision, meaning that the same note is repeated?"
@@ -934,13 +935,13 @@ for i=1,numPartsBox.max do
   subdivisionRepeatProbability.textColour = widgetTextColour
 
   local subdivisionMinResolution = sequencerPanel:Menu("SubdivisionMinResolution" .. i, getResolutionNames())
-  subdivisionMinResolution.displayName = "Min Resolution"
-  subdivisionMinResolution.showLabel = false
-  subdivisionMinResolution.tooltip = "This is the lowest resolution when using subdivisions"
   subdivisionMinResolution.selected = 20
-  subdivisionMinResolution.height = 20
+  subdivisionMinResolution.displayName = "Min Resolution"
+  subdivisionMinResolution.tooltip = "This is the lowest resolution when using subdivisions"
+  --subdivisionMinResolution.showLabel = false
+  --subdivisionMinResolution.height = 20
   subdivisionMinResolution.x = subdivisionProbability.x + subdivisionProbability.width + 9
-  subdivisionMinResolution.y = subdivisionProbability.y
+  subdivisionMinResolution.y = subdivisions[1].y
   subdivisionMinResolution.width = subdivisionProbability.width - 25
   subdivisionMinResolution.backgroundColour = menuBackgroundColour
   subdivisionMinResolution.textColour = widgetTextColour
@@ -1251,7 +1252,7 @@ function arpeg()
     for i=1,numSubdivisions do
       subdivision = subdivisions[i]
       local duration = mainBeatDuration
-      while duration >= minResolution do
+      while duration > minResolution do
         subdivision = subdivision * 2
         duration = (mainBeatDuration / subdivision) * maxNoteSteps
         print("Found subdivision/duration/minResolution", subdivision, duration, minResolution)
