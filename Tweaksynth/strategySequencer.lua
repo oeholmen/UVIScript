@@ -778,7 +778,7 @@ for i=1,numPartsBox.max do
   if i == 1 then
     subdivisionProbabilityLabel.width = boxWidth
     subdivisionProbabilityLabel.x = generateScalePart.x
-    subdivisionProbabilityLabel.y = partRandBox.y + partRandBox.height + 5
+    subdivisionProbabilityLabel.y = partRandBox.y + partRandBox.height + 10
   end
 
   local subdivisions = {}
@@ -869,7 +869,7 @@ for i=1,numPartsBox.max do
   autoStrategyButton.textColourOn = textColourOn
   autoStrategyButton.width = 80
   autoStrategyButton.x = strategyPropbability.x + strategyPropbability.width + 10
-  autoStrategyButton.y = strategyLabel.y + 5
+  autoStrategyButton.y = strategyLabel.y
 
   local createStrategyButton = sequencerPanel:Button("CreateStrategyButton" .. i)
   createStrategyButton.displayName = "Create"
@@ -888,7 +888,7 @@ for i=1,numPartsBox.max do
   strategyInput.textColour = labelTextColour
   strategyInput.textColourWhenEditing = "white"
   strategyInput.x = numStepsBox.x
-  strategyInput.y = strategyLabel.y + 5
+  strategyInput.y = strategyLabel.y
   strategyInput.width = 228
   strategyInput.height = 45
   strategyInput.fontSize = 30

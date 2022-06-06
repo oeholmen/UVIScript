@@ -899,7 +899,7 @@ for i=1,numPartsBox.max do
 
   local subdivisions = {}
   for j=1,3 do
-    local subdivision = sequencerPanel:OnOffButton("SubdivisionSelect" .. i .. j, false)
+    local subdivision = sequencerPanel:OnOffButton("SubdivisionSelect" .. i .. j, (j<3))
     subdivision.backgroundColourOff = "#ff084486"
     subdivision.backgroundColourOn = "#ff02ACFE"
     subdivision.textColourOff = "#ff22FFFF"
