@@ -95,6 +95,8 @@ local strategies = {
   {3,-2,7},
   {-5,4,4},
   {7,7,-5},
+  {7,5,6},
+  {-7,2,7},
 }
 
 local strategyInputs = {}
@@ -461,6 +463,7 @@ editPartMenu.changed = function(self)
     v.subdivisionRepeatProbability.visible = isVisible
     v.subdivisionMinResolution.visible = isVisible
     v.subdivisionTieProbability.visible = isVisible
+    v.subdivisionDotProbability.visible = isVisible
     for _,s in ipairs(v.subdivisions) do
       s.visible = isVisible
     end
@@ -522,6 +525,7 @@ numPartsBox.changed = function(self)
       paramsPerPart[i].subdivisionRepeatProbability.value = prev.subdivisionRepeatProbability.value
       paramsPerPart[i].subdivisionMinResolution.value = prev.subdivisionMinResolution.value
       paramsPerPart[i].subdivisionTieProbability.value = prev.subdivisionTieProbability.value
+      paramsPerPart[i].subdivisionDotProbability.value = prev.subdivisionDotProbability.value
       paramsPerPart[i].init = true
     end
   end
@@ -897,23 +901,23 @@ for i=1,numPartsBox.max do
     subdivisionProbabilityLabel.y = partRandBox.y + partRandBox.height + 5
   end
 
+  -- TODO Subdivision per voice?
   local subdivisions = {}
-  for j=1,4 do
+  for j=1,3 do
     local subdivision = sequencerPanel:OnOffButton("SubdivisionSelect" .. i .. j, (j<3))
     subdivision.backgroundColourOff = backgroundColourOff
     subdivision.backgroundColourOn = backgroundColourOn
     subdivision.textColourOff = textColourOff
     subdivision.textColourOn = textColourOn
-    if j == 4 then
-      subdivision.displayName = "."
-      subdivision.tooltip = "Allow dotted subdivisions to create syncopes"
+    subdivision.displayName = "" .. j
+    if j == 1 then
+      subdivision.tooltip = "Activate base - subdivision bases will divide until the minimum resolution is reached"
     else
-      subdivision.displayName = "" .. j
-      subdivision.tooltip = "Activate base - subdivision bases will divide until the minimum resolution is reached (or 1 is included, and selected by random)"
+      subdivision.tooltip = "When base 1 is active, subdivisions will stop when 1 is selected, either by random, or if probability is 0"
     end
     subdivision.height = 20
-    subdivision.width = 24
-    subdivision.x = subdivisionProbabilityLabel.x + ((j-1) * (subdivision.width+3.8))
+    subdivision.width = 36
+    subdivision.x = subdivisionProbabilityLabel.x + ((j-1) * (subdivision.width+5))
     subdivision.y = subdivisionProbabilityLabel.y + subdivisionProbabilityLabel.height + 5
     table.insert(subdivisions, subdivision)
   end
@@ -945,20 +949,30 @@ for i=1,numPartsBox.max do
   --subdivisionMinResolution.showLabel = false
   --subdivisionMinResolution.height = 20
   subdivisionMinResolution.x = subdivisionProbability.x + subdivisionProbability.width + 9
-  subdivisionMinResolution.y = subdivisions[1].y
+  subdivisionMinResolution.y = subdivisionProbabilityLabel.y
   subdivisionMinResolution.width = subdivisionProbability.width - 25
   subdivisionMinResolution.backgroundColour = menuBackgroundColour
   subdivisionMinResolution.textColour = widgetTextColour
   subdivisionMinResolution.arrowColour = menuArrowColour
   subdivisionMinResolution.outlineColour = menuOutlineColour
 
+  local subdivisionDotProbability = sequencerPanel:NumBox("SubdivisionDotProbability" .. i, 25, 0, 100, true)
+  subdivisionDotProbability.displayName = "Dotted"
+  subdivisionDotProbability.tooltip = "What is the probability that there will be dotted subdivisions?"
+  subdivisionDotProbability.unit = Unit.Percent
+  subdivisionDotProbability.width = subdivisionMinResolution.width
+  subdivisionDotProbability.x = subdivisionMinResolution.x
+  subdivisionDotProbability.y = subdivisionMinResolution.y + subdivisionMinResolution.height + 5
+  subdivisionDotProbability.backgroundColour = menuBackgroundColour
+  subdivisionDotProbability.textColour = widgetTextColour
+
   local subdivisionTieProbability = sequencerPanel:NumBox("SubdivisionMultistepProbability" .. i, 25, 0, 100, true)
   subdivisionTieProbability.displayName = "Ties"
   subdivisionTieProbability.tooltip = "What is the probability that there will be ties in subdivisions?"
   subdivisionTieProbability.unit = Unit.Percent
-  subdivisionTieProbability.width = subdivisionMinResolution.width
-  subdivisionTieProbability.x = subdivisionMinResolution.x
-  subdivisionTieProbability.y = subdivisionMinResolution.y + subdivisionMinResolution.height + 5
+  subdivisionTieProbability.width = subdivisionDotProbability.width
+  subdivisionTieProbability.x = subdivisionDotProbability.x
+  subdivisionTieProbability.y = subdivisionDotProbability.y + subdivisionDotProbability.height + 5
   subdivisionTieProbability.backgroundColour = menuBackgroundColour
   subdivisionTieProbability.textColour = widgetTextColour
 
@@ -1024,7 +1038,7 @@ for i=1,numPartsBox.max do
     end
   end
 
-  table.insert(paramsPerPart, {inversions=inversions,chords=chords,subdivisionProbability=subdivisionProbability,subdivisions=subdivisions,subdivisionRepeatProbability=subdivisionRepeatProbability,subdivisionTieProbability=subdivisionTieProbability,subdivisionMinResolution=subdivisionMinResolution,velRandomization=velRandomization,stepRepeatProbability=stepRepeatProbability,gateRandomization=gateRandomization,baseNoteRandomization=baseNoteRandomization,partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,polyphony=generatePolyphonyPart,numStepsBox=numStepsBox,stepResolution=stepResolution,fullScale={},scale=generateScalePart,key=generateKeyPart,harmonizationPropbability=harmonizationPropbability,minNote=generateMinPart,maxNote=generateMaxPart,monoLimit=monoLimit,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
+  table.insert(paramsPerPart, {inversions=inversions,chords=chords,subdivisionProbability=subdivisionProbability,subdivisions=subdivisions,subdivisionRepeatProbability=subdivisionRepeatProbability,subdivisionDotProbability=subdivisionDotProbability,subdivisionTieProbability=subdivisionTieProbability,subdivisionMinResolution=subdivisionMinResolution,velRandomization=velRandomization,stepRepeatProbability=stepRepeatProbability,gateRandomization=gateRandomization,baseNoteRandomization=baseNoteRandomization,partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,polyphony=generatePolyphonyPart,numStepsBox=numStepsBox,stepResolution=stepResolution,fullScale={},scale=generateScalePart,key=generateKeyPart,harmonizationPropbability=harmonizationPropbability,minNote=generateMinPart,maxNote=generateMaxPart,monoLimit=monoLimit,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
 
   generateScalePart:changed()
 end
@@ -1184,6 +1198,7 @@ function arpeg()
     -- Number of simultainious notes are set by polyphony
     local polyphony = paramsPerPart[currentPartPosition].polyphony.value
     local subdivisionTieProbability = paramsPerPart[currentPartPosition].subdivisionTieProbability.value
+    local subdivisionDotProbability = paramsPerPart[currentPartPosition].subdivisionDotProbability.value
     local stepRepeatProbability = paramsPerPart[currentPartPosition].stepRepeatProbability.value
     local subdivisionRepeatProbability = paramsPerPart[currentPartPosition].subdivisionRepeatProbability.value
     local minNote = paramsPerPart[currentPartPosition].minNote.value
@@ -1192,6 +1207,8 @@ function arpeg()
     local mainBeatDuration = getResolution(paramsPerPart[currentPartPosition].stepResolution.value)
     local minNoteSteps = paramsPerPart[currentPartPosition].minNoteSteps.value
     local maxNoteSteps = paramsPerPart[currentPartPosition].maxNoteSteps.value
+    local subdivisionProbability = paramsPerPart[currentPartPosition].subdivisionProbability.value
+    local subdivisions = paramsPerPart[currentPartPosition].subdivisions
 
     if startOfPart == true then
       -- TODO Param
@@ -1205,6 +1222,7 @@ function arpeg()
       for voice=1,#notePosition do
         notePosition[voice] = 0 -- Reset note positions at the start of each part
       end
+      structureMemory = {}
     end
 
     inversionIndex = 0 -- Reset counter for inversion progress
@@ -1239,32 +1257,6 @@ function arpeg()
         -- Get a chord def index from the active definitions
         inversionIndex = activeInversions[getRandom(#activeInversions)] - 1
         print("Chord inversion selected by random/#activeInversions", inversionIndex, #activeInversions)
-      end
-    end
-
-    -- Get subdivisions
-    local subdivisions = {}
-    local allowDotted = paramsPerPart[currentPartPosition].subdivisions[4].value
-    for i=1,3 do
-      if paramsPerPart[currentPartPosition].subdivisions[i].value == true then
-        table.insert(subdivisions, i)
-        print("Added subdivision", i)
-      end
-    end
-
-    -- Automatically add subdivisions
-    local numSubdivisions = #subdivisions
-    for i=1,numSubdivisions do
-      subdivision = subdivisions[i]
-      local duration = mainBeatDuration
-      while duration > minResolution do
-        subdivision = subdivision * 2
-        duration = (mainBeatDuration / subdivision) * maxNoteSteps
-        print("Found subdivision/duration/minResolution", subdivision, duration, minResolution)
-        if duration >= minResolution and tableIncludes(subdivisions, subdivision) == false then
-          table.insert(subdivisions, subdivision)
-          print("Added subdivision", subdivision)
-        end
       end
     end
 
@@ -1505,86 +1497,28 @@ function arpeg()
         end
       end
 
-      -- Get the subdivision to use for building the struncture
-      local function getSubdivision(stepDuration, steps)
-        local subdivisionProbability = paramsPerPart[currentPartPosition].subdivisionProbability.value
-        -- Calculate depth decay
-        -- TODO If decay, there should be a setting for it...
-        --[[ if currentDepth > 1 then
-          subdivisionProbability = math.ceil(subdivisionProbability / (currentDepth / 2)) -- TODO Adjust
-          print("subdivisionProbability/currentDepth", subdivisionProbability, currentDepth)
-        end ]]
-        local subdivision = 1 -- Set default
-        -- Check what subdivisions can be used whit the given duration
-        local validSubdivisions = {}
-        for _,v in ipairs(subdivisions) do
-          if (stepDuration / v) * steps >= minResolution then
-            table.insert(validSubdivisions, v)
-          end
-        end
-        if #validSubdivisions > 0 then
-          subdivision = validSubdivisions[1] -- First is default
-          if #validSubdivisions > 1 and getRandomBoolean(subdivisionProbability) then
-            subdivision = validSubdivisions[getRandom(#validSubdivisions)]
-            print("SET RANDOM subdivision", subdivision)
-          end
-        end
-        return subdivision
-      end
-
       -- Recursive method for generating the rythmic structure
       local function generateStructure(stepDuration, steps, currentDepth, stop)
         if type(currentDepth) == "nil" then
           currentDepth = 0
         end
 
-        local subdivision = getSubdivision(stepDuration, steps)
+        local subdivision, subDivDuration, remainderDuration, stop = getSubdivision(stepDuration, steps, minResolution, subdivisionProbability, subdivisions, stop, subdivisionDotProbability)
         print("Got subdivision/currentDepth/voice", subdivision, currentDepth,voice)
 
         -- Check for minimum duration
         local subdivisionStructures = {}
-        local fullDuration = stepDuration * steps
-        local subDivDuration = fullDuration / subdivision
-        local remainderDuration = subDivDuration -- Default remainderDuration is the full subdivision duration
-        if subDivDuration < minResolution or stop == true then
-          subdivision = 1
-          print("The minimum resolution or stop was reached - no further subdivisions are made subDivDuration/minResolution/stop", subDivDuration, minResolution, stop)
-        end
         if subdivision > 1 then
           currentDepth = currentDepth + 1
           print("Incrementing depth/stepDuration/subDivDuration", currentDepth, stepDuration, subDivDuration)
-          local dotted = allowDotted == true and subdivision % 4 == 0 and getRandomBoolean(25) -- TODO Param
-          print("Dotted is", dotted, subdivision)
-          if dotted == true then
-            stop = true
-            subDivDuration = getDotted(subDivDuration)
-            remainderDuration = fullDuration % subDivDuration -- Adjust remainder duration
-            subdivision = math.ceil(fullDuration / subDivDuration) -- Adjust subdivision
-            if remainderDuration < minResolution then
-              remainderDuration = remainderDuration + subDivDuration
-              subdivision = subdivision - 1 -- Adjust subdivision
-            end
-            print("Dotted subdivision/duration/fullDuration/remainderDuration", subdivision, subDivDuration, fullDuration, remainderDuration)
-          end
+          local dotted = subDivDuration ~= remainderDuration
           local subDivPos = 1
           while subDivPos <= subdivision do
             local subdivisionSteps = 1 -- Set default
             if dotted == false then
-              local maxSteps = (subdivision - subDivPos) + 1
-              if maxSteps == subdivision then
-                maxSteps = maxSteps - 1 -- Avoid it lasting the whole subdivision
-              end
-              if maxSteps > 1 and getRandomBoolean(subdivisionTieProbability) then
-                subdivisionSteps = getRandom(maxSteps)
-                if subdivisionSteps > 1 then
-                  stop = subdivisionSteps % 2 > 0 -- Stop subdividing if not an even number
-                  print("subdivisionSteps % 2", (subdivisionSteps % 2))
-                end
-                print("Set subdivisionSteps by random subdivisionSteps/maxSteps/stop", subdivisionSteps, maxSteps, stop)
-              end
-            end
-            -- Use the remainder on the last step
-            if subDivPos == subdivision then
+              subdivisionSteps, stop = getSubdivisionSteps(subdivision, subDivPos, subdivisionTieProbability)
+            elseif subDivPos == subdivision then
+              -- Use the remainder on the last step when dotted subdivision
               subDivDuration = remainderDuration
             end
             -- Create the recursive structure tree

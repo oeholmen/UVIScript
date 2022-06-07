@@ -108,6 +108,8 @@ local strategies = {
   {7,5,6},
   {-7,2,7},
 }
+local structureMemory = {} -- Holds the most recent structure memory
+local maxStoredStructures = 100 -- Max stored structures
 local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
 local noteNumberToNoteName = {} -- Used for mapping - does not include octave, only name of note (C, C#...)
 local notenamePos = 1
@@ -345,7 +347,7 @@ sequencerPanel.backgroundColour = backgroundColour
 sequencerPanel.x = 10
 sequencerPanel.y = 10
 sequencerPanel.width = tableWidth
-sequencerPanel.height = 350
+sequencerPanel.height = 380
 
 local label = sequencerPanel:Label("Label")
 label.text = "Strategy Sequencer"
@@ -427,7 +429,10 @@ editPartMenu.changed = function(self)
     v.gateRandomization.visible = isVisible
     v.subdivisionProbability.visible = isVisible
     v.subdivisionRepeatProbability.visible = isVisible
+    v.subdivisionDotProbability.visible = isVisible
+    v.subdivisionTieProbability.visible = isVisible
     v.stepRepeatProbability.visible = isVisible
+    v.structureMemoryMenu.visible = isVisible
     v.subdivisionMinResolution.visible = isVisible
     for _,s in ipairs(v.subdivisions) do
       s.visible = isVisible
@@ -483,7 +488,10 @@ numPartsBox.changed = function(self)
       paramsPerPart[i].gateRandomization.value = prev.gateRandomization.value
       paramsPerPart[i].subdivisionProbability.value = prev.subdivisionProbability.value
       paramsPerPart[i].subdivisionRepeatProbability.value = prev.subdivisionRepeatProbability.value
+      paramsPerPart[i].subdivisionDotProbability.value = prev.subdivisionDotProbability.value
+      paramsPerPart[i].subdivisionTieProbability.value = prev.subdivisionTieProbability.value
       paramsPerPart[i].stepRepeatProbability.value = prev.stepRepeatProbability.value
+      paramsPerPart[i].structureMemoryMenu.value = prev.structureMemoryMenu.value
       paramsPerPart[i].subdivisionMinResolution.value = prev.subdivisionMinResolution.value
       paramsPerPart[i].init = prev.init
     end
@@ -598,6 +606,9 @@ strategyLabel.text = "Strategy"
 
 -- Add params that are to be editable per part
 for i=1,numPartsBox.max do
+  local storedStructures = {} -- Used to store rythmic structures
+  local storedStructuresPos = 1 -- Menu position for storing structure
+
   local partsTable = sequencerPanel:Table("Parts" .. i, 1, 0, 0, 1, true)
   partsTable.enabled = false
   partsTable.persistent = false
@@ -629,7 +640,7 @@ for i=1,numPartsBox.max do
   seqVelTable.width = positionTable.width
   seqVelTable.height = 70
   seqVelTable.x = positionTable.x
-  seqVelTable.y = partRandBox.y + 102
+  seqVelTable.y = partRandBox.y + 136
   
   local seqGateTable = sequencerPanel:Table("Gate" .. i, totalNumSteps, 100, 0, 120, true)
   seqGateTable.tooltip = "Set step gate length. Randomization available in settings."
@@ -732,7 +743,7 @@ for i=1,numPartsBox.max do
   generateKeyPart.tooltip = "Key"
   generateKeyPart.showLabel = false
   generateKeyPart.height = 20
-  generateKeyPart.width = generateMaxPart.width
+  generateKeyPart.width = boxWidth
   generateKeyPart.x = generateMinPart.x + generateMinPart.width + 10
   generateKeyPart.y = stepResolution.y
   generateKeyPart.backgroundColour = menuBackgroundColour
@@ -747,7 +758,7 @@ for i=1,numPartsBox.max do
   generateScalePart.tooltip = "Scale"
   generateScalePart.showLabel = false
   generateScalePart.height = 20
-  generateScalePart.width = generateKeyPart.width
+  generateScalePart.width = boxWidth
   generateScalePart.x = generateKeyPart.x
   generateScalePart.y = generateKeyPart.y + generateKeyPart.height + 5
   generateScalePart.backgroundColour = menuBackgroundColour
@@ -772,7 +783,7 @@ for i=1,numPartsBox.max do
   gateRandomization.displayName = "Gate"
   gateRandomization.tooltip = "Amount of radomization applied to sequencer gate"
   gateRandomization.unit = Unit.Percent
-  gateRandomization.width = velRandomization.width
+  gateRandomization.width = boxWidth
   gateRandomization.x = velRandomization.x
   gateRandomization.y = velRandomization.y + velRandomization.height + 5
   gateRandomization.backgroundColour = menuBackgroundColour
@@ -780,27 +791,26 @@ for i=1,numPartsBox.max do
 
   if i == 1 then
     subdivisionProbabilityLabel.width = boxWidth
-    subdivisionProbabilityLabel.x = generateScalePart.x
+    subdivisionProbabilityLabel.x = generateMinPart.x
     subdivisionProbabilityLabel.y = partRandBox.y + partRandBox.height + 10
   end
 
   local subdivisions = {}
-  for j=1,4 do
+  for j=1,3 do
     local subdivision = sequencerPanel:OnOffButton("SubdivisionSelect" .. i .. j, (j<3))
     subdivision.backgroundColourOff = backgroundColourOff
     subdivision.backgroundColourOn = backgroundColourOn
     subdivision.textColourOff = textColourOff
     subdivision.textColourOn = textColourOn
-    if j == 4 then
-      subdivision.displayName = "."
-      subdivision.tooltip = "Allow dotted subdivisions to create syncopes"
+    subdivision.displayName = "" .. j
+    if j == 1 then
+      subdivision.tooltip = "Activate base - subdivision bases will divide until the minimum resolution is reached"
     else
-      subdivision.displayName = "" .. j
-      subdivision.tooltip = "Activate base - subdivision bases will divide until the minimum resolution is reached (or 1 is included, and selected by random)"
+      subdivision.tooltip = "When base 1 is active, subdivisions will stop when 1 is selected, either by random, or if probability is 0"
     end
     subdivision.height = 20
-    subdivision.width = 24
-    subdivision.x = subdivisionProbabilityLabel.x + ((j-1) * (subdivision.width+3.8))
+    subdivision.width = 33
+    subdivision.x = subdivisionProbabilityLabel.x + ((j-1) * (subdivision.width+4))
     subdivision.y = subdivisionProbabilityLabel.y + subdivisionProbabilityLabel.height + 5
     table.insert(subdivisions, subdivision)
   end
@@ -809,11 +819,21 @@ for i=1,numPartsBox.max do
   subdivisionProbability.displayName = "Probability"
   subdivisionProbability.tooltip = "Probability that active subdivisions will be selected by random - if set to 0, the first selected subdivision will be used"
   subdivisionProbability.unit = Unit.Percent
-  subdivisionProbability.width = generateScalePart.width
+  subdivisionProbability.width = boxWidth
   subdivisionProbability.x = subdivisionProbabilityLabel.x
   subdivisionProbability.y = subdivisions[1].y + subdivisions[1].height + 5
   subdivisionProbability.backgroundColour = menuBackgroundColour
   subdivisionProbability.textColour = widgetTextColour
+
+  local subdivisionRepeatProbability = sequencerPanel:NumBox("SubdivisionRepeatProbability" .. i, 0, 0, 100, true)
+  subdivisionRepeatProbability.displayName = "Note Repeat"
+  subdivisionRepeatProbability.tooltip = "What is the probability that the same note will be played in the subdivision, meaning that the same note is repeated?"
+  subdivisionRepeatProbability.unit = Unit.Percent
+  subdivisionRepeatProbability.width = boxWidth
+  subdivisionRepeatProbability.x = subdivisionProbability.x
+  subdivisionRepeatProbability.y = subdivisionProbability.y + subdivisionProbability.height + 5
+  subdivisionRepeatProbability.backgroundColour = menuBackgroundColour
+  subdivisionRepeatProbability.textColour = widgetTextColour
 
   local subdivisionMinResolution = sequencerPanel:Menu("SubdivisionMinResolution" .. i, getResolutionNames())
   subdivisionMinResolution.displayName = "Min Resolution"
@@ -821,33 +841,65 @@ for i=1,numPartsBox.max do
   subdivisionMinResolution.height = 20
   subdivisionMinResolution.tooltip = "This is the lowest resolution when using subdivisions"
   subdivisionMinResolution.selected = 23
-  subdivisionMinResolution.x = velRandomization.x
-  subdivisionMinResolution.y = subdivisionProbabilityLabel.y
-  subdivisionMinResolution.width = velRandomization.width
+  subdivisionMinResolution.x = subdivisionProbabilityLabel.x + subdivisionProbabilityLabel.width + 10
+  subdivisionMinResolution.y = subdivisions[1].y --subdivisionProbabilityLabel.y
+  subdivisionMinResolution.width = boxWidth
   subdivisionMinResolution.backgroundColour = menuBackgroundColour
   subdivisionMinResolution.textColour = widgetTextColour
   subdivisionMinResolution.arrowColour = menuArrowColour
   subdivisionMinResolution.outlineColour = menuOutlineColour
 
-  local subdivisionRepeatProbability = sequencerPanel:NumBox("SubdivisionRepeatProbability" .. i, 0, 0, 100, true)
-  subdivisionRepeatProbability.displayName = "Note Repeat"
-  subdivisionRepeatProbability.tooltip = "What is the probability that the same note will be played in the subdivision, meaning that the same note is repeated?"
-  subdivisionRepeatProbability.unit = Unit.Percent
-  subdivisionRepeatProbability.width = subdivisionMinResolution.width
-  subdivisionRepeatProbability.x = subdivisionMinResolution.x
-  subdivisionRepeatProbability.y = subdivisionMinResolution.y + subdivisionMinResolution.height + 5
-  subdivisionRepeatProbability.backgroundColour = menuBackgroundColour
-  subdivisionRepeatProbability.textColour = widgetTextColour
+  local subdivisionDotProbability = sequencerPanel:NumBox("SubdivisionDotProbability" .. i, 25, 0, 100, true)
+  subdivisionDotProbability.displayName = "Dotted"
+  subdivisionDotProbability.tooltip = "What is the probability that there will be dotted subdivisions?"
+  subdivisionDotProbability.unit = Unit.Percent
+  subdivisionDotProbability.width = boxWidth
+  subdivisionDotProbability.x = subdivisionMinResolution.x
+  subdivisionDotProbability.y = subdivisionMinResolution.y + subdivisionMinResolution.height + 5
+  subdivisionDotProbability.backgroundColour = menuBackgroundColour
+  subdivisionDotProbability.textColour = widgetTextColour
 
-  local stepRepeatProbability = sequencerPanel:NumBox("StepRepeatProbability" .. i, 50, 0, 100, true)
-  stepRepeatProbability.displayName = "Step Repeat"
+  local subdivisionTieProbability = sequencerPanel:NumBox("SubdivisionMultistepProbability" .. i, 25, 0, 100, true)
+  subdivisionTieProbability.displayName = "Ties"
+  subdivisionTieProbability.tooltip = "What is the probability that there will be ties in subdivisions?"
+  subdivisionTieProbability.unit = Unit.Percent
+  subdivisionTieProbability.width = boxWidth
+  subdivisionTieProbability.x = subdivisionDotProbability.x
+  subdivisionTieProbability.y = subdivisionDotProbability.y + subdivisionDotProbability.height + 5
+  subdivisionTieProbability.backgroundColour = menuBackgroundColour
+  subdivisionTieProbability.textColour = widgetTextColour
+
+  local stepRepeatProbability = sequencerPanel:NumBox("StepRepeatProbability" .. i, 90, 0, 100, true)
+  stepRepeatProbability.displayName = "Memory"
   stepRepeatProbability.tooltip = "Probability that the rythmic structure of a previous step will be repeated."
   stepRepeatProbability.unit = Unit.Percent
-  stepRepeatProbability.width = numStepsBox.width
-  stepRepeatProbability.x = subdivisionRepeatProbability.x
-  stepRepeatProbability.y = subdivisionRepeatProbability.y + subdivisionRepeatProbability.height + 5
+  stepRepeatProbability.width = boxWidth
+  stepRepeatProbability.x = subdivisionMinResolution.x + subdivisionMinResolution.width + 10
+  stepRepeatProbability.y = subdivisionMinResolution.y
   stepRepeatProbability.backgroundColour = menuBackgroundColour
   stepRepeatProbability.textColour = widgetTextColour
+
+  local structureMemoryMenu = sequencerPanel:Menu("StructureMemoryMenu" .. i, {"Load memory..."})
+  structureMemoryMenu.displayName = "Structure"
+  structureMemoryMenu.enabled = false
+  structureMemoryMenu.showLabel = false
+  structureMemoryMenu.height = 20
+  structureMemoryMenu.tooltip = "Load a stored structure to memory"
+  structureMemoryMenu.x = stepRepeatProbability.x
+  structureMemoryMenu.y = stepRepeatProbability.y + stepRepeatProbability.height + 5
+  structureMemoryMenu.width = boxWidth
+  structureMemoryMenu.backgroundColour = menuBackgroundColour
+  structureMemoryMenu.textColour = widgetTextColour
+  structureMemoryMenu.arrowColour = menuArrowColour
+  structureMemoryMenu.outlineColour = menuOutlineColour
+  structureMemoryMenu.changed = function(self)
+    local memoryIndex = self.value - 1
+    if memoryIndex > 0 then
+      structureMemory = paramsPerPart[i].storedStructures[memoryIndex]
+      stepRepeatProbability:setValue(100)
+      print("Loaded structure " .. memoryIndex, #paramsPerPart[i].storedStructures)
+    end
+  end
 
   if i == 1 then
     strategyLabel.x = editPartMenu.x
@@ -862,7 +914,7 @@ for i=1,numPartsBox.max do
   strategyPropbability.tooltip = "Set the probability that a playing strategy will be used to select the next note. Otherwise notes will be selected by random from the current scale."
   strategyPropbability.unit = Unit.Percent
   strategyPropbability.height = 20
-  strategyPropbability.width = boxWidth + 28
+  strategyPropbability.width = boxWidth
   strategyPropbability.x = strategyLabel.x
   strategyPropbability.y = strategyLabel.y + strategyLabel.height + 5
   strategyPropbability.backgroundColour = menuBackgroundColour
@@ -880,25 +932,6 @@ for i=1,numPartsBox.max do
   strategyRestart.arrowColour = menuArrowColour
   strategyRestart.outlineColour = menuOutlineColour
 
-  local autoStrategyButton = sequencerPanel:OnOffButton("AutoStrategyButton" .. i, false)
-  autoStrategyButton.displayName = "Auto"
-  autoStrategyButton.tooltip = "Strategies are automatically created and randomly changed while playing."
-  autoStrategyButton.backgroundColourOff = backgroundColourOff
-  autoStrategyButton.backgroundColourOn = backgroundColourOn
-  autoStrategyButton.textColourOff = textColourOff
-  autoStrategyButton.textColourOn = textColourOn
-  autoStrategyButton.width = 80
-  autoStrategyButton.x = strategyPropbability.x + strategyPropbability.width + 10
-  autoStrategyButton.y = strategyLabel.y
-
-  local createStrategyButton = sequencerPanel:Button("CreateStrategyButton" .. i)
-  createStrategyButton.displayName = "Create"
-  createStrategyButton.tooltip = "Replace the current strategy with a new one."
-  createStrategyButton.persistent = false
-  createStrategyButton.width = autoStrategyButton.width
-  createStrategyButton.x = autoStrategyButton.x
-  createStrategyButton.y = autoStrategyButton.y + autoStrategyButton.height + 5
-
   local strategyInput = sequencerPanel:Label("StrategyInput" .. i)
   strategyInput.text = table.concat(strategies[getRandom(#strategies)], ",")
   strategyInput.tooltip = "Strategies are ways to play chords and scales. Numbers represent steps up or down the scale or chord that is currently playing. Feel free to type your own strategies here."
@@ -907,9 +940,9 @@ for i=1,numPartsBox.max do
   strategyInput.backgroundColourWhenEditing = "black"
   strategyInput.textColour = labelTextColour
   strategyInput.textColourWhenEditing = "white"
-  strategyInput.x = numStepsBox.x
-  strategyInput.y = strategyLabel.y
-  strategyInput.width = 228
+  strategyInput.x = generateMaxNoteStepsPart.x
+  strategyInput.y = strategyPropbability.y
+  strategyInput.width = boxWidth * 2.1
   strategyInput.height = 45
   strategyInput.fontSize = 30
 
@@ -926,7 +959,7 @@ for i=1,numPartsBox.max do
     strategySlot.tooltip = "Unused"
     strategySlot.height = 20
     strategySlot.width = 24
-    strategySlot.x = strategyInput.x + ((j-1) * (strategySlot.width+1.5))
+    strategySlot.x = strategyInput.x + ((j-1) * (strategySlot.width+1.2))
     strategySlot.y = strategyInput.y + strategyInput.height + 5
     strategySlot.changed = function(self)
       strategyInput.text = strategySlot.tooltip
@@ -945,9 +978,9 @@ for i=1,numPartsBox.max do
   strategyActions.tooltip = "Choose when a strategy restarts"
   strategyActions.showLabel = false
   strategyActions.height = 20
-  strategyActions.width = createStrategyButton.width
-  strategyActions.x = createStrategyButton.x
-  strategyActions.y = createStrategyButton.y + createStrategyButton.height + 5
+  strategyActions.width = strategyRestart.width
+  strategyActions.x = strategyRestart.x
+  strategyActions.y = strategyRestart.y + strategyRestart.height + 5
   strategyActions.backgroundColour = menuBackgroundColour
   strategyActions.textColour = widgetTextColour
   strategyActions.arrowColour = menuArrowColour
@@ -978,6 +1011,25 @@ for i=1,numPartsBox.max do
     self.selected = 1
   end
 
+  local autoStrategyButton = sequencerPanel:OnOffButton("AutoStrategyButton" .. i, false)
+  autoStrategyButton.displayName = "Auto"
+  autoStrategyButton.tooltip = "Strategies are automatically created and randomly changed while playing."
+  autoStrategyButton.backgroundColourOff = backgroundColourOff
+  autoStrategyButton.backgroundColourOn = backgroundColourOn
+  autoStrategyButton.textColourOff = textColourOff
+  autoStrategyButton.textColourOn = textColourOn
+  autoStrategyButton.width = boxWidth / 2 - 2
+  autoStrategyButton.x = generateMaxNoteStepsPart.x
+  autoStrategyButton.y = strategyLabel.y
+
+  local createStrategyButton = sequencerPanel:Button("CreateStrategyButton" .. i)
+  createStrategyButton.displayName = "Create"
+  createStrategyButton.tooltip = "Replace the current strategy with a new one."
+  createStrategyButton.persistent = false
+  createStrategyButton.width = autoStrategyButton.width
+  createStrategyButton.x = autoStrategyButton.x + autoStrategyButton.width + 5
+  createStrategyButton.y = autoStrategyButton.y
+
   autoStrategyButton.changed = function(self)
     notePosition = 0 -- Reset note position
     strategyInput.enabled = self.value == false
@@ -989,7 +1041,7 @@ for i=1,numPartsBox.max do
     strategyInput.text = table.concat(strategy, ",")
   end
 
-  table.insert(paramsPerPart, {strategySlots=strategySlots,strategyActions=strategyActions,strategyRestart=strategyRestart,subdivisionProbability=subdivisionProbability,subdivisions=subdivisions,stepRepeatProbability=stepRepeatProbability,subdivisionRepeatProbability=subdivisionRepeatProbability,subdivisionMinResolution=subdivisionMinResolution,velRandomization=velRandomization,gateRandomization=gateRandomization,partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,numStepsBox=numStepsBox,stepResolution=stepResolution,fullScale={},scale=generateScalePart,key=generateKeyPart,createStrategyButton=createStrategyButton,strategyInput=strategyInput,autoStrategyButton=autoStrategyButton,strategyPropbability=strategyPropbability,minNote=generateMinPart,maxNote=generateMaxPart,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
+  table.insert(paramsPerPart, {storedStructures=storedStructures,storedStructuresPos=storedStructuresPos,strategySlots=strategySlots,strategyActions=strategyActions,strategyRestart=strategyRestart,subdivisionProbability=subdivisionProbability,subdivisions=subdivisions,structureMemoryMenu=structureMemoryMenu,stepRepeatProbability=stepRepeatProbability,subdivisionTieProbability=subdivisionTieProbability,subdivisionDotProbability=subdivisionDotProbability,subdivisionRepeatProbability=subdivisionRepeatProbability,subdivisionMinResolution=subdivisionMinResolution,velRandomization=velRandomization,gateRandomization=gateRandomization,partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,numStepsBox=numStepsBox,stepResolution=stepResolution,fullScale={},scale=generateScalePart,key=generateKeyPart,createStrategyButton=createStrategyButton,strategyInput=strategyInput,autoStrategyButton=autoStrategyButton,strategyPropbability=strategyPropbability,minNote=generateMinPart,maxNote=generateMaxPart,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
 
   createFullScale(i)
 end
@@ -1004,8 +1056,8 @@ numPartsBox:changed()
 function playSubdivision(structure, partPos)
   local gate = getGate(partPos, structure.step)
   for i,node in ipairs(structure.notes) do
-    local waitDuration = (node.stepDuration / node.subdivision) * node.steps
-    local playDuration = waitDuration * (gate / 100)
+    local waitDuration = node.duration
+    local playDuration = node.duration * (gate / 100)
     local noteToPlay = node.note
     print("PlaySubdivision partPos/i/noteToPlay/noteName/duration", partPos, i, noteToPlay, noteNumberToNoteName[noteToPlay+1], playDuration)
     playNote(noteToPlay, getVelocity(partPos, structure.step), beat2ms(playDuration)-1)
@@ -1022,7 +1074,6 @@ function arpeg()
   local isStarting = true
   local strategyIndex = 1 -- Holds the selected strategy
   local strategyPos = 1 -- Holds the position in the selected strategy
-  local structureMemory = nil
   print("Start playing!")
 
   -- START ARP LOOP
@@ -1090,11 +1141,9 @@ function arpeg()
     local maxNoteSteps = paramsPerPart[currentPartPosition].maxNoteSteps.value
     local stepRepeatProbability = paramsPerPart[currentPartPosition].stepRepeatProbability.value
     local subdivisionRepeatProbability = paramsPerPart[currentPartPosition].subdivisionRepeatProbability.value
-    local subdivisionTieProbability = 0 -- TODO Param
-
-    if partWasChanged == true or getRandomBoolean() == true then
-      structureMemory = nil -- Reset structure memory
-    end
+    local subdivisionDotProbability = paramsPerPart[currentPartPosition].subdivisionDotProbability.value
+    local subdivisionTieProbability = paramsPerPart[currentPartPosition].subdivisionTieProbability.value
+    local subdivisions = paramsPerPart[currentPartPosition].subdivisions
 
     if startOfPart == true then
       -- Create a random strategy
@@ -1132,32 +1181,6 @@ function arpeg()
         notePosition = 0 -- Reset counter for note position
         if paramsPerPart[currentPartPosition].strategyRestart.value == 4 then
           strategyPos = 1 -- Reset strategy position
-        end
-      end
-    end
-
-    -- Get subdivisions
-    local subdivisions = {}
-    local allowDotted = paramsPerPart[currentPartPosition].subdivisions[4].value
-    for i=1,3 do
-      if paramsPerPart[currentPartPosition].subdivisions[i].value == true then
-        table.insert(subdivisions, i)
-        print("Added subdivision", i)
-      end
-    end
-
-    -- Automatically add subdivisions
-    local numSubdivisions = #subdivisions
-    for i=1,numSubdivisions do
-      subdivision = subdivisions[i]
-      local duration = mainBeatDuration
-      while duration > minResolution do
-        subdivision = subdivision * 2
-        duration = (mainBeatDuration / subdivision) * maxNoteSteps
-        print("Found subdivision/duration/minResolution", subdivision, duration, minResolution)
-        if duration >= minResolution and tableIncludes(subdivisions, subdivision) == false then
-          table.insert(subdivisions, subdivision)
-          print("Added subdivision", subdivision)
         end
       end
     end
@@ -1201,33 +1224,6 @@ function arpeg()
         end
       end
 
-      -- Get the subdivision to use for building the struncture
-      local function getSubdivision(stepDuration, steps)
-        local subdivisionProbability = paramsPerPart[currentPartPosition].subdivisionProbability.value
-        -- Calculate depth decay
-        -- TODO If decay, there should be a setting for it...
-        --[[ if currentDepth > 1 then
-          subdivisionProbability = math.ceil(subdivisionProbability / (currentDepth / 2)) -- TODO Adjust
-          print("subdivisionProbability/currentDepth", subdivisionProbability, currentDepth)
-        end ]]
-        local subdivision = 1 -- Set default
-        -- Check what subdivisions can be used whit the given duration
-        local validSubdivisions = {}
-        for _,v in ipairs(subdivisions) do
-          if (stepDuration / v) * steps >= minResolution then
-            table.insert(validSubdivisions, v)
-          end
-        end
-        if #validSubdivisions > 0 then
-          subdivision = validSubdivisions[1] -- First is default
-          if #validSubdivisions > 1 and getRandomBoolean(subdivisionProbability) then
-            subdivision = validSubdivisions[getRandom(#validSubdivisions)]
-            print("SET RANDOM subdivision", subdivision)
-          end
-        end
-        return subdivision
-      end
-
       local function generateStructure(steps, stepDuration, currentDepth, stop)
         if type(stepDuration) == "nil" then
           stepDuration = mainBeatDuration
@@ -1237,54 +1233,22 @@ function arpeg()
           currentDepth = 0
         end
 
-        --local subdivision = getSubdivision(currentDepth)
-        local subdivision = getSubdivision(stepDuration, steps)
+        local subdivision, subDivDuration, remainderDuration, stop = getSubdivision(stepDuration, steps, minResolution, subdivisionProbability, subdivisions, stop, subdivisionDotProbability)
         print("Got subdivision/currentDepth", subdivision, currentDepth)
 
         -- Check for minimum duration
         local subdivisionStructures = {}
-        local fullDuration = stepDuration * steps
-        local subDivDuration = fullDuration / subdivision
-        local remainderDuration = subDivDuration -- Default remainderDuration is the full subdivision duration
-        if subDivDuration < minResolution or stop == true then
-          subdivision = 1
-          print("The minimum resolution or stop was reached - no further subdivisions are made subDivDuration/minResolution/stop", subDivDuration, minResolution, stop)
-        end
         if subdivision > 1 then
           currentDepth = currentDepth + 1
           print("Incrementing depth/stepDuration/subDivDuration", currentDepth, stepDuration, subDivDuration)
-          local dotted = allowDotted == true and subdivision % 4 == 0 and getRandomBoolean(25) -- TODO Param
-          print("Dotted is", dotted, subdivision)
-          if dotted == true then
-            stop = true
-            subDivDuration = getDotted(subDivDuration)
-            remainderDuration = fullDuration % subDivDuration -- Adjust remainder duration
-            subdivision = math.ceil(fullDuration / subDivDuration) -- Adjust subdivision
-            if remainderDuration < minResolution then
-              remainderDuration = remainderDuration + subDivDuration
-              subdivision = subdivision - 1 -- Adjust subdivision
-            end
-            print("Dotted subdivision/duration/fullDuration/remainderDuration", subdivision, subDivDuration, fullDuration, remainderDuration)
-          end
+          local dotted = subDivDuration > remainderDuration
           local subDivPos = 1
           while subDivPos <= subdivision do
             local subdivisionSteps = 1 -- Set default
             if dotted == false then
-              local maxSteps = (subdivision - subDivPos) + 1
-              if maxSteps == subdivision then
-                maxSteps = maxSteps - 1 -- Avoid it lasting the whole subdivision
-              end
-              if maxSteps > 1 and getRandomBoolean(subdivisionTieProbability) then
-                subdivisionSteps = getRandom(maxSteps)
-                if subdivisionSteps > 1 then
-                  stop = subdivisionSteps % 2 > 0 -- Stop subdividing if not an even number
-                  print("subdivisionSteps % 2", (subdivisionSteps % 2))
-                end
-                print("Set subdivisionSteps by random subdivisionSteps/maxSteps/stop", subdivisionSteps, maxSteps, stop)
-              end
-            end
-            -- Use the remainder on the last step
-            if subDivPos == subdivision then
+              subdivisionSteps, stop = getSubdivisionSteps(subdivision, subDivPos, subdivisionTieProbability)
+            elseif subDivPos == subdivision then
+              -- Use the remainder on the last step when dotted subdivision
               subDivDuration = remainderDuration
             end
             -- Create the recursive structure tree
@@ -1315,7 +1279,7 @@ function arpeg()
 
       local nodes = {}
 
-      if getRandomBoolean(stepRepeatProbability) and type(structureMemory) == "table" then --  and tablePos > 1
+      if getRandomBoolean(stepRepeatProbability) and #structureMemory > 0 then
         nodes = structureMemory -- Load structure from memory
         print("Load structure from memory")
       else
@@ -1323,8 +1287,9 @@ function arpeg()
           -- Traverse the tree until we find the levels with no child nodes
           for i=1,structureTree.subdivision do
             if #structureTree.children == 0 then
-              print("Add final node from structure steps/stepDuration", structureTree.steps, structureTree.stepDuration)
-              table.insert(nodes, structureTree)
+              local nodeDuration = structureTree.stepDuration*structureTree.steps
+              table.insert(nodes, {duration=nodeDuration})
+              print("Added node duration", nodeDuration)
             else
               print("Parsing further down the tree #children/subdvision", #structureTree.children, structureTree.subdivision)
               if type(structureTree.children[i]) == "table" then
@@ -1338,14 +1303,29 @@ function arpeg()
         parseTree(structureTree) -- Parses the tree and finds the nodes on the lowest level
         print("Generated #nodes/step", #nodes, tablePos)
         structureMemory = nodes
+        -- Do not store if repeat probability is off
+        if stepRepeatProbability > 0 then
+          table.insert(paramsPerPart[currentPartPosition].storedStructures, structureMemory)
+          local storedStructuresPos = paramsPerPart[currentPartPosition].storedStructuresPos
+          local structureMemoryMenu = paramsPerPart[currentPartPosition].structureMemoryMenu
+          if #structureMemoryMenu.items > storedStructuresPos then
+            structureMemoryMenu:setItem((storedStructuresPos+1), "Structure " .. storedStructuresPos)
+          else
+            structureMemoryMenu:addItem("Structure " .. storedStructuresPos)
+            structureMemoryMenu.enabled = true
+          end
+          structureMemoryMenu:setValue((storedStructuresPos + 1), false)
+          paramsPerPart[currentPartPosition].storedStructuresPos = storedStructuresPos + 1
+          if paramsPerPart[currentPartPosition].storedStructuresPos > maxStoredStructures then
+            paramsPerPart[currentPartPosition].storedStructuresPos = 1
+          end
+        end
       end
 
       -- Get notes for each node in the tree
-      --local noteNodes = getNotesFromNodes(nodes)
       setNotesOnNodes(nodes)
       local notesToPlay = {
         notes = nodes,
-        note = nodes[1].note, -- The base note
         step = tablePos,
         steps = steps,
         stepCounter = 0
@@ -1463,11 +1443,13 @@ function onSave()
   local strategyInputData = {}
   local strategySlotsData = {}
   local strategyActionsData = {}
+  local storedStructuresData = {}
 
   for i=1, numParts do
     table.insert(numStepsData, paramsPerPart[i].numStepsBox.value)
     table.insert(strategyInputData, paramsPerPart[i].strategyInput.text)
     table.insert(strategyActionsData, paramsPerPart[i].strategyActions.items)
+    table.insert(storedStructuresData, paramsPerPart[i].storedStructures)
     for _,v in ipairs(paramsPerPart[i].strategySlots) do
       table.insert(strategySlotsData, v.tooltip)
     end
@@ -1477,7 +1459,7 @@ function onSave()
     end
   end
 
-  return {numStepsData, seqVelTableData, seqGateTableData, strategyInputData, strategySlotsData, strategyActionsData}
+  return {numStepsData, seqVelTableData, seqGateTableData, strategyInputData, strategySlotsData, strategyActionsData, storedStructuresData}
 end
 
 function onLoad(data)
@@ -1487,12 +1469,22 @@ function onLoad(data)
   local strategyInputData = data[4]
   local strategySlotsData = data[5]
   local strategyActionsData = data[6]
+  local storedStructuresData = data[7]
 
   numPartsBox:setValue(#numStepsData)
 
   local dataCounter = 1
   local strategySlotsDataCounter = 1
   for i,v in ipairs(numStepsData) do
+    paramsPerPart[i].storedStructures = storedStructuresData[i]
+    for j=1,#paramsPerPart[i].storedStructures do
+      paramsPerPart[i].structureMemoryMenu:addItem("Structure " .. j)
+    end
+    paramsPerPart[i].storedStructuresPos = #paramsPerPart[i].storedStructures + 1
+    if paramsPerPart[i].storedStructuresPos > maxStoredStructures then
+      paramsPerPart[i].storedStructuresPos = 1
+    end
+    paramsPerPart[i].structureMemoryMenu.enabled = #paramsPerPart[i].storedStructures > 0
     paramsPerPart[i].numStepsBox:setValue(v)
     paramsPerPart[i].strategyActions.items = strategyActionsData[i]
     paramsPerPart[i].strategyInput.text = strategyInputData[i]
