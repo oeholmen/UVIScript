@@ -1,10 +1,11 @@
 --------------------------------------------------------------------------------
--- GENEREATIVE SEQUENCER
+-- Generative chorder and sequencer
 --------------------------------------------------------------------------------
 
 require "common"
+require "subdivision"
 
-local backgroundColour = "5f5f5f" -- Light or Dark
+local backgroundColour = "7c7c7c" -- Light or Dark
 local widgetBackgroundColour = "111D5E" -- Dark
 local widgetTextColour = "9f02ACFE" -- Light
 local labelTextColour = "AEFEFF" -- Light
@@ -69,6 +70,7 @@ local chordDefinitions = {
   {1}, -- Builds chords using only seconds
   {1,2,1,2,1}, -- Builds supended chords including 7th and 9ths
 }
+
 local chordDefinitionNames = {
   "Triads",
   "7th",
@@ -103,16 +105,7 @@ local strategyInputs = {}
 local noteInputs = {}
 local maxVoices = 8
 local notes = {} -- Holds the playing notes - notes are removed when they are finished playing
-local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
-local noteNumberToNoteName = {} -- Used for mapping - does not include octave, only name of note (C, C#...)
-local notenamePos = 1
-for i=0,127 do
-  table.insert(noteNumberToNoteName, notenames[notenamePos])
-  notenamePos = notenamePos + 1
-  if notenamePos > #notenames then
-    notenamePos = 1
-  end
-end
+local noteNumberToNoteName = getNoteMapping()
 
 setBackgroundColour(backgroundColour)
 
@@ -215,31 +208,18 @@ end
   return strategy
 end ]]
 
-function getSemitonesBetweenNotes(note1, note2)
-  return math.max(note1, note2) - math.min(note1, note1)
-end
-
 function canHarmonizeScale(selectedScale)
   -- We can (currently) only harmonize scales with 7 notes
   return #scaleDefinitions[selectedScale.value] == 7
 end
 
 function createFullScale(part)
-  paramsPerPart[part].fullScale = {}
   -- Find scale definition
   local definition = scaleDefinitions[paramsPerPart[part].scale.value]
   -- Find root note
   local root = paramsPerPart[part].key.value - 1
-  -- Find notes for scale
-  local pos = 0
-  while root < 128 do
-    table.insert(paramsPerPart[part].fullScale, root)
-    pos = pos + 1
-    root = root + definition[pos]
-    if pos == #definition then
-      pos = 0
-    end
-  end
+  -- Create scale
+  paramsPerPart[part].fullScale = createScale(definition, root)
 end
 
 -- Use the selected chord definition to find the index for the next note in the chord
@@ -270,18 +250,6 @@ function hasNoteWithinMonoLimit(notesTable, partPos)
   return false
 end
 
-function getNoteAccordingToScale(scale, noteToPlay)
-  for _,note in ipairs(scale) do
-    if note == noteToPlay then
-      return noteToPlay
-    elseif note > noteToPlay then
-      print("Change from noteToPlay to note", noteToPlay, note)
-      return note
-    end
-  end
-  return noteToPlay
-end
-
 function getVelocity(part, step, skipRandomize)
   local seqVelTable = paramsPerPart[part].seqVelTable
   local velocity = seqVelTable:getValue(step) -- get velocity
@@ -292,23 +260,7 @@ function getVelocity(part, step, skipRandomize)
   end
 
   -- Randomize velocity
-  local velRandomization = paramsPerPart[part].velRandomization.value
-  if velRandomization > 0 then
-    local changeMax = getChangeMax(seqVelTable.max, velRandomization)
-    local min = velocity - changeMax
-    local max = velocity + changeMax
-    if min < seqVelTable.min then
-      min = seqVelTable.min
-    end
-    if max > seqVelTable.max then
-      max = seqVelTable.max
-    end
-    --print("Before randomize vel", vel)
-    velocity = getRandom(min, max)
-    --print("After randomize vel/changeMax/min/max", vel, changeMax, min, max)
-  end
-
-  return velocity
+  return randomizeValue(velocity, seqVelTable.min, seqVelTable.max, paramsPerPart[part].velRandomization.value)
 end
 
 function getGate(part, step, skipRandomize)
@@ -321,23 +273,7 @@ function getGate(part, step, skipRandomize)
   end
 
   -- Randomize gate
-  local gateRandomization = paramsPerPart[part].gateRandomization.value
-  if gateRandomization > 0 then
-    local changeMax = getChangeMax(seqGateTable.max, gateRandomization)
-    local min = gate - changeMax
-    local max = gate + changeMax
-    if min < seqGateTable.min then
-      min = seqGateTable.min
-    end
-    if max > seqGateTable.max then
-      max = seqGateTable.max
-    end
-    --print("Before randomize gate", gate)
-    gate = getRandom(min, max)
-    --print("After randomize gate/changeMax/min/max", gate, changeMax, min, max)
-  end
-
-  return gate
+  return randomizeValue(gate, seqGateTable.min, seqGateTable.max, paramsPerPart[part].gateRandomization.value)
 end
 
 --------------------------------------------------------------------------------
@@ -815,7 +751,7 @@ for i=1,numPartsBox.max do
     generateMinPart:setRange(0, self.value)
   end
 
-  local generateKeyPart = sequencerPanel:Menu("GenerateKey" .. i, notenames)
+  local generateKeyPart = sequencerPanel:Menu("GenerateKey" .. i, getNoteNames())
   generateKeyPart.tooltip = "Key"
   generateKeyPart.showLabel = false
   generateKeyPart.height = 20
@@ -1113,11 +1049,10 @@ numPartsBox:changed()
 --------------------------------------------------------------------------------
 
 function playSubdivision(structure, partPos)
-  local gate = getGate(partPos, structure.step)
   for i,node in ipairs(structure.notes) do
+    local gate = getGate(partPos, structure.step)
     local waitDuration = (node.stepDuration / node.subdivision) * node.steps
-    --local waitDuration = (node.stepDuration * node.steps) / node.subdivision
-    local playDuration = waitDuration * (gate / 100)
+    local playDuration = getPlayDuration(waitDuration, gate)
     local noteToPlay = node.note
     print("PlaySubdivision partPos/i/noteToPlay/noteName/duration/voice", partPos, i, noteToPlay, noteNumberToNoteName[noteToPlay+1], playDuration, structure.voice)
     -- If the key is already playing, send a note off event before playing the note
@@ -1199,8 +1134,8 @@ function arpeg()
     local polyphony = paramsPerPart[currentPartPosition].polyphony.value
     local subdivisionTieProbability = paramsPerPart[currentPartPosition].subdivisionTieProbability.value
     local subdivisionDotProbability = paramsPerPart[currentPartPosition].subdivisionDotProbability.value
-    local stepRepeatProbability = paramsPerPart[currentPartPosition].stepRepeatProbability.value
     local subdivisionRepeatProbability = paramsPerPart[currentPartPosition].subdivisionRepeatProbability.value
+    local stepRepeatProbability = paramsPerPart[currentPartPosition].stepRepeatProbability.value
     local minNote = paramsPerPart[currentPartPosition].minNote.value
     local maxNote = paramsPerPart[currentPartPosition].maxNote.value
     local minResolution = getResolution(paramsPerPart[currentPartPosition].subdivisionMinResolution.value)

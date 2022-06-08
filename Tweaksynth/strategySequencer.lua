@@ -1,11 +1,12 @@
 --------------------------------------------------------------------------------
--- GENEREATIVE SEQUENCER
+-- Strategy Sequencer
 --------------------------------------------------------------------------------
 
 require "common"
+require "subdivision"
 
-local backgroundColour = "5f5f5f" -- Light or Dark
-local widgetBackgroundColour = "111D5E" -- Dark
+local backgroundColour = "4c4c4c" -- Light or Dark
+local widgetBackgroundColour = "2E0249" -- Dark
 local widgetTextColour = "9f02ACFE" -- Light
 local labelTextColour = "AEFEFF" -- Light
 local menuBackgroundColour = "01011F"
@@ -28,6 +29,7 @@ local totalNumSteps = 8
 local paramsPerPart = {}
 local partSelect = {}
 local numParts = 1
+
 -- Make sure these are in sync with the scale names
 -- Scales are defined by distance to the next step
 local scaleDefinitions = {
@@ -51,6 +53,7 @@ local scaleDefinitions = {
   {5},
   {7}
 }
+
 local scaleNames = {
   "Major (Ionian)",
   "Minor (Aeolian)",
@@ -72,6 +75,7 @@ local scaleNames = {
   "Fours",
   "Fives"
 }
+
 -- *** NOTE *** The chord definitions use steps in the selected scale, not semitones.
 -- 2 means two steps up the scale: C-E for a C major scale. A-C for an A minor scale.
 -- Keep in sync with chordDefinitionNames
@@ -83,6 +87,7 @@ local chordDefinitions = {
   {2}, -- Builds 7/9/11/13 chords
   {1,1,2,2,1}, -- Builds (close) 7th and 9th chords
 }
+
 local chordDefinitionNames = {
   "Triads",
   "7th",
@@ -91,6 +96,7 @@ local chordDefinitionNames = {
   "7/9/11/13",
   "7th/9th",
 }
+
 -- Strategies are ways to play chords and scales
 local strategies = {
   {1}, -- Up
@@ -108,18 +114,10 @@ local strategies = {
   {7,5,6},
   {-7,2,7},
 }
+
 local structureMemory = {} -- Holds the most recent structure memory
 local maxStoredStructures = 100 -- Max stored structures
-local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
-local noteNumberToNoteName = {} -- Used for mapping - does not include octave, only name of note (C, C#...)
-local notenamePos = 1
-for i=0,127 do
-  table.insert(noteNumberToNoteName, notenames[notenamePos])
-  notenamePos = notenamePos + 1
-  if notenamePos > #notenames then
-    notenamePos = 1
-  end
-end
+local noteNumberToNoteName = getNoteMapping()
 
 setBackgroundColour(backgroundColour)
 
@@ -233,34 +231,12 @@ function canHarmonizeScale(selectedScale)
 end
 
 function createFullScale(part)
-  paramsPerPart[part].fullScale = {}
   -- Find scale definition
   local definition = scaleDefinitions[paramsPerPart[part].scale.value]
   -- Find root note
   local root = paramsPerPart[part].key.value - 1
-  -- Find notes for scale
-  local pos = 0
-  while root < 128 do
-    table.insert(paramsPerPart[part].fullScale, root)
-    pos = pos + 1
-    root = root + definition[pos]
-    if pos == #definition then
-      pos = 0
-    end
-  end
-  --print("Full scale contains notes:", #paramsPerPart[part].fullScale)
-end
-
-function getNoteAccordingToScale(scale, noteToPlay)
-  for _,note in ipairs(scale) do
-    if note == noteToPlay then
-      return noteToPlay
-    elseif note > noteToPlay then
-      print("Change from noteToPlay to note", noteToPlay, note)
-      return note
-    end
-  end
-  return noteToPlay
+  -- Create scale
+  paramsPerPart[part].fullScale = createScale(definition, root)
 end
 
 function getVelocity(part, step, skipRandomize)
@@ -273,23 +249,20 @@ function getVelocity(part, step, skipRandomize)
   end
 
   -- Randomize velocity
-  local velRandomization = paramsPerPart[part].velRandomization.value
-  if velRandomization > 0 then
-    local changeMax = getChangeMax(seqVelTable.max, velRandomization)
-    local min = velocity - changeMax
-    local max = velocity + changeMax
-    if min < seqVelTable.min then
-      min = seqVelTable.min
-    end
-    if max > seqVelTable.max then
-      max = seqVelTable.max
-    end
-    --print("Before randomize vel", vel)
-    velocity = getRandom(min, max)
-    --print("After randomize vel/changeMax/min/max", vel, changeMax, min, max)
+  return randomizeValue(velocity, seqVelTable.min, seqVelTable.max, paramsPerPart[part].velRandomization.value)
+end
+
+function getGate(part, step, skipRandomize)
+  local seqGateTable = paramsPerPart[part].seqGateTable
+  local gate = seqGateTable:getValue(step)
+
+  -- Skip randomize
+  if skipRandomize == true then
+    return gate
   end
 
-  return velocity
+  -- Randomize gate
+  return randomizeValue(gate, seqGateTable.min, seqGateTable.max, paramsPerPart[part].gateRandomization.value)
 end
 
 function createStrategy(part)
@@ -303,35 +276,6 @@ function createStrategy(part)
     print("Add value to strategy", value)
   end
   return strategy
-end
-
-function getGate(part, step, skipRandomize)
-  local seqGateTable = paramsPerPart[part].seqGateTable
-  local gate = seqGateTable:getValue(step)
-
-  -- Skip randomize
-  if skipRandomize == true then
-    return gate
-  end
-
-  -- Randomize gate
-  local gateRandomization = paramsPerPart[part].gateRandomization.value
-  if gateRandomization > 0 then
-    local changeMax = getChangeMax(seqGateTable.max, gateRandomization)
-    local min = gate - changeMax
-    local max = gate + changeMax
-    if min < seqGateTable.min then
-      min = seqGateTable.min
-    end
-    if max > seqGateTable.max then
-      max = seqGateTable.max
-    end
-    --print("Before randomize gate", gate)
-    gate = getRandom(min, max)
-    --print("After randomize gate/changeMax/min/max", gate, changeMax, min, max)
-  end
-
-  return gate
 end
 
 --------------------------------------------------------------------------------
@@ -739,7 +683,7 @@ for i=1,numPartsBox.max do
     generateMinPart:setRange(0, self.value)
   end
 
-  local generateKeyPart = sequencerPanel:Menu("GenerateKey" .. i, notenames)
+  local generateKeyPart = sequencerPanel:Menu("GenerateKey" .. i, getNoteNames())
   generateKeyPart.tooltip = "Key"
   generateKeyPart.showLabel = false
   generateKeyPart.height = 20
@@ -1054,12 +998,12 @@ numPartsBox:changed()
 --------------------------------------------------------------------------------
 
 function playSubdivision(structure, partPos)
-  local gate = getGate(partPos, structure.step)
   for i,node in ipairs(structure.notes) do
+    local gate = getGate(partPos, structure.step)
     local waitDuration = node.duration
-    local playDuration = node.duration * (gate / 100)
+    local playDuration = getPlayDuration(node.duration, gate)
     local noteToPlay = node.note
-    print("PlaySubdivision partPos/i/noteToPlay/noteName/duration", partPos, i, noteToPlay, noteNumberToNoteName[noteToPlay+1], playDuration)
+    print("PlaySubdivision partPos/i/noteToPlay/noteName/waitDuration/playDuration/gate", partPos, i, noteToPlay, noteNumberToNoteName[noteToPlay+1], waitDuration, playDuration, gate)
     playNote(noteToPlay, getVelocity(partPos, structure.step), beat2ms(playDuration)-1)
     waitBeat(waitDuration)
   end
@@ -1140,6 +1084,7 @@ function arpeg()
     local minNoteSteps = paramsPerPart[currentPartPosition].minNoteSteps.value
     local maxNoteSteps = paramsPerPart[currentPartPosition].maxNoteSteps.value
     local stepRepeatProbability = paramsPerPart[currentPartPosition].stepRepeatProbability.value
+    local subdivisionProbability = paramsPerPart[currentPartPosition].subdivisionProbability.value
     local subdivisionRepeatProbability = paramsPerPart[currentPartPosition].subdivisionRepeatProbability.value
     local subdivisionDotProbability = paramsPerPart[currentPartPosition].subdivisionDotProbability.value
     local subdivisionTieProbability = paramsPerPart[currentPartPosition].subdivisionTieProbability.value

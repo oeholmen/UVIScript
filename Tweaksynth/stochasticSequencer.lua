@@ -1017,20 +1017,8 @@ function arpeg()
     for ratchetIndex=1, ratchet do
       -- Randomize gate
       local gateRandomizationFrequency = paramsPerPart[currentPartPosition].gateRandFreq.value
-      local gateRandomizationAmount = paramsPerPart[currentPartPosition].gateRand.value
-      if gateRandomizationAmount > 0 and getRandomBoolean(gateRandomizationFrequency) then
-        local changeMax = getChangeMax(seqGateTable.max, gateRandomizationAmount)
-        local min = gate - changeMax
-        local max = gate + changeMax
-        if min < seqGateTable.min then
-          min = seqGateTable.min
-        end
-        if max > seqGateTable.max then
-          max = seqGateTable.max
-        end
-        print("Before randomize gate", gate)
-        gate = getRandom(min, max)
-        print("After randomize gate/changeMax/min/max", gate, changeMax, min, max)
+      if getRandomBoolean(gateRandomizationFrequency) then
+        gate = randomizeValue(gate, seqGateTable.min, seqGateTable.max, paramsPerPart[currentPartPosition].gateRand.value)
         if evolve == true then
           seqGateTable:setValue(tablePos, gate)
         end
@@ -1059,20 +1047,8 @@ function arpeg()
 
       -- Randomize velocity
       local velocityRandomizationFrequency = paramsPerPart[currentPartPosition].velRandFreq.value
-      local velocityRandomizationAmount = paramsPerPart[currentPartPosition].velRand.value
-      if velocityRandomizationAmount > 0 and getRandomBoolean(velocityRandomizationFrequency) then
-        local changeMax = getChangeMax(seqVelTable.max, velocityRandomizationAmount)
-        local min = vel - changeMax
-        local max = vel + changeMax
-        if min < seqVelTable.min then
-          min = seqVelTable.min
-        end
-        if max > seqVelTable.max then
-          max = seqVelTable.max
-        end
-        print("Before randomize velocity", vel)
-        vel = getRandom(min, max)
-        print("After randomize velocity/changeMax/min/max", vel, changeMax, min, max)
+      if getRandomBoolean(velocityRandomizationFrequency) then
+        vel = randomizeValue(vel, seqVelTable.min, seqVelTable.max, paramsPerPart[currentPartPosition].velRand.value)
         if evolve == true then
           seqVelTable:setValue(tablePos, vel)
         end
@@ -1186,7 +1162,7 @@ function arpeg()
       for _,note in ipairs(notes) do
         if gate > 0 then
           -- Play the note for the set duration
-          local duration = beat2ms(stepDuration * (gate / 100)) - 1 -- Make sure note is not played into the next
+          local duration = beat2ms(getPlayDuration(stepDuration, gate)) - 1 -- Make sure note is not played into the next
           playNote(note+pitchAdjustment, vel, duration)
           print("Playing note/stepDuration/gate/duration/ratchet", note, stepDuration, gate, duration, ratchet)
         end

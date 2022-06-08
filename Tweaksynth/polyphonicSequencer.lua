@@ -459,16 +459,7 @@ function arpeg(partIndex)
 
     -- Randomize gate
     if gateRandomizationAmount > 0 then
-      local changeMax = getChangeMax(seqGateTable.max, gateRandomizationAmount)
-      local min = gate - changeMax
-      local max = gate + changeMax
-      if min < seqGateTable.min then
-        min = seqGateTable.min
-      end
-      if max > seqGateTable.max then
-        max = seqGateTable.max
-      end
-      gate = getRandom(min, max)
+      gate = randomizeValue(gate, seqGateTable.min, seqGateTable.max, gateRandomizationAmount)
     end
 
     -- Check if step should trigger
@@ -481,16 +472,7 @@ function arpeg(partIndex)
     for ratchetIndex=1, ratchet do
       -- Randomize velocity
       if velocityRandomizationAmount > 0 then
-        local changeMax = getChangeMax(seqVelTable.max, velocityRandomizationAmount)
-        local min = vel - changeMax
-        local max = vel + changeMax
-        if min < seqVelTable.min then
-          min = seqVelTable.min
-        end
-        if max > seqVelTable.max then
-          max = seqVelTable.max
-        end
-        vel = getRandom(min, max)
+        vel = randomizeValue(vel, seqVelTable.min, seqVelTable.max, velocityRandomizationAmount)
       end
 
       -- Check for pitch change randomization
@@ -502,7 +484,7 @@ function arpeg(partIndex)
       end
 
       if isPartActive and shouldTrigger then
-        local duration = beat2ms(stepDuration * (gate / 100)) - 1 -- Make sure note is not played into the next
+        local duration = beat2ms(getPlayDuration(stepDuration, gate)) - 1 -- Make sure note is not played into the next
         playNote((note + pitchAdjustment), vel, duration, nil, channel)
         print("Playing note/vel/gate/ratchet/stepDuration/partIndex", note, vel, gate, ratchet, stepDuration, partIndex)
       end
