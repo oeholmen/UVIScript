@@ -101,7 +101,7 @@ local strategies = {
   {-7,2,7},
 }
 
-local strategyInputs = {}
+local channelInputs = {}
 local noteInputs = {}
 local maxVoices = 8
 local notes = {} -- Holds the playing notes - notes are removed when they are finished playing
@@ -127,23 +127,10 @@ end
 
 function getNoteFromStrategy(notePosition, strategyIndex, strategyPos, partPos, voice, minNote, maxNote)
   local scale = paramsPerPart[partPos].fullScale
-  local strategy = {}
-  local input = strategyInputs[voice]
-  if input.enabled == true and string.len(input.text) > 0 then
-    for w in string.gmatch(input.text, "-?%d") do
-      table.insert(strategy, w)
-      print("Add to strategy", w)
-    end
-    print("Get strategy from input", #strategy)
-  else
-    strategy = strategies[strategyIndex[voice]]
-  end
+  local strategy = strategies[strategyIndex[voice]]
   -- Reset strategy position
   if strategyPos[voice] > #strategy then
     strategyPos[voice] = 1
-    --[[ if paramsPerPart[partPos].strategyRestart.value == 3 or paramsPerPart[partPos].strategyRestart.value == 4 then
-      notePosition[voice] = 0 -- Reset counter for note position
-    end ]]
   end
   print("Get strategy strategyIndex, strategyPos, increment, notePosition", strategyIndex[voice], strategyPos[voice], strategy[strategyPos[voice]], notePosition[voice])
   if notePosition[voice] == 0 then
@@ -160,27 +147,13 @@ function getNoteFromStrategy(notePosition, strategyIndex, strategyPos, partPos, 
       return minNote, notePosition[voice], strategyPos[voice]
     elseif scale[notePosition[voice]] > maxNote then
       print("Reset scale[notePosition] > maxNote", scale[notePosition[voice]], maxNote)
-      -- TODO Param for options
-      -- Option 1: Transpose to lowest octave in range
-      --local transposedNote = transpose(scale[notePosition[voice]], minNote, (minNote+12))
-      --notePosition[voice] = getIndexFromValue(transposedNote, scale)
-      -- Option 2: Reset to the input note from heldnotes
-      --notePosition[voice] = getNotePositionFromHeldNotes(partPos, scale)
+      -- Reset to the base note
       notePosition[voice] = getTopLevelNote(voice, scale)
-      --[[ if paramsPerPart[partPos].strategyRestart.value == 2 then
-        strategyPos[voice] = 1
-      end ]]
     elseif scale[notePosition[voice]] < minNote then
       print("Reset scale[notePosition] < minNote", scale[notePosition[voice]], minNote)
-      -- TODO Param for options
-      -- Option 1: Transpose to top octave
+      -- Transpose to top octave
       local transposedNote = transpose(scale[notePosition[voice]], (maxNote-12), maxNote)
       notePosition[voice] = getIndexFromValue(transposedNote, scale)
-      -- Option 2: Reset to the input note from heldnotes
-      --notePosition[voice] = getNotePositionFromHeldNotes(partPos, scale)
-      --[[ if paramsPerPart[partPos].strategyRestart.value == 2 then
-        strategyPos[voice] = 1
-      end ]]
     else
       -- Increment strategy pos
       if #strategy > 1 then
@@ -194,19 +167,6 @@ function getNoteFromStrategy(notePosition, strategyIndex, strategyPos, partPos, 
   notePosition[voice] = getIndexFromValue(note, scale)
   return note, notePosition, strategyPos
 end
-
---[[ function createStrategy(part)
-  local numSteps = paramsPerPart[part].numStepsBox.value
-  local maxLength = math.min(math.ceil(numSteps * 0.75), 9)
-  local strategy = {} -- Table to hold strategy
-  local ln = getRandom(maxLength) -- Length
-  for i=1, ln do
-    local value = getRandom(-7,7)
-    table.insert(strategy, value)
-    print("Add value to strategy", value)
-  end
-  return strategy
-end ]]
 
 function canHarmonizeScale(selectedScale)
   -- We can (currently) only harmonize scales with 7 notes
@@ -299,64 +259,6 @@ label.fontSize = 22
 label.position = {0,0}
 label.size = {170,25}
 
-local channelButton = sequencerPanel:OnOffButton("ChannelButton", false)
-channelButton.backgroundColourOff = "#ff084486"
-channelButton.backgroundColourOn = "#ff02ACFE"
-channelButton.textColourOff = "#ff22FFFF"
-channelButton.textColourOn = "#efFFFFFF"
-channelButton.displayName = "Multichannel"
-channelButton.tooltip = "When multichannel mode is enabled, each voice is sent to a separate channel"
-channelButton.fillColour = "#dd000061"
-channelButton.size = {90,22}
-channelButton.x = 324
-channelButton.y = 0
-
-local focusButton = sequencerPanel:OnOffButton("FocusPartOnOff", false)
-focusButton.backgroundColourOff = "#ff084486"
-focusButton.backgroundColourOn = "#ff02ACFE"
-focusButton.textColourOff = "#ff22FFFF"
-focusButton.textColourOn = "#efFFFFFF"
-focusButton.displayName = "Focus Part"
-focusButton.tooltip = "When focus is active, only the part selected for editing is shown and played"
-focusButton.fillColour = "#dd000061"
-focusButton.size = channelButton.size
-focusButton.x = channelButton.x + channelButton.width + 5
-focusButton.y = 0
-focusButton.changed = function(self)
-  setTableWidths()
-end
-
-local autoplayButton = sequencerPanel:OnOffButton("AutoPlay", true)
-autoplayButton.backgroundColourOff = "#ff084486"
-autoplayButton.backgroundColourOn = "#ff02ACFE"
-autoplayButton.textColourOff = "#ff22FFFF"
-autoplayButton.textColourOn = "#efFFFFFF"
-autoplayButton.fillColour = "#dd000061"
-autoplayButton.displayName = "Auto Play"
-autoplayButton.tooltip = "Play automatically on transport"
-autoplayButton.size = channelButton.size
-autoplayButton.x = focusButton.x + focusButton.width + 5
-autoplayButton.y = 0
-
-local playButton = sequencerPanel:OnOffButton("Play", false)
-playButton.persistent = false
-playButton.backgroundColourOff = "#ff084486"
-playButton.backgroundColourOn = "#ff02ACFE"
-playButton.textColourOff = "#ff22FFFF"
-playButton.textColourOn = "#efFFFFFF"
-playButton.fillColour = "#dd000061"
-playButton.displayName = "Play"
-playButton.size = channelButton.size
-playButton.x = autoplayButton.x + autoplayButton.width + 5
-playButton.y = 0
-playButton.changed = function(self)
-  if self.value == true then
-    startPlaying()
-  else
-    stopPlaying()
-  end
-end
-
 local editPartMenu = sequencerPanel:Menu("EditPart", partSelect)
 editPartMenu.backgroundColour = menuBackgroundColour
 editPartMenu.textColour = widgetTextColour
@@ -411,6 +313,69 @@ editPartMenu.changed = function(self)
     end
   end
   setTableWidths()
+end
+
+local channelButton = sequencerPanel:OnOffButton("ChannelButton", false)
+channelButton.backgroundColourOff = "#ff084486"
+channelButton.backgroundColourOn = "#ff02ACFE"
+channelButton.textColourOff = "#ff22FFFF"
+channelButton.textColourOn = "#efFFFFFF"
+channelButton.displayName = "Multichannel"
+channelButton.tooltip = "When multichannel mode is enabled, each voice is sent to a separate channel"
+channelButton.fillColour = "#dd000061"
+channelButton.size = {90,22}
+channelButton.x = 324
+channelButton.y = 0
+channelButton.changed = function(self)
+  for i,v in ipairs(channelInputs) do
+    v.enabled = maxVoices - paramsPerPart[editPartMenu.value].polyphony.value <= maxVoices - i and self.value == true
+  end
+end
+
+local focusButton = sequencerPanel:OnOffButton("FocusPartOnOff", false)
+focusButton.backgroundColourOff = "#ff084486"
+focusButton.backgroundColourOn = "#ff02ACFE"
+focusButton.textColourOff = "#ff22FFFF"
+focusButton.textColourOn = "#efFFFFFF"
+focusButton.displayName = "Focus Part"
+focusButton.tooltip = "When focus is active, only the part selected for editing is shown and played"
+focusButton.fillColour = "#dd000061"
+focusButton.size = channelButton.size
+focusButton.x = channelButton.x + channelButton.width + 5
+focusButton.y = 0
+focusButton.changed = function(self)
+  setTableWidths()
+end
+
+local autoplayButton = sequencerPanel:OnOffButton("AutoPlay", true)
+autoplayButton.backgroundColourOff = "#ff084486"
+autoplayButton.backgroundColourOn = "#ff02ACFE"
+autoplayButton.textColourOff = "#ff22FFFF"
+autoplayButton.textColourOn = "#efFFFFFF"
+autoplayButton.fillColour = "#dd000061"
+autoplayButton.displayName = "Auto Play"
+autoplayButton.tooltip = "Play automatically on transport"
+autoplayButton.size = channelButton.size
+autoplayButton.x = focusButton.x + focusButton.width + 5
+autoplayButton.y = 0
+
+local playButton = sequencerPanel:OnOffButton("Play", false)
+playButton.persistent = false
+playButton.backgroundColourOff = "#ff084486"
+playButton.backgroundColourOn = "#ff02ACFE"
+playButton.textColourOff = "#ff22FFFF"
+playButton.textColourOn = "#efFFFFFF"
+playButton.fillColour = "#dd000061"
+playButton.displayName = "Play"
+playButton.size = channelButton.size
+playButton.x = autoplayButton.x + autoplayButton.width + 5
+playButton.y = 0
+playButton.changed = function(self)
+  if self.value == true then
+    startPlaying()
+  else
+    stopPlaying()
+  end
 end
 
 local numPartsBox = sequencerPanel:NumBox("Parts", 1, 1, 8, true)
@@ -637,7 +602,7 @@ for i=1,numPartsBox.max do
   generatePolyphonyPart.x = editPartMenu.x + editPartMenu.width + 10
   generatePolyphonyPart.y = editPartMenu.y
   generatePolyphonyPart.changed = function(self)
-    for i,v in ipairs(strategyInputs) do
+    for i,v in ipairs(channelInputs) do
       v.enabled = maxVoices - self.value <= maxVoices - i
     end
     for i,v in ipairs(noteInputs) do
@@ -986,29 +951,22 @@ strategyPanel.y = 410
 strategyPanel.width = tableWidth
 strategyPanel.height = 60
 
---[[ local label = strategyPanel:Label("StrategyLabel")
-label.text = "Strategy"
-label.position = {0,0} ]]
-
 local perRow = 8
 local labelWidth = 85
 local columnCount = 0
 local rowCount = 1
 for i=1,maxVoices do
-  local strategyInput = strategyPanel:Label("StrategyInput")
-  strategyInput.enabled = maxVoices - paramsPerPart[editPartMenu.value].polyphony.value <= maxVoices - i
-  strategyInput.tooltip = "Strategy for voice " .. i
-  strategyInput.text = "V" .. i
-  strategyInput.editable = true
-  strategyInput.backgroundColour = menuBackgroundColour
-  strategyInput.backgroundColourWhenEditing = "black"
-  strategyInput.textColour = labelTextColour
-  strategyInput.textColourWhenEditing = "white"
-  strategyInput.width = labelWidth
-  strategyInput.height = 20
-  strategyInput.x = columnCount * (strategyInput.width + 2.8)
-  strategyInput.y = (strategyInput.height + 5) * (rowCount - 1)
-  table.insert(strategyInputs, strategyInput)
+  local channelInput = strategyPanel:NumBox("ChannelInput" .. i, i, 1, 16, true)
+  channelInput.enabled = maxVoices - paramsPerPart[editPartMenu.value].polyphony.value <= maxVoices - i and channelButton.value == true
+  channelInput.tooltip = "Channel for voice " .. i .. " in multichannel mode"
+  channelInput.displayName = "Voice " .. i
+  channelInput.backgroundColour = menuBackgroundColour
+  channelInput.textColour = widgetTextColour
+  channelInput.width = labelWidth
+  channelInput.height = 20
+  channelInput.x = columnCount * (channelInput.width + 2.8)
+  channelInput.y = (channelInput.height + 5) * (rowCount - 1)
+  table.insert(channelInputs, channelInput)
   columnCount = columnCount + 1
   if i % perRow == 0 then
     rowCount = rowCount + 1
@@ -1022,9 +980,8 @@ for i=1,maxVoices do
   local noteInput = strategyPanel:Label("NoteInput")
   noteInput.enabled = maxVoices - paramsPerPart[editPartMenu.value].polyphony.value <= maxVoices - i
   noteInput.persistent = false
-  noteInput.tooltip = "Note for voice " .. i
-  noteInput.text = "V" .. i
-  --noteInput.editable = true
+  noteInput.tooltip = "Displays the base note for voice " .. i .. " when playing"
+  noteInput.text = "-"
   noteInput.backgroundColour = menuBackgroundColour
   noteInput.backgroundColourWhenEditing = "black"
   noteInput.textColour = labelTextColour
@@ -1062,7 +1019,7 @@ function playSubdivision(structure, partPos)
     end
     local channel = nil
     if channelButton.value == true then
-      channel = structure.voice
+      channel = channelInputs[structure.voice].value
     end
     playNote(noteToPlay, getVelocity(partPos, structure.step), beat2ms(playDuration)-1, nil, channel)
     waitBeat(waitDuration)
@@ -1146,12 +1103,10 @@ function arpeg()
     local subdivisions = paramsPerPart[currentPartPosition].subdivisions
 
     if startOfPart == true then
-      -- TODO Param
       for voice=1,#strategyIndex do
         -- Randomize strategies each round
         if getRandomBoolean() then
           strategyIndex[voice] = getRandom(#strategies)
-          strategyInputs[voice].text = table.concat(strategies[strategyIndex[voice]], ",") -- Show strategy for the voice
         end
       end
       for voice=1,#notePosition do
@@ -1208,7 +1163,6 @@ function arpeg()
       -- Ensure voice has a strategy!
       if type(strategyIndex[voice]) == "nil" then
         strategyIndex[voice] = getRandom(#strategies)
-        strategyInputs[voice].text = table.concat(strategies[strategyIndex[voice]], ",") -- Show strategy for the voice
         print("Set strategy index for voice", strategyIndex[voice], voice)
       end
 
@@ -1510,7 +1464,6 @@ function arpeg()
       end
 
       -- Get notes for each node in the tree
-      --local noteNodes = getNotesFromNodes(nodes)
       setNotesOnNodes(nodes)
       local notesToPlay = {
         notes = nodes,
