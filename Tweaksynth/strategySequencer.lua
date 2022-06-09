@@ -2,7 +2,6 @@
 -- Strategy Sequencer
 --------------------------------------------------------------------------------
 
-require "common"
 require "subdivision"
 
 local backgroundColour = "4c4c4c" -- Light or Dark
@@ -128,7 +127,7 @@ setBackgroundColour(backgroundColour)
 function getNotePositionFromHeldNotes(partPos, scale)
   local minNote = paramsPerPart[partPos].minNote.value
   local maxNote = paramsPerPart[partPos].maxNote.value
-  local noteInput = transpose(getNoteAccordingToScale(scale, heldNotes[#heldNotes].note), minNote, maxNote)  
+  local noteInput = transpose(getNoteAccordingToScale(scale, heldNotes[#heldNotes].note), minNote, maxNote)
   local index = getIndexFromValue(noteInput, scale)
   print("Resetting to noteInput/notePosition", noteInput, index)
   return index
@@ -1155,20 +1154,6 @@ function arpeg()
         return note
       end
 
-      --local function getNotesFromNodes(nodes)
-      local function setNotesOnNodes(nodes)
-        for i,node in ipairs(nodes) do
-          -- This is where we add the notes to the node
-          if i > 1 and getRandomBoolean(subdivisionRepeatProbability) then
-            node.note = nodes[1].note -- Repeat first note
-            print("Note repeated", node.note)
-          else
-            node.note = generateNote(i)
-            print("Note generated", node.note)
-          end
-        end
-      end
-
       local function generateStructure(steps, stepDuration, currentDepth, stop)
         if type(stepDuration) == "nil" then
           stepDuration = mainBeatDuration
@@ -1268,7 +1253,7 @@ function arpeg()
       end
 
       -- Get notes for each node in the tree
-      setNotesOnNodes(nodes)
+      nodes = setNotesOnNodes(nodes, subdivisionRepeatProbability, generateNote)
       local notesToPlay = {
         notes = nodes,
         step = tablePos,
@@ -1276,7 +1261,6 @@ function arpeg()
         stepCounter = 0
       }
 
-      --return getNote()
       return notesToPlay
     end
 

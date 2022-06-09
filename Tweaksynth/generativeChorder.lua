@@ -2,7 +2,6 @@
 -- Generative chorder and sequencer
 --------------------------------------------------------------------------------
 
-require "common"
 require "subdivision"
 
 local backgroundColour = "7c7c7c" -- Light or Dark
@@ -39,8 +38,10 @@ local scaleDefinitions = {
   {2,2,2,1,2,2,1}, -- Lydian mode
   {2,2,1,2,2,1,2}, -- Mixolydian mode
   {1,2,2,1,2,2,2}, -- Locrian mode
-  {1}, -- Chromatic
+  {2,2,3,2,3}, -- Major Pentatonic
+  {3,2,2,3,2}, -- Minor Pentatonic
   {2}, -- Whole tone scale
+  {1}, -- Chromatic
 }
 
 local scaleNames = {
@@ -52,8 +53,10 @@ local scaleNames = {
   "Lydian",
   "Mixolydian",
   "Locrian",
-  "Chromatic",
+  "Major Pentatonic",
+  "Minor Pentatonic",
   "Whole tone",
+  "Chromatic",
 }
 
 -- *** NOTE *** The chord definitions use steps in the selected scale, not semitones.
@@ -101,7 +104,9 @@ local strategies = {
   {-7,2,7},
 }
 
+local strategyIndex = {} -- Holds the selected strategy (per voice)
 local channelInputs = {}
+local strategiesPerVoice = {}
 local noteInputs = {}
 local maxVoices = 8
 local notes = {} -- Holds the playing notes - notes are removed when they are finished playing
@@ -212,9 +217,8 @@ end
 
 function getVelocity(part, step, skipRandomize)
   local seqVelTable = paramsPerPart[part].seqVelTable
-  local velocity = seqVelTable:getValue(step) -- get velocity
+  local velocity = seqVelTable:getValue(step)
 
-  -- Skip randomize
   if skipRandomize == true then
     return velocity
   end
@@ -227,12 +231,10 @@ function getGate(part, step, skipRandomize)
   local seqGateTable = paramsPerPart[part].seqGateTable
   local gate = seqGateTable:getValue(step)
 
-  -- Skip randomize
   if skipRandomize == true then
     return gate
   end
 
-  -- Randomize gate
   return randomizeValue(gate, seqGateTable.min, seqGateTable.max, paramsPerPart[part].gateRandomization.value)
 end
 
@@ -275,6 +277,15 @@ editPartMenu.changed = function(self)
     local isVisible = self.value == i
 
     if isVisible then
+      for i,w in ipairs(channelInputs) do
+        w.enabled = maxVoices - v.polyphony.value <= maxVoices - i
+      end
+      for i,w in ipairs(strategiesPerVoice) do
+        w.enabled = maxVoices - v.polyphony.value <= maxVoices - i
+      end
+      for i,w in ipairs(noteInputs) do
+        w.enabled = maxVoices - v.polyphony.value <= maxVoices - i
+      end
       v.partsTable.backgroundColour = "#cc33cc44"
     elseif i % 2 == 0 then
       v.partsTable.backgroundColour = "#3f09A3F4"
@@ -603,6 +614,9 @@ for i=1,numPartsBox.max do
   generatePolyphonyPart.y = editPartMenu.y
   generatePolyphonyPart.changed = function(self)
     for i,v in ipairs(channelInputs) do
+      v.enabled = maxVoices - self.value <= maxVoices - i
+    end
+    for i,v in ipairs(strategiesPerVoice) do
       v.enabled = maxVoices - self.value <= maxVoices - i
     end
     for i,v in ipairs(noteInputs) do
@@ -944,19 +958,19 @@ for i=1,numPartsBox.max do
   generateScalePart:changed()
 end
 
-local strategyPanel = Panel("StrategyPanel")
-strategyPanel.backgroundColour = backgroundColour
-strategyPanel.x = 10
-strategyPanel.y = 410
-strategyPanel.width = tableWidth
-strategyPanel.height = 60
+local settingPanel = Panel("StrategyPanel")
+settingPanel.backgroundColour = backgroundColour
+settingPanel.x = 10
+settingPanel.y = 410
+settingPanel.width = tableWidth
+settingPanel.height = 80
 
 local perRow = 8
 local labelWidth = 85
 local columnCount = 0
 local rowCount = 1
 for i=1,maxVoices do
-  local channelInput = strategyPanel:NumBox("ChannelInput" .. i, i, 1, 16, true)
+  local channelInput = settingPanel:NumBox("ChannelInput" .. i, i, 1, 16, true)
   channelInput.enabled = maxVoices - paramsPerPart[editPartMenu.value].polyphony.value <= maxVoices - i and channelButton.value == true
   channelInput.tooltip = "Channel for voice " .. i .. " in multichannel mode"
   channelInput.displayName = "Voice " .. i
@@ -976,8 +990,40 @@ end
 
 columnCount = 0
 rowCount = 1
+local strategyItems = {"Random"}
+for i=1,#strategies do
+  table.insert(strategyItems, table.concat(strategies[i], ","))
+end
 for i=1,maxVoices do
-  local noteInput = strategyPanel:Label("NoteInput")
+  local strategyInput = settingPanel:Menu("StrategyInput" .. i, strategyItems)
+  strategyInput.enabled = maxVoices - paramsPerPart[editPartMenu.value].polyphony.value <= maxVoices - i
+  strategyInput.showLabel = false
+  strategyInput.tooltip = "Choose a playing strategy for voice " .. i
+  strategyInput.backgroundColour = menuBackgroundColour
+  strategyInput.textColour = labelTextColour
+  strategyInput.width = labelWidth
+  strategyInput.height = 20
+  strategyInput.x = columnCount * (strategyInput.width + 2.8)
+  strategyInput.y = 25 + (strategyInput.height + 5) * (rowCount - 1)
+  strategyInput.changed = function(self)
+    if self.value == 1 then
+      strategyIndex[i] = nil
+    else
+      strategyIndex[i] = self.value - 1
+    end
+  end
+  table.insert(strategiesPerVoice, strategyInput)
+  columnCount = columnCount + 1
+  if i % perRow == 0 then
+    rowCount = rowCount + 1
+    columnCount = 0
+  end
+end
+
+columnCount = 0
+rowCount = 1
+for i=1,maxVoices do
+  local noteInput = settingPanel:Label("NoteInput" .. i)
   noteInput.enabled = maxVoices - paramsPerPart[editPartMenu.value].polyphony.value <= maxVoices - i
   noteInput.persistent = false
   noteInput.tooltip = "Displays the base note for voice " .. i .. " when playing"
@@ -989,7 +1035,7 @@ for i=1,maxVoices do
   noteInput.width = labelWidth
   noteInput.height = 20
   noteInput.x = columnCount * (noteInput.width + 2.8)
-  noteInput.y = 25 + (noteInput.height + 5) * (rowCount - 1)
+  noteInput.y = 50 + (noteInput.height + 5) * (rowCount - 1)
   table.insert(noteInputs, noteInput)
   columnCount = columnCount + 1
   if i % perRow == 0 then
@@ -1037,7 +1083,6 @@ function arpeg()
   local inversionIndex = 0
   local chordDefinitionIndex = 1
   local notePosition = {0} -- Holds the current note position in chord/scale (per voice)
-  local strategyIndex = {} -- Holds the selected strategy (per voice)
   local strategyPos = {1} -- Holds the position in the selected strategy (per voice)
   local structureMemory = {}
   notes = {} -- Ensure notes are reset when seqencer starts
@@ -1104,8 +1149,8 @@ function arpeg()
 
     if startOfPart == true then
       for voice=1,#strategyIndex do
-        -- Randomize strategies each round
-        if getRandomBoolean() then
+        -- Randomize strategies
+        if strategiesPerVoice[voice].value == 1 and getRandomBoolean() then
           strategyIndex[voice] = getRandom(#strategies)
         end
       end
@@ -1250,7 +1295,7 @@ function arpeg()
             local noteRange = baseMax - baseMin
             if monoLimit <= baseMin then
               -- If there is no mono limit, we ajust the note range by polyphony to get a base note range
-              noteRange = math.ceil(noteRange / polyphony)
+              noteRange = math.max(12, math.ceil(noteRange / polyphony))
               print("Calculate range for base note baseMin/baseMax/noteRange", baseMin, baseMax, noteRange)
             end
             if notePosition[voice] == 0 then
@@ -1373,19 +1418,6 @@ function arpeg()
         return note
       end
 
-      local function setNotesOnNodes(nodes)
-        for i,node in ipairs(nodes) do
-          -- This is where we add the notes to the node
-          if i > 1 and getRandomBoolean(subdivisionRepeatProbability) then
-            node.note = nodes[1].note -- Repeat first note
-            print("Note repeated", node.note)
-          else
-            node.note = generateNote(i)
-            print("Note generated", node.note)
-          end
-        end
-      end
-
       -- Recursive method for generating the rythmic structure
       local function generateStructure(stepDuration, steps, currentDepth, stop)
         if type(currentDepth) == "nil" then
@@ -1464,7 +1496,7 @@ function arpeg()
       end
 
       -- Get notes for each node in the tree
-      setNotesOnNodes(nodes)
+      nodes = setNotesOnNodes(nodes, subdivisionRepeatProbability, generateNote)
       local notesToPlay = {
         notes = nodes,
         note = nodes[1].note, -- The base note

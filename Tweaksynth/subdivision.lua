@@ -2,6 +2,22 @@
 -- Methods for subdivisions
 --------------------------------------------------------------------------------
 
+require "common"
+
+function setNotesOnNodes(nodes, repeatProbability, generateNote)
+  for i,node in ipairs(nodes) do
+    -- This is where we add the notes to the node
+    if i > 1 and getRandomBoolean(repeatProbability) then
+      node.note = nodes[1].note -- Repeat first note
+      print("Note repeated", node.note)
+    else
+      node.note = generateNote(i)
+      print("Note generated", node.note)
+    end
+  end
+  return nodes
+end
+
 -- Get the subdivision to use for building the struncture
 function getSubdivision(stepDuration, steps, minResolution, subdivisionProbability, subdivisionButtons, stop, subdivisionDotProbability)
   -- Calculate depth decay
