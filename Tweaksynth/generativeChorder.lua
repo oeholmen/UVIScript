@@ -40,8 +40,8 @@ local scaleDefinitions = {
   {1,2,2,1,2,2,2}, -- Locrian mode
   {2,2,3,2,3}, -- Major Pentatonic
   {3,2,2,3,2}, -- Minor Pentatonic
-  {2}, -- Whole tone scale
   {1}, -- Chromatic
+  {2}, -- Whole tone scale
 }
 
 local scaleNames = {
@@ -55,8 +55,8 @@ local scaleNames = {
   "Locrian",
   "Major Pentatonic",
   "Minor Pentatonic",
-  "Whole tone",
   "Chromatic",
+  "Whole tone",
 }
 
 -- *** NOTE *** The chord definitions use steps in the selected scale, not semitones.
@@ -965,15 +965,21 @@ settingPanel.y = 410
 settingPanel.width = tableWidth
 settingPanel.height = 80
 
-local perRow = 8
+local perRow = maxVoices
 local labelWidth = 85
 local columnCount = 0
 local rowCount = 1
+local channels = {}
+for i=1,16 do
+  table.insert(channels, "" .. i)
+end
 for i=1,maxVoices do
-  local channelInput = settingPanel:NumBox("ChannelInput" .. i, i, 1, 16, true)
+  local channelInput = settingPanel:Menu("ChannelInput" .. i, channels)
   channelInput.enabled = maxVoices - paramsPerPart[editPartMenu.value].polyphony.value <= maxVoices - i and channelButton.value == true
   channelInput.tooltip = "Channel for voice " .. i .. " in multichannel mode"
-  channelInput.displayName = "Voice " .. i
+  channelInput.arrowColour = menuArrowColour
+  channelInput.showLabel = false
+  channelInput.selected = i
   channelInput.backgroundColour = menuBackgroundColour
   channelInput.textColour = widgetTextColour
   channelInput.width = labelWidth
@@ -990,7 +996,7 @@ end
 
 columnCount = 0
 rowCount = 1
-local strategyItems = {"Random"}
+local strategyItems = {"Rnd"}
 for i=1,#strategies do
   table.insert(strategyItems, table.concat(strategies[i], ","))
 end
@@ -999,8 +1005,9 @@ for i=1,maxVoices do
   strategyInput.enabled = maxVoices - paramsPerPart[editPartMenu.value].polyphony.value <= maxVoices - i
   strategyInput.showLabel = false
   strategyInput.tooltip = "Choose a playing strategy for voice " .. i
+  strategyInput.arrowColour = menuArrowColour
   strategyInput.backgroundColour = menuBackgroundColour
-  strategyInput.textColour = labelTextColour
+  strategyInput.textColour = widgetTextColour
   strategyInput.width = labelWidth
   strategyInput.height = 20
   strategyInput.x = columnCount * (strategyInput.width + 2.8)
@@ -1008,8 +1015,10 @@ for i=1,maxVoices do
   strategyInput.changed = function(self)
     if self.value == 1 then
       strategyIndex[i] = nil
+      print("Selected strategyIndex by random for voice", i)
     else
       strategyIndex[i] = self.value - 1
+      print("Selected strategyIndex for voice", strategyIndex[i], i)
     end
   end
   table.insert(strategiesPerVoice, strategyInput)
@@ -1152,6 +1161,7 @@ function arpeg()
         -- Randomize strategies
         if strategiesPerVoice[voice].value == 1 and getRandomBoolean() then
           strategyIndex[voice] = getRandom(#strategies)
+          print("Set random strategy index for voice", strategyIndex[voice], voice)
         end
       end
       for voice=1,#notePosition do
@@ -1208,7 +1218,7 @@ function arpeg()
       -- Ensure voice has a strategy!
       if type(strategyIndex[voice]) == "nil" then
         strategyIndex[voice] = getRandom(#strategies)
-        print("Set strategy index for voice", strategyIndex[voice], voice)
+        print("Set random strategy index for voice in getNotesToPlay", strategyIndex[voice], voice)
       end
 
       -- Ensure voice has a strategy position!
