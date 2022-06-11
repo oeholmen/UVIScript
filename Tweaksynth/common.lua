@@ -34,7 +34,7 @@ function createScale(scaleDefinition, rootNote)
       pos = 0
     end
   end
-  --print("Full scale contains notes:", #scale)
+  --print("Scale contains notes:", #scale)
   return scale
 end
 

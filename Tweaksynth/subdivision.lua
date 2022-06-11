@@ -4,6 +4,33 @@
 
 require "common"
 
+local function createSubdivisions(subdivisionButtons, mainBeatDuration, minResolution, steps)
+  local subdivisions = {}
+  for i=1,#subdivisionButtons do
+    if subdivisionButtons[i].value == true then
+      table.insert(subdivisions, i)
+      print("Added subdivision", i)
+    end
+  end
+  -- Add subdivisions from the active bases
+  local numSubdivisions = #subdivisions
+  for i=1,numSubdivisions do
+    subdivision = subdivisions[i]
+    local duration = mainBeatDuration
+    while duration > minResolution do
+      subdivision = subdivision * 2
+      duration = (mainBeatDuration / subdivision) * steps
+      print("Found subdivision/duration/minResolution", subdivision, duration, minResolution)
+      if duration >= minResolution and tableIncludes(subdivisions, subdivision) == false then
+        table.insert(subdivisions, subdivision)
+        print("Added subdivision", subdivision)
+      end
+    end
+  end
+  table.sort(subdivisions)
+  return subdivisions
+end
+
 function setNotesOnNodes(nodes, repeatProbability, generateNote)
   for i,node in ipairs(nodes) do
     -- This is where we add the notes to the node
@@ -94,31 +121,4 @@ function getSubdivisionSteps(subdivision, subDivPos, subdivisionTieProbability)
     print("Set subdivisionSteps by random subdivisionSteps/maxSteps/stop", subdivisionSteps, maxSteps, stop)
   end
   return subdivisionSteps, stop
-end
-
-function createSubdivisions(subdivisionButtons, mainBeatDuration, minResolution, steps)
-  local subdivisions = {}
-  for i=1,#subdivisionButtons do
-    if subdivisionButtons[i].value == true then
-      table.insert(subdivisions, i)
-      print("Added subdivision", i)
-    end
-  end
-  -- Add subdivisions from the active bases
-  local numSubdivisions = #subdivisions
-  for i=1,numSubdivisions do
-    subdivision = subdivisions[i]
-    local duration = mainBeatDuration
-    while duration > minResolution do
-      subdivision = subdivision * 2
-      duration = (mainBeatDuration / subdivision) * steps
-      print("Found subdivision/duration/minResolution", subdivision, duration, minResolution)
-      if duration >= minResolution and tableIncludes(subdivisions, subdivision) == false then
-        table.insert(subdivisions, subdivision)
-        print("Added subdivision", subdivision)
-      end
-    end
-  end
-  table.sort(subdivisions)
-  return subdivisions
 end

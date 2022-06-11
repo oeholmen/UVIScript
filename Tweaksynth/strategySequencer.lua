@@ -41,10 +41,10 @@ local scaleDefinitions = {
   {1,2,2,1,2,2,2}, -- Locrian mode
   {2,2,2,1,2,1,2}, -- Acoustic
   {2,1,2,1,1,3,2}, -- Blues
-  {1}, -- Chomatic
-  {2}, -- Whole tone scale
   {2,2,3,2,3}, -- Major Pentatonic
   {3,2,2,3,2}, -- Minor Pentatonic
+  {1}, -- Chomatic
+  {2}, -- Whole tone scale
   {5,2,5},
   {7,5},
   {12},
@@ -63,10 +63,10 @@ local scaleNames = {
   "Locrian",
   "Acoustic",
   "Blues",
-  "Chomatic",
-  "Whole tone",
   "Major Pentatonic",
   "Minor Pentatonic",
+  "Chomatic",
+  "Whole tone",
   "1-4-5",
   "1-5",
   "1",
@@ -98,6 +98,7 @@ local chordDefinitionNames = {
 
 -- Strategies are ways to play chords and scales
 local strategies = {
+  {}, -- Randomize next note position +/- 1 oct according to scale definision
   {1}, -- Up
   {-1}, -- Down
   {2,-1}, -- Alternate up
@@ -114,6 +115,7 @@ local strategies = {
   {-7,2,7},
 }
 
+local strategyIndex = getRandom(#strategies) -- Holds the selected strategy - start with a random strategy
 local structureMemory = {} -- Holds the most recent structure memory
 local maxStoredStructures = 100 -- Max stored structures
 local noteNumberToNoteName = getNoteMapping()
@@ -145,7 +147,8 @@ function getNoteFromStrategy(notePosition, strategyIndex, strategyPos, partPos)
       print("Add to strategy", w)
     end
     print("Get strategy from input", #strategy)
-  else
+  end
+  if #strategy == 0 then
     strategy = strategies[strategyIndex]
   end
   -- Reset strategy position
@@ -153,9 +156,10 @@ function getNoteFromStrategy(notePosition, strategyIndex, strategyPos, partPos)
     strategyPos = 1
     if paramsPerPart[partPos].strategyRestart.value == 3 or paramsPerPart[partPos].strategyRestart.value == 4 then
       notePosition = 0 -- Reset counter for note position
+      print("Reset counter for note position")
     end
   end
-  print("Get strategy strategyIndex, strategyPos, increment, notePosition", strategyIndex, strategyPos, strategy[strategyPos], notePosition)
+  print("Get strategy strategyIndex/strategyPos", strategyIndex, strategyPos)
   if notePosition == 0 then
     -- Start at the last held note
     notePosition = getNotePositionFromHeldNotes(partPos, scale)
@@ -164,13 +168,23 @@ function getNoteFromStrategy(notePosition, strategyIndex, strategyPos, partPos)
     end
   else
     -- Get next notePosition from strategy
-    notePosition = notePosition + strategy[strategyPos]
-    print("Set notePosition", notePosition)
+    if #strategy == 0 then -- Strategy off/random
+      local offset = getRandom(-12,12) -- 1 oct +/-
+      local note = scale[notePosition] -- Get the current note from scale
+      note = note + offset -- Change within the offset
+      note = transpose(getNoteAccordingToScale(scale, note), minNote, maxNote) -- Endure within scale and limits
+      notePosition = getIndexFromValue(note, scale)
+      print("Set increment by random notePosition/note/offset(in semitones)/#scale", notePosition, note, offset, #scale)
+    else
+      notePosition = notePosition + strategy[strategyPos]
+      print("Set notePosition/strategyPos", notePosition, strategy[strategyPos])
+    end
     if type(scale[notePosition]) == "nil" then
       -- This is just a safeguard if scale is changed while playing
       notePosition = 1
       return minNote, notePosition, strategyPos
-    elseif scale[notePosition] > maxNote then
+    end
+    if scale[notePosition] > maxNote then
       print("Reset scale[notePosition] > maxNote", scale[notePosition], maxNote)
       -- TODO Param for options
       -- Option 1: Transpose to lowest octave in range
@@ -541,6 +555,13 @@ function setTableWidths()
   end
 end
 
+function getStrategyInputText(strategy)
+  if #strategy == 0 then
+    return "Randomize"
+  end
+  return table.concat(strategy, ",")
+end
+
 local subdivisionProbabilityLabel = sequencerPanel:Label("SubdivisionProbabilityLabel")
 subdivisionProbabilityLabel.text = "Subdivision"
 
@@ -876,7 +897,7 @@ for i=1,numPartsBox.max do
   strategyRestart.outlineColour = menuOutlineColour
 
   local strategyInput = sequencerPanel:Label("StrategyInput" .. i)
-  strategyInput.text = table.concat(strategies[getRandom(#strategies)], ",")
+  strategyInput.text = getStrategyInputText(strategies[strategyIndex])
   strategyInput.tooltip = "Strategies are ways to play chords and scales. Numbers represent steps up or down the scale or chord that is currently playing. Feel free to type your own strategies here."
   strategyInput.editable = true
   strategyInput.backgroundColour = menuBackgroundColour
@@ -914,7 +935,7 @@ for i=1,numPartsBox.max do
 
   table.insert(actions, "--- Load ---")
   for _,v in ipairs(strategies) do
-    table.insert(actions, table.concat(v, ","))
+    table.insert(actions, getStrategyInputText(v))
   end
 
   local strategyActions = sequencerPanel:Menu("StrategyActions" .. i, actions)
@@ -948,6 +969,8 @@ for i=1,numPartsBox.max do
       print("Strategy saved to slot", strategyInput.text, actionIndex)
     elseif actionIndex > #strategySlots + 1 then
       strategyInput.text = self.selectedText
+      strategyIndex = actionIndex - #strategySlots - 1
+      print("Strategy index selected", strategyIndex)
     end
 
     -- Must be last
@@ -1015,7 +1038,6 @@ function arpeg()
   local currentPartPosition = 1 -- Holds the currently playing part
   local notes = {} -- Holds the playing notes - notes are removed when they are finished playing
   local isStarting = true
-  local strategyIndex = 1 -- Holds the selected strategy
   local strategyPos = 1 -- Holds the position in the selected strategy
   print("Start playing!")
 
@@ -1116,10 +1138,9 @@ function arpeg()
         end
         print("Created #strategy/#strategies", #strategy, #strategies)
       end
-      strategyIndex = getRandom(#strategies)
-      -- TODO Param for how often strategy is changed
       if autoStrategy == true then
-        paramsPerPart[currentPartPosition].strategyInput.text = table.concat(strategies[strategyIndex], ",")
+        strategyIndex = getRandom(#strategies)
+        paramsPerPart[currentPartPosition].strategyInput.text = getStrategyInputText(strategies[strategyIndex])
       end
       if paramsPerPart[currentPartPosition].strategyRestart.value == 1 or paramsPerPart[currentPartPosition].strategyRestart.value == 4 then
         notePosition = 0 -- Reset counter for note position
