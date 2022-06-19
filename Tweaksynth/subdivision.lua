@@ -59,18 +59,23 @@ function getSubdivision(stepDuration, steps, minResolution, subdivisionProbabili
 
   -- Check what subdivisions can be used with the given duration
   local subdivisions = createSubdivisions(subdivisionButtons, stepDuration, minResolution, steps)
-  local maxSubdivision = subdivisions[#subdivisions]
-  print("Got maxSubdivision/#subdivisions/subdivisionProbability", maxSubdivision, #subdivisions, subdivisionProbability)
+  print("Got #subdivisions/subdivisionProbability", #subdivisions, subdivisionProbability)
   if #subdivisions > 0 then
-    subdivision = subdivisions[1] -- First is default
+    local minSubdivision = subdivisions[1]
+    local maxSubdivision = subdivisions[#subdivisions]
+    if minSubdivision == 2 then
+      subdivision = maxSubdivision -- Max is selected
+    else
+      subdivision = minSubdivision -- Min is selected
+    end
     if #subdivisions > 1 and getRandomBoolean(subdivisionProbability) then
       local i = 1
       while i < maxSubdivision do
         subdivision = subdivisions[getRandom(#subdivisions)]
+        print("SET RANDOM subdivision/round", subdivision, i)
         if subdivision > 1 then
           break
         end
-        print("SET RANDOM subdivision/round", subdivision, i)
         i = i + 1
       end
     end

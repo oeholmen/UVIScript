@@ -105,7 +105,7 @@ function getNotePositionFromStrategy(notesTable, notePosition, strategyIndex, st
   local strategy = {}
   local input = paramsPerPart[partPos].strategyInput
   if input.enabled == true and string.len(input.text) > 0 then
-    for w in string.gmatch(input.text, "-?%d") do
+    for w in string.gmatch(input.text, "-?%d+") do
       table.insert(strategy, w)
       print("Add to strategy", w)
     end
