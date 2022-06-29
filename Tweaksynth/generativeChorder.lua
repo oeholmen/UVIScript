@@ -38,6 +38,7 @@ local scaleDefinitions = {
   {2,2,2,1,2,2,1}, -- Lydian mode
   {2,2,1,2,2,1,2}, -- Mixolydian mode
   {1,2,2,1,2,2,2}, -- Locrian mode
+  {1,2,1,3,1,2,2}, -- Alterated
   {2,2,3,2,3}, -- Major Pentatonic
   {3,2,2,3,2}, -- Minor Pentatonic
   {1}, -- Chromatic
@@ -53,6 +54,7 @@ local scaleNames = {
   "Lydian",
   "Mixolydian",
   "Locrian",
+  "Alterated",
   "Major Pentatonic",
   "Minor Pentatonic",
   "Chromatic",
@@ -71,7 +73,7 @@ local chordDefinitions = {
   {1,1,2,2,1}, -- Builds (close) 7th and 9th chords
   {4,3}, -- Builds open chords (no3)
   {1,2,1,2,1}, -- Builds supended chords including 7th and 9ths
-  {1}, -- Builds chords using only seconds
+  {3}, -- Builds chords using only fourths
 }
 
 local chordDefinitionNames = {
@@ -83,7 +85,7 @@ local chordDefinitionNames = {
   "7th/9th",
   "No 3",
   "Sus + 7/9",
-  "2nd chords",
+  "4th chords",
 }
 
 -- Strategies are ways to play chords and scales

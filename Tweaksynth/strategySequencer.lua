@@ -41,6 +41,7 @@ local scaleDefinitions = {
   {1,2,2,1,2,2,2}, -- Locrian mode
   {2,2,2,1,2,1,2}, -- Acoustic
   {2,1,2,1,1,3,2}, -- Blues
+  {1,2,1,3,1,2,2}, -- Alterated
   {2,2,3,2,3}, -- Major Pentatonic
   {3,2,2,3,2}, -- Minor Pentatonic
   {1}, -- Chomatic
@@ -63,6 +64,7 @@ local scaleNames = {
   "Locrian",
   "Acoustic",
   "Blues",
+  "Alterated",
   "Major Pentatonic",
   "Minor Pentatonic",
   "Chomatic",
