@@ -77,27 +77,6 @@ local scaleNames = {
   "Fives"
 }
 
--- *** NOTE *** The chord definitions use steps in the selected scale, not semitones.
--- 2 means two steps up the scale: C-E for a C major scale. A-C for an A minor scale.
--- Keep in sync with chordDefinitionNames
-local chordDefinitions = {
-  {2,2,3}, -- Builds triads
-  {2,2,2,1}, -- Builds 7th chords
-  {3,1,3}, -- Builds supended chords
-  {2,2,1,2}, -- Builds 6th chords
-  {2}, -- Builds 7/9/11/13 chords
-  {1,1,2,2,1}, -- Builds (close) 7th and 9th chords
-}
-
-local chordDefinitionNames = {
-  "Triads",
-  "7th",
-  "Sus",
-  "6th",
-  "7/9/11/13",
-  "7th/9th",
-}
-
 -- Strategies are ways to play chords and scales
 local strategies = {
   {}, -- Randomize next note position +/- 1 oct
@@ -143,9 +122,9 @@ function getNotePositionFromHeldNotes(partPos, scale)
 end
 
 function getNoteFromStrategy(notePosition, strategyIndex, strategyPos, partPos)
-  local minNote = paramsPerPart[partPos].minNote.value
-  local maxNote = paramsPerPart[partPos].maxNote.value
   local scale = paramsPerPart[partPos].fullScale
+  local minNote = getNoteAccordingToScale(scale, paramsPerPart[partPos].minNote.value)
+  local maxNote = getNoteAccordingToScale(scale, paramsPerPart[partPos].maxNote.value)
   local strategy = {}
   local input = paramsPerPart[partPos].strategyInput
   if input.enabled == true and string.len(input.text) > 0 then
@@ -243,11 +222,6 @@ function getFilteredScale(part, minNote, maxNote)
   end
   --print("Filtered scale contains notes:", #paramsPerPart[part].filteredScale)
   return filteredScale
-end
-
-function canHarmonizeScale(selectedScale)
-  -- We can only harmonize scales with 7 notes
-  return #scaleDefinitions[selectedScale.value] == 7
 end
 
 function createFullScale(part)
@@ -1211,7 +1185,6 @@ function arpeg()
     local function getNoteToPlay()
       local function generateNote(nodePos)
         local note = nil
-        local hasHarmonizeableScale = canHarmonizeScale(paramsPerPart[currentPartPosition].scale)
         local strategyPropbability = paramsPerPart[currentPartPosition].strategyPropbability.value
         if getRandomBoolean(strategyPropbability) == true then
           note, notePosition, strategyPos = getNoteFromStrategy(notePosition, strategyIndex, strategyPos, currentPartPosition)
