@@ -494,7 +494,7 @@ for page=1,maxPages do
     local numBoxHeight = 20
     local numBoxSpacing = 1
     if numParts == 1 then
-      numBoxSpacing = 6
+      numBoxSpacing = 2
     end
     local directionProbability = sequencerPanel:NumBox("PartDirectionProbability" .. i, 0, 0, 100, true)
     directionProbability.displayName = "Backward"
@@ -565,7 +565,7 @@ for page=1,maxPages do
     local leftButtonSpacing = 1
     local typeLabel = sequencerPanel:Label("Label" .. i)
     if numParts == 1 then
-      leftButtonSpacing = 6
+      leftButtonSpacing = 2
       typeLabel.visible = false
     else
       local types = {"Kick", "Snare", "Hihat", "Clap", "Toms", "Cymbal", "Tambourine", "Perc"}
