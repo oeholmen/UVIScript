@@ -6,12 +6,12 @@
 
 require "common"
 
-local backgroundColour = "1a4245" -- Light or Dark
-local widgetBackgroundColour = "072227" -- Dark
-local widgetTextColour = "4FBDBA" -- Light
-local labelTextColour = "AEFEFF" -- Light
+local backgroundColour = "5800FF" -- Light or Dark
+local widgetBackgroundColour = "black" -- Dark
+local widgetTextColour = "0096FF" -- Light
+local labelTextColour = "72FFFF" -- Light
 local menuArrowColour = "aa" .. widgetTextColour
-local labelBackgoundColour = "ff" .. widgetBackgroundColour
+local labelBackgoundColour = "101010"
 local menuOutlineColour = "5f" .. widgetTextColour
 
 setBackgroundColour(backgroundColour)
@@ -39,16 +39,38 @@ sieveProbability.textColour = widgetTextColour
 sieveProbability.displayName = "Probability"
 sieveProbability.tooltip = "Set the probability that incomming notes will pass through the sieve"
 
+local noteMin = panel:NumBox("NoteMin", 0, 0, 127, true)
+noteMin.unit = Unit.MidiKey
+noteMin.backgroundColour = widgetBackgroundColour
+noteMin.textColour = widgetTextColour
+noteMin.displayName = "Min"
+noteMin.tooltip = "Lowest note - notes below this are passed through"
+
+local noteMax = panel:NumBox("NoteMax", 127, 0, 127, true)
+noteMax.unit = Unit.MidiKey
+noteMax.backgroundColour = widgetBackgroundColour
+noteMax.textColour = widgetTextColour
+noteMax.displayName = "Max"
+noteMax.tooltip = "Highest note - notes above this are passed through"
+
+local sieveButton = panel:Button("SieveButton")
+sieveButton.displayName = " "
+sieveButton.backgroundColourOff = "red"
+sieveButton.backgroundColourOn = "green"
+sieveButton.size = {20,20}
+
 --------------------------------------------------------------------------------
 -- Handle note events
 --------------------------------------------------------------------------------
 
 function onNote(e)
-  if getRandomBoolean(sieveProbability.value) then
+  if e.note <= noteMin.value or e.note >= noteMax.value or getRandomBoolean(sieveProbability.value) then
     print("Passing through", e.note)
+    sieveButton.backgroundColourOff = "green"
     postEvent(e)
   else
     print("Stopping", e.note)
+    sieveButton.backgroundColourOff = "red"
   end
 end
 
