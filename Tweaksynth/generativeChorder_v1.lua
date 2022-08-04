@@ -2,7 +2,7 @@
 -- Generative chorder and sequencer
 --------------------------------------------------------------------------------
 
-require "common"
+require "subdivision"
 
 local backgroundColour = "7c7c7c" -- Light or Dark
 local widgetBackgroundColour = "111D5E" -- Dark
@@ -88,9 +88,36 @@ local chordDefinitionNames = {
   "4th chords",
 }
 
---local channelInputs = {}
+-- Strategies are ways to play chords and scales
+local strategies = {
+  {}, -- Randomize next note position +/- 1 oct
+  {1}, -- Up 1
+  {-1}, -- Down 1
+  {2}, -- Up 2
+  {-2}, -- Down 2
+  {2,-1}, -- Alternate up
+  {-2,1}, -- Alternate down
+  {-1,1,-2,-1,3}, -- Generated 1
+  {3,1,-1,2}, -- Generated 2
+  {-3,2}, -- Generated 3
+  {2,2,3}, -- Up v triad
+  {-3,-2,-2}, -- Down v triad
+  {3,-2,7},
+  {-5,4,4},
+  {7,7,-5},
+  {7,5,6},
+  {-7,2,7},
+  {7,0,-7},
+  {4,0,-4},
+  {0},
+  {4,-2},
+  {3,-2},
+}
+
+local strategyIndex = {} -- Holds the selected strategy (per voice)
+local channelInputs = {}
 local noteInputs = {}
-local maxVoices = 16
+local maxVoices = 8
 local notes = {} -- Holds the playing notes - notes are removed when they are finished playing
 local noteNumberToNoteName = getNoteMapping()
 
@@ -99,6 +126,75 @@ setBackgroundColour(backgroundColour)
 --------------------------------------------------------------------------------
 -- Scale and note functions
 --------------------------------------------------------------------------------
+
+function getTopLevelNote(voice, scale)
+  local index = 1
+  for _,v in ipairs(notes) do
+    if v.voice == voice then
+      index = getIndexFromValue(v.note, scale)
+      print("Resetting to noteInput/notePosition", v.note, index)
+      return index
+    end
+  end
+  return index
+end
+
+function getNoteFromStrategy(notePosition, strategyIndex, strategyPos, partPos, voice, minNote, maxNote)
+  local scale = paramsPerPart[partPos].fullScale
+  local strategy = {}
+  local input = paramsPerPart[partPos].strategyInputs[voice]
+  if input.enabled == true and string.len(input.text) > 0 then
+    for w in string.gmatch(input.text, "-?%d+") do
+      table.insert(strategy, w)
+      print("Add to strategy", w)
+    end
+    print("Get strategy from input", #strategy)
+  end
+  if #strategy == 0 then
+    strategy = strategies[strategyIndex[voice]]
+  end
+  -- Reset strategy position
+  if strategyPos[voice] > #strategy then
+    strategyPos[voice] = 1
+  end
+  if notePosition[voice] == 0 or #strategy == 0 then
+    -- Start at a random notePosition
+    local minPos = getIndexFromValue(minNote, scale)
+    local maxPos = getIndexFromValue(maxNote, scale)
+    notePosition[voice] = getRandom(minPos, maxPos)
+    print("Set random notePosition/voice", notePosition[voice], voice)
+  else
+    print("Get strategy strategyIndex, strategyPos, increment, notePosition", strategyIndex[voice], strategyPos[voice], strategy[strategyPos[voice]], notePosition[voice])
+    -- Get next notePosition from strategy
+    notePosition[voice] = notePosition[voice] + strategy[strategyPos[voice]]
+    print("Set notePosition", notePosition[voice])
+    if type(scale[notePosition[voice]]) == "nil" then
+      -- This is just a safeguard if scale is changed while playing
+      notePosition[voice] = 1
+      return minNote, notePosition[voice], strategyPos[voice]
+    end
+    if scale[notePosition[voice]] > maxNote then
+      print("Reset scale[notePosition] > maxNote", scale[notePosition[voice]], maxNote)
+      -- Reset to the base note
+      notePosition[voice] = getTopLevelNote(voice, scale)
+    elseif scale[notePosition[voice]] < minNote then
+      print("Reset scale[notePosition] < minNote", scale[notePosition[voice]], minNote)
+      -- Transpose to top octave
+      local transposedNote = transpose(scale[notePosition[voice]], (maxNote-12), maxNote)
+      notePosition[voice] = getIndexFromValue(transposedNote, scale)
+    else
+      -- Increment strategy pos
+      if #strategy > 1 then
+        strategyPos[voice] = strategyPos[voice] + 1
+        print("Increment strategy pos", strategyPos[voice])
+      end
+    end
+  end
+  -- Ensure within range
+  local note = transpose(scale[notePosition[voice]], minNote, maxNote)
+  notePosition[voice] = getIndexFromValue(note, scale)
+  return note, notePosition, strategyPos
+end
 
 function canHarmonizeScale(selectedScale)
   -- We can (currently) only harmonize scales with 7 notes
@@ -177,7 +273,7 @@ sequencerPanel.backgroundColour = backgroundColour
 sequencerPanel.x = 10
 sequencerPanel.y = 10
 sequencerPanel.width = tableWidth
-sequencerPanel.height = 450
+sequencerPanel.height = 530
 
 local label = sequencerPanel:Label("Label")
 label.text = "Generative Chorder"
@@ -201,11 +297,11 @@ channelButton.fillColour = "#dd000061"
 channelButton.size = {90,22}
 channelButton.x = 324
 channelButton.y = 0
---[[ channelButton.changed = function(self)
+channelButton.changed = function(self)
   for i,v in ipairs(channelInputs) do
     v.enabled = maxVoices - paramsPerPart[editPartMenu.value].polyphony.value <= maxVoices - i and self.value == true
   end
-end ]]
+end
 
 local focusButton = sequencerPanel:OnOffButton("FocusPartOnOff", false)
 focusButton.backgroundColourOff = "#ff084486"
@@ -268,7 +364,19 @@ editPartMenu.changed = function(self)
     local isVisible = self.value == i
 
     if isVisible then
+      for i,w in ipairs(channelInputs) do
+        w.enabled = maxVoices - v.polyphony.value <= maxVoices - i and channelButton.value == true
+      end
       for i,w in ipairs(noteInputs) do
+        w.enabled = maxVoices - v.polyphony.value <= maxVoices - i
+      end
+      for i,w in ipairs(v.strategyPerVoice) do
+        w.enabled = maxVoices - v.polyphony.value <= maxVoices - i
+      end
+      for i,w in ipairs(v.strategyInputs) do
+        w.enabled = maxVoices - v.polyphony.value <= maxVoices - i
+      end
+      for i,w in ipairs(v.minResPerVoice) do
         w.enabled = maxVoices - v.polyphony.value <= maxVoices - i
       end
       v.partsTable.backgroundColour = "#cc33cc44"
@@ -291,7 +399,25 @@ editPartMenu.changed = function(self)
     v.harmonizationPropbability.visible = isVisible
     v.velRandomization.visible = isVisible
     v.gateRandomization.visible = isVisible
+    v.stepRepeatProbability.visible = isVisible
     v.baseNoteRandomization.visible = isVisible
+    v.subdivisionProbability.visible = isVisible
+    v.subdivisionRepeatProbability.visible = isVisible
+    --v.subdivisionMinResolution.visible = isVisible
+    v.subdivisionTieProbability.visible = isVisible
+    v.subdivisionDotProbability.visible = isVisible
+    for _,s in ipairs(v.subdivisions) do
+      s.visible = isVisible
+    end
+    for _,m in ipairs(v.minResPerVoice) do
+      m.visible = isVisible
+    end
+    for _,s in ipairs(v.strategyPerVoice) do
+      s.visible = isVisible
+    end
+    for _,s in ipairs(v.strategyInputs) do
+      s.visible = isVisible
+    end
     for _,c in ipairs(v.chords) do
       c.visible = isVisible
     end
@@ -344,7 +470,13 @@ numPartsBox.changed = function(self)
       paramsPerPart[i].fullScale = prev.fullScale
       paramsPerPart[i].velRandomization.value = prev.velRandomization.value
       paramsPerPart[i].gateRandomization.value = prev.gateRandomization.value
+      paramsPerPart[i].stepRepeatProbability.value = prev.stepRepeatProbability.value
       paramsPerPart[i].baseNoteRandomization.value = prev.baseNoteRandomization.value
+      paramsPerPart[i].subdivisionProbability.value = prev.subdivisionProbability.value
+      paramsPerPart[i].subdivisionRepeatProbability.value = prev.subdivisionRepeatProbability.value
+      --paramsPerPart[i].subdivisionMinResolution.value = prev.subdivisionMinResolution.value
+      paramsPerPart[i].subdivisionTieProbability.value = prev.subdivisionTieProbability.value
+      paramsPerPart[i].subdivisionDotProbability.value = prev.subdivisionDotProbability.value
       paramsPerPart[i].init = true
     end
   end
@@ -419,6 +551,7 @@ function setTableWidths()
   local widthPerStep = tableWidth / totalNumSteps
   local x = 0
   for i=1, numPartsBox.value do
+    --local isVisible = true
     local isVisible = (focusSelectedPart == true and i == editPartMenu.value) or focusSelectedPart == false
     local partTableWidth = paramsPerPart[i].numStepsBox.value * widthPerStep
     if focusSelectedPart then
@@ -449,6 +582,9 @@ function setTableWidths()
   end
 end
 
+local subdivisionProbabilityLabel = sequencerPanel:Label("SubdivisionProbabilityLabel")
+subdivisionProbabilityLabel.text = "Subdivision"
+
 local chordProbabilityLabel = sequencerPanel:Label("ChordProbabilityProbabilityLabel")
 chordProbabilityLabel.text = "Chords"
 chordProbabilityLabel.tooltip = "Choose the probability that chords will be included when harmonizing"
@@ -461,6 +597,9 @@ inversionProbabilityLabel.tooltip = "Choose the probability that inversions will
 for i=1,numPartsBox.max do
   local chords = {}
   local inversions = {}
+  local strategyInputs = {}
+  local strategyPerVoice = {}
+  local minResPerVoice = {}
 
   local partsTable = sequencerPanel:Table("Parts" .. i, 1, 0, 0, 1, true)
   partsTable.enabled = false
@@ -493,7 +632,7 @@ for i=1,numPartsBox.max do
   seqVelTable.width = positionTable.width
   seqVelTable.height = 70
   seqVelTable.x = positionTable.x
-  seqVelTable.y = partRandBox.y + 180
+  seqVelTable.y = partRandBox.y + 260
   
   local seqGateTable = sequencerPanel:Table("Gate" .. i, totalNumSteps, 100, 0, 120, true)
   seqGateTable.tooltip = "Set step gate length. Randomization available in settings."
@@ -516,6 +655,18 @@ for i=1,numPartsBox.max do
   generatePolyphonyPart.x = editPartMenu.x + editPartMenu.width + 10
   generatePolyphonyPart.y = editPartMenu.y
   generatePolyphonyPart.changed = function(self)
+    for i,v in ipairs(strategyPerVoice) do
+      v.enabled = maxVoices - self.value <= maxVoices - i
+    end
+    for i,v in ipairs(strategyInputs) do
+      v.enabled = maxVoices - self.value <= maxVoices - i
+    end
+    for i,v in ipairs(minResPerVoice) do
+      v.enabled = maxVoices - self.value <= maxVoices - i
+    end
+    for i,v in ipairs(channelInputs) do
+      v.enabled = maxVoices - self.value <= maxVoices - i and channelButton.value == true
+    end
     for i,v in ipairs(noteInputs) do
       v.enabled = maxVoices - self.value <= maxVoices - i
     end
@@ -697,10 +848,85 @@ for i=1,numPartsBox.max do
   baseNoteRandomization.backgroundColour = menuBackgroundColour
   baseNoteRandomization.textColour = widgetTextColour
 
+  if i == 1 then
+    subdivisionProbabilityLabel.width = editPartMenu.width
+    subdivisionProbabilityLabel.x = 0
+    subdivisionProbabilityLabel.y = partRandBox.y + partRandBox.height + 5
+  end
+
+  local subdivisions = {}
+  for j=1,3 do
+    local subdivision = sequencerPanel:OnOffButton("SubdivisionSelect" .. i .. j, (j<3))
+    subdivision.backgroundColourOff = backgroundColourOff
+    subdivision.backgroundColourOn = backgroundColourOn
+    subdivision.textColourOff = textColourOff
+    subdivision.textColourOn = textColourOn
+    subdivision.displayName = "" .. j
+    if j == 1 then
+      subdivision.tooltip = "Activate base - subdivision bases will divide until the minimum resolution is reached"
+    else
+      subdivision.tooltip = "When base 1 is active, subdivisions will stop when 1 is selected, either by random, or if probability is 0"
+    end
+    subdivision.height = 20
+    subdivision.width = (subdivisionProbabilityLabel.width / 3) - 2
+    subdivision.x = subdivisionProbabilityLabel.x + ((j-1) * (subdivision.width+3))
+    subdivision.y = subdivisionProbabilityLabel.y + subdivisionProbabilityLabel.height + 5
+    table.insert(subdivisions, subdivision)
+  end
+
+  local subdivisionProbability = sequencerPanel:NumBox("SubdivisionProbability" .. i, 25, 0, 100, true)
+  subdivisionProbability.displayName = "Probability"
+  subdivisionProbability.tooltip = "Probability that active subdivisions will be selected by random - if set to 0, the first selected subdivision will be used"
+  subdivisionProbability.unit = Unit.Percent
+  subdivisionProbability.width = subdivisionProbabilityLabel.width
+  subdivisionProbability.x = subdivisionProbabilityLabel.x
+  subdivisionProbability.y = subdivisions[1].y + subdivisions[1].height + 5
+  subdivisionProbability.backgroundColour = menuBackgroundColour
+  subdivisionProbability.textColour = widgetTextColour
+
+  local subdivisionRepeatProbability = sequencerPanel:NumBox("SubdivisionRepeatProbability" .. i, 0, 0, 100, true)
+  subdivisionRepeatProbability.displayName = "Note Repeat"
+  subdivisionRepeatProbability.tooltip = "What is the probability that the same note will be played in the subdivision, meaning that the same note is repeated?"
+  subdivisionRepeatProbability.unit = Unit.Percent
+  subdivisionRepeatProbability.width = subdivisionProbability.width
+  subdivisionRepeatProbability.x = subdivisionProbability.x
+  subdivisionRepeatProbability.y = subdivisionProbability.y + subdivisionProbability.height + 5
+  subdivisionRepeatProbability.backgroundColour = menuBackgroundColour
+  subdivisionRepeatProbability.textColour = widgetTextColour
+
+  local stepRepeatProbability = sequencerPanel:NumBox("StepRepeatProbability" .. i, 50, 0, 100, true)
+  stepRepeatProbability.displayName = "Step Repeat"
+  stepRepeatProbability.tooltip = "Probability that the rythmic structure of a previous step will be repeated."
+  stepRepeatProbability.unit = Unit.Percent
+  stepRepeatProbability.width = subdivisionProbability.width
+  stepRepeatProbability.x = subdivisionProbability.x + subdivisionProbability.width + 10
+  stepRepeatProbability.y = subdivisionProbabilityLabel.y + subdivisionProbabilityLabel.height + 5
+  stepRepeatProbability.backgroundColour = menuBackgroundColour
+  stepRepeatProbability.textColour = widgetTextColour
+
+  local subdivisionDotProbability = sequencerPanel:NumBox("SubdivisionDotProbability" .. i, 25, 0, 100, true)
+  subdivisionDotProbability.displayName = "Dotted"
+  subdivisionDotProbability.tooltip = "What is the probability that there will be dotted subdivisions?"
+  subdivisionDotProbability.unit = Unit.Percent
+  subdivisionDotProbability.width = subdivisionProbability.width
+  subdivisionDotProbability.x = stepRepeatProbability.x
+  subdivisionDotProbability.y = stepRepeatProbability.y + stepRepeatProbability.height + 5
+  subdivisionDotProbability.backgroundColour = menuBackgroundColour
+  subdivisionDotProbability.textColour = widgetTextColour
+
+  local subdivisionTieProbability = sequencerPanel:NumBox("SubdivisionMultistepProbability" .. i, 25, 0, 100, true)
+  subdivisionTieProbability.displayName = "Ties"
+  subdivisionTieProbability.tooltip = "What is the probability that there will be ties in subdivisions?"
+  subdivisionTieProbability.unit = Unit.Percent
+  subdivisionTieProbability.width = subdivisionDotProbability.width
+  subdivisionTieProbability.x = subdivisionDotProbability.x
+  subdivisionTieProbability.y = subdivisionDotProbability.y + subdivisionDotProbability.height + 5
+  subdivisionTieProbability.backgroundColour = menuBackgroundColour
+  subdivisionTieProbability.textColour = widgetTextColour
+
   local voiceLabelBgColour = "9F9F9F"
   local voiceLabelTextColour = "202020"
   local voiceRowCount = 2
-  local voiceLabelY = 250
 
   if i == 1 then
     for j=1,maxVoices do
@@ -710,16 +936,127 @@ for i=1,numPartsBox.max do
       voiceLabel.tooltip = "Settings for voice " .. j
       voiceLabel.backgroundColour = voiceLabelBgColour
       voiceLabel.textColour = voiceLabelTextColour
-      voiceLabel.width = tableWidth / maxVoices
+      voiceLabel.width = tableWidth / (maxVoices + 1)
       voiceLabel.height = 20
-      --voiceLabel.x = (j * (voiceLabel.width + 1)) - 2
-      voiceLabel.x = ((j - 1) * (voiceLabel.width + 1)) - 2
-      voiceLabel.y = voiceLabelY
+      voiceLabel.x = (j * (voiceLabel.width + 1)) - 2
+      voiceLabel.y = subdivisionRepeatProbability.y + subdivisionRepeatProbability.height + 9
     end
   end
 
   if i == 1 then
-    --[[ local channelLabel = sequencerPanel:Label("ChannelLabel" .. i)
+    local strategyLabel = sequencerPanel:Label("StrategyLabel" .. i)
+    strategyLabel.persistent = false
+    strategyLabel.text = "Strategy"
+    strategyLabel.tooltip = "Strategy for voice"
+    strategyLabel.backgroundColour = voiceLabelBgColour
+    strategyLabel.textColour = voiceLabelTextColour
+    strategyLabel.width = (tableWidth / (maxVoices + 1)) - 2
+    strategyLabel.height = 40
+    strategyLabel.x = 0
+    strategyLabel.y = subdivisionRepeatProbability.y + (subdivisionRepeatProbability.height*voiceRowCount) + 10
+  end
+
+  for j=1,maxVoices do
+    local strategyInput = sequencerPanel:Label("StrategyInput" .. i .. j)
+    strategyInput.enabled = maxVoices - generatePolyphonyPart.value <= maxVoices - j
+    strategyInput.tooltip = "Strategy input for voice " .. j
+    strategyInput.editable = true
+    strategyInput.text = ""
+    strategyInput.backgroundColour = menuBackgroundColour
+    strategyInput.textColour = labelTextColour
+    strategyInput.backgroundColourWhenEditing = "black"
+    strategyInput.textColourWhenEditing = "white"
+    strategyInput.width = tableWidth / (maxVoices + 1)
+    strategyInput.height = 20
+    strategyInput.x = (j * (strategyInput.width + 1)) - 2
+    strategyInput.y = subdivisionRepeatProbability.y + (subdivisionRepeatProbability.height*voiceRowCount) + 10
+    table.insert(strategyInputs, strategyInput)
+  end
+
+  voiceRowCount = voiceRowCount + 1
+
+  local strategyItems = {"Random"}
+  for j=1,#strategies do
+    if #strategies[j] == 0 then
+      table.insert(strategyItems, "Off")
+    else
+      table.insert(strategyItems, table.concat(strategies[j], ","))
+    end
+  end
+  for j=1,maxVoices do
+    local strategySelect = sequencerPanel:Menu("StrategySelect" .. i .. j, strategyItems)
+    strategySelect.enabled = maxVoices - generatePolyphonyPart.value <= maxVoices - j
+    strategySelect.showLabel = false
+    if j == 1 then
+      strategySelect.selected = 2 -- Set strategy off for the first voice
+    end
+    strategySelect.tooltip = "Choose a playing strategy for voice " .. j
+    strategySelect.arrowColour = menuArrowColour
+    strategySelect.backgroundColour = menuBackgroundColour
+    strategySelect.textColour = widgetTextColour
+    strategySelect.width = tableWidth / (maxVoices + 1)
+    strategySelect.height = 20
+    strategySelect.x = (j * (strategySelect.width + 1)) - 2
+    strategySelect.y = subdivisionRepeatProbability.y + (subdivisionRepeatProbability.height*voiceRowCount) + 10
+    strategySelect.changed = function(self)
+      if self.value == 1 then
+        strategyIndex[j] = nil
+        strategyInputs[j].text = ""
+        print("Selected strategyIndex by random for voice", j)
+      else
+        strategyIndex[j] = self.value - 1
+        if self.value == 2 then
+          strategyInputs[j].text = ""
+        else
+          strategyInputs[j].text = self.selectedText
+        end
+        print("Selected strategyIndex for voice", strategyIndex[j], j)
+      end
+    end
+    table.insert(strategyPerVoice, strategySelect)
+  end
+
+  voiceRowCount = voiceRowCount + 1
+
+  if i == 1 then
+    local minResolutionLabel = sequencerPanel:Label("MinResolutionLabel" .. i)
+    minResolutionLabel.persistent = false
+    minResolutionLabel.text = "Min Resolution"
+    minResolutionLabel.tooltip = "Minimum resolution for voice"
+    minResolutionLabel.backgroundColour = voiceLabelBgColour
+    minResolutionLabel.textColour = voiceLabelTextColour
+    minResolutionLabel.width = (tableWidth / (maxVoices + 1)) - 2
+    minResolutionLabel.height = 20
+    minResolutionLabel.x = 0
+    minResolutionLabel.y = subdivisionRepeatProbability.y + (subdivisionRepeatProbability.height*voiceRowCount) + 12
+  end
+
+  for j=1,maxVoices do
+    local subdivisionMinResolution = sequencerPanel:Menu("SubdivisionMinResolution" .. i .. j, getResolutionNames())
+    if j == 1 then
+      subdivisionMinResolution.selected = 11
+    elseif j == 2 then
+      subdivisionMinResolution.selected = 17
+    else
+      subdivisionMinResolution.selected = 20
+    end
+    subdivisionMinResolution.enabled = maxVoices - generatePolyphonyPart.value <= maxVoices - j
+    subdivisionMinResolution.showLabel = false
+    subdivisionMinResolution.tooltip = "Choose a playing strategy for voice " .. j
+    subdivisionMinResolution.arrowColour = menuArrowColour
+    subdivisionMinResolution.backgroundColour = menuBackgroundColour
+    subdivisionMinResolution.textColour = widgetTextColour
+    subdivisionMinResolution.width = tableWidth / (maxVoices + 1)
+    subdivisionMinResolution.height = 20
+    subdivisionMinResolution.x = (j * (subdivisionMinResolution.width + 1)) - 2
+    subdivisionMinResolution.y = subdivisionRepeatProbability.y + (subdivisionRepeatProbability.height*voiceRowCount) + 12
+    table.insert(minResPerVoice, subdivisionMinResolution)
+  end
+
+  voiceRowCount = voiceRowCount + 1
+
+  if i == 1 then
+    local channelLabel = sequencerPanel:Label("ChannelLabel" .. i)
     channelLabel.persistent = false
     channelLabel.text = "Channel"
     channelLabel.tooltip = "Channels can be set per voice, but is the same for every part"
@@ -728,7 +1065,7 @@ for i=1,numPartsBox.max do
     channelLabel.width = (tableWidth / (maxVoices + 1)) - 2
     channelLabel.height = 20
     channelLabel.x = 0
-    channelLabel.y = voiceLabelY + (12 * voiceRowCount)
+    channelLabel.y = subdivisionRepeatProbability.y + (subdivisionRepeatProbability.height*voiceRowCount) + 14
 
     local channels = {}
     for j=1,16 do
@@ -746,43 +1083,45 @@ for i=1,numPartsBox.max do
       channelInput.width = tableWidth / (maxVoices + 1)
       channelInput.height = 20
       channelInput.x = (j * (channelInput.width + 1)) - 2
-      channelInput.y = channelLabel.y
+      channelInput.y = subdivisionRepeatProbability.y + (subdivisionRepeatProbability.height*voiceRowCount) + 14
       table.insert(channelInputs, channelInput)
-    end ]]
+    end
 
-    --voiceRowCount = voiceRowCount + 1
+    voiceRowCount = voiceRowCount + 1
 
-    --[[ local notesLabel = sequencerPanel:Label("NotesLabel" .. i)
+    local notesLabel = sequencerPanel:Label("NotesLabel" .. i)
     notesLabel.persistent = false
-    notesLabel.text = "Note"
+    notesLabel.text = "Notes"
     notesLabel.tooltip = "Shows the base note playing for the corresponding voice"
     notesLabel.backgroundColour = voiceLabelBgColour
     notesLabel.textColour = voiceLabelTextColour
     notesLabel.width = (tableWidth / (maxVoices + 1)) - 2
     notesLabel.height = 20
     notesLabel.x = 0
-    notesLabel.y = channelLabel.y + channelLabel.height + 1 ]]
+    notesLabel.y = subdivisionRepeatProbability.y + (subdivisionRepeatProbability.height*voiceRowCount) + 16
 
     for j=1,maxVoices do
       local noteInput = sequencerPanel:Label("NoteInput" .. j)
-      noteInput.enabled = false
+      noteInput.enabled = false--maxVoices - generatePolyphonyPart.value <= maxVoices - j
       noteInput.persistent = false
       noteInput.tooltip = "Displays the base note for voice " .. j .. " when playing"
       noteInput.text = "-"
       noteInput.backgroundColour = menuBackgroundColour
       noteInput.textColour = labelTextColour
-      noteInput.width = tableWidth / maxVoices
+      --noteInput.backgroundColourWhenEditing = "black"
+      --noteInput.textColourWhenEditing = "white"
+      noteInput.width = tableWidth / (maxVoices + 1)
       noteInput.height = 20
-      noteInput.x = ((j - 1) * (noteInput.width + 1)) - 2
-      noteInput.y = voiceLabelY + 22
+      noteInput.x = (j * (noteInput.width + 1)) - 2
+      noteInput.y = subdivisionRepeatProbability.y + (subdivisionRepeatProbability.height*voiceRowCount) + 16
       table.insert(noteInputs, noteInput)
     end
   end
 
   if i == 1 then
     chordProbabilityLabel.width = editPartMenu.width
-    chordProbabilityLabel.x = 0
-    chordProbabilityLabel.y = partRandBox.y + partRandBox.height + 5
+    chordProbabilityLabel.x = stepResolution.x
+    chordProbabilityLabel.y = subdivisionProbabilityLabel.y
   end
 
   -- Chords
@@ -841,34 +1180,38 @@ for i=1,numPartsBox.max do
     end
   end
 
-  table.insert(paramsPerPart, {inversions=inversions,chords=chords,velRandomization=velRandomization,gateRandomization=gateRandomization,baseNoteRandomization=baseNoteRandomization,partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,polyphony=generatePolyphonyPart,numStepsBox=numStepsBox,stepResolution=stepResolution,fullScale={},scale=generateScalePart,key=generateKeyPart,harmonizationPropbability=harmonizationPropbability,minNote=generateMinPart,maxNote=generateMaxPart,monoLimit=monoLimit,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
+  table.insert(paramsPerPart, {minResPerVoice=minResPerVoice,strategyInputs=strategyInputs,strategyPerVoice=strategyPerVoice,inversions=inversions,chords=chords,subdivisionProbability=subdivisionProbability,subdivisions=subdivisions,subdivisionRepeatProbability=subdivisionRepeatProbability,subdivisionDotProbability=subdivisionDotProbability,subdivisionTieProbability=subdivisionTieProbability,subdivisionMinResolution=subdivisionMinResolution,velRandomization=velRandomization,stepRepeatProbability=stepRepeatProbability,gateRandomization=gateRandomization,baseNoteRandomization=baseNoteRandomization,partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,polyphony=generatePolyphonyPart,numStepsBox=numStepsBox,stepResolution=stepResolution,fullScale={},scale=generateScalePart,key=generateKeyPart,harmonizationPropbability=harmonizationPropbability,minNote=generateMinPart,maxNote=generateMaxPart,monoLimit=monoLimit,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
 
   generateScalePart:changed()
 end
 
 editPartMenu:changed()
 numPartsBox:changed()
+paramsPerPart[editPartMenu.value].strategyPerVoice[1]:changed()
 
 --------------------------------------------------------------------------------
 -- Sequencer
 --------------------------------------------------------------------------------
 
-function play(node, partPos)
-  local gate = getGate(partPos, node.step)
-  local noteDuration = node.stepDuration * node.steps
-  local playDuration = getPlayDuration(noteDuration, gate)
-  local noteToPlay = node.note
-  print("play note partPos/i/noteToPlay/noteName/duration/voice", partPos, i, noteToPlay, noteNumberToNoteName[noteToPlay+1], playDuration, node.voice)
-  -- If the key is already playing, send a note off event before playing the note
-  if isKeyDown(noteToPlay) then
-    postEvent({type=Event.NoteOff, note=noteToPlay, velocity=0})
-    print("isKeyDown/noteToPlay", isKeyDown(noteToPlay), noteToPlay)
+function playSubdivision(structure, partPos)
+  for i,node in ipairs(structure.notes) do
+    local gate = getGate(partPos, structure.step)
+    local waitDuration = (node.stepDuration / node.subdivision) * node.steps
+    local playDuration = getPlayDuration(waitDuration, gate)
+    local noteToPlay = node.note
+    print("PlaySubdivision partPos/i/noteToPlay/noteName/duration/voice", partPos, i, noteToPlay, noteNumberToNoteName[noteToPlay+1], playDuration, structure.voice)
+    -- If the key is already playing, send a note off event before playing the note
+    if isKeyDown(noteToPlay) then
+      postEvent({type=Event.NoteOff, note=noteToPlay, velocity=0})
+      print("isKeyDown/noteToPlay", isKeyDown(noteToPlay), noteToPlay)
+    end
+    local channel = nil
+    if channelButton.value == true then
+      channel = channelInputs[structure.voice].value
+    end
+    playNote(noteToPlay, getVelocity(partPos, structure.step), beat2ms(playDuration)-1, nil, channel)
+    waitBeat(waitDuration)
   end
-  local channel = nil
-  if channelButton.value == true then
-    channel = node.voice
-  end
-  playNote(noteToPlay, getVelocity(partPos, node.step), beat2ms(playDuration)-1, nil, channel)
 end
 
 function arpeg()
@@ -881,6 +1224,9 @@ function arpeg()
   local scale = {} -- The scale the generator can choose from.
   local inversionIndex = 0
   local chordDefinitionIndex = 1
+  local notePosition = {0} -- Holds the current note position in chord/scale (per voice)
+  local strategyPos = {1} -- Holds the position in the selected strategy (per voice)
+  local structureMemory = {}
   notes = {} -- Ensure notes are reset when seqencer starts
 
   -- START ARP LOOP
@@ -930,11 +1276,34 @@ function arpeg()
 
     -- Number of simultainious notes are set by polyphony
     local polyphony = paramsPerPart[currentPartPosition].polyphony.value
+    local subdivisionTieProbability = paramsPerPart[currentPartPosition].subdivisionTieProbability.value
+    local subdivisionDotProbability = paramsPerPart[currentPartPosition].subdivisionDotProbability.value
+    local subdivisionRepeatProbability = paramsPerPart[currentPartPosition].subdivisionRepeatProbability.value
+    local stepRepeatProbability = paramsPerPart[currentPartPosition].stepRepeatProbability.value
     local minNote = paramsPerPart[currentPartPosition].minNote.value
     local maxNote = paramsPerPart[currentPartPosition].maxNote.value
     local mainBeatDuration = getResolution(paramsPerPart[currentPartPosition].stepResolution.value)
     local minNoteSteps = paramsPerPart[currentPartPosition].minNoteSteps.value
     local maxNoteSteps = paramsPerPart[currentPartPosition].maxNoteSteps.value
+    local subdivisionProbability = paramsPerPart[currentPartPosition].subdivisionProbability.value
+    local subdivisions = paramsPerPart[currentPartPosition].subdivisions
+    local strategyPerVoice = paramsPerPart[currentPartPosition].strategyPerVoice
+    local strategyInputs = paramsPerPart[currentPartPosition].strategyInputs
+    local minResPerVoice = paramsPerPart[currentPartPosition].minResPerVoice
+
+    if startOfPart == true then
+      for voice=1,#strategyIndex do
+        -- Randomize strategies
+        if strategyPerVoice[voice].value == 1 and getRandomBoolean() then
+          strategyIndex[voice] = getRandom(#strategies)
+          print("Set random strategy index for voice", strategyIndex[voice], voice)
+        end
+      end
+      for voice=1,#notePosition do
+        notePosition[voice] = 0 -- Reset note positions at the start of each part
+      end
+      structureMemory = {}
+    end
 
     inversionIndex = 0 -- Reset counter for inversion progress
     chordDefinitionIndex = 1 -- Set default
@@ -979,10 +1348,22 @@ function arpeg()
     -- Note functions
     --------------------------------------------------------------------------------
 
-    -- Main function for getting note to play
-    local function getNoteToPlay(voice)
+    -- Main function for getting notes to play
+    local function getNotesToPlay(voice)
+      -- Ensure voice has a strategy!
+      if type(strategyIndex[voice]) == "nil" then
+        strategyIndex[voice] = getRandom(#strategies)
+        print("Set random strategy index for voice in getNotesToPlay", strategyIndex[voice], voice)
+      end
+
+      -- Ensure voice has a strategy position!
+      if type(strategyPos[voice]) == "nil" then
+        strategyPos[voice] = 1
+        print("Set strategy position for voice", voice)
+      end
+
       -- Note generator function
-      local function generateNote()
+      local function generateNote(nodePos)
         local note = nil
         local baseNoteRandomization = paramsPerPart[currentPartPosition].baseNoteRandomization.value
         local monoLimit = paramsPerPart[currentPartPosition].monoLimit.value
@@ -1054,7 +1435,7 @@ function arpeg()
             while isRootNote(baseNote, currentPartPosition) == false and baseNote <= baseMax do
               baseNote = baseNote + 1 -- increment note until we hit the base note
             end
-            --notePosition[voice] = getIndexFromValue(baseNote, scale)
+            notePosition[voice] = getIndexFromValue(baseNote, scale)
             print("Get root note: note/baseMin/baseMax", baseNote, baseMin, baseMax)
           else
             local noteRange = baseMax - baseMin
@@ -1063,14 +1444,19 @@ function arpeg()
               noteRange = math.max(12, math.ceil(noteRange / polyphony))
               print("Calculate range for base note baseMin/baseMax/noteRange", baseMin, baseMax, noteRange)
             end
-            baseNote = baseNote + getRandom(noteRange) - 1
+            if notePosition[voice] == 0 then
+              baseNote = getNoteAccordingToScale(scale, (baseNote + getRandom(noteRange) - 1))
+              notePosition[voice] = getIndexFromValue(baseNote, scale)
+            end
+            baseNote, notePosition, strategyPos = getNoteFromStrategy(notePosition, strategyIndex, strategyPos, currentPartPosition, voice, baseMin, baseMax)
+            print("Get base note from scale using strategy: note/minNote/maxNote/strategyIndex", baseNote, baseMin, baseMax, strategyIndex[voice])
           end
 
-          return getNoteAccordingToScale(scale, baseNote)
+          return baseNote
         end
 
-        -- The note on the first voice is the base note
-        if voice == 1 then
+        -- The first node on the first voice gets the base note
+        if voice == 1 and nodePos == 1 then
           local function validateBaseNote(baseNote)
             local valid = true
             if hasHarmonizeableScale == false then
@@ -1114,7 +1500,7 @@ function arpeg()
         end
 
         local harmonizationPropbability = paramsPerPart[currentPartPosition].harmonizationPropbability.value
-        if type(note) == "nil" and getRandomBoolean(harmonizationPropbability) == true and hasHarmonizeableScale == true then
+        if type(note) == "nil" and getRandomBoolean(harmonizationPropbability) == true and nodePos == 1 and hasHarmonizeableScale == true then
           local startingNotes = {}
           for _,v in ipairs(notes) do
             if v.stepCounter == 0 then
@@ -1158,12 +1544,64 @@ function arpeg()
           end
         end
 
-        -- Get random note from scale
+        -- Ensure voice has a note position!
+        if type(notePosition[voice]) == "nil" then
+          -- Set note position for the voice
+          if type(note) == "nil" then
+            notePosition[voice] = 0
+          else
+            notePosition[voice] = getIndexFromValue(note, scale)
+          end
+          print("Set note position for voice", notePosition[voice], voice)
+        end
+
+        -- Get note from scale using strategy
         if type(note) == "nil" then
-          note = getNoteAccordingToScale(scale, getRandom(baseMin, baseMax))
+          note, notePosition, strategyPos = getNoteFromStrategy(notePosition, strategyIndex, strategyPos, currentPartPosition, voice, baseMin, baseMax)
+          print("Get note from scale using strategy: note/minNote/maxNote/strategyIndex", note, minNote, maxNote, strategyIndex[voice])
         end
 
         return note
+      end
+
+      -- Recursive method for generating the rythmic structure
+      local function generateStructure(stepDuration, steps, currentDepth, stop)
+        if type(currentDepth) == "nil" then
+          currentDepth = 0
+        end
+
+        local subdivision, subDivDuration, remainderDuration, stop = getSubdivision(stepDuration, steps, getResolution(minResPerVoice[voice].value), subdivisionProbability, subdivisions, stop, subdivisionDotProbability)
+        print("Got subdivision/subDivDuration/currentDepth/voice", subdivision, subDivDuration, currentDepth, voice)
+
+        -- Check for minimum duration
+        local subdivisionStructures = {}
+        if subdivision > 1 then
+          currentDepth = currentDepth + 1
+          print("Incrementing depth/stepDuration/subDivDuration", currentDepth, stepDuration, subDivDuration)
+          local dotted = subDivDuration ~= remainderDuration
+          local subDivPos = 1
+          while subDivPos <= subdivision do
+            local subdivisionSteps = 1 -- Set default
+            if dotted == false then
+              subdivisionSteps, stop = getSubdivisionSteps(subdivision, subDivPos, subdivisionTieProbability)
+            elseif subDivPos == subdivision then
+              -- Use the remainder on the last step when dotted subdivision
+              subDivDuration = remainderDuration
+            end
+            -- Create the recursive structure tree
+            print("Generating structure for subdivisionNum/subdivisionSteps/subDivDuration/currentDepth", subDivPos, subdivisionSteps, subDivDuration, currentDepth)
+            local subdivisionStructure = generateStructure(subdivisionSteps, subDivDuration, currentDepth, stop)
+            table.insert(subdivisionStructures, subdivisionStructure)
+            subDivPos = subDivPos + subdivisionSteps -- Increment pos
+          end
+        end
+
+        return {
+          steps = steps,
+          stepDuration = stepDuration,
+          subdivision = subdivision,
+          children = subdivisionStructures,
+        }
       end
 
       -- Get the number of steps this structure will last
@@ -1176,18 +1614,45 @@ function arpeg()
         steps = maxSteps
       end
 
+      local nodes = {}
+
+      if getRandomBoolean(stepRepeatProbability) and type(structureMemory[voice]) == "table" then --  and tablePos > 1
+        nodes = structureMemory[voice] -- Load structure from memory
+        print("Load structure from memory for voice", voice)
+      else
+        local function parseTree(structureTree)
+          -- Traverse the tree until we find the levels with no child nodes
+          for i=1,structureTree.subdivision do
+            if #structureTree.children == 0 then
+              print("Add final node from structure steps/stepDuration", structureTree.steps, structureTree.stepDuration)
+              table.insert(nodes, structureTree)
+            else
+              print("Parsing further down the tree #children/subdvision", #structureTree.children, structureTree.subdivision)
+              if type(structureTree.children[i]) == "table" then
+                parseTree(structureTree.children[i]) -- Parse next level
+              end
+            end
+          end
+        end
+  
+        local structureTree = generateStructure(mainBeatDuration, steps) -- Gets the structrure / rythmic pattern to use
+        parseTree(structureTree) -- Parses the tree and finds the nodes on the lowest level
+        print("Generated #nodes/step/voice", #nodes, tablePos, voice)
+        table.insert(structureMemory, voice, nodes)
+      end
+
       -- Get notes for each node in the tree
-      local note = generateNote()
-      local noteToPlay = {
-        note = note,
+      nodes = setNotesOnNodes(nodes, subdivisionRepeatProbability, generateNote)
+      local notesToPlay = {
+        notes = nodes,
+        note = nodes[1].note, -- The base note
         step = tablePos,
         steps = steps,
-        stepDuration = mainBeatDuration,
         voice = voice,
         stepCounter = 0
       }
 
-      return noteToPlay
+      return notesToPlay
     end
 
     --------------------------------------------------------------------------------
@@ -1219,11 +1684,11 @@ function arpeg()
           voice = voice + 1
         else
           print("Voice is not playing", voice)
-          local noteToPlay = getNoteToPlay(voice)
-          if notesInclude(notes, noteToPlay.note) == false then
-            table.insert(notes, noteToPlay)
-            print("Insert note", noteToPlay.note)
-            noteInputs[voice].text = noteNumberToNoteName[noteToPlay.note + 1] .. " (" .. noteToPlay.note .. ")"
+          local notesToPlay = getNotesToPlay(voice)
+          if notesInclude(notes, notesToPlay.note) == false then
+            table.insert(notes, notesToPlay)
+            print("Insert notes/note", #notesToPlay.notes, notesToPlay.note)
+            noteInputs[voice].text = noteNumberToNoteName[notesToPlay.note + 1] .. " (" .. notesToPlay.note .. ")"
             voice = voice + 1
           end
         end
@@ -1237,7 +1702,8 @@ function arpeg()
     for _,note in ipairs(notes) do
       -- Start playing when step counter is 0 (add an extra check for gate even though no notes should be added when gate is zero)
       if note.stepCounter == 0 then
-        play(note, currentPartPosition)
+        run(playSubdivision, note, currentPartPosition)
+        --print("Playing note/stepDuration/note.gate/note.steps/note.stepDuration", note.note, stepDuration, note.gate, note.steps, note.stepDuration)
       end
       -- Increment step counter
       note.stepCounter = note.stepCounter + 1

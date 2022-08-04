@@ -296,6 +296,21 @@ label.fontSize = 22
 label.position = {0,0}
 label.size = {170,25}
 
+local channels = {"Omni"}
+for j=1,16 do
+  table.insert(channels, "" .. j)
+end
+
+local channelInput = sequencerPanel:Menu("ChannelInput", channels)
+channelInput.tooltip = "Only listen to notes on this channel"
+channelInput.arrowColour = menuArrowColour
+channelInput.showLabel = false
+channelInput.backgroundColour = menuBackgroundColour
+channelInput.textColour = widgetTextColour
+channelInput.size = {102,22}
+channelInput.x = (sequencerPanel.width / 2) + 30
+channelInput.y = 0
+
 local focusButton = sequencerPanel:OnOffButton("FocusPartOnOff", false)
 focusButton.backgroundColourOff = backgroundColourOff
 focusButton.backgroundColourOn = backgroundColourOn
@@ -304,7 +319,7 @@ focusButton.textColourOn = textColourOn
 focusButton.displayName = "Focus Part"
 focusButton.tooltip = "When focus is active, only the part selected for editing is shown and played"
 focusButton.size = {102,22}
-focusButton.x = (sequencerPanel.width / 2) + 140
+focusButton.x = channelInput.x + channelInput.width + 5
 focusButton.y = 0
 focusButton.changed = function(self)
   setTableWidths()
@@ -1373,6 +1388,14 @@ end
 --------------------------------------------------------------------------------
 
 function onNote(e)
+  local channel = channelInput.value - 1
+  local playNote = channel == 0 or e.channel == channel
+  print("channel/e.channel/note/playNote", channel, e.channel, e.note, playNote)
+  if playNote == false then
+    postEvent(e)
+    return
+  end
+
   if holdButton.value == true then
     for i,v in ipairs(heldNotes) do
       if v.note == e.note then
@@ -1394,6 +1417,13 @@ function onNote(e)
 end
 
 function onRelease(e)
+  local channel = channelInput.value - 1
+  local playNote = channel == 0 or e.channel == channel
+  if playNote == false then
+    postEvent(e)
+    return
+  end
+
   if holdButton.value == false then
     for i,v in ipairs(heldNotes) do
       if v.note == e.note then

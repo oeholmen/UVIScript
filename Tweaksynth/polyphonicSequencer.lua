@@ -11,9 +11,12 @@ local menuArrowColour = "#9f09A3F4"
 local menuOutlineColour = "#00000000"
 local heldNotes = {}
 local paramsPerPart = {}
-local numParts = 4
 local isPlaying = false
 local title = "Polyphonic Sequencer"
+
+if type(numParts) == "nil" then
+  numParts = 4
+end
 
 setBackgroundColour("#2c2c2c")
 
