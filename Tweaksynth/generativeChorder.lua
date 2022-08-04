@@ -276,14 +276,17 @@ editPartMenu.changed = function(self)
     v.slotChordButton.visible = isVisible
     v.loadChordDefinition.visible = isVisible
     v.saveChordDefinition.visible = isVisible
-    for _,s in ipairs(v.chordDefinitionSlots) do
-      s.visible = isVisible
+    for _,w in ipairs(v.chordDefinitionSlots) do
+      w.visible = isVisible
     end
-    for _,c in ipairs(v.chords) do
-      c.visible = isVisible
+    for _,w in ipairs(v.chords) do
+      w.visible = isVisible
     end
-    for _,c in ipairs(v.inversions) do
-      c.visible = isVisible
+    for _,w in ipairs(v.inversions) do
+      w.visible = isVisible
+    end
+    for _,w in ipairs(v.spreads) do
+      w.visible = isVisible
     end
   end
   setTableWidths()
@@ -461,13 +464,18 @@ local chordProbabilityLabel = sequencerPanel:Label("ChordProbabilityProbabilityL
 chordProbabilityLabel.text = "Chords"
 chordProbabilityLabel.tooltip = "Choose the probability that chords will be included when harmonizing"
 
-local inversionProbabilityLabel = sequencerPanel:Label("ChordProbabilityProbabilityLabel")
-inversionProbabilityLabel.text = "Chord inversions"
+local spreadProbabilityLabel = sequencerPanel:Label("SpreadProbabilityLabel")
+spreadProbabilityLabel.text = "Note Spread"
+spreadProbabilityLabel.tooltip = "Set note spread probability"
+
+local inversionProbabilityLabel = sequencerPanel:Label("InversionProbabilityLabel")
+inversionProbabilityLabel.text = "Chord Inversions"
 inversionProbabilityLabel.tooltip = "Choose the probability that inversions will be used when harmonizing"
 
 -- Add params that are to be editable per part
 for i=1,numPartsBox.max do
   local chords = {}
+  local spreads = {}
   local inversions = {}
 
   local partsTable = sequencerPanel:Table("Parts" .. i, 1, 0, 0, 1, true)
@@ -740,6 +748,36 @@ for i=1,numPartsBox.max do
     chordProbabilityLabel.y = partRandBox.y + partRandBox.height + 5
   end
 
+  local autoChordButton = sequencerPanel:OnOffButton("AutoChordButton" .. i, false)
+  autoChordButton.displayName = "Auto"
+  autoChordButton.tooltip = "Chord definitions are loaded by random while playing."
+  autoChordButton.backgroundColourOff = backgroundColourOff
+  autoChordButton.backgroundColourOn = backgroundColourOn
+  autoChordButton.textColourOff = textColourOff
+  autoChordButton.textColourOn = textColourOn
+  autoChordButton.width = editPartMenu.width / 2 - 2
+  autoChordButton.x = generateMaxNoteStepsPart.x
+  autoChordButton.y = chordProbabilityLabel.y
+
+  local slotChordButton = sequencerPanel:OnOffButton("SlotChordButton" .. i, false)
+  slotChordButton.displayName = "Slots"
+  slotChordButton.tooltip = "Chord definitions are selected by random from the slots."
+  slotChordButton.backgroundColourOff = backgroundColourOff
+  slotChordButton.backgroundColourOn = backgroundColourOn
+  slotChordButton.textColourOff = textColourOff
+  slotChordButton.textColourOn = textColourOn
+  slotChordButton.width = autoChordButton.width
+  slotChordButton.x = autoChordButton.x + autoChordButton.width + 5
+  slotChordButton.y = autoChordButton.y
+
+  local createChordDefinitionButton = sequencerPanel:Button("CreateDefButton" .. i)
+  createChordDefinitionButton.displayName = "Create"
+  createChordDefinitionButton.tooltip = "Create a random chord definition."
+  createChordDefinitionButton.persistent = false
+  createChordDefinitionButton.width = slotChordButton.width
+  createChordDefinitionButton.x = slotChordButton.x + slotChordButton.width + 5
+  createChordDefinitionButton.y = slotChordButton.y
+
   local chordDefinitionInput = sequencerPanel:Label("ChordInput" .. i)
   chordDefinitionInput.text = getChordInputText(chordDefinitions[1])
   chordDefinitionInput.tooltip = "Chord definitions build chords. Numbers represent steps up or down the scale that is currently selected. Feel free to type your own chord definitions here."
@@ -751,6 +789,8 @@ for i=1,numPartsBox.max do
   chordDefinitionInput.width = editPartMenu.width * 3.21
   chordDefinitionInput.height = 45
   chordDefinitionInput.fontSize = 30
+  chordDefinitionInput.x = autoChordButton.x
+  chordDefinitionInput.y = autoChordButton.y + autoChordButton.height + 5
 
   local saveActions = {"Save to..."}
   local chordDefinitionSlots = {}
@@ -765,8 +805,8 @@ for i=1,numPartsBox.max do
     definitionSlot.tooltip = "Unused"
     definitionSlot.height = 20
     definitionSlot.width = 27
-    definitionSlot.x = chordDefinitionInput.x + ((j-1) * (definitionSlot.width+2)) - 7
-    definitionSlot.y = chordDefinitionInput.y + chordDefinitionInput.height + 15
+    definitionSlot.x = chordDefinitionInput.x + ((j-1) * (definitionSlot.width+2))
+    definitionSlot.y = chordDefinitionInput.y + chordDefinitionInput.height + 5
     definitionSlot.changed = function(self)
       chordDefinitionInput.text = definitionSlot.tooltip
       self.value = false
@@ -786,7 +826,7 @@ for i=1,numPartsBox.max do
   loadChordDefinition.height = 20
   loadChordDefinition.width = editPartMenu.width
   loadChordDefinition.x = chordProbabilityLabel.x
-  loadChordDefinition.y = chordProbabilityLabel.y + (chordProbabilityLabel.height * 2) + 10
+  loadChordDefinition.y = chordProbabilityLabel.y + chordProbabilityLabel.height + 5
   loadChordDefinition.backgroundColour = menuBackgroundColour
   loadChordDefinition.textColour = widgetTextColour
   loadChordDefinition.arrowColour = menuArrowColour
@@ -837,39 +877,6 @@ for i=1,numPartsBox.max do
     self.selected = 1
   end
 
-  local autoChordButton = sequencerPanel:OnOffButton("AutoChordButton" .. i, false)
-  autoChordButton.displayName = "Auto"
-  autoChordButton.tooltip = "Chord definitions are loaded by random while playing."
-  autoChordButton.backgroundColourOff = backgroundColourOff
-  autoChordButton.backgroundColourOn = backgroundColourOn
-  autoChordButton.textColourOff = textColourOff
-  autoChordButton.textColourOn = textColourOn
-  autoChordButton.width = editPartMenu.width / 2 - 2
-  autoChordButton.x = generateMaxNoteStepsPart.x
-  autoChordButton.y = chordProbabilityLabel.y
-
-  local slotChordButton = sequencerPanel:OnOffButton("SlotChordButton" .. i, false)
-  slotChordButton.displayName = "Slots"
-  slotChordButton.tooltip = "Chord definitions are selected by random from the slots."
-  slotChordButton.backgroundColourOff = backgroundColourOff
-  slotChordButton.backgroundColourOn = backgroundColourOn
-  slotChordButton.textColourOff = textColourOff
-  slotChordButton.textColourOn = textColourOn
-  slotChordButton.width = autoChordButton.width
-  slotChordButton.x = autoChordButton.x + autoChordButton.width + 5
-  slotChordButton.y = autoChordButton.y
-
-  local createChordDefinitionButton = sequencerPanel:Button("CreateDefButton" .. i)
-  createChordDefinitionButton.displayName = "Create"
-  createChordDefinitionButton.tooltip = "Create a random chord definition."
-  createChordDefinitionButton.persistent = false
-  createChordDefinitionButton.width = slotChordButton.width
-  createChordDefinitionButton.x = slotChordButton.x + slotChordButton.width + 5
-  createChordDefinitionButton.y = slotChordButton.y
-
-  chordDefinitionInput.x = autoChordButton.x
-  chordDefinitionInput.y = autoChordButton.y + autoChordButton.height + 5
-
   autoChordButton.changed = function(self)
     slotChordButton:setValue(false, false)
     notePosition = 0 -- Reset note position
@@ -891,9 +898,44 @@ for i=1,numPartsBox.max do
 
 
   if i == 1 then
+    spreadProbabilityLabel.x = harmonizationPropbability.x
+    spreadProbabilityLabel.y = chordProbabilityLabel.y
+    spreadProbabilityLabel.width = editPartMenu.width
+
     inversionProbabilityLabel.x = velRandomization.x
     inversionProbabilityLabel.y = chordProbabilityLabel.y
     inversionProbabilityLabel.width = editPartMenu.width
+  end
+
+  -- Note Spread
+  local perRow = 1
+  local columnCount = 0
+  local rowCount = 1
+  for spread=1,3 do
+    local spreadProbability = sequencerPanel:NumBox("SpreadProbability" .. i .. spread, 100, 0, 100, true)
+    if spread == 1 then
+      spreadProbability.displayName = "Close"
+      spreadProbability.tooltip = "Set the probability that close chords will be included"
+    elseif spread == 2 then
+      spreadProbability.displayName = "Medium"
+      spreadProbability.tooltip = "Set the probability that medium wide chords will be included"
+    else
+      spreadProbability.displayName = "Wide"
+      spreadProbability.tooltip = "Set the probability that wide chords will be included"
+    end
+    spreadProbability.unit = Unit.Percent
+    spreadProbability.height = 20
+    spreadProbability.width = editPartMenu.width
+    spreadProbability.x = spreadProbabilityLabel.x + (columnCount * (spreadProbability.width + 10))
+    spreadProbability.y = spreadProbabilityLabel.y + ((spreadProbability.height + 5) * rowCount)
+    spreadProbability.backgroundColour = menuBackgroundColour
+    spreadProbability.textColour = widgetTextColour
+    table.insert(spreads, spreadProbability)
+    columnCount = columnCount + 1
+    if spread % perRow == 0 then
+      rowCount = rowCount + 1
+      columnCount = 0
+    end
   end
 
   -- Inversions
@@ -919,7 +961,7 @@ for i=1,numPartsBox.max do
     end
   end
 
-  table.insert(paramsPerPart, {chordDefinitionSlots=chordDefinitionSlots,createChordDefinitionButton=createChordDefinitionButton,loadChordDefinition=loadChordDefinition,saveChordDefinition=saveChordDefinition,chordDefinitionInput=chordDefinitionInput,autoChordButton=autoChordButton,slotChordButton=slotChordButton,inversions=inversions,chords=chords,velRandomization=velRandomization,gateRandomization=gateRandomization,baseNoteRandomization=baseNoteRandomization,partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,polyphony=generatePolyphonyPart,numStepsBox=numStepsBox,stepResolution=stepResolution,fullScale={},scale=generateScalePart,key=generateKeyPart,harmonizationPropbability=harmonizationPropbability,minNote=generateMinPart,maxNote=generateMaxPart,monoLimit=monoLimit,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
+  table.insert(paramsPerPart, {chordDefinitionSlots=chordDefinitionSlots,createChordDefinitionButton=createChordDefinitionButton,loadChordDefinition=loadChordDefinition,saveChordDefinition=saveChordDefinition,chordDefinitionInput=chordDefinitionInput,autoChordButton=autoChordButton,slotChordButton=slotChordButton,inversions=inversions,spreads=spreads,chords=chords,velRandomization=velRandomization,gateRandomization=gateRandomization,baseNoteRandomization=baseNoteRandomization,partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,polyphony=generatePolyphonyPart,numStepsBox=numStepsBox,stepResolution=stepResolution,fullScale={},scale=generateScalePart,key=generateKeyPart,harmonizationPropbability=harmonizationPropbability,minNote=generateMinPart,maxNote=generateMaxPart,monoLimit=monoLimit,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
 
   generateScalePart:changed()
 end
@@ -936,7 +978,7 @@ function play(node, partPos)
   local noteDuration = node.stepDuration * node.steps
   local playDuration = getPlayDuration(noteDuration, gate)
   local noteToPlay = node.note
-  print("play note partPos/i/noteToPlay/noteName/duration/voice", partPos, i, noteToPlay, noteNumberToNoteName[noteToPlay+1], playDuration, node.voice)
+  print("play note partPos/noteToPlay/noteName/duration/voice", partPos, noteToPlay, noteNumberToNoteName[noteToPlay+1], playDuration, node.voice)
   -- If the key is already playing, send a note off event before playing the note
   if isKeyDown(noteToPlay) then
     postEvent({type=Event.NoteOff, note=noteToPlay, velocity=0})
@@ -1050,6 +1092,26 @@ function arpeg()
       end
     end
 
+    -- Find spreads to include
+    local selectedSpread = 2 -- Reset to default
+    local spreads = paramsPerPart[currentPartPosition].spreads
+    local activeSpreads = {}
+    for i,v in ipairs(spreads) do
+      if getRandomBoolean(v.value) == true then
+        table.insert(activeSpreads, i)
+      end
+    end
+
+    if #activeSpreads > 0 then
+      -- Get a chord def index from the active definitions
+      if #activeSpreads > 1 then
+        selectedSpread = activeSpreads[getRandom(#activeSpreads)]
+      else
+        selectedSpread = activeSpreads[1]
+      end
+      print("Chord spread selected by random: selectedSpread/#activeSpreads", selectedSpread, #activeSpreads)
+    end
+
     -- Get current position in the table
     local startStep = partToStepMap[currentPartPosition]
     local tablePos = currentPosition - startStep + 1
@@ -1134,10 +1196,17 @@ function arpeg()
             -- Ensure note is within range
             note = transpose(fullScale[scaleIndex], baseMin, baseMax)
             local noteRange = baseMax - prevNote
-            local octaveRange = math.floor(noteRange / 12)
+            local octaveFactor = 12 / (selectedSpread / 2)
+            local octaveRange = math.floor(noteRange / octaveFactor)
             local notesLeft = polyphony - #notes
             local octave = math.floor(octaveRange / notesLeft)
-            if octave > 0 and note > baseMax / 2 and getRandomBoolean() then
+            local negOctProbability = 50
+            if selectedSpread == 1 then
+              negOctProbability = 75
+            elseif selectedSpread == 3 then
+              negOctProbability = 25
+            end
+            if octave > 0 and octave < 3 and note > baseMax / 2 and getRandomBoolean(negOctProbability) then
               octave = -octave
               print("Negative octave", octave)
             end
