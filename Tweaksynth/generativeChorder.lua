@@ -273,6 +273,7 @@ editPartMenu.changed = function(self)
     v.chordDefinitionInput.visible = isVisible
     v.createChordDefinitionButton.visible = isVisible
     v.autoChordButton.visible = isVisible
+    v.randomChordButton.visible = isVisible
     v.slotChordButton.visible = isVisible
     v.loadChordDefinition.visible = isVisible
     v.saveChordDefinition.visible = isVisible
@@ -748,36 +749,6 @@ for i=1,numPartsBox.max do
     chordProbabilityLabel.y = partRandBox.y + partRandBox.height + 5
   end
 
-  local autoChordButton = sequencerPanel:OnOffButton("AutoChordButton" .. i, false)
-  autoChordButton.displayName = "Auto"
-  autoChordButton.tooltip = "Chord definitions are loaded by random while playing."
-  autoChordButton.backgroundColourOff = backgroundColourOff
-  autoChordButton.backgroundColourOn = backgroundColourOn
-  autoChordButton.textColourOff = textColourOff
-  autoChordButton.textColourOn = textColourOn
-  autoChordButton.width = editPartMenu.width / 2 - 2
-  autoChordButton.x = generateMaxNoteStepsPart.x
-  autoChordButton.y = chordProbabilityLabel.y
-
-  local slotChordButton = sequencerPanel:OnOffButton("SlotChordButton" .. i, false)
-  slotChordButton.displayName = "Slots"
-  slotChordButton.tooltip = "Chord definitions are selected by random from the slots."
-  slotChordButton.backgroundColourOff = backgroundColourOff
-  slotChordButton.backgroundColourOn = backgroundColourOn
-  slotChordButton.textColourOff = textColourOff
-  slotChordButton.textColourOn = textColourOn
-  slotChordButton.width = autoChordButton.width
-  slotChordButton.x = autoChordButton.x + autoChordButton.width + 5
-  slotChordButton.y = autoChordButton.y
-
-  local createChordDefinitionButton = sequencerPanel:Button("CreateDefButton" .. i)
-  createChordDefinitionButton.displayName = "Create"
-  createChordDefinitionButton.tooltip = "Create a random chord definition."
-  createChordDefinitionButton.persistent = false
-  createChordDefinitionButton.width = slotChordButton.width
-  createChordDefinitionButton.x = slotChordButton.x + slotChordButton.width + 5
-  createChordDefinitionButton.y = slotChordButton.y
-
   local chordDefinitionInput = sequencerPanel:Label("ChordInput" .. i)
   chordDefinitionInput.text = getChordInputText(chordDefinitions[1])
   chordDefinitionInput.tooltip = "Chord definitions build chords. Numbers represent steps up or down the scale that is currently selected. Feel free to type your own chord definitions here."
@@ -786,15 +757,56 @@ for i=1,numPartsBox.max do
   chordDefinitionInput.backgroundColourWhenEditing = "black"
   chordDefinitionInput.textColour = labelTextColour
   chordDefinitionInput.textColourWhenEditing = "white"
-  chordDefinitionInput.width = editPartMenu.width * 3.21
+  chordDefinitionInput.width = editPartMenu.width * 2.13
   chordDefinitionInput.height = 45
   chordDefinitionInput.fontSize = 30
-  chordDefinitionInput.x = autoChordButton.x
-  chordDefinitionInput.y = autoChordButton.y + autoChordButton.height + 5
+  chordDefinitionInput.x = generatePolyphonyPart.x
+  chordDefinitionInput.y = chordProbabilityLabel.y + chordProbabilityLabel.height + 5
+
+  local autoChordButton = sequencerPanel:OnOffButton("AutoChordButton" .. i, false)
+  autoChordButton.displayName = "Auto"
+  autoChordButton.tooltip = "Chord definitions are loaded by random while playing."
+  autoChordButton.backgroundColourOff = backgroundColourOff
+  autoChordButton.backgroundColourOn = backgroundColourOn
+  autoChordButton.textColourOff = textColourOff
+  autoChordButton.textColourOn = textColourOn
+  autoChordButton.width = editPartMenu.width
+  autoChordButton.x = generateMinPart.x
+  autoChordButton.y = chordDefinitionInput.y
+
+  local randomChordButton = sequencerPanel:OnOffButton("RandomChordButton" .. i, false)
+  randomChordButton.displayName = "Random"
+  randomChordButton.tooltip = "Chord definitions are created by random while playing."
+  randomChordButton.backgroundColourOff = backgroundColourOff
+  randomChordButton.backgroundColourOn = backgroundColourOn
+  randomChordButton.textColourOff = textColourOff
+  randomChordButton.textColourOn = textColourOn
+  randomChordButton.width = autoChordButton.width
+  randomChordButton.x = autoChordButton.x
+  randomChordButton.y = autoChordButton.y + autoChordButton.height + 5
+
+  local slotChordButton = sequencerPanel:OnOffButton("SlotChordButton" .. i, false)
+  slotChordButton.displayName = "Slots"
+  slotChordButton.tooltip = "Chord definitions are selected by random from the slots."
+  slotChordButton.backgroundColourOff = backgroundColourOff
+  slotChordButton.backgroundColourOn = backgroundColourOn
+  slotChordButton.textColourOff = textColourOff
+  slotChordButton.textColourOn = textColourOn
+  slotChordButton.width = randomChordButton.width
+  slotChordButton.x = randomChordButton.x
+  slotChordButton.y = randomChordButton.y + randomChordButton.height + 5
+
+  local createChordDefinitionButton = sequencerPanel:Button("CreateDefButton" .. i)
+  createChordDefinitionButton.displayName = "Create"
+  createChordDefinitionButton.tooltip = "Create a random chord definition."
+  createChordDefinitionButton.persistent = false
+  createChordDefinitionButton.width = editPartMenu.width
+  createChordDefinitionButton.x = chordProbabilityLabel.x
+  createChordDefinitionButton.y = chordProbabilityLabel.y + chordProbabilityLabel.height + 5
 
   local saveActions = {"Save to..."}
   local chordDefinitionSlots = {}
-  for j=1,12 do
+  for j=1,8 do
     local definitionSlot = sequencerPanel:OnOffButton("ChordSlot" .. i .. j)
     definitionSlot.backgroundColourOff = backgroundColourOff
     definitionSlot.backgroundColourOn = backgroundColourOn
@@ -825,8 +837,8 @@ for i=1,numPartsBox.max do
   loadChordDefinition.showLabel = false
   loadChordDefinition.height = 20
   loadChordDefinition.width = editPartMenu.width
-  loadChordDefinition.x = chordProbabilityLabel.x
-  loadChordDefinition.y = chordProbabilityLabel.y + chordProbabilityLabel.height + 5
+  loadChordDefinition.x = createChordDefinitionButton.x
+  loadChordDefinition.y = createChordDefinitionButton.y + createChordDefinitionButton.height + 5
   loadChordDefinition.backgroundColour = menuBackgroundColour
   loadChordDefinition.textColour = widgetTextColour
   loadChordDefinition.arrowColour = menuArrowColour
@@ -879,23 +891,28 @@ for i=1,numPartsBox.max do
 
   autoChordButton.changed = function(self)
     slotChordButton:setValue(false, false)
-    notePosition = 0 -- Reset note position
+    randomChordButton:setValue(false, false)
+    chordDefinitionInput.enabled = self.value == false
+    createChordDefinitionButton.enabled = self.value == false
+  end
+
+  randomChordButton.changed = function(self)
+    autoChordButton:setValue(false, false)
+    slotChordButton:setValue(false, false)
     chordDefinitionInput.enabled = self.value == false
     createChordDefinitionButton.enabled = self.value == false
   end
 
   slotChordButton.changed = function(self)
     autoChordButton:setValue(false, false)
-    notePosition = 0 -- Reset note position
+    randomChordButton:setValue(false, false)
     chordDefinitionInput.enabled = true
     createChordDefinitionButton.enabled = true
   end
 
   createChordDefinitionButton.changed = function()
-    local definition = createChordDefinition(i)
-    chordDefinitionInput.text = table.concat(definition, ",")
+    chordDefinitionInput.text = getChordInputText(createChordDefinition(i))
   end
-
 
   if i == 1 then
     spreadProbabilityLabel.x = harmonizationPropbability.x
@@ -961,7 +978,7 @@ for i=1,numPartsBox.max do
     end
   end
 
-  table.insert(paramsPerPart, {chordDefinitionSlots=chordDefinitionSlots,createChordDefinitionButton=createChordDefinitionButton,loadChordDefinition=loadChordDefinition,saveChordDefinition=saveChordDefinition,chordDefinitionInput=chordDefinitionInput,autoChordButton=autoChordButton,slotChordButton=slotChordButton,inversions=inversions,spreads=spreads,chords=chords,velRandomization=velRandomization,gateRandomization=gateRandomization,baseNoteRandomization=baseNoteRandomization,partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,polyphony=generatePolyphonyPart,numStepsBox=numStepsBox,stepResolution=stepResolution,fullScale={},scale=generateScalePart,key=generateKeyPart,harmonizationPropbability=harmonizationPropbability,minNote=generateMinPart,maxNote=generateMaxPart,monoLimit=monoLimit,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
+  table.insert(paramsPerPart, {chordDefinitionSlots=chordDefinitionSlots,createChordDefinitionButton=createChordDefinitionButton,loadChordDefinition=loadChordDefinition,saveChordDefinition=saveChordDefinition,chordDefinitionInput=chordDefinitionInput,autoChordButton=autoChordButton,randomChordButton=randomChordButton,slotChordButton=slotChordButton,inversions=inversions,spreads=spreads,chords=chords,velRandomization=velRandomization,gateRandomization=gateRandomization,baseNoteRandomization=baseNoteRandomization,partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,polyphony=generatePolyphonyPart,numStepsBox=numStepsBox,stepResolution=stepResolution,fullScale={},scale=generateScalePart,key=generateKeyPart,harmonizationPropbability=harmonizationPropbability,minNote=generateMinPart,maxNote=generateMaxPart,monoLimit=monoLimit,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
 
   generateScalePart:changed()
 end
@@ -1057,10 +1074,14 @@ function arpeg()
 
     inversionIndex = 0 -- Reset counter for inversion progress
     local autoChord = paramsPerPart[currentPartPosition].autoChordButton.value
+    local randomChord = paramsPerPart[currentPartPosition].randomChordButton.value
     local slotChord = paramsPerPart[currentPartPosition].slotChordButton.value
     if autoChord == true then
       local index = getRandom(#chordDefinitions)
       paramsPerPart[currentPartPosition].chordDefinitionInput.text = getChordInputText(chordDefinitions[index])
+    end
+    if randomChord == true then
+      paramsPerPart[currentPartPosition].chordDefinitionInput.text = getChordInputText(createChordDefinition(currentPartPosition))
     end
     if slotChord == true then
       local chordDefinitionSlots = {}
@@ -1070,7 +1091,7 @@ function arpeg()
         end
       end
       if #chordDefinitionSlots > 0 then
-        chordDefinitionSlots[getRandom(#chordDefinitionSlots)]:setValue(true)
+        chordDefinitionSlots[math.ceil(getRandom(#chordDefinitionSlots))]:setValue(true)
       end
     end
 
