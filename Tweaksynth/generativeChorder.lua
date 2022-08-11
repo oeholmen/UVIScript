@@ -68,12 +68,12 @@ local chordDefinitions = {
   {2,2,2,1}, -- Builds 7th chords
   {3,1,3}, -- Builds supended chords
   {2,2,1,2}, -- Builds 6th chords
-  {2}, -- Builds 7/9/11/13 chords depending on polyphony
+  {2,2,2,2,6}, -- Builds 7th and 9th chords depending on polyphony
   {1,1,2,2,1}, -- Builds (close) 7th and 9th chords
   {4,3}, -- Builds open chords (no3)
   {1,2,1,2,1}, -- Builds supended chords including 7th and 9ths
-  {3}, -- Builds chords using only fourths
-  {Randomize},
+  --{3}, -- Builds chords using only fourths
+  --{Randomize},
 }
 
 local noteInputs = {}
@@ -765,7 +765,7 @@ for i=1,numPartsBox.max do
 
   local autoChordButton = sequencerPanel:OnOffButton("AutoChordButton" .. i, false)
   autoChordButton.displayName = "Auto"
-  autoChordButton.tooltip = "Chord definitions are loaded by random while playing."
+  autoChordButton.tooltip = "Default chord definitions are alternated by random while playing."
   autoChordButton.backgroundColourOff = backgroundColourOff
   autoChordButton.backgroundColourOn = backgroundColourOn
   autoChordButton.textColourOff = textColourOff
@@ -1217,15 +1217,21 @@ function arpeg()
             -- Ensure note is within range
             note = transpose(fullScale[scaleIndex], baseMin, baseMax)
             local noteRange = baseMax - prevNote
-            local octaveFactor = 12 / (selectedSpread / 2)
+            local octaveFactor = 12-- / (selectedSpread / 2)
             local octaveRange = math.floor(noteRange / octaveFactor)
             local notesLeft = polyphony - #notes
-            local octave = math.floor(octaveRange / notesLeft)
+            local octave = 0
+            local octaveProbability = 50
             local negOctProbability = 50
             if selectedSpread == 1 then
+              octaveProbability = 15
               negOctProbability = 75
             elseif selectedSpread == 3 then
-              negOctProbability = 25
+              octaveProbability = 75
+              negOctProbability = 15
+            end
+            if getRandomBoolean(octaveProbability) then
+              octave = math.floor(octaveRange / notesLeft)
             end
             if octave > 0 and octave < 3 and note > baseMax / 2 and getRandomBoolean(negOctProbability) then
               octave = -octave
