@@ -258,6 +258,7 @@ editPartMenu.changed = function(self)
 
     v.polyphony.visible = isVisible
     v.numStepsBox.visible = isVisible
+    v.numRepeatsBox.visible = isVisible
     v.stepResolution.visible = isVisible
     v.minNoteSteps.visible = isVisible
     v.maxNoteSteps.visible = isVisible
@@ -331,6 +332,7 @@ numPartsBox.changed = function(self)
       paramsPerPart[i].minNoteSteps.value = prev.minNoteSteps.value
       paramsPerPart[i].maxNoteSteps.value = prev.maxNoteSteps.value
       paramsPerPart[i].numStepsBox.value = prev.numStepsBox.value
+      paramsPerPart[i].numRepeatsBox.value = prev.numRepeatsBox.value
       paramsPerPart[i].stepResolution.value = prev.stepResolution.value
       paramsPerPart[i].fullScale = prev.fullScale
       paramsPerPart[i].velRandomization.value = prev.velRandomization.value
@@ -565,8 +567,8 @@ for i=1,numPartsBox.max do
   stepResolution.displayName = "Step Duration"
   stepResolution.tooltip = "The duration of each step in the part"
   stepResolution.selected = 11
-  --stepResolution.showLabel = false
-  --stepResolution.height = 20
+  stepResolution.showLabel = false
+  stepResolution.height = 20
   stepResolution.width = generateMaxNoteStepsPart.width
   stepResolution.x = generatePolyphonyPart.x + generatePolyphonyPart.width + 10
   stepResolution.y = generatePolyphonyPart.y
@@ -580,7 +582,7 @@ for i=1,numPartsBox.max do
 
   local numStepsBox = sequencerPanel:NumBox("Steps" .. i, totalNumSteps, 1, 32, true)
   numStepsBox.displayName = "Steps"
-  numStepsBox.tooltip = "The Number of steps in the part"
+  numStepsBox.tooltip = "The number of steps in the part"
   numStepsBox.backgroundColour = menuBackgroundColour
   numStepsBox.textColour = widgetTextColour
   numStepsBox.width = stepResolution.width
@@ -589,6 +591,15 @@ for i=1,numPartsBox.max do
   numStepsBox.changed = function(self)
     setNumSteps(i)
   end
+
+  local numRepeatsBox = sequencerPanel:NumBox("Repeats" .. i, 1, 1, 256, true)
+  numRepeatsBox.displayName = "Repeats"
+  numRepeatsBox.tooltip = "The number of times this part will repeat before proceeding to the next"
+  numRepeatsBox.backgroundColour = menuBackgroundColour
+  numRepeatsBox.textColour = widgetTextColour
+  numRepeatsBox.width = numStepsBox.width
+  numRepeatsBox.x = numStepsBox.x
+  numRepeatsBox.y = numStepsBox.y + numStepsBox.height + 5
 
   local generateMinPart = sequencerPanel:NumBox("GenerateMin" .. i, 24, 0, 127, true)
   generateMinPart.unit = Unit.MidiKey
@@ -978,7 +989,7 @@ for i=1,numPartsBox.max do
     end
   end
 
-  table.insert(paramsPerPart, {chordDefinitionSlots=chordDefinitionSlots,createChordDefinitionButton=createChordDefinitionButton,loadChordDefinition=loadChordDefinition,saveChordDefinition=saveChordDefinition,chordDefinitionInput=chordDefinitionInput,autoChordButton=autoChordButton,randomChordButton=randomChordButton,slotChordButton=slotChordButton,inversions=inversions,spreads=spreads,chords=chords,velRandomization=velRandomization,gateRandomization=gateRandomization,baseNoteRandomization=baseNoteRandomization,partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,polyphony=generatePolyphonyPart,numStepsBox=numStepsBox,stepResolution=stepResolution,fullScale={},scale=generateScalePart,key=generateKeyPart,harmonizationPropbability=harmonizationPropbability,minNote=generateMinPart,maxNote=generateMaxPart,monoLimit=monoLimit,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
+  table.insert(paramsPerPart, {chordDefinitionSlots=chordDefinitionSlots,createChordDefinitionButton=createChordDefinitionButton,loadChordDefinition=loadChordDefinition,saveChordDefinition=saveChordDefinition,chordDefinitionInput=chordDefinitionInput,autoChordButton=autoChordButton,randomChordButton=randomChordButton,slotChordButton=slotChordButton,inversions=inversions,spreads=spreads,chords=chords,velRandomization=velRandomization,gateRandomization=gateRandomization,baseNoteRandomization=baseNoteRandomization,partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,polyphony=generatePolyphonyPart,numStepsBox=numStepsBox,numRepeatsBox=numRepeatsBox,stepResolution=stepResolution,fullScale={},scale=generateScalePart,key=generateKeyPart,harmonizationPropbability=harmonizationPropbability,minNote=generateMinPart,maxNote=generateMaxPart,monoLimit=monoLimit,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
 
   generateScalePart:changed()
 end
@@ -1011,16 +1022,17 @@ end
 function arpeg()
   local index = 0
   local currentStep = 0 -- Holds the current step in the round that is being played
-  local currentRound = 0 -- Counter for rounds
   local currentPartPosition = 1 -- Holds the currently playing part
   local heldNoteIndex = 0
   local isStarting = true
   local scale = {} -- The scale the generator can choose from.
   local inversionIndex = 0
+  local repeatCounter = 0 -- Count part repeats
   notes = {} -- Ensure notes are reset when seqencer starts
 
   -- START ARP LOOP
   while isPlaying do
+    local numRepeats = paramsPerPart[currentPartPosition].numRepeatsBox.value
     local currentPosition = (index % totalNumSteps) + 1
     local startOfPart = false
     local partWasChanged = false
@@ -1031,10 +1043,20 @@ function arpeg()
       if sp == currentPosition then
         -- Set start of part
         startOfPart = true
-        currentRound = currentRound + 1 -- Increment round counter
         -- Update part position
         partWasChanged = currentPartPosition ~= pp
-        currentPartPosition = pp
+        if partWasChanged then
+          -- Increment repeat
+          repeatCounter = repeatCounter + 1
+          -- Check for repeat
+          if repeatCounter < numRepeats then
+            -- Repeat part - no change
+            partWasChanged = false
+          end
+        end
+        if partWasChanged then
+          currentPartPosition = pp
+        end
         break
       end
     end
@@ -1062,6 +1084,9 @@ function arpeg()
       -- Find the current pos and index
       currentPosition = partToStepMap[currentPartPosition]
       index = currentPosition - 1
+      if partWasChanged then
+        repeatCounter = 0 -- Reset repeat counter
+      end
     end
 
     -- Number of simultainious notes are set by polyphony

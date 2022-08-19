@@ -262,7 +262,7 @@ sequencerPanel.backgroundColour = backgroundColour
 sequencerPanel.x = 10
 sequencerPanel.y = 10
 sequencerPanel.width = tableWidth
-sequencerPanel.height = 480
+sequencerPanel.height = 380
 
 local label = sequencerPanel:Label("Label")
 label.text = "Generative Sequencer"
@@ -359,15 +359,15 @@ editPartMenu.changed = function(self)
     v.strategyActions.visible = isVisible
     v.velRandomization.visible = isVisible
     v.gateRandomization.visible = isVisible
-    v.sequenceRepeatProbability.visible = isVisible
-    v.sequenceRepeatProbabilityDecay.visible = isVisible
-    v.sequenceRepeatProbabilityThreshold.visible = isVisible
+    --v.sequenceRepeatProbability.visible = isVisible
+    --v.sequenceRepeatProbabilityDecay.visible = isVisible
+    --v.sequenceRepeatProbabilityThreshold.visible = isVisible
     v.subdivisionProbability.visible = isVisible
     v.subdivisionRepeatProbability.visible = isVisible
     v.subdivisionDotProbability.visible = isVisible
     v.subdivisionTieProbability.visible = isVisible
     --v.stepRepeatProbability.visible = isVisible
-    v.sequenceMemoryMenu.visible = isVisible
+    --v.sequenceMemoryMenu.visible = isVisible
     v.subdivisionMinResolution.visible = isVisible
     for _,s in ipairs(v.subdivisions) do
       s.visible = isVisible
@@ -422,15 +422,15 @@ numPartsBox.changed = function(self)
       paramsPerPart[i].fullScale = prev.fullScale
       paramsPerPart[i].velRandomization.value = prev.velRandomization.value
       paramsPerPart[i].gateRandomization.value = prev.gateRandomization.value
-      paramsPerPart[i].sequenceRepeatProbability.value = prev.sequenceRepeatProbability.value
-      paramsPerPart[i].sequenceRepeatProbabilityDecay.value = prev.sequenceRepeatProbabilityDecay.value
-      paramsPerPart[i].sequenceRepeatProbabilityThreshold.value = prev.sequenceRepeatProbabilityThreshold.value
+      --paramsPerPart[i].sequenceRepeatProbability.value = prev.sequenceRepeatProbability.value
+      --paramsPerPart[i].sequenceRepeatProbabilityDecay.value = prev.sequenceRepeatProbabilityDecay.value
+      --paramsPerPart[i].sequenceRepeatProbabilityThreshold.value = prev.sequenceRepeatProbabilityThreshold.value
       paramsPerPart[i].subdivisionProbability.value = prev.subdivisionProbability.value
       paramsPerPart[i].subdivisionRepeatProbability.value = prev.subdivisionRepeatProbability.value
       paramsPerPart[i].subdivisionDotProbability.value = prev.subdivisionDotProbability.value
       paramsPerPart[i].subdivisionTieProbability.value = prev.subdivisionTieProbability.value
       --paramsPerPart[i].stepRepeatProbability.value = prev.stepRepeatProbability.value
-      paramsPerPart[i].sequenceMemoryMenu.value = prev.sequenceMemoryMenu.value
+      --paramsPerPart[i].sequenceMemoryMenu.value = prev.sequenceMemoryMenu.value
       paramsPerPart[i].subdivisionMinResolution.value = prev.subdivisionMinResolution.value
       paramsPerPart[i].init = prev.init
     end
@@ -550,13 +550,13 @@ subdivisionProbabilityLabel.text = "Subdivision"
 local strategyLabel = sequencerPanel:Label("StrategyLabel")
 strategyLabel.text = "Strategy"
 
-local sequenceProbabilityLabel = sequencerPanel:Label("SequenceProbabilityLabel")
-sequenceProbabilityLabel.text = "Repetition"
+--local sequenceProbabilityLabel = sequencerPanel:Label("SequenceProbabilityLabel")
+--sequenceProbabilityLabel.text = "Repetition"
 
 -- Add params that are to be editable per part
 for i=1,numPartsBox.max do
-  local storedStructures = {} -- Used to store rythmic structures
-  local storedStructuresPos = 1 -- Menu position for storing structure
+  --local storedStructures = {} -- Used to store rythmic structures
+  --local storedStructuresPos = 1 -- Menu position for storing structure
 
   local partsTable = sequencerPanel:Table("Parts" .. i, 1, 0, 0, 1, true)
   partsTable.enabled = false
@@ -589,7 +589,7 @@ for i=1,numPartsBox.max do
   seqVelTable.width = positionTable.width
   seqVelTable.height = 70
   seqVelTable.x = positionTable.x
-  seqVelTable.y = partRandBox.y + 236
+  seqVelTable.y = partRandBox.y + 130
   
   local seqGateTable = sequencerPanel:Table("Gate" .. i, totalNumSteps, 100, 0, 120, true)
   seqGateTable.tooltip = "Set step gate length. Randomization available in settings."
@@ -738,7 +738,7 @@ for i=1,numPartsBox.max do
   gateRandomization.backgroundColour = menuBackgroundColour
   gateRandomization.textColour = widgetTextColour
 
-  if i == 1 then
+  --[[ if i == 1 then
     sequenceProbabilityLabel.x = 0
     sequenceProbabilityLabel.y = partRandBox.y + 130
     sequenceProbabilityLabel.width = (boxWidth * 2) + 5
@@ -775,7 +775,7 @@ for i=1,numPartsBox.max do
   sequenceRepeatProbabilityThreshold.x = 0
   sequenceRepeatProbabilityThreshold.y = sequenceRepeatProbabilityDecay.y + sequenceRepeatProbabilityDecay.height + 5
   sequenceRepeatProbabilityThreshold.backgroundColour = menuBackgroundColour
-  sequenceRepeatProbabilityThreshold.textColour = widgetTextColour
+  sequenceRepeatProbabilityThreshold.textColour = widgetTextColour ]]
 
   --[[ local stepRepeatProbability = sequencerPanel:NumBox("StepRepeatProbability" .. i, 0, 0, 100, true)
   stepRepeatProbability.displayName = "Memory"
@@ -787,7 +787,7 @@ for i=1,numPartsBox.max do
   stepRepeatProbability.backgroundColour = menuBackgroundColour
   stepRepeatProbability.textColour = widgetTextColour ]]
 
-  local sequenceMemoryMenu = sequencerPanel:Menu("SequenceMemoryMenu" .. i, {"Recording..."})
+  --[[ local sequenceMemoryMenu = sequencerPanel:Menu("SequenceMemoryMenu" .. i, {"Recording..."})
   sequenceMemoryMenu.displayName = "Sequence Memory"
   --sequenceMemoryMenu.enabled = false
   --sequenceMemoryMenu.showLabel = false
@@ -806,7 +806,7 @@ for i=1,numPartsBox.max do
       sequenceRepeatProbability:setValue(100)
     end
     print("Set structureMemoryIndex", structureMemoryIndex)
-  end
+  end ]]
 
   if i == 1 then
     subdivisionProbabilityLabel.width = boxWidth
@@ -1049,7 +1049,7 @@ for i=1,numPartsBox.max do
     strategyInput.text = table.concat(strategy, ",")
   end
 
-  table.insert(paramsPerPart, {sequenceMemoryMenu=sequenceMemoryMenu,storedStructures=storedStructures,storedStructuresPos=storedStructuresPos,strategySlots=strategySlots,strategyActions=strategyActions,strategyRestart=strategyRestart,subdivisionProbability=subdivisionProbability,subdivisions=subdivisions,subdivisionTieProbability=subdivisionTieProbability,subdivisionDotProbability=subdivisionDotProbability,subdivisionRepeatProbability=subdivisionRepeatProbability,subdivisionMinResolution=subdivisionMinResolution,velRandomization=velRandomization,gateRandomization=gateRandomization,partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,numStepsBox=numStepsBox,stepResolution=stepResolution,fullScale={},scale=generateScalePart,key=generateKeyPart,createStrategyButton=createStrategyButton,strategyInput=strategyInput,autoStrategyButton=autoStrategyButton,slotStrategyButton=slotStrategyButton,strategyPropbability=strategyPropbability,minNote=generateMinPart,maxNote=generateMaxPart,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,sequenceRepeatProbability=sequenceRepeatProbability,sequenceRepeatProbabilityDecay=sequenceRepeatProbabilityDecay,sequenceRepeatProbabilityThreshold=sequenceRepeatProbabilityThreshold,init=i==1})
+  table.insert(paramsPerPart, {strategySlots=strategySlots,strategyActions=strategyActions,strategyRestart=strategyRestart,subdivisionProbability=subdivisionProbability,subdivisions=subdivisions,subdivisionTieProbability=subdivisionTieProbability,subdivisionDotProbability=subdivisionDotProbability,subdivisionRepeatProbability=subdivisionRepeatProbability,subdivisionMinResolution=subdivisionMinResolution,velRandomization=velRandomization,gateRandomization=gateRandomization,partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,numStepsBox=numStepsBox,stepResolution=stepResolution,fullScale={},scale=generateScalePart,key=generateKeyPart,createStrategyButton=createStrategyButton,strategyInput=strategyInput,autoStrategyButton=autoStrategyButton,slotStrategyButton=slotStrategyButton,strategyPropbability=strategyPropbability,minNote=generateMinPart,maxNote=generateMaxPart,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
 
   createFullScale(i)
 end
@@ -1147,12 +1147,11 @@ end
 
 function arpeg()
   local index = 0
-  local currentStep = 0 -- Holds the current step in the round that is being played
   local currentRound = 0 -- Counter for rounds
   local currentPartPosition = 1 -- Holds the currently playing part
   local sequencePartIndex = 0 -- The part to play sequences from
   --local sequenceCounter = 0 -- Holds the pointer for what sequence to select notes from
-  local sequenceRepeatProbability = nil
+  --local sequenceRepeatProbability = nil
   local recordedNotes = {}
   local isStarting = true
   local strategyPos = 1 -- Holds the position in the selected strategy
@@ -1177,71 +1176,11 @@ function arpeg()
         -- Set start of part
         startOfPart = true
         currentRound = currentRound + 1 -- Increment round counter
-        -- Store the recorded notes before changing parts
-        --if #recordedNotes > 0 and maxSequences > 0 then
-        if #recordedNotes > 0 and structureMemoryIndex == 0 then
-          local sequences = paramsPerPart[currentPartPosition].storedStructures
-          local storedSequences = {}
-          -- Include the already stored notes
-          if type(sequences) == "table" then
-            storedSequences = sequences
-          end
-
-          if type(sequences) ~= "table" or #sequences < maxSequences then
-            -- Add the recorded notes
-            table.insert(storedSequences, recordedNotes)
-            print("Added the recorded notes to #storedSequences", #storedSequences)
-          else
-            -- When buffer is full, we insert the recorded notes at the current position
-            table.remove(storedSequences, paramsPerPart[currentPartPosition].storedStructuresPos)
-            table.insert(storedSequences, paramsPerPart[currentPartPosition].storedStructuresPos, recordedNotes)
-            print("Updated storedSequences index", paramsPerPart[currentPartPosition].storedStructuresPos)
-          end
-
-          -- Increment sequence counter
-          --[[ if #storedSequences >= maxSequences then
-            paramsPerPart[currentPartPosition].storedStructuresPos = paramsPerPart[currentPartPosition].storedStructuresPos + 1
-            print("Increment paramsPerPart[currentPartPosition].storedStructuresPos", paramsPerPart[currentPartPosition].storedStructuresPos)
-            if paramsPerPart[currentPartPosition].storedStructuresPos > maxSequences then
-              paramsPerPart[currentPartPosition].storedStructuresPos = 1
-              print("Reset paramsPerPart[currentPartPosition].storedStructuresPos", paramsPerPart[currentPartPosition].storedStructuresPos)
-            end
-          end ]]
-
-          paramsPerPart[currentPartPosition].storedStructures = storedSequences
-
-          local storedStructuresPos = paramsPerPart[currentPartPosition].storedStructuresPos
-          local sequenceMemoryMenu = paramsPerPart[currentPartPosition].sequenceMemoryMenu
-          if #sequenceMemoryMenu.items > storedStructuresPos then
-            sequenceMemoryMenu:setItem((storedStructuresPos+1), "Load Memory " .. storedStructuresPos)
-          else
-            sequenceMemoryMenu:addItem("Load Memory " .. storedStructuresPos)
-            sequenceMemoryMenu.enabled = true
-          end
-          --sequenceMemoryMenu:setValue((storedStructuresPos + 1), false)
-          paramsPerPart[currentPartPosition].storedStructuresPos = storedStructuresPos + 1
-          if paramsPerPart[currentPartPosition].storedStructuresPos > maxSequences then
-            paramsPerPart[currentPartPosition].storedStructuresPos = 1
-          end
-
-          --[[ if paramsPerPart[currentPartPosition].storedStructuresPos > 0 then
-            sequenceMemoryLabel.text = sequenceMemoryLabel.displayName .. " (Recalling memory " .. paramsPerPart[currentPartPosition].storedStructuresPos .. ")"
-          end ]]
-
-          print("SAVE SEQUENCE notes/sequences/currentPartPosition", #recordedNotes, #paramsPerPart[currentPartPosition].storedStructures, currentPartPosition)
-        end
-        recordedNotes = {} -- Clear the recored notes
         -- Update part position
         partWasChanged = currentPartPosition ~= pp
         currentPartPosition = pp
         break
       end
-    end
-
-    -- Increment step counter
-    currentStep = currentStep + 1
-    if currentStep > totalNumSteps then
-      currentStep = 1
     end
 
     -- Check if we are at the start of a part
@@ -1274,21 +1213,21 @@ function arpeg()
     local subdivisionTieProbability = paramsPerPart[currentPartPosition].subdivisionTieProbability.value
     local subdivisions = paramsPerPart[currentPartPosition].subdivisions
 
-    if partWasChanged then
-      print("currentPartPosition after/partWasChanged", currentPartPosition, partWasChanged)
-      print("currentPosition after", currentPosition)
-      sequenceRepeatProbability = paramsPerPart[currentPartPosition].sequenceRepeatProbability.value
+    --if partWasChanged then
+      --print("currentPartPosition after/partWasChanged", currentPartPosition, partWasChanged)
+      --print("currentPosition after", currentPosition)
+      --sequenceRepeatProbability = paramsPerPart[currentPartPosition].sequenceRepeatProbability.value
       --[[ if sequencesPerPart.value == true then
         sequencePartIndex = currentPartPosition
       end ]]
-      if type(paramsPerPart[currentPartPosition].storedStructures) == "table" then
+      --[[ if type(paramsPerPart[currentPartPosition].storedStructures) == "table" then
         paramsPerPart[currentPartPosition].storedStructuresPos = 1
         print("Sequence counter reset due to part change", paramsPerPart[currentPartPosition].storedStructuresPos)
       else
         paramsPerPart[currentPartPosition].storedStructuresPos = 0
         print("Sequence counter reset due to part change", paramsPerPart[currentPartPosition].storedStructuresPos)
-      end
-    end
+      end ]]
+    --end
 
     --[[ if maxSequences > 0 and (type(paramsPerPart[currentPartPosition].storedStructures) ~= "table" or #paramsPerPart[currentPartPosition].storedStructures < maxSequences) then
       local seqNum = 1
@@ -1298,7 +1237,7 @@ function arpeg()
       sequenceMemoryLabel.text = sequenceMemoryLabel.displayName .. " (Generating sequence " .. (seqNum) .. ")"
     end ]]
 
-    local sequenceRepeatProbabilityDecay = paramsPerPart[currentPartPosition].sequenceRepeatProbabilityDecay.value
+    --[[ local sequenceRepeatProbabilityDecay = paramsPerPart[currentPartPosition].sequenceRepeatProbabilityDecay.value
     if type(sequenceRepeatProbability) ~= "number" then
       sequenceRepeatProbability = paramsPerPart[currentPartPosition].sequenceRepeatProbability.value
     end
@@ -1315,7 +1254,7 @@ function arpeg()
         sequenceRepeatProbability = paramsPerPart[currentPartPosition].sequenceRepeatProbability.value
         print("Reset sequenceRepeatProbability", sequenceRepeatProbability)
       end
-    end
+    end ]]
 
     if startOfPart == true then
       -- Create a random strategy
@@ -1387,9 +1326,9 @@ function arpeg()
     -- Note generator function
     local function getNoteToPlay()
       -- Recall memory from stored sequence
-      local partSequences = paramsPerPart[currentPartPosition].storedStructures
-      if structureMemoryIndex > 0 and getRandomBoolean(sequenceRepeatProbability) then
-        local sequence = partSequences[structureMemoryIndex]
+      --local partSequences = paramsPerPart[currentPartPosition].storedStructures
+      --if structureMemoryIndex > 0 and getRandomBoolean(sequenceRepeatProbability) then
+        --local sequence = partSequences[structureMemoryIndex]
         --[[ if structureMemoryIndex > 0 then
           -- Get the sequence from the selected index
           sequence = partSequences[structureMemoryIndex]
@@ -1408,7 +1347,7 @@ function arpeg()
           sequence = partSequences[sequenceIndex]
           print("Getting sequence from random sequenceIndex/#sequences@currentPartPosition", sequenceIndex, #partSequences)
         end ]]
-        local notesAtCurrentStep = {}
+        --[[ local notesAtCurrentStep = {}
         print("Finding note at tablePos", tablePos)
         for _,v in ipairs(sequence) do
           if v.step == tablePos then
@@ -1421,8 +1360,8 @@ function arpeg()
           note.stepCounter = 0 -- Reset step counter
           print("SEQUENCE #note.notes/note.stepCounter", #note.notes, note.stepCounter)
           return note
-        end
-      end
+        end ]]
+      --end
 
       local function generateNote(nodePos)
         local note = nil
@@ -1648,13 +1587,13 @@ function onSave()
   local strategyInputData = {}
   local strategySlotsData = {}
   local strategyActionsData = {}
-  local storedStructuresData = {}
+  --local storedStructuresData = {}
 
   for i=1, numParts do
     table.insert(numStepsData, paramsPerPart[i].numStepsBox.value)
     table.insert(strategyInputData, paramsPerPart[i].strategyInput.text)
     table.insert(strategyActionsData, paramsPerPart[i].strategyActions.items)
-    table.insert(storedStructuresData, paramsPerPart[i].storedStructures)
+    --table.insert(storedStructuresData, paramsPerPart[i].storedStructures)
     for _,v in ipairs(paramsPerPart[i].strategySlots) do
       table.insert(strategySlotsData, v.tooltip)
     end
@@ -1664,7 +1603,7 @@ function onSave()
     end
   end
 
-  return {numStepsData, seqVelTableData, seqGateTableData, strategyInputData, strategySlotsData, strategyActionsData, storedStructuresData}
+  return {numStepsData, seqVelTableData, seqGateTableData, strategyInputData, strategySlotsData, strategyActionsData}
 end
 
 function onLoad(data)
@@ -1674,14 +1613,14 @@ function onLoad(data)
   local strategyInputData = data[4]
   local strategySlotsData = data[5]
   local strategyActionsData = data[6]
-  local storedStructuresData = data[7]
+  --local storedStructuresData = data[7]
 
   numPartsBox:setValue(#numStepsData)
 
   local dataCounter = 1
   local strategySlotsDataCounter = 1
   for i,v in ipairs(numStepsData) do
-    paramsPerPart[i].storedStructures = storedStructuresData[i]
+    --[[ paramsPerPart[i].storedStructures = storedStructuresData[i]
     for j=1,#paramsPerPart[i].storedStructures do
       paramsPerPart[i].sequenceMemoryMenu:addItem("Structure " .. j)
     end
@@ -1689,7 +1628,7 @@ function onLoad(data)
     if paramsPerPart[i].storedStructuresPos > maxSequences then
       paramsPerPart[i].storedStructuresPos = 1
     end
-    paramsPerPart[i].sequenceMemoryMenu.enabled = #paramsPerPart[i].storedStructures > 0
+    paramsPerPart[i].sequenceMemoryMenu.enabled = #paramsPerPart[i].storedStructures > 0 ]]
     paramsPerPart[i].numStepsBox:setValue(v)
     paramsPerPart[i].strategyActions.items = strategyActionsData[i]
     paramsPerPart[i].strategyInput.text = strategyInputData[i]
