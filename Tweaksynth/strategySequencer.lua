@@ -307,8 +307,8 @@ channelInput.arrowColour = menuArrowColour
 channelInput.showLabel = false
 channelInput.backgroundColour = menuBackgroundColour
 channelInput.textColour = widgetTextColour
-channelInput.size = {102,22}
-channelInput.x = (sequencerPanel.width / 2) + 30
+channelInput.size = {90,22}
+channelInput.x = (sequencerPanel.width / 2) - 25
 channelInput.y = 0
 
 local focusButton = sequencerPanel:OnOffButton("FocusPartOnOff", false)
@@ -318,7 +318,7 @@ focusButton.textColourOff = textColourOff
 focusButton.textColourOn = textColourOn
 focusButton.displayName = "Focus Part"
 focusButton.tooltip = "When focus is active, only the part selected for editing is shown and played"
-focusButton.size = {102,22}
+focusButton.size = channelInput.size
 focusButton.x = channelInput.x + channelInput.width + 5
 focusButton.y = 0
 focusButton.changed = function(self)
@@ -331,7 +331,7 @@ holdButton.backgroundColourOn = backgroundColourOn
 holdButton.textColourOff = textColourOff
 holdButton.textColourOn = textColourOn
 holdButton.displayName = "Hold"
-holdButton.size = {102,22}
+holdButton.size = channelInput.size
 holdButton.x = focusButton.x + focusButton.width + 5
 holdButton.y = 0
 holdButton.changed = function(self)
@@ -339,6 +339,20 @@ holdButton.changed = function(self)
     heldNotes = {}
     clearPosition()
   end
+end
+
+local muteButton = sequencerPanel:OnOffButton("MuteOnOff", false)
+muteButton.backgroundColourOff = backgroundColourOff
+muteButton.backgroundColourOn = backgroundColourOn
+muteButton.textColourOff = textColourOff
+muteButton.textColourOn = textColourOn
+muteButton.displayName = "Mute"
+muteButton.tooltip = "Mute all incoming notes"
+muteButton.size = channelInput.size
+muteButton.x = holdButton.x + holdButton.width + 5
+muteButton.y = 0
+muteButton.changed = function(self)
+  heldNotes = {}
 end
 
 local editPartMenu = sequencerPanel:Menu("EditPart", partSelect)
@@ -1387,7 +1401,17 @@ end
 -- Handle note events
 --------------------------------------------------------------------------------
 
+function onController(e)
+  if e.controller == 3 then
+    muteButton:setValue(e.value == 0)
+  end
+  postEvent(e)
+end
+
 function onNote(e)
+  if muteButton.value == true then
+    return
+  end
   local channel = channelInput.value - 1
   local playNote = channel == 0 or e.channel == channel
   print("channel/e.channel/note/playNote", channel, e.channel, e.note, playNote)
