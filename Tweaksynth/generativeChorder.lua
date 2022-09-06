@@ -21,7 +21,6 @@ local textColourOn = "efFFFFFF"
 
 local isPlaying = false
 local partToStepMap = {1} -- Holds the starting step for each part
-local partRandomizationAmount = 0
 local totalNumSteps = 8
 local paramsPerPart = {}
 local partSelect = {}
@@ -355,9 +354,6 @@ partRandBox.unit = Unit.Percent
 partRandBox.width = editPartMenu.width
 partRandBox.x = numPartsBox.x
 partRandBox.y = numPartsBox.y + numPartsBox.height + 5
-partRandBox.changed = function(self)
-  partRandomizationAmount = self.value
-end
 
 --------------------------------------------------------------------------------
 -- Functions
@@ -1072,8 +1068,8 @@ function arpeg()
       if focusButton.value == true then
         partWasChanged = currentPartPosition ~= editPartMenu.value
         currentPartPosition = editPartMenu.value
-      elseif isStarting == false and getRandomBoolean(partRandomizationAmount) then
-        -- Randomize parts within the set limit, unless we are in startup mode
+      elseif (isStarting == false or partRandBox.value > 50) and getRandomBoolean(partRandBox.value) then
+        -- Randomize parts within the set limit
         print("currentPartPosition before", currentPartPosition)
         print("currentPosition before", currentPosition)
         --print("index before", index)

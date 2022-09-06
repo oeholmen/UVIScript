@@ -859,9 +859,8 @@ function arpeg()
         currentPartPosition = partRepeat
         partRepeat = 0 -- Reset repeat
         print("currentPartPosition repeat", currentPartPosition)
-      elseif isStarting == false and getRandomBoolean(partRand.value) then
-      --elseif getRandomBoolean(partRand.value) then
-        -- Randomize parts within the set limit, unless we are in startup mode
+      elseif (isStarting == false or partRand.value > 50) and getRandomBoolean(partRand.value) then
+        -- Randomize parts within the set limit
         print("currentPartPosition before", currentPartPosition)
         -- Suggest a part by random
         local suggestedPartPosition = getRandom(numParts)
