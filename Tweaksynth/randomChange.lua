@@ -5,6 +5,7 @@
 require "common"
 
 local isRunning = false
+local heldNotes = {}
 
 local backgroundColour = "303030" -- Light or Dark
 local widgetBackgroundColour = "01011F" -- Dark
@@ -87,9 +88,23 @@ function arpeg()
   end
 end
 
-function onTransport(start)
-  isRunning = start
-  if isRunning then
+function onNote(e)
+  postEvent(e)
+  table.insert(heldNotes, e)
+  if #heldNotes == 1 and isRunning == false then
+    isRunning = true
     arpeg()
+  end
+end
+
+function onRelease(e)
+  postEvent(e)
+  for i,v in ipairs(heldNotes) do
+    if v.note == e.note then
+      table.remove(heldNotes, i)
+    end
+  end
+  if #heldNotes == 0 then
+    isRunning = false
   end
 end
