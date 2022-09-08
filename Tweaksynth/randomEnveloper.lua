@@ -69,23 +69,22 @@ legato.width = 60
 legato.x = panel.width - legato.width
 legato.y = 0
 
-local probability = panel:NumBox("Probability", 100, 0, 100, true)
-probability.unit = Unit.Percent
-probability.displayName = "Probability"
-probability.tooltip = "Set the probability that the step will trigger"
-probability.textColour = widgetTextColour
-probability.backgroundColour = widgetBackgroundColour
-probability.width = widgetWidth
-probability.x = 10
-probability.y = secondRowY
+local maxSteps = panel:NumBox("MaxSteps", 1, 1, 8, true)
+maxSteps.displayName = "Max Steps"
+maxSteps.tooltip = "Set the maximum number of steps that can be tied"
+maxSteps.textColour = widgetTextColour
+maxSteps.backgroundColour = widgetBackgroundColour
+maxSteps.width = widgetWidth
+maxSteps.x = 10
+maxSteps.y = secondRowY
 
 local minLevel = panel:NumBox("MinLevel", 50, 0, 100, true)
 minLevel.unit = Unit.Percent
 minLevel.displayName = "Spike Level"
-minLevel.tooltip = "Set the lowest level for spikes"
+minLevel.tooltip = "Set the minimum level for spikes"
 minLevel.textColour = widgetTextColour
 minLevel.backgroundColour = widgetBackgroundColour
-minLevel.x = probability.x + probability.width + 10
+minLevel.x = maxSteps.x + maxSteps.width + 10
 minLevel.y = secondRowY
 minLevel.width = widgetWidth
 
@@ -141,47 +140,52 @@ end
 function getDuration()
   local resolution = getResolution(waitResolution.value)
   if getRandomBoolean(rythm.value) then
-    local subDivs = {.5,2,3,4} -- TODO Add param for this (rythmic variation)?
-    return getPlayDuration(resolution / subDivs[getRandom(#subDivs)])
+    -- TODO Check the duration to determine what subdivisions are available - use subdivision script?
+    --local subDivs = {2,2,2,2,3,4,4} -- TODO Add param for this (rythmic variation)?
+    local maxResolution = 0.125 -- 1/32 - The fastest accepted resolution - TODO Param?
+    local subDivResolution = resolution / 2--subDivs[getRandom(#subDivs)]
+    return math.max(maxResolution, subDivResolution)
   end
   return resolution
 end
 
-function attackDecay(targetVal, attackDuration, stepDuration)
-  sendScriptModulation2(sourceIndex.value, 0, targetVal, attackDuration, voiceId)
-  wait(attackDuration)
-  local restDuration = stepDuration - attackDuration
-  if restDuration > 1 then
-    local decayValue = decay.value / 100 -- ATTACK
-    if decayValue == 0 then
-      decayValue = getRandom()
-    end
-    local decayDuration = restDuration * decayValue
-    --local decayDuration = getRandom(1, restDuration)
-    print("stepDuration, attackDuration, restDuration, decayDuration", stepDuration, attackDuration, restDuration, decayDuration)
-    sendScriptModulation2(sourceIndex.value, targetVal, 0, decayDuration, voiceId)
+function attackDecay(targetVal, stepDuration)
+  -- FIND ATTACK TIME
+  local attackValue = attack.value
+  if attackValue == 0 then
+    attackValue = getRandom(3,30) -- TODO Parameter for this?
   end
+  local attackTime = stepDuration * (attackValue / 100)
+  sendScriptModulation2(sourceIndex.value, 0, targetVal, attackTime, voiceId)
+  wait(attackTime)
+  local restDuration = stepDuration - attackTime
+  if restDuration > 1 then
+    -- FIND DECAY TIME
+    local decayValue = decay.value
+    if decayValue == 0 then
+      decayValue = getRandom(3,60) -- TODO Parameter for this?
+    end
+    local decayTime = restDuration * (decayValue / 100)
+    sendScriptModulation2(sourceIndex.value, targetVal, 0, decayTime, voiceId)
+  end
+  wait(restDuration)
 end
 
 function doModulation(voiceId)
-  local duration = getDuration()
-  if getRandomBoolean(probability.value) then
-    local val = 1 -- SPIKE LEVEL
-    if minLevel.value < 100 then
-      val = getRandom(math.max(1, minLevel.value), 100) / 100
-    end
-    if getRandomBoolean(bipolar.value) then
-      val = -val
-    end
-    local attackValue = attack.value / 100 -- ATTACK
-    if attackValue == 0 then
-      attackValue = getRandom() -- TODO Parameter for this?
-    end
-    local attackDuration = beat2ms(duration) * attackValue
-    -- Send the attack
-    run(attackDecay, val, attackDuration, beat2ms(duration))
+  local steps = 1
+  if maxSteps.value > 1 then
+    steps = getRandom(1,maxSteps.value)
   end
-  waitBeat(duration)
+  local duration = beat2ms(getDuration()) * steps
+  local val = 1 -- SPIKE LEVEL
+  if minLevel.value < 100 then
+    val = getRandom(math.max(1, minLevel.value), 100) / 100
+  end
+  if getRandomBoolean(bipolar.value) then
+    val = -val
+  end
+  -- Do the attack/decay modulation
+  attackDecay(val, duration)
 end
 
 function modulateVoice(voiceId)
