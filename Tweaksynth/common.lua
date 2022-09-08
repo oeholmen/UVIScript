@@ -260,6 +260,9 @@ function getResolutionNames(options, max)
 end
 
 function getPlayDuration(duration, gate)
+  if type(gate) == "nil" then
+    gate = 100
+  end
   local maxResolution = resolutions[#resolutions]
   return math.max(maxResolution, duration * (gate / 100)) -- Never shorter than the system max resolution (1/64 tri)
 end
