@@ -2,7 +2,7 @@
 -- A script modulator that creates random multi-envelopes over time.
 -----------------------------------------------------------------------
 
-require "common"
+require "subdivision"
 
 local isRunning = false
 local heldNotes = {}
@@ -138,35 +138,92 @@ function hasVoiceId(voiceId)
 end
 
 function getDuration()
+  local minResolution = 0.25 -- 1/16 - The fastest accepted resolution -- TODO Parameter for this?
   local resolution = getResolution(waitResolution.value)
-  if getRandomBoolean(rythm.value) then
-    -- TODO Check the duration to determine what subdivisions are available - use subdivision script?
-    --local subDivs = {2,2,2,2,3,4,4} -- TODO Add param for this (rythmic variation)?
-    local maxResolution = 0.125 -- 1/32 - The fastest accepted resolution - TODO Param?
-    local subDivResolution = resolution / 2--subDivs[getRandom(#subDivs)]
-    return math.max(maxResolution, subDivResolution)
-  end
-  return resolution
+  local subdivisions = {{value=true}}
+  local subdivision, subDivDuration, remainderDuration, stop = getSubdivision(resolution, 1, minResolution, rythm.value, subdivisions, false, 0)
+  return subDivDuration
 end
 
-function attackDecay(targetVal, stepDuration)
+-- https://www.uvi.net/uviscript/class_mapper.html
+-- Linear: param = min + (max-min)*pos 
+-- Exponential: param = min * (max/min)^pos
+-- Exponential: return 10 * (controllerValue/max)^4 (controllerValueToWidgetValue)
+-- TweakSynth line 808
+function modulateExponential(modulationTime, startValue, endValue, voiceId)
+  local millisecondsPerStep = 20
+  print("Duration of modulation (ms):", modulationTime)
+  print("Change from/to:", startValue, endValue)
+  if modulationTime <= (millisecondsPerStep*9) then
+    print("Short duration, modulate linear:")
+    modulateLinear(modulationTime, startValue, endValue, voiceId)
+    return
+  end
+
+  local diff = math.max(endValue, startValue) - math.min(endValue, startValue)
+
+  local parts = {
+    {duration=0.5,startValue=startValue,endValue=diff*0.2},
+    {duration=0.3,startValue=diff*0.2,endValue=diff*0.2+diff*0.3},
+    {duration=0.3,startValue=diff*0.2+diff*0.3,endValue=endValue},
+  }
+
+  for i,v in ipairs(parts) do
+    local remainingTime = modulationTime * v.duration
+    local diff = math.max(v.endValue, v.startValue) - math.min(v.endValue, v.startValue)
+    local numberOfSteps = remainingTime / millisecondsPerStep
+    local changePerStep = diff / numberOfSteps
+    print("i, diff, numberOfSteps, changePerStep", i, diff, numberOfSteps, changePerStep)
+  
+    local currentValue = v.startValue
+    if v.startValue < v.endValue then
+      while remainingTime > 0 do
+        print("currentValue, endValue", currentValue, v.endValue)
+        local change = changePerStep
+        nextValue = math.min((currentValue + change), v.endValue)
+        modulateLinear(millisecondsPerStep, currentValue, nextValue, voiceId)
+        wait(millisecondsPerStep)
+        currentValue = nextValue -- Increment current value
+        if remainingTime - millisecondsPerStep <= 0 then
+          modulateLinear(remainingTime, currentValue, v.endValue, voiceId)
+        end
+        remainingTime = remainingTime - millisecondsPerStep
+      end
+    else
+      modulateLinear(modulationTime, v.startValue, v.endValue, voiceId)
+    end
+  end
+end
+
+function modulateLinear(modulationTime, startValue, endValue, voiceId)
+  print("sendScriptModulation2 startValue, endValue, modulationTime", startValue, endValue, modulationTime)
+  sendScriptModulation2(sourceIndex.value, startValue, endValue, modulationTime, voiceId)
+end
+
+function attackDecay(targetVal, stepDuration, voiceId)
   -- FIND ATTACK TIME
   local attackValue = attack.value
   if attackValue == 0 then
     attackValue = getRandom(3,30) -- TODO Parameter for this?
   end
   local attackTime = stepDuration * (attackValue / 100)
-  sendScriptModulation2(sourceIndex.value, 0, targetVal, attackTime, voiceId)
+  if getRandomBoolean(100) then
+    -- LINEAR
+    modulateLinear(attackTime, 0, targetVal, voiceId)
+  else
+    -- EXPONENTIAL
+    spawn(modulateExponential, attackTime, 0, targetVal, voiceId)
+  end
   wait(attackTime)
   local restDuration = stepDuration - attackTime
   if restDuration > 1 then
     -- FIND DECAY TIME
     local decayValue = decay.value
     if decayValue == 0 then
-      decayValue = getRandom(3,60) -- TODO Parameter for this?
+      decayValue = getRandom(30,100) -- TODO Parameter for this?
     end
     local decayTime = restDuration * (decayValue / 100)
-    sendScriptModulation2(sourceIndex.value, targetVal, 0, decayTime, voiceId)
+    modulateLinear(decayTime, targetVal, 0, voiceId)
   end
   wait(restDuration)
 end
@@ -184,8 +241,8 @@ function doModulation(voiceId)
   if getRandomBoolean(bipolar.value) then
     val = -val
   end
-  -- Do the attack/decay modulation
-  attackDecay(val, duration)
+  -- Do the attack/decay phase
+  attackDecay(val, duration, voiceId)
 end
 
 function modulateVoice(voiceId)
