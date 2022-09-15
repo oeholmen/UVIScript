@@ -6,12 +6,13 @@
 
 require "common"
 
-local backgroundColour = "5800FF" -- Light or Dark
+local backgroundColour = "202020" -- Light or Dark
 local widgetBackgroundColour = "black" -- Dark
-local widgetTextColour = "0096FF" -- Light
-local labelTextColour = "72FFFF" -- Light
-local menuArrowColour = "aa" .. widgetTextColour
-local labelBackgoundColour = "101010"
+local widgetTextColour = "3EC1D3" -- Light
+local labelTextColour = widgetBackgroundColour
+local labelBackgoundColour = widgetTextColour
+local menuBackgroundColour = "01011F"
+local menuArrowColour = "66" .. labelTextColour
 local menuOutlineColour = "5f" .. widgetTextColour
 
 setBackgroundColour(backgroundColour)
@@ -30,7 +31,7 @@ label.backgroundColour = labelBackgoundColour
 label.textColour = labelTextColour
 label.fontSize = 22
 label.position = {0,0}
-label.size = {75,25}
+label.size = {55,25}
 
 local sieveProbability = panel:NumBox("SieveProbability", 50, 0, 100, true)
 sieveProbability.unit = Unit.Percent
@@ -55,9 +56,11 @@ noteMax.tooltip = "Highest note - notes above this are passed through"
 
 local sieveButton = panel:Button("SieveButton")
 sieveButton.displayName = " "
+sieveButton.tooltip = "Shows current state"
 sieveButton.backgroundColourOff = "red"
 sieveButton.backgroundColourOn = "green"
 sieveButton.size = {20,20}
+sieveButton.x = panel.width - 40
 
 --------------------------------------------------------------------------------
 -- Handle note events

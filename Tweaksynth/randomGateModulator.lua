@@ -1,20 +1,20 @@
-----------------------------------------------
--- A random gate for incoming note events
-----------------------------------------------
+-------------------------------------------------------------------------------
+-- A script modulator for gating with min/max durations for on and off state --
+-------------------------------------------------------------------------------
 
-require "common"
+require "subdivision"
 
 local isRunning = false
 
 local backgroundColour = "595959" -- Light or Dark
-local widgetBackgroundColour = "black" -- Dark
-local widgetTextColour = "3EC1D3" -- Light
-local knobFillColour = "E6D5B8" -- Light
+local widgetBackgroundColour = "15133C" -- Dark
+local widgetTextColour = "66ff99" -- Light
 local labelTextColour = widgetBackgroundColour
 local labelBackgoundColour = widgetTextColour
 local menuBackgroundColour = "01011F"
 local menuArrowColour = "66" .. labelTextColour
 local menuOutlineColour = "5f" .. widgetTextColour
+local knobFillColour = "E6D5B8" -- Light
 
 setBackgroundColour(backgroundColour)
 
@@ -26,13 +26,12 @@ panel.width = 700
 panel.height = 60
 
 local label = panel:Label("Label")
-label.text = "Note Event Gate"
-label.tooltip = "When the gate is closed, all note on events are stopped."
+label.text = "Timed Gate"
 label.alpha = 0.5
 label.backgroundColour = labelBackgoundColour
 label.textColour = labelTextColour
-label.width = 140
 label.fontSize = 22
+label.width = 110
 
 local probability = panel:Knob("Probability", 50, 0, 100, true)
 probability.unit = Unit.Percent
@@ -45,8 +44,8 @@ probability.x = label.x + label.width + 30
 probability.width = 120
 
 local waitResolution = panel:Menu("WaitResolution", getResolutionNames())
-waitResolution.displayName = "Open Duration"
-waitResolution.tooltip = "The duration of open gate"
+waitResolution.displayName = "Max Duration"
+waitResolution.tooltip = "The maximum duration of the gate"
 waitResolution.selected = 11
 waitResolution.width = 120
 waitResolution.x = probability.x + probability.width + 10
@@ -55,16 +54,22 @@ waitResolution.textColour = widgetTextColour
 waitResolution.arrowColour = menuArrowColour
 waitResolution.outlineColour = menuOutlineColour
 
-local waitResolutionClosed = panel:Menu("WaitResolutionClosed", getResolutionNames())
-waitResolutionClosed.displayName = "Closed Duration"
-waitResolutionClosed.tooltip = "The duration closed gate"
-waitResolutionClosed.selected = 11
-waitResolutionClosed.width = 120
-waitResolutionClosed.x = waitResolution.x + waitResolution.width + 10
-waitResolutionClosed.backgroundColour = menuBackgroundColour
-waitResolutionClosed.textColour = widgetTextColour
-waitResolutionClosed.arrowColour = menuArrowColour
-waitResolutionClosed.outlineColour = menuOutlineColour
+local waitResolutionMin = panel:Menu("WaitResolutionMin", getResolutionNames())
+waitResolutionMin.displayName = "Min Duration"
+waitResolutionMin.tooltip = "The minimum duration of the gate"
+waitResolutionMin.selected = 17
+waitResolutionMin.width = 120
+waitResolutionMin.x = waitResolution.x + waitResolution.width + 10
+waitResolutionMin.backgroundColour = menuBackgroundColour
+waitResolutionMin.textColour = widgetTextColour
+waitResolutionMin.arrowColour = menuArrowColour
+waitResolutionMin.outlineColour = menuOutlineColour
+
+local sourceIndex = panel:NumBox("SourceIndex", 0, 0, 127, true)
+sourceIndex.backgroundColour = widgetBackgroundColour
+sourceIndex.textColour = widgetTextColour
+sourceIndex.displayName = "Event Id"
+sourceIndex.size = {90,20}
 
 local gateButton = panel:OnOffButton("GateButton", true)
 gateButton.displayName = "On"
@@ -75,39 +80,39 @@ gateButton.backgroundColourOff = "303030"
 gateButton.textColourOn = "white"
 gateButton.textColourOff = "gray"
 gateButton.size = {90,20}
-gateButton.x = panel.width - 100
-gateButton.y = 30
+gateButton.x = sourceIndex.x
+gateButton.y = sourceIndex.y + sourceIndex.height + 5
 gateButton.changed = function(self)
   if self.value == true then
     gateButton.displayName = "On"
+    sendScriptModulation(sourceIndex.value, 1)
   else
     gateButton.displayName = "Off"
+    sendScriptModulation(sourceIndex.value, 0)
   end
+end
+
+function getDuration()
+  local minResolution = getResolution(waitResolutionMin.value)
+  local resolution = getResolution(waitResolution.value)
+  local subdivisions = {{value=true}}
+  local subDivProbability = 100
+  local subdivision, subDivDuration, remainderDuration, stop = getSubdivision(resolution, 1, minResolution, subDivProbability, subdivisions, false, 0)
+  return subDivDuration
 end
 
 function arpeg()
   local round = 0
-  local waitTime = 0
   while isRunning do
+    local waitTime = beat2ms(getDuration()) -- Set round duration
     round = round + 1 -- Increment round
     if getRandomBoolean(probability.value) then
-      gateButton:setValue(gateButton.value == false)
-    end
-    if gateButton.value == true then
-      waitTime = beat2ms(getResolution(waitResolution.value))
-    else
-      waitTime = beat2ms(getResolution(waitResolutionClosed.value))
+      gateButton:setValue(gateButton.value == false) -- Toggle gate
     end
     if round == 1 then
       waitTime = waitTime - 50
     end
     wait(waitTime)
-  end
-end
-
-function onNote(e)
-  if gateButton.value == true then
-    postEvent(e)
   end
 end
 
