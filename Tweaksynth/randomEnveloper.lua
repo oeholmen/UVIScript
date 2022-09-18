@@ -27,12 +27,12 @@ panel.width = 700
 panel.height = 80
 
 local label = panel:Label("Label")
-label.text = "Random Enveloper"
+label.text = "Timed Enveloper"
 label.alpha = 0.5
 label.backgroundColour = labelBackgoundColour
 label.textColour = labelTextColour
 label.fontSize = 22
-label.width = 165
+label.width = 150
 label.x = 0
 label.y = 0
 
@@ -46,7 +46,7 @@ sourceIndex.y = 0
 
 local waitResolution = panel:Menu("WaitResolution", getResolutionNames())
 waitResolution.displayName = "Duration"
-waitResolution.tooltip = "The duration between changes"
+waitResolution.tooltip = "The duration of the envelope"
 waitResolution.selected = 20
 waitResolution.showLabel = false
 waitResolution.height = 20
@@ -58,6 +58,20 @@ waitResolution.outlineColour = menuOutlineColour
 waitResolution.x = sourceIndex.x + sourceIndex.width + 10
 waitResolution.y = 0
 
+local minResolution = panel:Menu("MinResolution", getResolutionNames())
+minResolution.displayName = "Duration"
+minResolution.tooltip = "The minimum duration when using rythmic variation"
+minResolution.selected = 23
+minResolution.showLabel = false
+minResolution.height = 20
+minResolution.width = 75
+minResolution.backgroundColour = widgetBackgroundColour
+minResolution.textColour = widgetTextColour
+minResolution.arrowColour = menuArrowColour
+minResolution.outlineColour = menuOutlineColour
+minResolution.x = waitResolution.x + waitResolution.width + 10
+minResolution.y = 0
+
 local legato = panel:OnOffButton("Legato", false)
 legato.displayName = "Legato"
 legato.backgroundColourOff = "#ff084486"
@@ -68,6 +82,17 @@ legato.fillColour = "#dd000061"
 legato.width = 60
 legato.x = panel.width - legato.width
 legato.y = 0
+
+local loop = panel:OnOffButton("Loop", true)
+loop.displayName = "Loop"
+loop.backgroundColourOff = "#ff084486"
+loop.backgroundColourOn = "#ff02ACFE"
+loop.textColourOff = "#ff22FFFF"
+loop.textColourOn = "#efFFFFFF"
+loop.fillColour = "#dd000061"
+loop.width = legato.width
+loop.x = legato.x - legato.width - 10
+loop.y = 0
 
 local maxSteps = panel:NumBox("MaxSteps", 1, 1, 8, true)
 maxSteps.displayName = "Max Steps"
@@ -138,7 +163,7 @@ function hasVoiceId(voiceId)
 end
 
 function getDuration()
-  local minResolution = 0.25 -- 1/16 - The fastest accepted resolution -- TODO Parameter for this?
+  local minResolution = getResolution(minResolution.value) -- The fastest accepted resolution
   local resolution = getResolution(waitResolution.value)
   local subdivisions = {{value=true}}
   local subdivision, subDivDuration, remainderDuration, stop = getSubdivision(resolution, 1, minResolution, rythm.value, subdivisions, false, 0)
@@ -226,6 +251,13 @@ function attackDecay(targetVal, stepDuration, voiceId)
     modulateLinear(decayTime, targetVal, 0, voiceId)
   end
   wait(restDuration)
+  if loop.value == false then
+    if type(voiceId) == "nil" then
+      heldNotes = {}
+    else
+      remove(voiceId)
+    end
+  end
 end
 
 function doModulation(voiceId)
@@ -257,6 +289,14 @@ function modulateBroadcast()
   end
 end
 
+function remove(voiceId)
+  for i,v in ipairs(heldNotes) do
+    if v == voiceId then
+      table.remove(heldNotes, i)
+    end
+  end
+end
+
 function onNote(e)
   local voiceId = postEvent(e)
   --print("onNote voiceId", voiceId)
@@ -272,10 +312,5 @@ end
 
 function onRelease(e)
   local voiceId = postEvent(e)
-  --print("onRelease voiceId", voiceId)
-  for i,v in ipairs(heldNotes) do
-    if v == voiceId then
-      table.remove(heldNotes, i)
-    end
-  end
+  remove(voiceId)
 end
