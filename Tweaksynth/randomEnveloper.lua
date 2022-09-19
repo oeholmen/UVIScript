@@ -4,7 +4,6 @@
 
 require "subdivision"
 
-local isRunning = false
 local heldNotes = {}
 
 local backgroundColour = "303030" -- Light or Dark
