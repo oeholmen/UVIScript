@@ -6,8 +6,6 @@ require "common"
 
 local isRunning = false
 local heldNotes = {}
-local currentResolutionIndex = 17 -- Per voice?
-local isRising = true
 
 local backgroundColour = "595959" -- Light or Dark
 local widgetBackgroundColour = "01011F" -- Dark
@@ -41,7 +39,7 @@ label.width = 80
 local waitResolution = panel:Menu("WaitResolution", getResolutionNames())
 waitResolution.displayName = "Start Duration"
 waitResolution.tooltip = "Start duration"
-waitResolution.selected = currentResolutionIndex
+waitResolution.selected = 17
 waitResolution.width = widgetWidth
 waitResolution.x = label.x + label.width + 15
 waitResolution.backgroundColour = menuBackgroundColour
@@ -111,26 +109,15 @@ sourceIndex.displayName = "Event Id"
 sourceIndex.size = legato.size
 sourceIndex.x = panel.width - sourceIndex.width
 
-function setCurrentResolution()
-  isRising = waitResolution.value < waitResolutionMin.value
+function getCurrentResolutionIndex(isRising)
   if isRising == true then
-    currentResolutionIndex = math.min(waitResolutionMin.value, waitResolution.value)
+    return math.min(waitResolutionMin.value, waitResolution.value)
   else
-    currentResolutionIndex = math.max(waitResolutionMin.value, waitResolution.value)
+    return math.max(waitResolutionMin.value, waitResolution.value)
   end
 end
 
-waitResolution.changed = function(self)
-  setCurrentResolution()
-end
-
-waitResolutionMin.changed = function(self)
-  setCurrentResolution()
-end
-
-setCurrentResolution()
-
-function getDuration()
+function getDuration(isRising, currentResolutionIndex)
   local minResolution = math.max(waitResolutionMin.value, waitResolution.value)
   local maxResolution = math.min(waitResolutionMin.value, waitResolution.value)
   local duration = getResolution(currentResolutionIndex)
@@ -149,22 +136,21 @@ function getDuration()
       end
     end
   end
-  return duration
+  return duration, isRising, currentResolutionIndex
 end
 
-function doModulation(voiceId)
-  local duration = beat2ms(getDuration())
+function doModulation(duration, voiceId)
   local rampValue = rampTime.value / 100
-  local rampDuration = duration * rampValue
+  local rampDuration = beat2ms(duration) * rampValue
   local high = 1
   local low = 0
   if bipolar.value == true then
     low = -1
   end
   sendScriptModulation(sourceIndex.value, high, rampDuration, voiceId)
-  wait(duration)
+  waitBeat(duration)
   sendScriptModulation(sourceIndex.value, low, rampDuration, voiceId)
-  wait(duration)  
+  waitBeat(duration)
 end
 
 function hasVoiceId(voiceId)
@@ -177,14 +163,30 @@ function hasVoiceId(voiceId)
 end
 
 function modulateVoice(voiceId)
+  local isRising = waitResolution.value < waitResolutionMin.value
+  local currentResolutionIndex = getCurrentResolutionIndex(isRising)
+  local duration = 0
   while hasVoiceId(voiceId) do
-    doModulation(voiceId)
+    local isRisingCurrent = isRising
+    duration, isRising, currentResolutionIndex = getDuration(isRising, currentResolutionIndex)
+    --if isRisingCurrent == isRising then
+      doModulation(duration, voiceId)
+    --[[ else
+      local rampValue = rampTime.value / 100
+      local rampDuration = duration * rampValue
+      sendScriptModulation(sourceIndex.value, 0, rampDuration, voiceId)
+      remove(voiceId)
+    end ]]
   end
 end
 
 function modulateBroadcast()
+  local isRising = waitResolution.value < waitResolutionMin.value
+  local currentResolutionIndex = getCurrentResolutionIndex(isRising)
+  local duration = 0
   while #heldNotes > 0 do
-    doModulation()
+    duration, isRising, currentResolutionIndex = getDuration(isRising, currentResolutionIndex)
+    doModulation(duration)
   end
 end
 
@@ -193,9 +195,6 @@ function remove(voiceId)
     if v == voiceId then
       table.remove(heldNotes, i)
     end
-  end
-  if #heldNotes == 0 then
-    setCurrentResolution()
   end
 end
 
