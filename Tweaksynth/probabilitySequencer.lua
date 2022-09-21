@@ -12,13 +12,56 @@ local labelBackgoundColour = "white"
 local menuBackgroundColour = "01011F"
 local menuArrowColour = "66" .. labelTextColour
 local menuOutlineColour = "5f" .. widgetTextColour
-local knobFillColour = "E6D5B8" -- Light
+setBackgroundColour(backgroundColour)
 
 local voices = 1
 local notesPlaying = {}
 local isPlaying = false
 local noteNumberToNoteName = getNoteMapping()
 local noteNames = getNoteNames()
+local globalResolution = nil -- Holds the global resolution for all voices
+
+--------------------------------------------------------------------------------
+-- Scales
+--------------------------------------------------------------------------------
+
+-- Make sure these are in sync with the scale names
+-- Scales are defined by distance to the next step
+local scaleDefinitions = {
+  {2,2,1,2,2,2,1}, -- Major (Ionian mode)
+  {2,1,2,2,1,2,2}, -- Minor (Aeolian mode)
+  {2,1,2,2,2,2,1}, -- Harmonic minor
+  {2,1,2,2,2,1,2}, -- Dorian mode
+  {1,2,2,2,1,2,2}, -- Phrygian mode
+  {2,2,2,1,2,2,1}, -- Lydian mode
+  {2,2,1,2,2,1,2}, -- Mixolydian mode
+  {1,2,2,1,2,2,2}, -- Locrian mode
+  {2,2,2,1,2,1,2}, -- Acoustic
+  {2,1,2,1,1,3,2}, -- Blues
+  {1,2,1,3,1,2,2}, -- Alterated
+  {2,2,3,2,3}, -- Major Pentatonic
+  {3,2,2,3,2}, -- Minor Pentatonic
+  {2}, -- Whole tone scale
+  {1}, -- Chromatic - Keep last!
+}
+
+local scaleNames = {
+  "Major (Ionian)",
+  "Minor (Aeolian)",
+  "Harmonic minor",
+  "Dorian",
+  "Phrygian",
+  "Lydian",
+  "Mixolydian",
+  "Locrian",
+  "Acoustic",
+  "Blues",
+  "Alterated",
+  "Major Pentatonic",
+  "Minor Pentatonic",
+  "Whole tone",
+  "Chromatic", -- Keep last!
+}
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
@@ -43,10 +86,8 @@ function stopPlaying()
 end
 
 --------------------------------------------------------------------------------
--- Sequencer Panel
+-- Panel Definitions
 --------------------------------------------------------------------------------
-
-setBackgroundColour(backgroundColour)
 
 local sequencerPanel = Panel("Sequencer")
 sequencerPanel.backgroundColour = backgroundColour
@@ -54,6 +95,31 @@ sequencerPanel.x = 10
 sequencerPanel.y = 10
 sequencerPanel.width = 700
 sequencerPanel.height = 30
+
+local settingsPanel = Panel("Settings")
+settingsPanel.backgroundColour = "404040"
+settingsPanel.x = sequencerPanel.x
+settingsPanel.y = sequencerPanel.y + sequencerPanel.height + 5
+settingsPanel.width = 700
+settingsPanel.height = 55
+
+local notePanel = Panel("Notes")
+notePanel.backgroundColour = "404040"
+notePanel.x = settingsPanel.x
+notePanel.y = settingsPanel.y + settingsPanel.height + 5
+notePanel.width = 700
+notePanel.height = 100
+
+local resolutionPanel = Panel("Resolutions")
+resolutionPanel.backgroundColour = "404040"
+resolutionPanel.x = notePanel.x
+resolutionPanel.y = notePanel.y + notePanel.height + 5
+resolutionPanel.width = 700
+resolutionPanel.height = 180
+
+--------------------------------------------------------------------------------
+-- Sequencer Panel
+--------------------------------------------------------------------------------
 
 local label = sequencerPanel:Label("Label")
 label.text = "Probability Sequencer"
@@ -71,7 +137,6 @@ channelButton.textColourOff = "#ff22FFFF"
 channelButton.textColourOn = "#efFFFFFF"
 channelButton.displayName = "Multichannel"
 channelButton.tooltip = "When multichannel mode is enabled, each voice is sent to a separate channel"
-channelButton.fillColour = "#dd000061"
 channelButton.size = {100,22}
 channelButton.x = sequencerPanel.width - (channelButton.width * 3) - 10
 channelButton.y = 5
@@ -81,7 +146,6 @@ autoplayButton.backgroundColourOff = "#ff084486"
 autoplayButton.backgroundColourOn = "#ff02ACFE"
 autoplayButton.textColourOff = "#ff22FFFF"
 autoplayButton.textColourOn = "#efFFFFFF"
-autoplayButton.fillColour = "#dd000061"
 autoplayButton.displayName = "Auto Play"
 autoplayButton.tooltip = "Play automatically on transport"
 autoplayButton.size = channelButton.size
@@ -94,7 +158,6 @@ playButton.backgroundColourOff = "#ff084486"
 playButton.backgroundColourOn = "#ff02ACFE"
 playButton.textColourOff = "#ff22FFFF"
 playButton.textColourOn = "#efFFFFFF"
-playButton.fillColour = "#dd000061"
 playButton.displayName = "Play"
 playButton.size = autoplayButton.size
 playButton.x = autoplayButton.x + autoplayButton.width + 5
@@ -114,13 +177,6 @@ end
 local resolutions = getResolutions()
 local resolutionNames = getResolutionNames()
 local resolutionInputs = {}
-
-local resolutionPanel = Panel("Resolutions")
-resolutionPanel.backgroundColour = "404040"
-resolutionPanel.x = sequencerPanel.x
-resolutionPanel.y = sequencerPanel.y + sequencerPanel.height + 5
-resolutionPanel.width = 700
-resolutionPanel.height = 155
 
 local resLabel = resolutionPanel:Label("ResolutionsLabel")
 resLabel.text = "Resolutions"
@@ -153,7 +209,11 @@ addResolutions.x = clearResolutions.x + clearResolutions.width + 10
 addResolutions.y = 5
 addResolutions.changed = function()
   for _,v in ipairs(resolutionInputs) do
-    v:setValue(100)
+    if v.enabled then
+      v:setValue(100)
+    else
+      v:setValue(0)
+    end
   end
 end
 
@@ -167,7 +227,7 @@ randomizeResolutions.x = addResolutions.x + addResolutions.width + 10
 randomizeResolutions.y = 5
 randomizeResolutions.changed = function()
   for i,v in ipairs(resolutionInputs) do
-    if i < 5 or getRandomBoolean() then
+    if i < 5 or v.enabled == false or getRandomBoolean() then
       v:setValue(0)
     elseif i < 9 or i > 26 then
       v:setValue(getRandom(0,5))
@@ -185,7 +245,11 @@ local rowCount = 1
 for i=1, #resolutions do
   -- Set active defaults
   local value = 0
-  if i == 17 then
+  if i == 11 then
+    value = 15
+  elseif i == 14 then
+    value = 25
+  elseif i == 17 then
     value = 50
   elseif i == 20 then
     value = 100
@@ -209,16 +273,67 @@ for i=1, #resolutions do
   end
 end
 
+local resLabel = resolutionPanel:Label("ResolutionsLabel")
+resLabel.text = "Base Resolution"
+resLabel.alpha = 0.5
+resLabel.fontSize = 15
+resLabel.width = 106
+resLabel.x = 5
+resLabel.y = (25 * rowCount) + 5
+
+local baseResolution = resolutionPanel:Menu("BaseResolution", getResolutionNames())
+baseResolution.displayName = resLabel.text
+baseResolution.tooltip = "The duration between resets"
+baseResolution.selected = 9
+baseResolution.showLabel = false
+baseResolution.height = 20
+baseResolution.width = 106
+baseResolution.backgroundColour = widgetBackgroundColour
+baseResolution.textColour = widgetTextColour
+baseResolution.arrowColour = menuArrowColour
+baseResolution.outlineColour = menuOutlineColour
+baseResolution.x = resLabel.x + resLabel.width + 10
+baseResolution.y = resLabel.y
+baseResolution.changed = function(self)
+  for i,v in ipairs(resolutionInputs) do
+    v.enabled = i >= self.value
+  end
+end
+baseResolution:changed()
+
+local durationRepeatProbabilityInput = resolutionPanel:NumBox("DurationRepeatProbability", 100, 0, 100, true)
+durationRepeatProbabilityInput.unit = Unit.Percent
+durationRepeatProbabilityInput.textColour = widgetTextColour
+durationRepeatProbabilityInput.backgroundColour = widgetBackgroundColour
+durationRepeatProbabilityInput.displayName = "Repeat Probability"
+durationRepeatProbabilityInput.tooltip = "The probability that a resolution will be repeated"
+durationRepeatProbabilityInput.size = {106*1.5+5,20}
+durationRepeatProbabilityInput.x = baseResolution.x + baseResolution.width + 10
+durationRepeatProbabilityInput.y = baseResolution.y
+
+local durationRepeatDecay = resolutionPanel:NumBox("DurationRepeatDecay", 1, 0.01, 100)
+durationRepeatDecay.unit = Unit.Percent
+durationRepeatDecay.textColour = widgetTextColour
+durationRepeatDecay.backgroundColour = widgetBackgroundColour
+durationRepeatDecay.displayName = "Repeat Probability Decay"
+durationRepeatDecay.tooltip = "The reduction in repeat probability for each iteration of the playing voice"
+durationRepeatDecay.size = durationRepeatProbabilityInput.size
+durationRepeatDecay.x = durationRepeatProbabilityInput.x + durationRepeatProbabilityInput.width + 10
+durationRepeatDecay.y = durationRepeatProbabilityInput.y
+
+local useGlobalProbabilityInput = resolutionPanel:NumBox("UseGlobalProbabilityInput", 50, 0, 100, true)
+useGlobalProbabilityInput.unit = Unit.Percent
+useGlobalProbabilityInput.textColour = widgetTextColour
+useGlobalProbabilityInput.backgroundColour = widgetBackgroundColour
+useGlobalProbabilityInput.displayName = "Global"
+useGlobalProbabilityInput.tooltip = "Set the probability that same resolution will be selected for all voices"
+useGlobalProbabilityInput.size = {106,20}
+useGlobalProbabilityInput.x = durationRepeatDecay.x + durationRepeatDecay.width + 10
+useGlobalProbabilityInput.y = durationRepeatDecay.y
+
 --------------------------------------------------------------------------------
 -- Notes Panel
 --------------------------------------------------------------------------------
-
-local notePanel = Panel("Notes")
-notePanel.backgroundColour = "404040"
-notePanel.x = resolutionPanel.x
-notePanel.y = resolutionPanel.y + resolutionPanel.height + 5
-notePanel.width = 700
-notePanel.height = 105
 
 local noteLabel = notePanel:Label("NotesLabel")
 noteLabel.text = "Notes"
@@ -239,7 +354,7 @@ clearNotes.x = resolutionPanel.width - (clearNotes.width * 3) - 30
 clearNotes.y = 5
 clearNotes.changed = function()
   for _,v in ipairs(noteInputs) do
-    v:setValue(0)
+    v:setValue(false)
   end
 end
 
@@ -253,7 +368,7 @@ addNotes.x = clearNotes.x + clearNotes.width + 10
 addNotes.y = 5
 addNotes.changed = function()
   for _,v in ipairs(noteInputs) do
-    v:setValue(100)
+    v:setValue(true)
   end
 end
 
@@ -267,33 +382,35 @@ randomizeNotes.x = addNotes.x + addNotes.width + 10
 randomizeNotes.y = 5
 randomizeNotes.changed = function()
   for _,v in ipairs(noteInputs) do
-    if getRandomBoolean() then
-      v:setValue(0)
-    else
-      v:setValue(getRandom(0,100))
-    end
+    v:setValue(getRandomBoolean())
   end
 end
 
 columnCount = 0
-rowCount = 1
 for i=1, #noteNames do
-  local value = 100
-  local note = notePanel:NumBox("Note" .. i, value, 0, 100, true)
-  note.unit = Unit.Percent
-  note.textColour = widgetTextColour
-  note.backgroundColour = widgetBackgroundColour
+  local note = notePanel:OnOffButton("Note" .. i, true)
+  --[[ if i == 2 or i == 4 or i == 7 or i == 9 or i == 11 then
+    note.backgroundColourOff = "gray"
+    note.backgroundColourOn = "black"
+    note.textColourOff = "silver"
+    note.textColourOn = "white"
+  else
+    note.backgroundColourOff = "silver"
+    note.backgroundColourOn = "white"
+    note.textColourOff = "black"
+    note.textColourOn = "black"
+  end ]]
+  note.backgroundColourOff = "#ff084486"
+  note.backgroundColourOn = "#ff02ACFE"
+  note.textColourOff = "#ff22FFFF"
+  note.textColourOn = "#efFFFFFF"
   note.displayName = noteNames[i]
   note.tooltip = "Probability of note being played"
-  note.size = {106,20}
-  note.x = (columnCount * (note.width + 10)) + 5
-  note.y = ((note.height + 5) * rowCount) + 5
+  note.size = {51,30}
+  note.x = (columnCount * (note.width + 6.6)) + 5
+  note.y = noteLabel.y + noteLabel.height + 5
   table.insert(noteInputs, note)
   columnCount = columnCount + 1
-  if i % perRow == 0 then
-    rowCount = rowCount + 1
-    columnCount = 0
-  end
 end
 
 local generateMinPart = notePanel:NumBox("GenerateMin", 21, 0, 127, true)
@@ -304,7 +421,7 @@ generateMinPart.displayName = "Min Note"
 generateMinPart.tooltip = "Lowest note"
 generateMinPart.size = {106,20}
 generateMinPart.x = 5
-generateMinPart.y = (25 * rowCount) + 5
+generateMinPart.y = 70
 
 local generateMaxPart = notePanel:NumBox("GenerateMax", 88, 0, 127, true)
 generateMaxPart.unit = Unit.MidiKey
@@ -316,16 +433,38 @@ generateMaxPart.size = generateMinPart.size
 generateMaxPart.x = generateMinPart.x + generateMinPart.width + 10
 generateMaxPart.y = generateMinPart.y
 
+local generateKey = notePanel:Menu("GenerateKey", noteNames)
+generateKey.tooltip = "Key"
+generateKey.showLabel = false
+generateKey.backgroundColour = menuBackgroundColour
+generateKey.textColour = widgetTextColour
+generateKey.arrowColour = menuArrowColour
+generateKey.outlineColour = menuOutlineColour
+generateKey.size = generateMaxPart.size
+generateKey.x = generateMaxPart.x + generateMaxPart.width + 10
+generateKey.y = generateMaxPart.y
+generateKey.changed = function(self)
+  setScale()
+end
+
+local generateScale = notePanel:Menu("GenerateScale", scaleNames)
+generateScale.selected = #scaleNames
+generateScale.tooltip = "Scale"
+generateScale.showLabel = false
+generateScale.backgroundColour = menuBackgroundColour
+generateScale.textColour = widgetTextColour
+generateScale.arrowColour = menuArrowColour
+generateScale.outlineColour = menuOutlineColour
+generateScale.size = generateKey.size
+generateScale.x = generateKey.x + generateKey.width + 10
+generateScale.y = generateKey.y
+generateScale.changed = function(self)
+  setScale()
+end
+
 --------------------------------------------------------------------------------
 -- Settings Panel
 --------------------------------------------------------------------------------
-
-local settingsPanel = Panel("Settings")
-settingsPanel.backgroundColour = "404040"
-settingsPanel.x = notePanel.x
-settingsPanel.y = notePanel.y + notePanel.height + 5
-settingsPanel.width = 700
-settingsPanel.height = 55
 
 local settingsLabel = settingsPanel:Label("SettingsLabel")
 settingsLabel.text = "Settings"
@@ -333,24 +472,14 @@ settingsLabel.alpha = 0.75
 settingsLabel.fontSize = 15
 settingsLabel.width = 350
 
-local durationRepeatDecay = settingsPanel:NumBox("DurationRepeatDecay", 1, 1, 100, true)
-durationRepeatDecay.unit = Unit.Percent
-durationRepeatDecay.textColour = widgetTextColour
-durationRepeatDecay.backgroundColour = widgetBackgroundColour
-durationRepeatDecay.displayName = "Repeat Decay"
-durationRepeatDecay.tooltip = "The reduction in repeat probability for each iteration of the playing voice"
-durationRepeatDecay.size = {106,20}
-durationRepeatDecay.x = 5
-durationRepeatDecay.y = settingsLabel.y + settingsLabel.height + 5
-
 local voicesInput = settingsPanel:NumBox("Voices", voices, 1, 16, true)
 voicesInput.textColour = widgetTextColour
 voicesInput.backgroundColour = widgetBackgroundColour
 voicesInput.displayName = "Voices"
 voicesInput.tooltip = "Number of voices playing (must restart sequencer to take effect)"
-voicesInput.size = durationRepeatDecay.size
-voicesInput.x = durationRepeatDecay.x + durationRepeatDecay.width + 10
-voicesInput.y = durationRepeatDecay.y
+voicesInput.size = {106,20}
+voicesInput.x = 5
+voicesInput.y = settingsLabel.y + settingsLabel.height + 5
 voicesInput.changed = function(self)
   voices = self.value
 end
@@ -363,7 +492,7 @@ gateInput.displayName = "Gate"
 gateInput.tooltip = "Default gate"
 gateInput.size = voicesInput.size
 gateInput.x = voicesInput.x + voicesInput.width + 10
-gateInput.y = durationRepeatDecay.y
+gateInput.y = voicesInput.y
 
 local gateRandomization = settingsPanel:NumBox("GateRandomization", 25, 0, 100, true)
 gateRandomization.unit = Unit.Percent
@@ -373,7 +502,7 @@ gateRandomization.displayName = "Gate Rand"
 gateRandomization.tooltip = "Gate randomization amount"
 gateRandomization.size = gateInput.size
 gateRandomization.x = gateInput.x + gateInput.width + 10
-gateRandomization.y = durationRepeatDecay.y
+gateRandomization.y = voicesInput.y
 
 local velocityInput = settingsPanel:NumBox("Velocity", 64, 1, 127, true)
 velocityInput.textColour = widgetTextColour
@@ -382,7 +511,7 @@ velocityInput.displayName = "Velocity"
 velocityInput.tooltip = "Default velocity"
 velocityInput.size = gateRandomization.size
 velocityInput.x = gateRandomization.x + gateRandomization.width + 10
-velocityInput.y = durationRepeatDecay.y
+velocityInput.y = voicesInput.y
 
 local velocityRandomization = settingsPanel:NumBox("VelocityRandomization", 25, 0, 100, true)
 velocityRandomization.unit = Unit.Percent
@@ -392,35 +521,37 @@ velocityRandomization.displayName = "Vel Rand"
 velocityRandomization.tooltip = "Velocity randomization amount"
 velocityRandomization.size = velocityInput.size
 velocityRandomization.x = velocityInput.x + velocityInput.width + 10
-velocityRandomization.y = durationRepeatDecay.y
+velocityRandomization.y = voicesInput.y
 
 local noteRandomization = settingsPanel:NumBox("NoteRandomization", 25, 0, 100, true)
 noteRandomization.unit = Unit.Percent
 noteRandomization.textColour = widgetTextColour
 noteRandomization.backgroundColour = widgetBackgroundColour
-noteRandomization.displayName = "Note Rand"
+noteRandomization.displayName = "Note Jump"
 noteRandomization.tooltip = "Note shift randomization amount - a small amount gives small jumps between notes"
 noteRandomization.size = velocityRandomization.size
 noteRandomization.x = velocityRandomization.x + velocityRandomization.width + 10
-noteRandomization.y = durationRepeatDecay.y
+noteRandomization.y = voicesInput.y
 
 --------------------------------------------------------------------------------
 -- Note Functions
 --------------------------------------------------------------------------------
 
-function getNoteDuration(currentDuration, durationRepeatProbability)
-  if type(currentDuration) == "number" then
-    -- Repeat same duration - use probability decay (in percent)
-    local durationRepeatProbabilityDecay = durationRepeatProbability * (durationRepeatDecay.value / 100)
-    durationRepeatProbability = durationRepeatProbability - durationRepeatProbabilityDecay
-    if getRandomBoolean(durationRepeatProbability) then
-      return currentDuration, durationRepeatProbability
-    end
+function setScale()
+  local scaleDefinition = scaleDefinitions[generateScale.value]
+  local rootNote = generateKey.value - 1 -- Root note
+  local scale = createScale(scaleDefinition, rootNote)
+  for i,v in ipairs(noteInputs) do
+    local noteNumber = i + 11 -- Check note in octave above
+    v:setValue(tableIncludes(scale, noteNumber))
   end
+end
+
+function getNoteDuration(currentDuration, durationRepeatProbability)
   local activeResolutions = {} -- All active
   local selectedResolutions = {} -- All selected
   for i,v in ipairs(resolutionInputs) do
-    if v.value > 0 then
+    if v.enabled and v.value > 0 then
       table.insert(activeResolutions, i)
       if getRandomBoolean(v.value) == true then
         table.insert(selectedResolutions, i)
@@ -432,41 +563,52 @@ function getNoteDuration(currentDuration, durationRepeatProbability)
     selectedResolutions = activeResolutions
   end
 
+  -- Failsafe in case no resolutions where activated
   if #selectedResolutions == 0 then
-    -- Add some defaults if no resolutions where activated
     table.insert(selectedResolutions, 17)
     table.insert(selectedResolutions, 20)
     table.insert(selectedResolutions, 23)
   end
 
-  local resolutionIndex = selectedResolutions[getRandom(#selectedResolutions)]
-  print("resolutionIndex, #selectedResolutions", resolutionIndex, #selectedResolutions)
-  return getResolution(resolutionIndex), 100
+  -- Check resolution repeat
+  local useGlobalProbability = useGlobalProbabilityInput.value
+  if type(globalResolution) == "number" and getRandomBoolean(useGlobalProbability) then
+    currentDuration = globalResolution
+  end
+  if type(currentDuration) == "number" then
+    local durationRepeatProbabilityDecay = durationRepeatProbability * (durationRepeatDecay.value / 100)
+    durationRepeatProbability = durationRepeatProbability - durationRepeatProbabilityDecay
+    local resolutionIndex = getIndexFromValue(currentDuration, resolutions)
+    if tableIncludes(selectedResolutions, resolutionIndex) and getRandomBoolean(durationRepeatProbability) then
+      --print("Repeat currentDuration, durationRepeatProbability", currentDuration, durationRepeatProbability)
+      return currentDuration, durationRepeatProbability
+    end
+  end
+
+  -- Remove last known resolution
+  if type(currentDuration) == "number" and #selectedResolutions > 1 then
+    table.remove(selectedResolutions, getIndexFromValue(currentDuration, selectedResolutions))
+  end
+
+  globalResolution = getResolution(selectedResolutions[getRandom(#selectedResolutions)])
+  return globalResolution, durationRepeatProbabilityInput.value
 end
 
 function getActiveNotes()
   local allNotes = {} -- All notes
-  local activeNotes = {} -- All active notes
   local selectedNotes = {} -- All selected notes
   for i,v in ipairs(noteInputs) do
     table.insert(allNotes, noteNames[i])
-    if v.value > 0 then
-      table.insert(activeNotes, noteNames[i])
-      if getRandomBoolean(v.value) == true then
-        table.insert(selectedNotes, noteNames[i])
-      end
+    if v.value == true then
+      table.insert(selectedNotes, noteNames[i])
     end
   end
 
-  if #selectedNotes == 0 then
-    selectedNotes = activeNotes
+  if #selectedNotes > 0 then
+    return selectedNotes
   end
 
-  if #selectedNotes == 0 then
-    selectedNotes = allNotes
-  end
-
-  return selectedNotes
+  return allNotes
 end
 
 function getNoteToPlay(currentNote)
@@ -480,15 +622,19 @@ function getNoteToPlay(currentNote)
     currentNote = getRandom(min, max)
   end
   local activeNotes = getActiveNotes()
+  local roundCounter = 0
+  local noteWasFound = false
   repeat
     currentNote = randomizeValue(currentNote, min, max, noteRandomization.value)
-  until tableIncludes(notesPlaying, currentNote) == false and tableIncludes(activeNotes, noteNumberToNoteName[currentNote+1])
-  print("getNoteToPlay noteNumber, noteName", currentNote, noteNumberToNoteName[currentNote+1])
+    noteWasFound = tableIncludes(notesPlaying, currentNote) == false and tableIncludes(activeNotes, noteNumberToNoteName[currentNote+1])
+    roundCounter = roundCounter + 1
+  until noteWasFound or roundCounter == 100 -- Set a max to avoid eternal loop
+  --print("Found noteToPlay noteNumber, noteName, rounds", currentNote, noteNumberToNoteName[currentNote+1], roundCounter)
   return currentNote
 end
 
 function getGate()
-  return randomizeValue(gateInput.value, 0, 100, gateRandomization.value) / 100
+  return randomizeValue(gateInput.value, 0, 101, gateRandomization.value) / 100
 end
 
 function getVelocity()
@@ -501,33 +647,47 @@ end
 
 function arpeg(voice)
   local waitDuration = nil
-  local durationRepeatProbability = 100
   local noteToPlay = nil
+  local baseDuration = 0
+  local remainingDuration = 0
+  local durationRepeatProbability = durationRepeatProbabilityInput.value
   while isPlaying == true do
     local channel = nil
     if channelButton.value then
       channel = voice
     end
-    -- Find a random resolution
-    local gate = getGate()
-    print("arpeg gate", gate)
+    --print("arpeg gate", gate)
+    if remainingDuration == 0 then
+      --waitDuration = nil -- Reset duration?
+      baseDuration = getResolution(baseResolution.value)
+      remainingDuration = baseDuration -- RESET to base
+      --print("***RESET*** voice/baseDuration", voice, baseDuration)
+      --randomizeResolutions:changed() -- Param
+      --randomizeNotes:changed() -- Param
+    end
     waitDuration, durationRepeatProbability = getNoteDuration(waitDuration, durationRepeatProbability)
-    print("arpeg waitDuration", waitDuration)
+    --print("remainingDuration, waitDuration", remainingDuration, waitDuration)
+    if remainingDuration < waitDuration then
+      waitDuration = remainingDuration
+      --print("waitDuration changed to remaining", waitDuration)
+    end
+    local gate = getGate()
     if gate > 0 then
       local velocity = getVelocity()
-      print("arpeg velocity", velocity)
       local playDuration = beat2ms(waitDuration) * gate
-      print("arpeg playDuration", playDuration)
       noteToPlay = getNoteToPlay(noteToPlay)
       playNote(noteToPlay, velocity, playDuration, nil, channel)
+      --print("playNote noteToPlay, velocity, playDuration, voice", noteToPlay, velocity, playDuration, voice)
       -- Register playing note
       table.insert(notesPlaying, noteToPlay)
     end
+    --print("waitBeat(waitDuration)", waitDuration)
     waitBeat(waitDuration)
     if gate > 0 then
       -- Unregister note
       table.remove(notesPlaying, getIndexFromValue(noteToPlay, notesPlaying))
     end
+    remainingDuration = remainingDuration - waitDuration
   end
 end
 

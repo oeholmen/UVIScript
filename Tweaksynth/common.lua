@@ -102,7 +102,6 @@ end
 function getIndexFromValue(value, selection)
   for i,v in ipairs(selection) do
     if v == value then
-      print("Found index", i)
       return i
     end
   end
