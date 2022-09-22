@@ -17,6 +17,7 @@ local pageButtons = {}
 local paramsPerPart = {}
 local paramsPerPage = {}
 local isPlaying = false
+local isAutoPlayActive = false
 local numPages = 1
 local heldNotes = {}
 
@@ -301,7 +302,7 @@ actionMenu.changed = function(self)
     end
   else
     -- Copy settings from another page
-    local sourcePage = self.value - 2
+    local sourcePage = self.value - #defaultActions
     local targetPage = activePage
     for part=1,numParts do
       local sourcePartIndex = getPartIndex(part, sourcePage)
@@ -368,12 +369,13 @@ numPagesBox.changed = function(self)
     pageButtons[page].enabled = page <= numPages
   end
   -- Update action menu
-  local actionMenuItems = defaultActions
-  --if numParts > 1 then
-    for i=1,numPages do
-      table.insert(actionMenuItems, "Copy settings from page " .. i)
-    end
-  --end
+  local actionMenuItems = {}
+  for i=1,#defaultActions do
+    table.insert(actionMenuItems, defaultActions[i])
+  end
+  for i=1,numPages do
+    table.insert(actionMenuItems, "Copy settings from page " .. i)
+  end
   actionMenu.items = actionMenuItems
 end
 
@@ -680,13 +682,15 @@ end
 function onRelease(e)
   local voiceId = postEvent(e)
   remove(voiceId)
-  if #heldNotes == 0 then
+  -- Make sure we do not stop the modulation sequencer when transport is playing
+  if #heldNotes == 0 and isAutoPlayActive == false then
     playButton:setValue(false)
   end
 end
 
 function onTransport(start)
   if autoplayButton.value == true then
+    isAutoPlayActive = start
     playButton:setValue(start)
   end
 end
