@@ -371,8 +371,10 @@ numPagesBox.changed = function(self)
   for i=1,#defaultActions do
     table.insert(actionMenuItems, defaultActions[i])
   end
-  for i=1,numPages do
-    table.insert(actionMenuItems, "Copy settings from page " .. i)
+  if numPages > 1 then
+    for i=1,numPages do
+      table.insert(actionMenuItems, "Copy settings from page " .. i)
+    end
   end
   actionMenu.items = actionMenuItems
 end
