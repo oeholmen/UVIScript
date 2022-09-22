@@ -319,7 +319,6 @@ numPagesBox.changed = function(self)
   end
   -- Update action menu
   local actionMenuItems = {"Actions...", "Randomize triggers"}
-  actionsCount = #actionMenuItems
   if numParts > 1 then
     for i=1,numPages do
       table.insert(actionMenuItems, "Copy settings from page " .. i)

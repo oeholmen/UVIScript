@@ -1,9 +1,8 @@
 --------------------------------------------------------------------------------
--- A sequencer sending midi control change values
+-- A sequencer sending script event modulation in broadcast mode
 --------------------------------------------------------------------------------
 
 require "common"
---require "modseq"
 
 local outlineColour = "#FFB5FF"
 local menuBackgroundColour = "#bf01011F"
@@ -19,6 +18,7 @@ local paramsPerPart = {}
 local paramsPerPage = {}
 local isPlaying = false
 local numPages = 1
+local heldNotes = {}
 
 if type(numParts) == "nil" then
   numParts = 1
@@ -29,7 +29,7 @@ if type(maxPages) == "nil" then
 end
 
 if type(title) == "nil" then
-  title = "Midi CC Sequencer"
+  title = "Modulation Sequencer"
 end
 
 setBackgroundColour(pageBackgoundColour)
@@ -186,7 +186,6 @@ if maxPages == 1 then
 else
   footerPanel.height = 30
 end
-
 local changePageProbability = footerPanel:NumBox("ChangePageProbability", 0, 0, 100, true)
 changePageProbability.displayName = "Random"
 changePageProbability.tooltip = "Probability of random page change"
@@ -222,10 +221,12 @@ actionMenu.changed = function(self)
     -- Ramp Up
     for part=1,numParts do
       local partIndex = getPartIndex(part)
+      local minValue = paramsPerPart[partIndex].seqValueTable.min
       local maxValue = paramsPerPart[partIndex].seqValueTable.max
       local numSteps = paramsPerPart[partIndex].numStepsBox.value
-      local changePerStep = maxValue / (numSteps - 1)
-      local startValue = 0
+      local valueRange = maxValue - minValue
+      local changePerStep = valueRange / (numSteps - 1)
+      local startValue = minValue
       for i=1,numSteps do
         paramsPerPart[partIndex].seqValueTable:setValue(i, startValue)
         startValue = startValue + changePerStep
@@ -235,9 +236,11 @@ actionMenu.changed = function(self)
     -- Ramp Down
     for part=1,numParts do
       local partIndex = getPartIndex(part)
+      local minValue = paramsPerPart[partIndex].seqValueTable.min
       local maxValue = paramsPerPart[partIndex].seqValueTable.max
       local numSteps = paramsPerPart[partIndex].numStepsBox.value
-      local changePerStep = maxValue / (numSteps - 1)
+      local valueRange = maxValue - minValue
+      local changePerStep = valueRange / (numSteps - 1)
       local startValue = maxValue
       for i=1,numSteps do
         paramsPerPart[partIndex].seqValueTable:setValue(i, startValue)
@@ -251,7 +254,7 @@ actionMenu.changed = function(self)
       local partIndex = getPartIndex(part)
       local maxValue = paramsPerPart[partIndex].seqValueTable.max
       local numSteps = paramsPerPart[partIndex].numStepsBox.value
-      local numStepsUpDown = math.ceil(numSteps / 2)
+      local numStepsUpDown = round(numSteps / 2)
       local changePerStep = maxValue / numStepsUpDown
       local startValue = 0
       for i=1,numSteps do
@@ -313,8 +316,7 @@ actionMenu.changed = function(self)
         -- Copy Settings
         target.stepResolution:setValue(source.stepResolution.value)
         target.muteButton:setValue(source.muteButton.value)
-        target.midiControlNumber:setValue(source.midiControlNumber.value)
-        target.channelBox:setValue(source.channelBox.value)
+        target.sourceIndex:setValue(source.sourceIndex.value)
         target.valueRandomization:setValue(source.valueRandomization.value)
         end  
     end
@@ -448,7 +450,7 @@ for page=1,maxPages do
     positionTable.x = tableX
     positionTable.y = tableY
 
-    local seqValueTable = sequencerPanel:Table("ControlValue" .. i, defaultSteps, 0, 0, 127)
+    local seqValueTable = sequencerPanel:Table("ModulationValue" .. i, defaultSteps, 0, 0, 100)
     seqValueTable.visible = isVisible
     seqValueTable.displayName = "Velocity"
     seqValueTable.tooltip = "Velocity for this step"
@@ -470,14 +472,23 @@ for page=1,maxPages do
 
     -- Inputs
 
+    local sourceIndex = sequencerPanel:NumBox("SourceIndex" .. i, 0, 0, 127, true)
+    sourceIndex.displayName = "Event Id"
+    sourceIndex.visible = isVisible
+    sourceIndex.backgroundColour = menuBackgroundColour
+    sourceIndex.textColour = menuTextColour
+    sourceIndex.size = inputWidgetSize
+    sourceIndex.x = 0
+    sourceIndex.y = inputWidgetY
+
     local stepResolution = sequencerPanel:Menu("StepResolution" .. i, getResolutionNames())
     stepResolution.tooltip = "Set the step resolution"
     stepResolution.showLabel = false
     stepResolution.visible = isVisible
     stepResolution.selected = 20
-    stepResolution.x = 0
+    stepResolution.x = sourceIndex.x + sourceIndex.width + buttonSpacing
     stepResolution.y = inputWidgetY
-    stepResolution.size = {75,20}
+    stepResolution.size = inputWidgetSize
     stepResolution.backgroundColour = menuBackgroundColour
     stepResolution.textColour = menuTextColour
     stepResolution.arrowColour = menuArrowColour
@@ -511,31 +522,9 @@ for page=1,maxPages do
     valueRandomization.textColour = menuTextColour
     valueRandomization.arrowColour = menuArrowColour
     valueRandomization.outlineColour = menuOutlineColour
-    valueRandomization.size = {115,20}
+    valueRandomization.size = {140,20}
     valueRandomization.x = numStepsBox.x + numStepsBox.width + buttonSpacing
     valueRandomization.y = inputWidgetY
-
-    local midiControlNumber = sequencerPanel:NumBox("MidiControlNumber" .. i, (i+101), 0, 127, true)
-    midiControlNumber.displayName = "CC"
-    midiControlNumber.tooltip = "The midi control number to send the value to"
-    midiControlNumber.visible = isVisible
-    midiControlNumber.backgroundColour = menuBackgroundColour
-    midiControlNumber.textColour = menuTextColour
-    midiControlNumber.size = inputWidgetSize
-    midiControlNumber.x = valueRandomization.x + valueRandomization.width + buttonSpacing
-    midiControlNumber.y = inputWidgetY
-
-    local channelBox = sequencerPanel:NumBox("Channel" .. i, 0, 0, 16, true)
-    channelBox.displayName = "Ch"
-    channelBox.tooltip = "Midi channel that receives CC from this part. 0 = omni"
-    channelBox.visible = isVisible
-    channelBox.backgroundColour = menuBackgroundColour
-    channelBox.textColour = menuTextColour
-    channelBox.arrowColour = menuArrowColour
-    channelBox.outlineColour = menuOutlineColour
-    channelBox.size = inputWidgetSize
-    channelBox.x = midiControlNumber.x + midiControlNumber.width + buttonSpacing
-    channelBox.y = inputWidgetY
 
     local smoothButton = sequencerPanel:OnOffButton("Smooth" .. i, false)
     smoothButton.displayName = "Smooth"
@@ -545,9 +534,27 @@ for page=1,maxPages do
     smoothButton.backgroundColourOn = "#ff02ACFE"
     smoothButton.textColourOff = "#ff22FFFF"
     smoothButton.textColourOn = "#efFFFFFF"
-    smoothButton.size = inputWidgetSize
-    smoothButton.x = channelBox.x + channelBox.width + buttonSpacing
+    smoothButton.size = {77,20}
+    smoothButton.x = valueRandomization.x + valueRandomization.width + buttonSpacing
     smoothButton.y = inputWidgetY
+
+    local bipolarButton = sequencerPanel:OnOffButton("Bipolar" .. i, false)
+    bipolarButton.displayName = "Bipolar"
+    bipolarButton.visible = isVisible
+    bipolarButton.backgroundColourOff = "#ff084486"
+    bipolarButton.backgroundColourOn = "#ff02ACFE"
+    bipolarButton.textColourOff = "#ff22FFFF"
+    bipolarButton.textColourOn = "#efFFFFFF"
+    bipolarButton.size = smoothButton.size
+    bipolarButton.x = smoothButton.x + smoothButton.width + buttonSpacing
+    bipolarButton.y = inputWidgetY
+    bipolarButton.changed = function(self)
+      if self.value then
+        seqValueTable:setRange(-100,100)
+      else
+        seqValueTable:setRange(0,100)
+      end
+    end
 
     local muteButton = sequencerPanel:OnOffButton("MutePart" .. i, false)
     muteButton.visible = isVisible
@@ -557,11 +564,11 @@ for page=1,maxPages do
     muteButton.textColourOn = "#efFFFFFF"
     muteButton.displayName = "Mute"
     muteButton.tooltip = "Mute part"
-    muteButton.size = inputWidgetSize
-    muteButton.x = smoothButton.x + smoothButton.width + buttonSpacing
+    muteButton.size = smoothButton.size
+    muteButton.x = bipolarButton.x + bipolarButton.width + buttonSpacing
     muteButton.y = inputWidgetY
 
-    table.insert(paramsPerPart, {muteButton=muteButton,smoothButton=smoothButton,valueRandomization=valueRandomization,midiControlNumber=midiControlNumber,seqValueTable=seqValueTable,channelBox=channelBox,positionTable=positionTable,stepResolution=stepResolution,numStepsBox=numStepsBox})
+    table.insert(paramsPerPart, {muteButton=muteButton,smoothButton=smoothButton,valueRandomization=valueRandomization,sourceIndex=sourceIndex,seqValueTable=seqValueTable,positionTable=positionTable,stepResolution=stepResolution,numStepsBox=numStepsBox})
 
     tableY = tableY + tableHeight + buttonRowHeight
   end
@@ -597,39 +604,8 @@ function pageRunner()
   end
 end
 
-function sendControlChange(duration, startValue, targetValue, controlChangeNumber, channel)
-  local durationInMs = beat2ms(duration)
-  local numberOfIterations = math.max(startValue, targetValue) - math.min(startValue, targetValue)
-  local durationPerIteration = math.ceil(durationInMs / numberOfIterations)
-  local value = startValue
-  local increment = 1
-  if targetValue < startValue then
-    increment = -1
-  end
-  print("numberOfIterations, durationPerIteration", numberOfIterations, durationPerIteration)
-  local i = 0
-  repeat
-    value = value + increment -- Increment value
-    i = i + 1 -- Increment counter
-    controlChange(controlChangeNumber, round(value), channel)
-    --print("Over time controlChangeNumber, value, channel", controlChangeNumber, value, channel)
-    wait(durationPerIteration)
-  until value == targetValue or i >= numberOfIterations
-  print("value == targetValue or i >= numberOfIterations", value, targetValue, i, numberOfIterations)
-end
-
-function getNextValue(seqValueTable, currentPosition, numStepsInPart)
-  local nextPosition = currentPosition + 1
-  if nextPosition > numStepsInPart then
-    nextPosition = 1
-  end
-  return seqValueTable:getValue(nextPosition)
-end
-
 function arpeg(part)
   local index = 0
-  local startValue = nil
-  local targetValue = nil
   while isPlaying do
     local partIndex = getPartIndex(part)
     local numStepsInPart = paramsPerPart[partIndex].numStepsBox.value
@@ -638,8 +614,7 @@ function arpeg(part)
     local smooth = paramsPerPart[partIndex].smoothButton.value
     local duration = getResolution(paramsPerPart[partIndex].stepResolution.value)
     local seqValueTable = paramsPerPart[partIndex].seqValueTable
-    local controlChangeNumber = paramsPerPart[partIndex].midiControlNumber.value
-    local channel = paramsPerPart[partIndex].channelBox.value
+    local sourceIndex = paramsPerPart[partIndex].sourceIndex.value
     local valueRandomizationAmount = paramsPerPart[partIndex].valueRandomization.value
 
     -- Set position
@@ -654,23 +629,13 @@ function arpeg(part)
 
     -- Play note if trigger probability hits (and part is not turned off)
     if isPartActive then
-      if type(startValue) == "nil" then
-        startValue = seqValueTable:getValue(currentPosition)
-        startValue = randomizeValue(startValue, seqValueTable.min, seqValueTable.max, valueRandomizationAmount)
+      local rampTime = 20
+      if smooth then
+        rampTime = beat2ms(duration)
       end
-      targetValue = getNextValue(seqValueTable, currentPosition, numStepsInPart) -- Get next value
-      targetValue = randomizeValue(targetValue, seqValueTable.min, seqValueTable.max, valueRandomizationAmount)
-      if channel == 0 then
-        channel = nil -- Send on all channels
-      end
-      if smooth == false then
-        controlChange(controlChangeNumber, round(startValue), channel)
-        --print("Send controlChangeNumber, startValue, channel", controlChangeNumber, startValue, channel)
-      else
-        -- Send cc over time
-        spawn(sendControlChange, duration, startValue, targetValue, controlChangeNumber, channel)
-      end
-      startValue = targetValue
+      local value = seqValueTable:getValue(currentPosition)
+      value = randomizeValue(value, seqValueTable.min, seqValueTable.max, valueRandomizationAmount)
+      sendScriptModulation(sourceIndex, (value/100), rampTime)
     end
 
     -- Increment position
@@ -685,6 +650,14 @@ end
 -- Events
 --------------------------------------------------------------------------------
 
+function remove(voiceId)
+  for i,v in ipairs(heldNotes) do
+    if v == voiceId then
+      table.remove(heldNotes, i)
+    end
+  end
+end
+
 function onNote(e)
   if pageTrigger.enabled == true then
     for page=1, numPages do
@@ -697,17 +670,17 @@ function onNote(e)
       end
     end
   end
-  if autoplayButton.value == true then
-    postEvent(e)
-  else
+  local voiceId = postEvent(e)
+  table.insert(heldNotes, voiceId)
+  if #heldNotes == 1 then
     playButton:setValue(true)
   end
 end
 
 function onRelease(e)
-  if autoplayButton.value == true then
-    postEvent(e)
-  else
+  local voiceId = postEvent(e)
+  remove(voiceId)
+  if #heldNotes == 0 then
     playButton:setValue(false)
   end
 end
