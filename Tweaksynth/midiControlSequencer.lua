@@ -2,23 +2,12 @@
 -- A sequencer sending midi control change values
 --------------------------------------------------------------------------------
 
-require "common"
---require "modseq"
-
-local outlineColour = "#FFB5FF"
-local menuBackgroundColour = "#bf01011F"
-local menuTextColour = "#9f02ACFE"
-local menuArrowColour = "#9f09A3F4"
-local menuOutlineColour = "#00000000"
-local pageBackgoundColour = "222222"
-local defaultActions = {"Actions...", "Randomize", "Ramp Up", "Ramp Down", "Triangle", "Even", "Odd"}
-local activePage = 1
-local nextUp = 1
-local pageButtons = {}
-local paramsPerPart = {}
-local paramsPerPage = {}
-local isPlaying = false
-local numPages = 1
+outlineColour = "#FFB5FF"
+menuBackgroundColour = "#bf01011F"
+menuTextColour = "#9f02ACFE"
+menuArrowColour = "#9f09A3F4"
+menuOutlineColour = "#00000000"
+pageBackgoundColour = "222222"
 
 if type(numParts) == "nil" then
   numParts = 1
@@ -35,380 +24,14 @@ end
 setBackgroundColour(pageBackgoundColour)
 
 --------------------------------------------------------------------------------
--- Functions
+-- Include common functions and widgets
 --------------------------------------------------------------------------------
 
--- Get the index for this part in paramsPerPart, given page and part number
-function getPartIndex(part, page)
-  if type(page) == "nil" then
-    page = activePage -- Default is the active page
-  end
-  --print("getPartIndex page/part/numParts", page, part, numParts)
-  return (page * numParts) + (part - numParts)
-end
-
--- Get page from part index
-function getPageFromPartIndex(partIndex)
-  --print("getPageFromPartIndex partIndex", partIndex)
-  return math.ceil(partIndex / maxPages)
-end
-
-function advancePage()
-  local next = activePage + 1
-  if next > numPages then
-    next = 1
-  end
-  pageButtons[next]:setValue(true)
-end
-
-function gotoNextPage()
-  -- Check that there is actually a a change
-  if activePage == nextUp then
-    return
-  end
-  activePage = nextUp
-  for page,params in ipairs(paramsPerPage) do
-    local isVisible = page == activePage
-    params.sequencerPanel.visible = isVisible
-    pageButtons[page]:setValue(isVisible, false)
-  end
-end
-
-function clearPosition()
-  for _,v in ipairs(paramsPerPart) do
-    for i=1,v.numStepsBox.value do
-      v.positionTable:setValue(i, 0)
-    end
-  end
-end
-
-function setNumSteps(partIndex, numSteps)
-  print("setNumSteps for partIndex/numSteps", partIndex, numSteps)
-  paramsPerPart[partIndex].positionTable.length = numSteps
-  paramsPerPart[partIndex].seqValueTable.length = numSteps
-  local page = getPageFromPartIndex(partIndex)
-  setPageDuration(page)
-end
-
-function setPageDuration(page)
-  print("setPageDuration for page", page)
-  local pageResolutions = {}
-  for part=1,numParts do
-    local partIndex = getPartIndex(part, page)
-    print("getResolution for partIndex", partIndex)
-    local partResolution = getResolution(paramsPerPart[partIndex].stepResolution.value) * paramsPerPart[partIndex].numStepsBox.value
-    table.insert(pageResolutions, partResolution)
-    print("Added resolution/part/page", partResolution, part, page)
-  end
-  table.sort(pageResolutions)
-  paramsPerPage[page].pageDuration = pageResolutions[#pageResolutions]
-end
-
-function startPlaying()
-  if isPlaying == true then
-    return
-  end
-  spawn(pageRunner)
-  for i=1,numParts do
-    print("Start playing", i)
-    spawn(arpeg, i)
-  end
-  isPlaying = true
-end
-
-function stopPlaying()
-  if isPlaying == false then
-    return
-  end
-  print("Stop playing")
-  isPlaying = false
-  clearPosition()
-  gotoNextPage()
-end
+require "modseq"
 
 --------------------------------------------------------------------------------
 -- Sequencer
 --------------------------------------------------------------------------------
-
-local headerPanel = Panel("Header")
-headerPanel.backgroundColour = menuOutlineColour
-headerPanel.x = 10
-headerPanel.y = 10
-headerPanel.width = 700
-headerPanel.height = 30
-
-local label = headerPanel:Label("Label")
-label.text = title
-label.align = "left"
-label.backgroundColour = "808080"
-label.textColour = pageBackgoundColour
-label.fontSize = 22
-label.position = {0,0}
-label.size = {200,25}
-
-local playButton = headerPanel:OnOffButton("Play", false)
-playButton.persistent = false
-playButton.backgroundColourOff = "#ff084486"
-playButton.backgroundColourOn = "#ff02ACFE"
-playButton.textColourOff = "#ff22FFFF"
-playButton.textColourOn = "#efFFFFFF"
-playButton.displayName = "Play"
-playButton.size = {102,22}
-playButton.x = headerPanel.width - playButton.width
-playButton.y = 2
-playButton.changed = function(self)
-  if self.value == true then
-    startPlaying()
-  else
-    stopPlaying()
-  end
-end
-
-local autoplayButton = headerPanel:OnOffButton("AutoPlay", true)
-autoplayButton.backgroundColourOff = "#ff084486"
-autoplayButton.backgroundColourOn = "#ff02ACFE"
-autoplayButton.textColourOff = "#ff22FFFF"
-autoplayButton.textColourOn = "#efFFFFFF"
-autoplayButton.displayName = "Auto Play"
-autoplayButton.tooltip = "Play automatically on transport"
-autoplayButton.size = {102,22}
-autoplayButton.x = playButton.x - playButton.width - 5
-autoplayButton.y = playButton.y
-
-local footerPanel = Panel("Footer")
-footerPanel.backgroundColour = menuOutlineColour
-footerPanel.x = 10
-footerPanel.width = 700
-if maxPages == 1 then
-  footerPanel.enabled = false
-  footerPanel.visible = false
-  footerPanel.height = 10
-else
-  footerPanel.height = 30
-end
-
-local changePageProbability = footerPanel:NumBox("ChangePageProbability", 0, 0, 100, true)
-changePageProbability.displayName = "Random"
-changePageProbability.tooltip = "Probability of random page change"
-changePageProbability.enabled = false
-changePageProbability.unit = Unit.Percent
-changePageProbability.size = {110,22}
-changePageProbability.x = (33 * maxPages) + 102
-
-local actionMenu = footerPanel:Menu("ActionMenu", defaultActions)
-actionMenu.persistent = false
-actionMenu.tooltip = "Select an action. NOTE: This changes data in the affected tables"
-actionMenu.backgroundColour = menuBackgroundColour
-actionMenu.textColour = menuTextColour
-actionMenu.arrowColour = menuArrowColour
-actionMenu.outlineColour = menuOutlineColour
-actionMenu.showLabel = false
-actionMenu.x = changePageProbability.x + changePageProbability.width + 5
-actionMenu.size = {110,22}
-actionMenu.changed = function(self)
-  -- 1 is the menu label...
-  if self.value == 1 then
-    return
-  end
-  if self.value == 2 then
-    -- Randomize value table
-    for part=1,numParts do
-      local partIndex = getPartIndex(part)
-      for i=1,paramsPerPart[partIndex].numStepsBox.value do
-        paramsPerPart[partIndex].seqValueTable:setValue(i, getRandom(paramsPerPart[partIndex].seqValueTable.min, paramsPerPart[partIndex].seqValueTable.max))
-      end
-    end
-  elseif self.value == 3 then
-    -- Ramp Up
-    for part=1,numParts do
-      local partIndex = getPartIndex(part)
-      local maxValue = paramsPerPart[partIndex].seqValueTable.max
-      local numSteps = paramsPerPart[partIndex].numStepsBox.value
-      local changePerStep = maxValue / (numSteps - 1)
-      local startValue = 0
-      for i=1,numSteps do
-        paramsPerPart[partIndex].seqValueTable:setValue(i, startValue)
-        startValue = startValue + changePerStep
-      end
-    end
-  elseif self.value == 4 then
-    -- Ramp Down
-    for part=1,numParts do
-      local partIndex = getPartIndex(part)
-      local maxValue = paramsPerPart[partIndex].seqValueTable.max
-      local numSteps = paramsPerPart[partIndex].numStepsBox.value
-      local changePerStep = maxValue / (numSteps - 1)
-      local startValue = maxValue
-      for i=1,numSteps do
-        paramsPerPart[partIndex].seqValueTable:setValue(i, startValue)
-        startValue = startValue - changePerStep
-      end
-    end
-  elseif self.value == 5 then
-    -- Triangle
-    for part=1,numParts do
-      local rising = true
-      local partIndex = getPartIndex(part)
-      local maxValue = paramsPerPart[partIndex].seqValueTable.max
-      local numSteps = paramsPerPart[partIndex].numStepsBox.value
-      local numStepsUpDown = math.ceil(numSteps / 2)
-      local changePerStep = maxValue / numStepsUpDown
-      local startValue = 0
-      for i=1,numSteps do
-        paramsPerPart[partIndex].seqValueTable:setValue(i, startValue)
-        if rising then
-          startValue = startValue + changePerStep
-          if startValue >= maxValue then
-            rising = false
-          end
-        else
-          startValue = startValue - changePerStep
-        end
-      end
-    end
-  elseif self.value == 6 then
-    -- Even
-    for part=1,numParts do
-      local partIndex = getPartIndex(part)
-      local minValue = paramsPerPart[partIndex].seqValueTable.min
-      local maxValue = paramsPerPart[partIndex].seqValueTable.max
-      local numSteps = paramsPerPart[partIndex].numStepsBox.value
-      for i=1,numSteps do
-        local val = minValue
-        if i % 2 == 0 then
-          val = maxValue
-        end
-        paramsPerPart[partIndex].seqValueTable:setValue(i, val)
-      end
-    end
-  elseif self.value == 7 then
-    -- Odd
-    for part=1,numParts do
-      local partIndex = getPartIndex(part)
-      local minValue = paramsPerPart[partIndex].seqValueTable.min
-      local maxValue = paramsPerPart[partIndex].seqValueTable.max
-      local numSteps = paramsPerPart[partIndex].numStepsBox.value
-      for i=1,numSteps do
-        local val = maxValue
-        if i % 2 == 0 then
-          val = minValue
-        end
-        paramsPerPart[partIndex].seqValueTable:setValue(i, val)
-      end
-    end
-  else
-    -- Copy settings from another page
-    local sourcePage = self.value - #defaultActions
-    local targetPage = activePage
-    --print("sourcePage, targetPage, #defaultActions", sourcePage, targetPage, #defaultActions)
-    for part=1,numParts do
-      local sourcePartIndex = getPartIndex(part, sourcePage)
-      local targetPartIndex = getPartIndex(part, targetPage)
-      if sourcePartIndex ~= targetPartIndex then
-        local source = paramsPerPart[sourcePartIndex]
-        local target = paramsPerPart[targetPartIndex]
-        target.numStepsBox:setValue(source.numStepsBox.value)
-        for i=1, target.numStepsBox.value do
-          target.seqValueTable:setValue(i, source.seqValueTable:getValue(i))
-        end
-        -- Copy Settings
-        target.stepResolution:setValue(source.stepResolution.value)
-        target.muteButton:setValue(source.muteButton.value)
-        target.midiControlNumber:setValue(source.midiControlNumber.value)
-        target.channelBox:setValue(source.channelBox.value)
-        target.valueRandomization:setValue(source.valueRandomization.value)
-        end  
-    end
-  end
-  self.selected = 1
-end
-
-local pageTrigger = footerPanel:NumBox("PageTrigger", 96, 0, 127, true)
-pageTrigger.enabled = false
-pageTrigger.displayName = "Change"
-pageTrigger.tooltip = "Go to next page by triggering this note. Notes immediately above, trigger pages directly."
-pageTrigger.unit = Unit.MidiKey
-pageTrigger.height = actionMenu.height
-pageTrigger.width = 100
-
-local nextPageButton = footerPanel:Button("NextPageButton")
-nextPageButton.persistent = false
-nextPageButton.enabled = numPages > 1
-nextPageButton.displayName = ">"
-nextPageButton.size = {25,22}
-nextPageButton.changed = function(self)
-  advancePage()
-end
-
-local cyclePagesButton = footerPanel:OnOffButton("CyclePagesButton")
-cyclePagesButton.enabled = numPages > 1
-cyclePagesButton.displayName = ">>"
-cyclePagesButton.tooltip = "Play pages in cycle"
-cyclePagesButton.backgroundColourOff = "#6600cc44"
-cyclePagesButton.backgroundColourOn = "#aa00cc44"
-cyclePagesButton.textColourOff = "#cc22FFFF"
-cyclePagesButton.textColourOn = "#ccFFFFFF"
-cyclePagesButton.size = {25,22}
-
-local numPagesBox = footerPanel:NumBox("Pages", numPages, 1, maxPages, true)
-numPagesBox.tooltip = "Number of active pages"
-numPagesBox.backgroundColour = menuBackgroundColour
-numPagesBox.textColour = menuTextColour
-numPagesBox.size = {90,22}
-numPagesBox.x = 0
-numPagesBox.changed = function(self)
-  numPages = self.value
-  changePageProbability.enabled = self.value > 1
-  nextPageButton.enabled = self.value > 1
-  cyclePagesButton.enabled = self.value > 1
-  pageTrigger.enabled = self.value > 1
-  for page=1,self.max do
-    setPageDuration(page)
-    pageButtons[page].enabled = page <= numPages
-  end
-  -- Update action menu
-  local actionMenuItems = {}
-  for i=1,#defaultActions do
-    table.insert(actionMenuItems, defaultActions[i])
-  end
-  if numPages > 1 then
-    for i=1,numPages do
-      table.insert(actionMenuItems, "Copy settings from page " .. i)
-    end
-  end
-  actionMenu.items = actionMenuItems
-end
-
--- Add page buttons
-local xPadding = 1
-for page=1,maxPages do
-  local pageButton = footerPanel:OnOffButton("PageButton" .. page, (page==1))
-  pageButton.persistent = false
-  pageButton.enabled = page <= numPages
-  pageButton.displayName = "" .. page
-  pageButton.backgroundColourOff = "#ff084486"
-  pageButton.backgroundColourOn = "#ff02ACFE"
-  pageButton.textColourOff = "#ff22FFFF"
-  pageButton.textColourOn = "#efFFFFFF"
-  pageButton.size = {25,22}
-  pageButton.x = ((pageButton.width + xPadding) * page) + 76
-  pageButton.changed = function(self)
-    if self.value == true then
-      nextUp = page -- register next up
-      if isPlaying == false then
-        gotoNextPage()
-      end
-    end
-    self:setValue(true, false) -- The clicked button should stay active
-  end
-  table.insert(pageButtons, pageButton)
-end
-
-cyclePagesButton.x = pageButtons[#pageButtons].x + pageButtons[#pageButtons].width + xPadding
-nextPageButton.x = cyclePagesButton.x + cyclePagesButton.width + xPadding
-
-pageTrigger.x = actionMenu.x + actionMenu.width + 9
-pageTrigger.y = actionMenu.y
 
 -- Add params that are to be editable per page / part
 for page=1,maxPages do
@@ -474,12 +97,27 @@ for page=1,maxPages do
 
     -- Inputs
 
+    local stepButton = sequencerPanel:OnOffButton("Step" .. i, false)
+    stepButton.displayName = "Step"
+    stepButton.tooltip = "The selected resolution applies to each step, not the whole round"
+    stepButton.visible = isVisible
+    stepButton.backgroundColourOff = "#ff084486"
+    stepButton.backgroundColourOn = "#ff02ACFE"
+    stepButton.textColourOff = "#ff22FFFF"
+    stepButton.textColourOn = "#efFFFFFF"
+    stepButton.size = inputWidgetSize
+    stepButton.x = 0
+    stepButton.y = inputWidgetY
+    stepButton.changed = function(self)
+      setPageDuration(page)
+    end
+
     local stepResolution = sequencerPanel:Menu("StepResolution" .. i, getResolutionNames())
     stepResolution.tooltip = "Set the step resolution"
     stepResolution.showLabel = false
     stepResolution.visible = isVisible
-    stepResolution.selected = 20
-    stepResolution.x = 0
+    stepResolution.selected = 11
+    stepResolution.x = stepButton.x + stepButton.width + buttonSpacing
     stepResolution.y = inputWidgetY
     stepResolution.size = {75,20}
     stepResolution.backgroundColour = menuBackgroundColour
@@ -519,7 +157,7 @@ for page=1,maxPages do
     valueRandomization.x = numStepsBox.x + numStepsBox.width + buttonSpacing
     valueRandomization.y = inputWidgetY
 
-    local midiControlNumber = sequencerPanel:NumBox("MidiControlNumber" .. i, (i+101), 0, 127, true)
+    local midiControlNumber = sequencerPanel:NumBox("MidiControlNumber" .. i, (part+101), 0, 127, true)
     midiControlNumber.displayName = "CC"
     midiControlNumber.tooltip = "The midi control number to send the value to"
     midiControlNumber.visible = isVisible
@@ -553,23 +191,25 @@ for page=1,maxPages do
     smoothButton.x = channelBox.x + channelBox.width + buttonSpacing
     smoothButton.y = inputWidgetY
 
-    local muteButton = sequencerPanel:OnOffButton("MutePart" .. i, false)
-    muteButton.visible = isVisible
-    muteButton.backgroundColourOff = "#ff084486"
-    muteButton.backgroundColourOn = "#ff02ACFE"
-    muteButton.textColourOff = "#ff22FFFF"
-    muteButton.textColourOn = "#efFFFFFF"
-    muteButton.displayName = "Mute"
-    muteButton.tooltip = "Mute part"
-    muteButton.size = inputWidgetSize
-    muteButton.x = smoothButton.x + smoothButton.width + buttonSpacing
-    muteButton.y = inputWidgetY
-
-    table.insert(paramsPerPart, {muteButton=muteButton,smoothButton=smoothButton,valueRandomization=valueRandomization,midiControlNumber=midiControlNumber,seqValueTable=seqValueTable,channelBox=channelBox,positionTable=positionTable,stepResolution=stepResolution,numStepsBox=numStepsBox})
+    table.insert(paramsPerPart, {stepButton=stepButton,smoothButton=smoothButton,valueRandomization=valueRandomization,midiControlNumber=midiControlNumber,seqValueTable=seqValueTable,channelBox=channelBox,positionTable=positionTable,stepResolution=stepResolution,numStepsBox=numStepsBox})
 
     tableY = tableY + tableHeight + buttonRowHeight
   end
-  table.insert(paramsPerPage, {sequencerPanel=sequencerPanel,pageDuration=4,active=(page==1)})
+
+  local minRepeats = footerPanel:NumBox("MinRepeats" .. page, 1, 1, 128, true)
+  minRepeats.displayName = "Repeats"
+  minRepeats.tooltip = "The minimum number of repeats before page will be changed (only relevant when multiple pages are activated)"
+  minRepeats.visible = page == 1
+  minRepeats.enabled = false
+  minRepeats.backgroundColour = menuBackgroundColour
+  minRepeats.textColour = menuTextColour
+  minRepeats.arrowColour = menuArrowColour
+  minRepeats.outlineColour = menuOutlineColour
+  minRepeats.size = {100,20}
+  minRepeats.x = actionMenu.x + actionMenu.width + 9
+  minRepeats.y = actionMenu.y
+
+  table.insert(paramsPerPage, {sequencerPanel=sequencerPanel,minRepeats=minRepeats,pageDuration=4,active=(page==1)})
   setPageDuration(page)
 end
 
@@ -578,28 +218,6 @@ footerPanel.y = paramsPerPage[1].sequencerPanel.y + paramsPerPage[1].sequencerPa
 --------------------------------------------------------------------------------
 -- Sequencer
 --------------------------------------------------------------------------------
-
-function pageRunner()
-  local rounds = 0
-  while isPlaying do
-    rounds = rounds + 1
-    if rounds > 1 and nextUp == activePage then
-      if getRandomBoolean(changePageProbability.value) then
-        nextUp = getRandom(numPages)
-      elseif cyclePagesButton.value == true then
-        nextUp = activePage + 1
-        if nextUp > numPages then
-          nextUp = 1
-        end
-      end
-    end
-
-    gotoNextPage()
-
-    print("New round on page/duration/round", activePage, paramsPerPage[activePage].pageDuration, rounds)
-    waitBeat(paramsPerPage[activePage].pageDuration)
-  end
-end
 
 function sendControlChange(duration, startValue, targetValue, controlChangeNumber, channel)
   local durationInMs = beat2ms(duration)
@@ -638,8 +256,8 @@ function arpeg(part)
     local partIndex = getPartIndex(part)
     local numStepsInPart = paramsPerPart[partIndex].numStepsBox.value
     local currentPosition = (index % numStepsInPart) + 1
-    local isPartActive = paramsPerPart[partIndex].muteButton.value == false
     local smooth = paramsPerPart[partIndex].smoothButton.value
+    local step = paramsPerPart[partIndex].stepButton.value
     local duration = getResolution(paramsPerPart[partIndex].stepResolution.value)
     local seqValueTable = paramsPerPart[partIndex].seqValueTable
     local controlChangeNumber = paramsPerPart[partIndex].midiControlNumber.value
@@ -649,33 +267,35 @@ function arpeg(part)
     -- Set position
     for i=1, numStepsInPart do
       local isActiveStep = i >= currentPosition and i < currentPosition + 1
-      if isPartActive and isActiveStep then
+      if isActiveStep then
         paramsPerPart[partIndex].positionTable:setValue(i, 1)
       else
         paramsPerPart[partIndex].positionTable:setValue(i, 0)
       end
     end
 
-    -- Play note if trigger probability hits (and part is not turned off)
-    if isPartActive then
-      if type(startValue) == "nil" then
-        startValue = seqValueTable:getValue(currentPosition)
-        startValue = randomizeValue(startValue, seqValueTable.min, seqValueTable.max, valueRandomizationAmount)
-      end
-      targetValue = getNextValue(seqValueTable, currentPosition, numStepsInPart) -- Get next value
-      targetValue = randomizeValue(targetValue, seqValueTable.min, seqValueTable.max, valueRandomizationAmount)
-      if channel == 0 then
-        channel = nil -- Send on all channels
-      end
-      if smooth == false then
-        controlChange(controlChangeNumber, round(startValue), channel)
-        --print("Send controlChangeNumber, startValue, channel", controlChangeNumber, startValue, channel)
-      else
-        -- Send cc over time
-        spawn(sendControlChange, duration, startValue, targetValue, controlChangeNumber, channel)
-      end
-      startValue = targetValue
+    if step == false then
+      duration = duration / numStepsInPart
     end
+
+    -- Send cc
+    if type(startValue) == "nil" then
+      startValue = seqValueTable:getValue(currentPosition)
+      startValue = randomizeValue(startValue, seqValueTable.min, seqValueTable.max, valueRandomizationAmount)
+    end
+    targetValue = getNextValue(seqValueTable, currentPosition, numStepsInPart) -- Get next value
+    targetValue = randomizeValue(targetValue, seqValueTable.min, seqValueTable.max, valueRandomizationAmount)
+    if channel == 0 then
+      channel = nil -- Send on all channels
+    end
+    if smooth == false then
+      controlChange(controlChangeNumber, round(startValue), channel)
+      --print("Send controlChangeNumber, startValue, channel", controlChangeNumber, startValue, channel)
+    else
+      -- Send cc over time
+      spawn(sendControlChange, duration, startValue, targetValue, controlChangeNumber, channel)
+    end
+    startValue = targetValue
 
     -- Increment position
     index = (index + 1) % numStepsInPart
@@ -690,17 +310,6 @@ end
 --------------------------------------------------------------------------------
 
 function onNote(e)
-  if pageTrigger.enabled == true then
-    for page=1, numPages do
-      if pageTrigger.value == e.note then
-        advancePage()
-        break
-      elseif (pageTrigger.value + page) == e.note then
-        pageButtons[page]:setValue(true)
-        break
-      end
-    end
-  end
   if autoplayButton.value == true then
     postEvent(e)
   else
