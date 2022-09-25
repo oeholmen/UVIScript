@@ -363,6 +363,7 @@ function onSave()
   table.insert(data, numStepsData)
   table.insert(data, seqValueTableData)
   table.insert(data, smoothStepTableData)
+  table.insert(data, labelInput.text)
 
   return data
 end
@@ -371,6 +372,7 @@ function onLoad(data)
   local numStepsData = data[1]
   local seqValueTableData = data[2]
   local smoothStepTableData = data[3]
+  labelInput.text = data[4]
 
   local dataCounter = 1
   for i,v in ipairs(numStepsData) do

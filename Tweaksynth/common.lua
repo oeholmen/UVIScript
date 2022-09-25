@@ -122,12 +122,10 @@ function round(value)
 end
 
 function getRandom(min, max, factor)
-  if type(min) == "number" and type(max) == "number" then
-    local value = math.random(min, max)
-    return value
+  if type(min) == "number" and type(max) == "number" and min < max then
+    return math.random(min, max)
   elseif type(min) == "number" then
-    local value = math.random(min)
-    return value
+    return math.random(min)
   end
   local value = math.random()
   if type(factor) == "number" then

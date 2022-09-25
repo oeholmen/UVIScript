@@ -16,7 +16,7 @@ setBackgroundColour(backgroundColour)
 
 local voices = 1
 local notesPlaying = {}
-local isPlaying = false
+local isPlaying = {}
 local noteNumberToNoteName = getNoteMapping()
 local noteNames = getNoteNames()
 local globalResolution = nil -- Holds the global resolution for all voices
@@ -68,20 +68,17 @@ local scaleNames = {
 --------------------------------------------------------------------------------
 
 function startPlaying()
-  if isPlaying == true then
+  if #isPlaying > 1 then
     return
   end
-  isPlaying = true
-  for i=1,voices do
-    spawn(arpeg, i)
-  end
+  run(sequenceRunner)
 end
 
 function stopPlaying()
-  if isPlaying == false then
+  if #isPlaying == 0 then
     return
   end
-  isPlaying = false
+  isPlaying = {}
   notesPlaying = {}
 end
 
@@ -315,7 +312,7 @@ local durationRepeatDecay = resolutionPanel:NumBox("DurationRepeatDecay", 1, 0.0
 durationRepeatDecay.unit = Unit.Percent
 durationRepeatDecay.textColour = widgetTextColour
 durationRepeatDecay.backgroundColour = widgetBackgroundColour
-durationRepeatDecay.displayName = "Repeat Probability Decay"
+durationRepeatDecay.displayName = "Probability Decay"
 durationRepeatDecay.tooltip = "The reduction in repeat probability for each iteration of the playing voice"
 durationRepeatDecay.size = durationRepeatProbabilityInput.size
 durationRepeatDecay.x = durationRepeatProbabilityInput.x + durationRepeatProbabilityInput.width + 10
@@ -423,7 +420,7 @@ generateMinPart.size = {106,20}
 generateMinPart.x = 5
 generateMinPart.y = 70
 
-local generateMaxPart = notePanel:NumBox("GenerateMax", 88, 0, 127, true)
+local generateMaxPart = notePanel:NumBox("GenerateMax", 108, 0, 127, true)
 generateMaxPart.unit = Unit.MidiKey
 generateMaxPart.textColour = widgetTextColour
 generateMaxPart.backgroundColour = widgetBackgroundColour
@@ -476,7 +473,7 @@ local voicesInput = settingsPanel:NumBox("Voices", voices, 1, 16, true)
 voicesInput.textColour = widgetTextColour
 voicesInput.backgroundColour = widgetBackgroundColour
 voicesInput.displayName = "Voices"
-voicesInput.tooltip = "Number of voices playing (must restart sequencer to take effect)"
+voicesInput.tooltip = "Number of voices playing"
 voicesInput.size = {106,20}
 voicesInput.x = 5
 voicesInput.y = settingsLabel.y + settingsLabel.height + 5
@@ -645,13 +642,34 @@ end
 -- Sequencer
 --------------------------------------------------------------------------------
 
+function sequenceRunner()
+  local currentVoices = 0
+  repeat
+    print("sequenceRunner new round")
+    if currentVoices ~= voices then
+      print("currentVoices ~= voices", currentVoices, voices)
+      isPlaying = {}
+      for i=1,voices do
+        table.insert(isPlaying, i)
+        if i > currentVoices then
+          spawn(arpeg, i)
+        end
+      end
+      currentVoices = #isPlaying
+    end
+    local baseDuration = getResolution(baseResolution.value)
+    waitBeat(baseDuration)
+  until #isPlaying == 0
+end
+
 function arpeg(voice)
   local waitDuration = nil
   local noteToPlay = nil
   local baseDuration = 0
   local remainingDuration = 0
   local durationRepeatProbability = durationRepeatProbabilityInput.value
-  while isPlaying == true do
+  print("Start playing voice", voice)
+  while isPlaying[voice] == voice do
     local channel = nil
     if channelButton.value then
       channel = voice

@@ -1,6 +1,10 @@
+--------------------------------------------------------------------------------
+-- Common functions and widgets that are shared for the modulation sequencers
+--------------------------------------------------------------------------------
+
 require "common"
 
-defaultActions = {"Actions...", "Randomize", "Ramp Up", "Ramp Down", "Triangle", "Even", "Odd"}
+defaultActions = {"Actions...", "Randomize", "Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Reduce 50%"}
 numPages = 1
 activePage = 1
 nextUp = 1
@@ -145,12 +149,23 @@ headerPanel.height = 30
 
 label = headerPanel:Label("Label")
 label.text = title
-label.align = "left"
 label.backgroundColour = "808080"
 label.textColour = pageBackgoundColour
 label.fontSize = 22
 label.position = {0,0}
-label.size = {200,25}
+label.size = {190,25}
+
+labelInput = headerPanel:Label("Label")
+labelInput.text = ""
+labelInput.editable = true
+labelInput.backgroundColour = pageBackgoundColour
+labelInput.textColour = "808080"
+labelInput.backgroundColourWhenEditing = "white"
+labelInput.textColourWhenEditing = "black"
+labelInput.fontSize = 16
+labelInput.width = 180
+labelInput.x = label.x + label.width + 10
+labelInput.y = 3
 
 playButton = headerPanel:OnOffButton("Play", false)
 playButton.persistent = false
@@ -386,6 +401,19 @@ actionMenu.changed = function(self)
           val = minValue
         end
         paramsPerPart[partIndex].seqValueTable:setValue(i, val)
+      end
+    end
+  elseif self.value == 8 then
+    -- Reduce 50%
+    for part=1,numParts do
+      local partIndex = getPartIndex(part)
+      local seqValueTable = paramsPerPart[partIndex].seqValueTable
+      local minValue = seqValueTable.min
+      local maxValue = seqValueTable.max
+      local numSteps = paramsPerPart[partIndex].numStepsBox.value
+      for i=1,numSteps do
+        local val = seqValueTable:getValue(i) / 2
+        seqValueTable:setValue(i, val)
       end
     end
   else
