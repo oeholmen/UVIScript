@@ -15,6 +15,7 @@ local menuOutlineColour = "5f" .. widgetTextColour
 setBackgroundColour(backgroundColour)
 
 local voices = 1
+local octaves = 9
 local notesPlaying = {}
 local isPlaying = {}
 local noteNumberToNoteName = getNoteMapping()
@@ -105,7 +106,7 @@ notePanel.backgroundColour = "404040"
 notePanel.x = settingsPanel.x
 notePanel.y = settingsPanel.y + settingsPanel.height + 5
 notePanel.width = 700
-notePanel.height = 100
+notePanel.height = 120
 
 local resolutionPanel = Panel("Resolutions")
 resolutionPanel.backgroundColour = "404040"
@@ -337,9 +338,10 @@ noteLabel.text = "Notes"
 noteLabel.tooltip = "Set the probability that notes will be included when generating new notes"
 noteLabel.alpha = 0.75
 noteLabel.fontSize = 15
-noteLabel.width = 350
+noteLabel.width = 60
 
 local noteInputs = {}
+local octaveProbabilityInputs = {}
 
 local clearNotes = notePanel:Button("ClearNotes")
 clearNotes.displayName = "Clear all"
@@ -384,19 +386,8 @@ randomizeNotes.changed = function()
 end
 
 columnCount = 0
-for i=1, #noteNames do
+for i=1,#noteNames do
   local note = notePanel:OnOffButton("Note" .. i, true)
-  --[[ if i == 2 or i == 4 or i == 7 or i == 9 or i == 11 then
-    note.backgroundColourOff = "gray"
-    note.backgroundColourOn = "black"
-    note.textColourOff = "silver"
-    note.textColourOn = "white"
-  else
-    note.backgroundColourOff = "silver"
-    note.backgroundColourOn = "white"
-    note.textColourOff = "black"
-    note.textColourOn = "black"
-  end ]]
   note.backgroundColourOff = "#ff084486"
   note.backgroundColourOn = "#ff02ACFE"
   note.textColourOff = "#ff22FFFF"
@@ -410,25 +401,46 @@ for i=1, #noteNames do
   columnCount = columnCount + 1
 end
 
-local generateMinPart = notePanel:NumBox("GenerateMin", 21, 0, 127, true)
-generateMinPart.unit = Unit.MidiKey
-generateMinPart.textColour = widgetTextColour
-generateMinPart.backgroundColour = widgetBackgroundColour
-generateMinPart.displayName = "Min Note"
-generateMinPart.tooltip = "Lowest note"
-generateMinPart.size = {106,20}
-generateMinPart.x = 5
-generateMinPart.y = 70
+columnCount = 0
 
-local generateMaxPart = notePanel:NumBox("GenerateMax", 108, 0, 127, true)
-generateMaxPart.unit = Unit.MidiKey
-generateMaxPart.textColour = widgetTextColour
-generateMaxPart.backgroundColour = widgetBackgroundColour
-generateMaxPart.displayName = "Max Note"
-generateMaxPart.tooltip = "Highest note"
-generateMaxPart.size = generateMinPart.size
-generateMaxPart.x = generateMinPart.x + generateMinPart.width + 10
-generateMaxPart.y = generateMinPart.y
+local rising = true
+local numStepsUpDown = math.floor(octaves / 2)
+local changePerStep = 100 / numStepsUpDown
+local startValue = 0
+for i=1,octaves do
+  local octaveLabel = notePanel:Label("OctaveLabel")
+  octaveLabel.text = "Oct " .. i - 2
+  octaveLabel.alpha = 0.75
+  octaveLabel.fontSize = 15
+  octaveLabel.width = 670 / octaves
+  octaveLabel.height = 22
+  octaveLabel.x = ((octaveLabel.width+(22/octaves)) * columnCount) + 5
+  octaveLabel.y = 70
+
+  local octaveProbabilityInput = notePanel:NumBox("OctaveProbability" .. i, startValue, 0, 100, true)
+  octaveProbabilityInput.unit = Unit.Percent
+  octaveProbabilityInput.textColour = widgetTextColour
+  octaveProbabilityInput.backgroundColour = widgetBackgroundColour
+  octaveProbabilityInput.showLabel = false
+  octaveProbabilityInput.tooltip = "Set the probability that octave " .. i - 2 .. " will be available when generating notes to play"
+  octaveProbabilityInput.width = octaveLabel.width
+  octaveProbabilityInput.height = octaveLabel.height
+  octaveProbabilityInput.x = octaveLabel.x
+  octaveProbabilityInput.y = octaveLabel.y + octaveLabel.height
+
+  table.insert(octaveProbabilityInputs, octaveProbabilityInput)
+
+  if rising then
+    startValue = startValue + changePerStep
+    if startValue >= 100 then
+      rising = false
+    end
+  else
+    startValue = startValue - changePerStep
+  end
+
+  columnCount = columnCount + 1
+end
 
 local generateKey = notePanel:Menu("GenerateKey", noteNames)
 generateKey.tooltip = "Key"
@@ -437,9 +449,9 @@ generateKey.backgroundColour = menuBackgroundColour
 generateKey.textColour = widgetTextColour
 generateKey.arrowColour = menuArrowColour
 generateKey.outlineColour = menuOutlineColour
-generateKey.size = generateMaxPart.size
-generateKey.x = generateMaxPart.x + generateMaxPart.width + 10
-generateKey.y = generateMaxPart.y
+generateKey.size = {106,20}
+generateKey.x = noteLabel.x + noteLabel.width + 10
+generateKey.y = noteLabel.y
 generateKey.changed = function(self)
   setScale()
 end
@@ -524,8 +536,8 @@ local noteRandomization = settingsPanel:NumBox("NoteRandomization", 25, 0, 100, 
 noteRandomization.unit = Unit.Percent
 noteRandomization.textColour = widgetTextColour
 noteRandomization.backgroundColour = widgetBackgroundColour
-noteRandomization.displayName = "Note Jump"
-noteRandomization.tooltip = "Note shift randomization amount - a small amount gives small jumps between notes"
+noteRandomization.displayName = "Note Move"
+noteRandomization.tooltip = "Note movement randomization amount - a small amount gives small steps between notes"
 noteRandomization.size = velocityRandomization.size
 noteRandomization.x = velocityRandomization.x + velocityRandomization.width + 10
 noteRandomization.y = voicesInput.y
@@ -560,11 +572,13 @@ function getNoteDuration(currentDuration, durationRepeatProbability)
     selectedResolutions = activeResolutions
   end
 
-  -- Failsafe in case no resolutions where activated
+  -- Failsafe in case no resolutions are activated
   if #selectedResolutions == 0 then
-    table.insert(selectedResolutions, 17)
-    table.insert(selectedResolutions, 20)
-    table.insert(selectedResolutions, 23)
+    if type(globalResolution) == "number" then
+      return globalResolution, durationRepeatProbabilityInput.value
+    else
+      return getResolution(17), durationRepeatProbabilityInput.value
+    end
   end
 
   -- Check resolution repeat
@@ -577,7 +591,6 @@ function getNoteDuration(currentDuration, durationRepeatProbability)
     durationRepeatProbability = durationRepeatProbability - durationRepeatProbabilityDecay
     local resolutionIndex = getIndexFromValue(currentDuration, resolutions)
     if tableIncludes(selectedResolutions, resolutionIndex) and getRandomBoolean(durationRepeatProbability) then
-      --print("Repeat currentDuration, durationRepeatProbability", currentDuration, durationRepeatProbability)
       return currentDuration, durationRepeatProbability
     end
   end
@@ -587,47 +600,54 @@ function getNoteDuration(currentDuration, durationRepeatProbability)
     table.remove(selectedResolutions, getIndexFromValue(currentDuration, selectedResolutions))
   end
 
-  globalResolution = getResolution(selectedResolutions[getRandom(#selectedResolutions)])
+  if #selectedResolutions == 1 then
+    globalResolution = getResolution(selectedResolutions[1])
+  else
+    globalResolution = getResolution(selectedResolutions[getRandom(#selectedResolutions)])
+  end
+
   return globalResolution, durationRepeatProbabilityInput.value
 end
 
-function getActiveNotes()
-  local allNotes = {} -- All notes
-  local selectedNotes = {} -- All selected notes
-  for i,v in ipairs(noteInputs) do
-    table.insert(allNotes, noteNames[i])
-    if v.value == true then
-      table.insert(selectedNotes, noteNames[i])
+function getNoteToPlay(currentNote)
+  local selectedNotes = {} -- Holds note numbers that are available
+  for octaveIndex=1,octaves do
+    local octaveProbability = octaveProbabilityInputs[octaveIndex].value
+    if octaveProbability > 0 then
+      for i,v in ipairs(noteInputs) do
+        -- Check if note should be added for this octave
+        if v.value and getRandomBoolean(octaveProbability) then
+          local noteNumber = i - 1 -- Base note
+          noteNumber = noteNumber + (12 * octaveIndex) -- Set octave
+          if tableIncludes(notesPlaying, noteNumber) == false then
+            table.insert(selectedNotes, noteNumber)
+            --print("Note added: noteNumber/name", noteNumber, noteNumberToNoteName[noteNumber+1])
+          end
+        end
+      end
     end
   end
 
-  if #selectedNotes > 0 then
-    return selectedNotes
+  if #selectedNotes == 0 then
+    return nil
   end
 
-  return allNotes
-end
+  if #selectedNotes == 1 then
+    return selectedNotes[1]
+  end
 
-function getNoteToPlay(currentNote)
-  local min = math.min(generateMinPart.value, generateMaxPart.value)
-  local max = math.max(generateMinPart.value, generateMaxPart.value)
-  if min == max then
-    min = generateMinPart.min
-    max = generateMaxPart.max
+  local noteIndex = 1
+
+  if type(currentNote) == "nil" or tableIncludes(selectedNotes, currentNote) == false then
+    noteIndex = getRandom(#selectedNotes)
+    --print("Get random note index", noteIndex)
+  else
+    local currentIndex = getIndexFromValue(currentNote, selectedNotes)
+    noteIndex = randomizeValue(currentIndex, 1, #selectedNotes, noteRandomization.value)
+    --print("Get from noteIndex/currentIndex", noteIndex, currentIndex)
   end
-  if type(currentNote) == "nil" then
-    currentNote = getRandom(min, max)
-  end
-  local activeNotes = getActiveNotes()
-  local roundCounter = 0
-  local noteWasFound = false
-  repeat
-    currentNote = randomizeValue(currentNote, min, max, noteRandomization.value)
-    noteWasFound = tableIncludes(notesPlaying, currentNote) == false and tableIncludes(activeNotes, noteNumberToNoteName[currentNote+1])
-    roundCounter = roundCounter + 1
-  until noteWasFound or roundCounter == 100 -- Set a max to avoid eternal loop
-  --print("Found noteToPlay noteNumber, noteName, rounds", currentNote, noteNumberToNoteName[currentNote+1], roundCounter)
-  return currentNote
+
+  return selectedNotes[noteIndex]
 end
 
 function getGate()
@@ -645,9 +665,9 @@ end
 function sequenceRunner()
   local currentVoices = 0
   repeat
-    print("sequenceRunner new round")
+    --print("sequenceRunner new round")
     if currentVoices ~= voices then
-      print("currentVoices ~= voices", currentVoices, voices)
+      --print("currentVoices ~= voices", currentVoices, voices)
       isPlaying = {}
       for i=1,voices do
         table.insert(isPlaying, i)
@@ -668,7 +688,7 @@ function arpeg(voice)
   local baseDuration = 0
   local remainingDuration = 0
   local durationRepeatProbability = durationRepeatProbabilityInput.value
-  print("Start playing voice", voice)
+  --print("Start playing voice", voice)
   while isPlaying[voice] == voice do
     local channel = nil
     if channelButton.value then
@@ -679,7 +699,7 @@ function arpeg(voice)
       --waitDuration = nil -- Reset duration?
       baseDuration = getResolution(baseResolution.value)
       remainingDuration = baseDuration -- RESET to base
-      --print("***RESET*** voice/baseDuration", voice, baseDuration)
+      print("New round voice/baseDuration", voice, baseDuration)
       --randomizeResolutions:changed() -- Param
       --randomizeNotes:changed() -- Param
     end
@@ -691,17 +711,21 @@ function arpeg(voice)
     end
     local gate = getGate()
     if gate > 0 then
+      noteToPlay = getNoteToPlay(noteToPlay)
+    else
+      noteToPlay = nil
+    end
+    if type(noteToPlay) == "number" then
       local velocity = getVelocity()
       local playDuration = beat2ms(waitDuration) * gate
-      noteToPlay = getNoteToPlay(noteToPlay)
-      playNote(noteToPlay, velocity, playDuration, nil, channel)
+        playNote(noteToPlay, velocity, playDuration, nil, channel)
       --print("playNote noteToPlay, velocity, playDuration, voice", noteToPlay, velocity, playDuration, voice)
       -- Register playing note
       table.insert(notesPlaying, noteToPlay)
     end
     --print("waitBeat(waitDuration)", waitDuration)
     waitBeat(waitDuration)
-    if gate > 0 then
+    if type(noteToPlay) == "number" then
       -- Unregister note
       table.remove(notesPlaying, getIndexFromValue(noteToPlay, notesPlaying))
     end
