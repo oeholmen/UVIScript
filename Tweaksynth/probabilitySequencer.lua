@@ -12,7 +12,6 @@ local labelBackgoundColour = "white"
 local menuBackgroundColour = "01011F"
 local menuArrowColour = "66" .. labelTextColour
 local menuOutlineColour = "5f" .. widgetTextColour
-setBackgroundColour(backgroundColour)
 
 local voices = 1
 local octaves = 9
@@ -86,6 +85,8 @@ end
 --------------------------------------------------------------------------------
 -- Panel Definitions
 --------------------------------------------------------------------------------
+
+setBackgroundColour(backgroundColour)
 
 local sequencerPanel = Panel("Sequencer")
 sequencerPanel.backgroundColour = backgroundColour
@@ -166,6 +167,219 @@ playButton.changed = function(self)
   else
     stopPlaying()
   end
+end
+
+--------------------------------------------------------------------------------
+-- Settings Panel
+--------------------------------------------------------------------------------
+
+local settingsLabel = settingsPanel:Label("SettingsLabel")
+settingsLabel.text = "Settings"
+settingsLabel.alpha = 0.75
+settingsLabel.fontSize = 15
+settingsLabel.width = 350
+
+local voicesInput = settingsPanel:NumBox("Voices", voices, 1, 16, true)
+voicesInput.textColour = widgetTextColour
+voicesInput.backgroundColour = widgetBackgroundColour
+voicesInput.displayName = "Voices"
+voicesInput.tooltip = "Number of voices playing"
+voicesInput.size = {106,20}
+voicesInput.x = 5
+voicesInput.y = settingsLabel.y + settingsLabel.height + 5
+voicesInput.changed = function(self)
+  voices = self.value
+end
+
+local gateInput = settingsPanel:NumBox("Gate", 90, 0, 100, true)
+gateInput.unit = Unit.Percent
+gateInput.textColour = widgetTextColour
+gateInput.backgroundColour = widgetBackgroundColour
+gateInput.displayName = "Gate"
+gateInput.tooltip = "Default gate"
+gateInput.size = voicesInput.size
+gateInput.x = voicesInput.x + voicesInput.width + 10
+gateInput.y = voicesInput.y
+
+local gateRandomization = settingsPanel:NumBox("GateRandomization", 25, 0, 100, true)
+gateRandomization.unit = Unit.Percent
+gateRandomization.textColour = widgetTextColour
+gateRandomization.backgroundColour = widgetBackgroundColour
+gateRandomization.displayName = "Gate Rand"
+gateRandomization.tooltip = "Gate randomization amount"
+gateRandomization.size = gateInput.size
+gateRandomization.x = gateInput.x + gateInput.width + 10
+gateRandomization.y = voicesInput.y
+
+local velocityInput = settingsPanel:NumBox("Velocity", 64, 1, 127, true)
+velocityInput.textColour = widgetTextColour
+velocityInput.backgroundColour = widgetBackgroundColour
+velocityInput.displayName = "Velocity"
+velocityInput.tooltip = "Default velocity"
+velocityInput.size = gateRandomization.size
+velocityInput.x = gateRandomization.x + gateRandomization.width + 10
+velocityInput.y = voicesInput.y
+
+local velocityRandomization = settingsPanel:NumBox("VelocityRandomization", 25, 0, 100, true)
+velocityRandomization.unit = Unit.Percent
+velocityRandomization.textColour = widgetTextColour
+velocityRandomization.backgroundColour = widgetBackgroundColour
+velocityRandomization.displayName = "Vel Rand"
+velocityRandomization.tooltip = "Velocity randomization amount"
+velocityRandomization.size = velocityInput.size
+velocityRandomization.x = velocityInput.x + velocityInput.width + 10
+velocityRandomization.y = voicesInput.y
+
+local noteRandomization = settingsPanel:NumBox("NoteRandomization", 25, 0, 100, true)
+noteRandomization.unit = Unit.Percent
+noteRandomization.textColour = widgetTextColour
+noteRandomization.backgroundColour = widgetBackgroundColour
+noteRandomization.displayName = "Note Move"
+noteRandomization.tooltip = "Note movement randomization amount - a small amount gives small steps between notes"
+noteRandomization.size = velocityRandomization.size
+noteRandomization.x = velocityRandomization.x + velocityRandomization.width + 10
+noteRandomization.y = voicesInput.y
+
+--------------------------------------------------------------------------------
+-- Notes Panel
+--------------------------------------------------------------------------------
+
+local noteLabel = notePanel:Label("NotesLabel")
+noteLabel.text = "Notes"
+noteLabel.tooltip = "Set the probability that notes will be included when generating new notes"
+noteLabel.alpha = 0.75
+noteLabel.fontSize = 15
+noteLabel.width = 60
+
+local noteInputs = {}
+local octaveProbabilityInputs = {}
+
+local clearNotes = notePanel:Button("ClearNotes")
+clearNotes.displayName = "Clear all"
+clearNotes.tooltip = "Clear all notes"
+clearNotes.persistent = false
+clearNotes.height = noteLabel.height
+clearNotes.width = 90
+clearNotes.x = resolutionPanel.width - (clearNotes.width * 3) - 30
+clearNotes.y = 5
+clearNotes.changed = function()
+  for _,v in ipairs(noteInputs) do
+    v:setValue(false)
+  end
+end
+
+local addNotes = notePanel:Button("AddNotes")
+addNotes.displayName = "Add all"
+addNotes.tooltip = "Add all notes"
+addNotes.persistent = false
+addNotes.height = noteLabel.height
+addNotes.width = 90
+addNotes.x = clearNotes.x + clearNotes.width + 10
+addNotes.y = 5
+addNotes.changed = function()
+  for _,v in ipairs(noteInputs) do
+    v:setValue(true)
+  end
+end
+
+local randomizeNotes = notePanel:Button("RandomizeNotes")
+randomizeNotes.displayName = "Randomize all"
+randomizeNotes.tooltip = "Randomize all notes"
+randomizeNotes.persistent = false
+randomizeNotes.height = noteLabel.height
+randomizeNotes.width = 90
+randomizeNotes.x = addNotes.x + addNotes.width + 10
+randomizeNotes.y = 5
+randomizeNotes.changed = function()
+  for _,v in ipairs(noteInputs) do
+    v:setValue(getRandomBoolean())
+  end
+end
+
+columnCount = 0
+for i=1,#noteNames do
+  local note = notePanel:OnOffButton("Note" .. i, true)
+  note.backgroundColourOff = "#ff084486"
+  note.backgroundColourOn = "#ff02ACFE"
+  note.textColourOff = "#ff22FFFF"
+  note.textColourOn = "#efFFFFFF"
+  note.displayName = noteNames[i]
+  note.tooltip = "Probability of note being played"
+  note.size = {51,30}
+  note.x = (columnCount * (note.width + 6.6)) + 5
+  note.y = noteLabel.y + noteLabel.height + 5
+  table.insert(noteInputs, note)
+  columnCount = columnCount + 1
+end
+
+columnCount = 0
+
+local rising = true
+local numStepsUpDown = math.floor(octaves / 2)
+local changePerStep = 100 / numStepsUpDown
+local startValue = 0
+for i=1,octaves do
+  local octaveLabel = notePanel:Label("OctaveLabel")
+  octaveLabel.text = "Oct " .. i - 2
+  octaveLabel.alpha = 0.75
+  octaveLabel.fontSize = 15
+  octaveLabel.width = 670 / octaves
+  octaveLabel.height = 22
+  octaveLabel.x = ((octaveLabel.width+(22/octaves)) * columnCount) + 5
+  octaveLabel.y = 70
+
+  local octaveProbabilityInput = notePanel:NumBox("OctaveProbability" .. i, startValue, 0, 100, true)
+  octaveProbabilityInput.unit = Unit.Percent
+  octaveProbabilityInput.textColour = widgetTextColour
+  octaveProbabilityInput.backgroundColour = widgetBackgroundColour
+  octaveProbabilityInput.showLabel = false
+  octaveProbabilityInput.tooltip = "Set the probability that octave " .. i - 2 .. " will be available when generating notes to play"
+  octaveProbabilityInput.width = octaveLabel.width
+  octaveProbabilityInput.height = octaveLabel.height
+  octaveProbabilityInput.x = octaveLabel.x
+  octaveProbabilityInput.y = octaveLabel.y + octaveLabel.height
+
+  table.insert(octaveProbabilityInputs, octaveProbabilityInput)
+
+  if rising then
+    startValue = startValue + changePerStep
+    if startValue >= 100 then
+      rising = false
+    end
+  else
+    startValue = startValue - changePerStep
+  end
+
+  columnCount = columnCount + 1
+end
+
+local generateKey = notePanel:Menu("GenerateKey", noteNames)
+generateKey.tooltip = "Key"
+generateKey.showLabel = false
+generateKey.backgroundColour = menuBackgroundColour
+generateKey.textColour = widgetTextColour
+generateKey.arrowColour = menuArrowColour
+generateKey.outlineColour = menuOutlineColour
+generateKey.size = {106,20}
+generateKey.x = noteLabel.x + noteLabel.width + 10
+generateKey.y = noteLabel.y
+generateKey.changed = function(self)
+  setScale()
+end
+
+local generateScale = notePanel:Menu("GenerateScale", scaleNames)
+generateScale.selected = #scaleNames
+generateScale.tooltip = "Scale"
+generateScale.showLabel = false
+generateScale.backgroundColour = menuBackgroundColour
+generateScale.textColour = widgetTextColour
+generateScale.arrowColour = menuArrowColour
+generateScale.outlineColour = menuOutlineColour
+generateScale.size = generateKey.size
+generateScale.x = generateKey.x + generateKey.width + 10
+generateScale.y = generateKey.y
+generateScale.changed = function(self)
+  setScale()
 end
 
 --------------------------------------------------------------------------------
@@ -328,219 +542,6 @@ useGlobalProbabilityInput.tooltip = "Set the probability that same resolution wi
 useGlobalProbabilityInput.size = {106,20}
 useGlobalProbabilityInput.x = durationRepeatDecay.x + durationRepeatDecay.width + 10
 useGlobalProbabilityInput.y = durationRepeatDecay.y
-
---------------------------------------------------------------------------------
--- Notes Panel
---------------------------------------------------------------------------------
-
-local noteLabel = notePanel:Label("NotesLabel")
-noteLabel.text = "Notes"
-noteLabel.tooltip = "Set the probability that notes will be included when generating new notes"
-noteLabel.alpha = 0.75
-noteLabel.fontSize = 15
-noteLabel.width = 60
-
-local noteInputs = {}
-local octaveProbabilityInputs = {}
-
-local clearNotes = notePanel:Button("ClearNotes")
-clearNotes.displayName = "Clear all"
-clearNotes.tooltip = "Clear all notes"
-clearNotes.persistent = false
-clearNotes.height = noteLabel.height
-clearNotes.width = 90
-clearNotes.x = resolutionPanel.width - (clearNotes.width * 3) - 30
-clearNotes.y = 5
-clearNotes.changed = function()
-  for _,v in ipairs(noteInputs) do
-    v:setValue(false)
-  end
-end
-
-local addNotes = notePanel:Button("AddNotes")
-addNotes.displayName = "Add all"
-addNotes.tooltip = "Add all notes"
-addNotes.persistent = false
-addNotes.height = noteLabel.height
-addNotes.width = 90
-addNotes.x = clearNotes.x + clearNotes.width + 10
-addNotes.y = 5
-addNotes.changed = function()
-  for _,v in ipairs(noteInputs) do
-    v:setValue(true)
-  end
-end
-
-local randomizeNotes = notePanel:Button("RandomizeNotes")
-randomizeNotes.displayName = "Randomize all"
-randomizeNotes.tooltip = "Randomize all notes"
-randomizeNotes.persistent = false
-randomizeNotes.height = noteLabel.height
-randomizeNotes.width = 90
-randomizeNotes.x = addNotes.x + addNotes.width + 10
-randomizeNotes.y = 5
-randomizeNotes.changed = function()
-  for _,v in ipairs(noteInputs) do
-    v:setValue(getRandomBoolean())
-  end
-end
-
-columnCount = 0
-for i=1,#noteNames do
-  local note = notePanel:OnOffButton("Note" .. i, true)
-  note.backgroundColourOff = "#ff084486"
-  note.backgroundColourOn = "#ff02ACFE"
-  note.textColourOff = "#ff22FFFF"
-  note.textColourOn = "#efFFFFFF"
-  note.displayName = noteNames[i]
-  note.tooltip = "Probability of note being played"
-  note.size = {51,30}
-  note.x = (columnCount * (note.width + 6.6)) + 5
-  note.y = noteLabel.y + noteLabel.height + 5
-  table.insert(noteInputs, note)
-  columnCount = columnCount + 1
-end
-
-columnCount = 0
-
-local rising = true
-local numStepsUpDown = math.floor(octaves / 2)
-local changePerStep = 100 / numStepsUpDown
-local startValue = 0
-for i=1,octaves do
-  local octaveLabel = notePanel:Label("OctaveLabel")
-  octaveLabel.text = "Oct " .. i - 2
-  octaveLabel.alpha = 0.75
-  octaveLabel.fontSize = 15
-  octaveLabel.width = 670 / octaves
-  octaveLabel.height = 22
-  octaveLabel.x = ((octaveLabel.width+(22/octaves)) * columnCount) + 5
-  octaveLabel.y = 70
-
-  local octaveProbabilityInput = notePanel:NumBox("OctaveProbability" .. i, startValue, 0, 100, true)
-  octaveProbabilityInput.unit = Unit.Percent
-  octaveProbabilityInput.textColour = widgetTextColour
-  octaveProbabilityInput.backgroundColour = widgetBackgroundColour
-  octaveProbabilityInput.showLabel = false
-  octaveProbabilityInput.tooltip = "Set the probability that octave " .. i - 2 .. " will be available when generating notes to play"
-  octaveProbabilityInput.width = octaveLabel.width
-  octaveProbabilityInput.height = octaveLabel.height
-  octaveProbabilityInput.x = octaveLabel.x
-  octaveProbabilityInput.y = octaveLabel.y + octaveLabel.height
-
-  table.insert(octaveProbabilityInputs, octaveProbabilityInput)
-
-  if rising then
-    startValue = startValue + changePerStep
-    if startValue >= 100 then
-      rising = false
-    end
-  else
-    startValue = startValue - changePerStep
-  end
-
-  columnCount = columnCount + 1
-end
-
-local generateKey = notePanel:Menu("GenerateKey", noteNames)
-generateKey.tooltip = "Key"
-generateKey.showLabel = false
-generateKey.backgroundColour = menuBackgroundColour
-generateKey.textColour = widgetTextColour
-generateKey.arrowColour = menuArrowColour
-generateKey.outlineColour = menuOutlineColour
-generateKey.size = {106,20}
-generateKey.x = noteLabel.x + noteLabel.width + 10
-generateKey.y = noteLabel.y
-generateKey.changed = function(self)
-  setScale()
-end
-
-local generateScale = notePanel:Menu("GenerateScale", scaleNames)
-generateScale.selected = #scaleNames
-generateScale.tooltip = "Scale"
-generateScale.showLabel = false
-generateScale.backgroundColour = menuBackgroundColour
-generateScale.textColour = widgetTextColour
-generateScale.arrowColour = menuArrowColour
-generateScale.outlineColour = menuOutlineColour
-generateScale.size = generateKey.size
-generateScale.x = generateKey.x + generateKey.width + 10
-generateScale.y = generateKey.y
-generateScale.changed = function(self)
-  setScale()
-end
-
---------------------------------------------------------------------------------
--- Settings Panel
---------------------------------------------------------------------------------
-
-local settingsLabel = settingsPanel:Label("SettingsLabel")
-settingsLabel.text = "Settings"
-settingsLabel.alpha = 0.75
-settingsLabel.fontSize = 15
-settingsLabel.width = 350
-
-local voicesInput = settingsPanel:NumBox("Voices", voices, 1, 16, true)
-voicesInput.textColour = widgetTextColour
-voicesInput.backgroundColour = widgetBackgroundColour
-voicesInput.displayName = "Voices"
-voicesInput.tooltip = "Number of voices playing"
-voicesInput.size = {106,20}
-voicesInput.x = 5
-voicesInput.y = settingsLabel.y + settingsLabel.height + 5
-voicesInput.changed = function(self)
-  voices = self.value
-end
-
-local gateInput = settingsPanel:NumBox("Gate", 90, 0, 100, true)
-gateInput.unit = Unit.Percent
-gateInput.textColour = widgetTextColour
-gateInput.backgroundColour = widgetBackgroundColour
-gateInput.displayName = "Gate"
-gateInput.tooltip = "Default gate"
-gateInput.size = voicesInput.size
-gateInput.x = voicesInput.x + voicesInput.width + 10
-gateInput.y = voicesInput.y
-
-local gateRandomization = settingsPanel:NumBox("GateRandomization", 25, 0, 100, true)
-gateRandomization.unit = Unit.Percent
-gateRandomization.textColour = widgetTextColour
-gateRandomization.backgroundColour = widgetBackgroundColour
-gateRandomization.displayName = "Gate Rand"
-gateRandomization.tooltip = "Gate randomization amount"
-gateRandomization.size = gateInput.size
-gateRandomization.x = gateInput.x + gateInput.width + 10
-gateRandomization.y = voicesInput.y
-
-local velocityInput = settingsPanel:NumBox("Velocity", 64, 1, 127, true)
-velocityInput.textColour = widgetTextColour
-velocityInput.backgroundColour = widgetBackgroundColour
-velocityInput.displayName = "Velocity"
-velocityInput.tooltip = "Default velocity"
-velocityInput.size = gateRandomization.size
-velocityInput.x = gateRandomization.x + gateRandomization.width + 10
-velocityInput.y = voicesInput.y
-
-local velocityRandomization = settingsPanel:NumBox("VelocityRandomization", 25, 0, 100, true)
-velocityRandomization.unit = Unit.Percent
-velocityRandomization.textColour = widgetTextColour
-velocityRandomization.backgroundColour = widgetBackgroundColour
-velocityRandomization.displayName = "Vel Rand"
-velocityRandomization.tooltip = "Velocity randomization amount"
-velocityRandomization.size = velocityInput.size
-velocityRandomization.x = velocityInput.x + velocityInput.width + 10
-velocityRandomization.y = voicesInput.y
-
-local noteRandomization = settingsPanel:NumBox("NoteRandomization", 25, 0, 100, true)
-noteRandomization.unit = Unit.Percent
-noteRandomization.textColour = widgetTextColour
-noteRandomization.backgroundColour = widgetBackgroundColour
-noteRandomization.displayName = "Note Move"
-noteRandomization.tooltip = "Note movement randomization amount - a small amount gives small steps between notes"
-noteRandomization.size = velocityRandomization.size
-noteRandomization.x = velocityRandomization.x + velocityRandomization.width + 10
-noteRandomization.y = voicesInput.y
 
 --------------------------------------------------------------------------------
 -- Note Functions
