@@ -339,7 +339,7 @@ local numStepsUpDown = math.floor(octaves / 2)
 local changePerStep = 100 / numStepsUpDown
 local startValue = 0
 for i=1,octaves do
-  local octave = notePanel:OnOffButton("Octave" .. i, (startValue > 0))
+  local octave = notePanel:OnOffButton("Octave" .. i, (startValue > 50))
   octave.backgroundColourOff = "#ff084486"
   octave.backgroundColourOn = "#ff02ACFE"
   octave.textColourOff = "#ff22FFFF"
@@ -351,8 +351,8 @@ for i=1,octaves do
   octave.x = (columnCount * (octave.width + 6.9)) + 5
   octave.y = 90
 
-  local octaveProbabilityInput = notePanel:NumBox("OctaveProbability" .. i, startValue, 0, 100, true)
-  octaveProbabilityInput.enabled = startValue > 0
+  local octaveProbabilityInput = notePanel:NumBox("OctaveProbability" .. i, 100, 0, 100, true)
+  octaveProbabilityInput.enabled = startValue > 50
   octaveProbabilityInput.unit = Unit.Percent
   octaveProbabilityInput.textColour = widgetTextColour
   octaveProbabilityInput.backgroundColour = widgetBackgroundColour
@@ -438,11 +438,6 @@ clearResolutions.y = 5
 clearResolutions.changed = function()
   for i,v in ipairs(resolutionInputs) do
     v:setValue(false)
-    if v.enabled then
-      resolutionProbabilityInputs[i].value = 100
-    else
-      resolutionProbabilityInputs[i].value = 0
-    end
   end
 end
 
@@ -458,10 +453,8 @@ addResolutions.changed = function()
   for i,v in ipairs(resolutionInputs) do
     if v.enabled then
       v:setValue(true)
-      resolutionProbabilityInputs[i].value = 100
     else
       v:setValue(false)
-      resolutionProbabilityInputs[i].value = 0
     end
   end
 end
@@ -489,7 +482,6 @@ randomizeResolutions.changed = function()
     if v.value then
       value = getRandom(100)
     end
-    resolutionProbabilityInputs[i].value = value
   end
 end
 
@@ -497,20 +489,7 @@ local perRow = 6
 local columnCount = 0
 local rowCount = 1
 for i=1, #resolutions do
-  -- Set active defaults
-  local value = 0
-  if i == 11 then
-    value = 15
-  elseif i == 14 then
-    value = 25
-  elseif i == 17 then
-    value = 50
-  elseif i == 20 then
-    value = 100
-  elseif i == 23 then
-    value = 50
-  end
-  local resolution = resolutionPanel:OnOffButton("Resolution" .. i, (value > 0))
+  local resolution = resolutionPanel:OnOffButton("Resolution" .. i, (i == 20))
   resolution.backgroundColourOff = "#ff084486"
   resolution.backgroundColourOn = "#ff02ACFE"
   resolution.textColourOff = "#ff22FFFF"
@@ -521,8 +500,8 @@ for i=1, #resolutions do
   resolution.x = (columnCount * ((resolution.width*2) + 10)) + 5
   resolution.y = ((resolution.height + 5) * rowCount) + 5
 
-  local resolutionProbability = resolutionPanel:NumBox("ResolutionProbability" .. i, value, 0, 100, true)
-  resolutionProbability.enabled = value > 0
+  local resolutionProbability = resolutionPanel:NumBox("ResolutionProbability" .. i, 100, 0, 100, true)
+  resolutionProbability.enabled = i == 20
   resolutionProbability.unit = Unit.Percent
   resolutionProbability.textColour = widgetTextColour
   resolutionProbability.backgroundColour = widgetBackgroundColour
@@ -534,9 +513,6 @@ for i=1, #resolutions do
 
   resolution.changed = function(self)
     resolutionProbability.enabled = self.value
-    if self.value and resolutionProbability.value == 0 then
-      resolutionProbability:setValue(resolutionProbability.max)
-    end
   end
 
   table.insert(resolutionInputs, resolution)
@@ -762,12 +738,9 @@ function arpeg(voice)
     end
     --print("arpeg gate", gate)
     if remainingDuration == 0 then
-      --waitDuration = nil -- Reset duration?
       baseDuration = getResolution(baseResolution.value)
       remainingDuration = baseDuration -- RESET to base
       print("New round voice/baseDuration", voice, baseDuration)
-      --randomizeResolutions:changed() -- Param
-      --randomizeNotes:changed() -- Param
     end
     waitDuration, durationRepeatProbability = getNoteDuration(waitDuration, durationRepeatProbability)
     --print("remainingDuration, waitDuration", remainingDuration, waitDuration)
