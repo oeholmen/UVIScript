@@ -107,7 +107,7 @@ notePanel.backgroundColour = "404040"
 notePanel.x = settingsPanel.x
 notePanel.y = settingsPanel.y + settingsPanel.height + 5
 notePanel.width = 700
-notePanel.height = 120
+notePanel.height = 150
 
 local resolutionPanel = Panel("Resolutions")
 resolutionPanel.backgroundColour = "404040"
@@ -252,6 +252,8 @@ noteLabel.fontSize = 15
 noteLabel.width = 60
 
 local noteInputs = {}
+local noteProbabilityInputs = {}
+local octaveInputs = {}
 local octaveProbabilityInputs = {}
 
 local clearNotes = notePanel:Button("ClearNotes")
@@ -304,11 +306,29 @@ for i=1,#noteNames do
   note.textColourOff = "#ff22FFFF"
   note.textColourOn = "#efFFFFFF"
   note.displayName = noteNames[i]
-  note.tooltip = "Probability of note being played"
+  note.tooltip = "Toggle note on/off"
   note.size = {51,30}
   note.x = (columnCount * (note.width + 6.6)) + 5
   note.y = noteLabel.y + noteLabel.height + 5
+
+  local noteProbability = notePanel:NumBox("NoteProbability" .. i, 100, 0, 100, true)
+  noteProbability.unit = Unit.Percent
+  noteProbability.textColour = widgetTextColour
+  noteProbability.backgroundColour = widgetBackgroundColour
+  noteProbability.showLabel = false
+  noteProbability.tooltip = "Set the probability that '" .. noteNames[i] .. "' will be available when generating notes to play"
+  noteProbability.width = note.width
+  noteProbability.height = 22
+  noteProbability.x = note.x
+  noteProbability.y = note.y + note.height + 1
+
+  note.changed = function(self)
+    noteProbability.enabled = self.value
+  end
+
   table.insert(noteInputs, note)
+  table.insert(noteProbabilityInputs, noteProbability)
+
   columnCount = columnCount + 1
 end
 
@@ -319,26 +339,35 @@ local numStepsUpDown = math.floor(octaves / 2)
 local changePerStep = 100 / numStepsUpDown
 local startValue = 0
 for i=1,octaves do
-  local octaveLabel = notePanel:Label("OctaveLabel")
-  octaveLabel.text = "Oct " .. i - 2
-  octaveLabel.alpha = 0.75
-  octaveLabel.fontSize = 15
-  octaveLabel.width = 670 / octaves
-  octaveLabel.height = 22
-  octaveLabel.x = ((octaveLabel.width+(22/octaves)) * columnCount) + 5
-  octaveLabel.y = 70
+  local octave = notePanel:OnOffButton("Octave" .. i, (startValue > 0))
+  octave.backgroundColourOff = "#ff084486"
+  octave.backgroundColourOn = "#ff02ACFE"
+  octave.textColourOff = "#ff22FFFF"
+  octave.textColourOn = "#efFFFFFF"
+  octave.displayName = "Oct " .. i - 2
+  octave.tooltip = "Toggle octave on/off"
+  octave.width = (636 / octaves)
+  octave.height = 30
+  octave.x = (columnCount * (octave.width + 6.9)) + 5
+  octave.y = 90
 
   local octaveProbabilityInput = notePanel:NumBox("OctaveProbability" .. i, startValue, 0, 100, true)
+  octaveProbabilityInput.enabled = startValue > 0
   octaveProbabilityInput.unit = Unit.Percent
   octaveProbabilityInput.textColour = widgetTextColour
   octaveProbabilityInput.backgroundColour = widgetBackgroundColour
   octaveProbabilityInput.showLabel = false
   octaveProbabilityInput.tooltip = "Set the probability that octave " .. i - 2 .. " will be available when generating notes to play"
-  octaveProbabilityInput.width = octaveLabel.width
-  octaveProbabilityInput.height = octaveLabel.height
-  octaveProbabilityInput.x = octaveLabel.x
-  octaveProbabilityInput.y = octaveLabel.y + octaveLabel.height
+  octaveProbabilityInput.width = octave.width
+  octaveProbabilityInput.height = 22
+  octaveProbabilityInput.x = octave.x
+  octaveProbabilityInput.y = octave.y + octave.height
 
+  octave.changed = function(self)
+    octaveProbabilityInput.enabled = self.value
+  end
+
+  table.insert(octaveInputs, octave)
   table.insert(octaveProbabilityInputs, octaveProbabilityInput)
 
   if rising then
@@ -612,12 +641,13 @@ end
 
 function getNoteToPlay(currentNote)
   local selectedNotes = {} -- Holds note numbers that are available
-  for octaveIndex=1,octaves do
+  for octaveIndex,octave in ipairs(octaveInputs) do
     local octaveProbability = octaveProbabilityInputs[octaveIndex].value
-    if octaveProbability > 0 then
+    if octave.value and octaveProbability > 0 then
       for i,v in ipairs(noteInputs) do
         -- Check if note should be added for this octave
-        if v.value and getRandomBoolean(octaveProbability) then
+        local noteProbability = noteProbabilityInputs[i].value
+        if v.value and getRandomBoolean(noteProbability) and getRandomBoolean(octaveProbability) then
           local noteNumber = i - 1 -- Base note
           noteNumber = noteNumber + (12 * octaveIndex) -- Set octave
           if tableIncludes(notesPlaying, noteNumber) == false then
