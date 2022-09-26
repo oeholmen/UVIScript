@@ -257,8 +257,8 @@ local octaveInputs = {}
 local octaveProbabilityInputs = {}
 
 local clearNotes = notePanel:Button("ClearNotes")
-clearNotes.displayName = "Clear all"
-clearNotes.tooltip = "Clear all notes"
+clearNotes.displayName = "Clear notes"
+clearNotes.tooltip = "Deselect all notes"
 clearNotes.persistent = false
 clearNotes.height = noteLabel.height
 clearNotes.width = 90
@@ -271,8 +271,8 @@ clearNotes.changed = function()
 end
 
 local addNotes = notePanel:Button("AddNotes")
-addNotes.displayName = "Add all"
-addNotes.tooltip = "Add all notes"
+addNotes.displayName = "All notes"
+addNotes.tooltip = "Select all notes"
 addNotes.persistent = false
 addNotes.height = noteLabel.height
 addNotes.width = 90
@@ -285,7 +285,7 @@ addNotes.changed = function()
 end
 
 local randomizeNotes = notePanel:Button("RandomizeNotes")
-randomizeNotes.displayName = "Randomize all"
+randomizeNotes.displayName = "Randomize notes"
 randomizeNotes.tooltip = "Randomize all notes"
 randomizeNotes.persistent = false
 randomizeNotes.height = noteLabel.height
@@ -418,42 +418,50 @@ end
 local resolutions = getResolutions()
 local resolutionNames = getResolutionNames()
 local resolutionInputs = {}
+local resolutionProbabilityInputs = {}
 
 local resLabel = resolutionPanel:Label("ResolutionsLabel")
 resLabel.text = "Resolutions"
-resLabel.tooltip = "Set the probability that resolutions will be included when generating resolutions"
+resLabel.tooltip = "Set probability for each resolution to be selected"
 resLabel.alpha = 0.75
 resLabel.fontSize = 15
 resLabel.width = 350
 
 local clearResolutions = resolutionPanel:Button("ClearResolutions")
 clearResolutions.displayName = "Clear all"
-clearResolutions.tooltip = "Clear all notes"
+clearResolutions.tooltip = "Clear all resolutions"
 clearResolutions.persistent = false
 clearResolutions.height = resLabel.height
 clearResolutions.width = 90
 clearResolutions.x = resolutionPanel.width - (clearResolutions.width * 3) - 30
 clearResolutions.y = 5
 clearResolutions.changed = function()
-  for _,v in ipairs(resolutionInputs) do
-    v:setValue(0)
+  for i,v in ipairs(resolutionInputs) do
+    v:setValue(false)
+    if v.enabled then
+      resolutionProbabilityInputs[i].value = 100
+    else
+      resolutionProbabilityInputs[i].value = 0
+    end
   end
 end
 
 local addResolutions = resolutionPanel:Button("AddResolutions")
 addResolutions.displayName = "Add all"
-addResolutions.tooltip = "Add all notes"
+addResolutions.tooltip = "Add all resolutions"
 addResolutions.persistent = false
 addResolutions.height = clearResolutions.height
 addResolutions.width = 90
 addResolutions.x = clearResolutions.x + clearResolutions.width + 10
 addResolutions.y = 5
 addResolutions.changed = function()
-  for _,v in ipairs(resolutionInputs) do
+  for i,v in ipairs(resolutionInputs) do
     if v.enabled then
-      v:setValue(100)
+      v:setValue(true)
+      resolutionProbabilityInputs[i].value = 100
     else
-      v:setValue(0)
+      v:setValue(false)
+      resolutionProbabilityInputs[i].value = 0
     end
   end
 end
@@ -468,15 +476,20 @@ randomizeResolutions.x = addResolutions.x + addResolutions.width + 10
 randomizeResolutions.y = 5
 randomizeResolutions.changed = function()
   for i,v in ipairs(resolutionInputs) do
-    if i < 5 or v.enabled == false or getRandomBoolean() then
-      v:setValue(0)
+    local value = 0
+    if i < 5 or v.enabled == false then
+      v:setValue(false)
     elseif i < 9 or i > 26 then
-      v:setValue(getRandom(0,5))
+      v:setValue(getRandomBoolean(15))
     elseif i < 17 then
-      v:setValue(getRandom(0,25))
+      v:setValue(getRandomBoolean(25))
     else
-      v:setValue(getRandom(0,100))
+      v:setValue(getRandomBoolean())
     end
+    if v.value then
+      value = getRandom(100)
+    end
+    resolutionProbabilityInputs[i].value = value
   end
 end
 
@@ -497,16 +510,38 @@ for i=1, #resolutions do
   elseif i == 23 then
     value = 50
   end
-  local resolution = resolutionPanel:NumBox("Res" .. i, value, 0, 100, true)
-  resolution.unit = Unit.Percent
-  resolution.textColour = widgetTextColour
-  resolution.backgroundColour = widgetBackgroundColour
+  local resolution = resolutionPanel:OnOffButton("Resolution" .. i, (value > 0))
+  resolution.backgroundColourOff = "#ff084486"
+  resolution.backgroundColourOn = "#ff02ACFE"
+  resolution.textColourOff = "#ff22FFFF"
+  resolution.textColourOn = "#efFFFFFF"
   resolution.displayName = resolutionNames[i]
-  resolution.tooltip = "Probability of resolution being used"
-  resolution.size = {106,20}
-  resolution.x = (columnCount * (resolution.width + 10)) + 5
+  resolution.tooltip = "Toggle resolution on/off"
+  resolution.size = {53,20}
+  resolution.x = (columnCount * ((resolution.width*2) + 10)) + 5
   resolution.y = ((resolution.height + 5) * rowCount) + 5
+
+  local resolutionProbability = resolutionPanel:NumBox("ResolutionProbability" .. i, value, 0, 100, true)
+  resolutionProbability.enabled = value > 0
+  resolutionProbability.unit = Unit.Percent
+  resolutionProbability.textColour = widgetTextColour
+  resolutionProbability.backgroundColour = widgetBackgroundColour
+  resolutionProbability.showLabel = false
+  resolutionProbability.tooltip = "Probability of resolution being used"
+  resolutionProbability.size = resolution.size
+  resolutionProbability.x = resolution.x + resolution.width + 1
+  resolutionProbability.y = resolution.y
+
+  resolution.changed = function(self)
+    resolutionProbability.enabled = self.value
+    if self.value and resolutionProbability.value == 0 then
+      resolutionProbability:setValue(resolutionProbability.max)
+    end
+  end
+
   table.insert(resolutionInputs, resolution)
+  table.insert(resolutionProbabilityInputs, resolutionProbability)
+
   columnCount = columnCount + 1
   if i % perRow == 0 then
     rowCount = rowCount + 1
@@ -566,7 +601,7 @@ local useGlobalProbabilityInput = resolutionPanel:NumBox("UseGlobalProbabilityIn
 useGlobalProbabilityInput.unit = Unit.Percent
 useGlobalProbabilityInput.textColour = widgetTextColour
 useGlobalProbabilityInput.backgroundColour = widgetBackgroundColour
-useGlobalProbabilityInput.displayName = "Global"
+useGlobalProbabilityInput.displayName = "Link Voices"
 useGlobalProbabilityInput.tooltip = "Set the probability that same resolution will be selected for all voices"
 useGlobalProbabilityInput.size = {106,20}
 useGlobalProbabilityInput.x = durationRepeatDecay.x + durationRepeatDecay.width + 10
@@ -590,7 +625,7 @@ function getNoteDuration(currentDuration, durationRepeatProbability)
   local activeResolutions = {} -- All active
   local selectedResolutions = {} -- All selected
   for i,v in ipairs(resolutionInputs) do
-    if v.enabled and v.value > 0 then
+    if v.enabled and v.value and getRandomBoolean(resolutionProbabilityInputs[i].value) then
       table.insert(activeResolutions, i)
       if getRandomBoolean(v.value) == true then
         table.insert(selectedResolutions, i)
