@@ -41,7 +41,7 @@ for page=1,maxPages do
   local tableHeight = 64
   local buttonRowHeight = 36
   local buttonSpacing = 10
-  local inputWidgetSize = {90,20}
+  --local inputWidgetSize = {75,20}
   local defaultSteps = 16
 
   if numParts == 1 then
@@ -96,6 +96,18 @@ for page=1,maxPages do
     local inputWidgetY = seqValueTable.y + seqValueTable.height + 5
 
     -- Inputs
+    local partLabelInput = sequencerPanel:Label("Label")
+    partLabelInput.text = "CC " .. (part+101)
+    partLabelInput.editable = true
+    partLabelInput.backgroundColour = pageBackgoundColour
+    partLabelInput.textColour = "808080"
+    partLabelInput.backgroundColourWhenEditing = "white"
+    partLabelInput.textColourWhenEditing = "black"
+    partLabelInput.fontSize = 16
+    partLabelInput.width = 75
+    partLabelInput.height = 20
+    partLabelInput.x = 0
+    partLabelInput.y = inputWidgetY
 
     local stepButton = sequencerPanel:OnOffButton("Step" .. i, false)
     stepButton.displayName = "Step"
@@ -105,8 +117,8 @@ for page=1,maxPages do
     stepButton.backgroundColourOn = "#ff02ACFE"
     stepButton.textColourOff = "#ff22FFFF"
     stepButton.textColourOn = "#efFFFFFF"
-    stepButton.size = inputWidgetSize
-    stepButton.x = 0
+    stepButton.size = {60,20}
+    stepButton.x = partLabelInput.x + partLabelInput.width + buttonSpacing
     stepButton.y = inputWidgetY
     stepButton.changed = function(self)
       setPageDuration(page)
@@ -119,7 +131,7 @@ for page=1,maxPages do
     stepResolution.selected = 11
     stepResolution.x = stepButton.x + stepButton.width + buttonSpacing
     stepResolution.y = inputWidgetY
-    stepResolution.size = {75,20}
+    stepResolution.size = {60,20}
     stepResolution.backgroundColour = menuBackgroundColour
     stepResolution.textColour = menuTextColour
     stepResolution.arrowColour = menuArrowColour
@@ -136,7 +148,7 @@ for page=1,maxPages do
     numStepsBox.textColour = menuTextColour
     numStepsBox.arrowColour = menuArrowColour
     numStepsBox.outlineColour = menuOutlineColour
-    numStepsBox.size = inputWidgetSize
+    numStepsBox.size = {90,20}
     numStepsBox.x = stepResolution.x + stepResolution.width + buttonSpacing
     numStepsBox.y = inputWidgetY
     numStepsBox.changed = function(self)
@@ -163,7 +175,7 @@ for page=1,maxPages do
     midiControlNumber.visible = isVisible
     midiControlNumber.backgroundColour = menuBackgroundColour
     midiControlNumber.textColour = menuTextColour
-    midiControlNumber.size = inputWidgetSize
+    midiControlNumber.size = {90,20}
     midiControlNumber.x = valueRandomization.x + valueRandomization.width + buttonSpacing
     midiControlNumber.y = inputWidgetY
 
@@ -175,7 +187,7 @@ for page=1,maxPages do
     channelBox.textColour = menuTextColour
     channelBox.arrowColour = menuArrowColour
     channelBox.outlineColour = menuOutlineColour
-    channelBox.size = inputWidgetSize
+    channelBox.size = {75,20}
     channelBox.x = midiControlNumber.x + midiControlNumber.width + buttonSpacing
     channelBox.y = inputWidgetY
 
@@ -187,11 +199,11 @@ for page=1,maxPages do
     smoothButton.backgroundColourOn = "#ff02ACFE"
     smoothButton.textColourOff = "#ff22FFFF"
     smoothButton.textColourOn = "#efFFFFFF"
-    smoothButton.size = inputWidgetSize
+    smoothButton.size = {60,20}
     smoothButton.x = channelBox.x + channelBox.width + buttonSpacing
     smoothButton.y = inputWidgetY
 
-    table.insert(paramsPerPart, {stepButton=stepButton,smoothButton=smoothButton,valueRandomization=valueRandomization,midiControlNumber=midiControlNumber,seqValueTable=seqValueTable,channelBox=channelBox,positionTable=positionTable,stepResolution=stepResolution,numStepsBox=numStepsBox})
+    table.insert(paramsPerPart, {stepButton=stepButton,smoothButton=smoothButton,valueRandomization=valueRandomization,midiControlNumber=midiControlNumber,seqValueTable=seqValueTable,channelBox=channelBox,positionTable=positionTable,stepResolution=stepResolution,numStepsBox=numStepsBox,partLabelInput=partLabelInput})
 
     tableY = tableY + tableHeight + buttonRowHeight
   end
@@ -338,9 +350,11 @@ end
 function onSave()
   local numStepsData = {}
   local seqValueTableData = {}
+  local partLabelInputData = {}
 
   for _,v in ipairs(paramsPerPart) do
     table.insert(numStepsData, v.numStepsBox.value)
+    table.insert(partLabelInputData, v.partLabelInput.text)
     for j=1, v.numStepsBox.value do
       table.insert(seqValueTableData, v.seqValueTable:getValue(j))
     end
@@ -349,6 +363,7 @@ function onSave()
   local data = {}
   table.insert(data, numStepsData)
   table.insert(data, seqValueTableData)
+  table.insert(data, partLabelInputData)
   table.insert(data, labelInput.text)
 
   return data
@@ -357,11 +372,13 @@ end
 function onLoad(data)
   local numStepsData = data[1]
   local seqValueTableData = data[2]
-  labelInput.text = data[3]
+  local partLabelInputData = data[3]
+  labelInput.text = data[4]
 
   local dataCounter = 1
   for i,v in ipairs(numStepsData) do
     paramsPerPart[i].numStepsBox:setValue(v)
+    paramsPerPart[i].partLabelInput.text = partLabelInputData[i]
     paramsPerPart[i].seqValueTable.length = v
     for j=1, v do
       paramsPerPart[i].seqValueTable:setValue(j, seqValueTableData[dataCounter])
