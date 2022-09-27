@@ -20,6 +20,7 @@ local isPlaying = {}
 local noteNumberToNoteName = getNoteMapping()
 local noteNames = getNoteNames()
 local globalResolution = nil -- Holds the global resolution for all voices
+local minResolution = 0.03125 -- The lowest possible resolution
 
 --------------------------------------------------------------------------------
 -- Scales
@@ -114,7 +115,7 @@ resolutionPanel.backgroundColour = "404040"
 resolutionPanel.x = notePanel.x
 resolutionPanel.y = notePanel.y + notePanel.height + 5
 resolutionPanel.width = 700
-resolutionPanel.height = 180
+resolutionPanel.height = 135
 
 --------------------------------------------------------------------------------
 -- Sequencer Panel
@@ -187,9 +188,6 @@ voicesInput.tooltip = "Number of voices playing"
 voicesInput.size = {106,20}
 voicesInput.x = 5
 voicesInput.y = settingsLabel.y + settingsLabel.height + 5
-voicesInput.changed = function(self)
-  voices = self.value
-end
 
 local gateInput = settingsPanel:NumBox("Gate", 90, 0, 100, true)
 gateInput.unit = Unit.Percent
@@ -322,10 +320,6 @@ for i=1,#noteNames do
   noteProbability.x = note.x
   noteProbability.y = note.y + note.height + 1
 
-  note.changed = function(self)
-    noteProbability.enabled = self.value
-  end
-
   table.insert(noteInputs, note)
   table.insert(noteProbabilityInputs, noteProbability)
 
@@ -352,7 +346,6 @@ for i=1,octaves do
   octave.y = 90
 
   local octaveProbabilityInput = notePanel:NumBox("OctaveProbability" .. i, 100, 0, 100, true)
-  octaveProbabilityInput.enabled = startValue > 50
   octaveProbabilityInput.unit = Unit.Percent
   octaveProbabilityInput.textColour = widgetTextColour
   octaveProbabilityInput.backgroundColour = widgetBackgroundColour
@@ -362,10 +355,6 @@ for i=1,octaves do
   octaveProbabilityInput.height = 22
   octaveProbabilityInput.x = octave.x
   octaveProbabilityInput.y = octave.y + octave.height
-
-  octave.changed = function(self)
-    octaveProbabilityInput.enabled = self.value
-  end
 
   table.insert(octaveInputs, octave)
   table.insert(octaveProbabilityInputs, octaveProbabilityInput)
@@ -415,10 +404,18 @@ end
 -- Resolution Panel
 --------------------------------------------------------------------------------
 
+local divOpt = {}
+for i=1,128 do
+  table.insert(divOpt, "/ " .. i)
+end
+
 local resolutions = getResolutions()
 local resolutionNames = getResolutionNames()
 local resolutionInputs = {}
+local toggleResolutionInputs = {}
 local resolutionProbabilityInputs = {}
+local minRepeats = {}
+local divisions = {}
 
 local resLabel = resolutionPanel:Label("ResolutionsLabel")
 resLabel.text = "Resolutions"
@@ -428,8 +425,8 @@ resLabel.fontSize = 15
 resLabel.width = 350
 
 local clearResolutions = resolutionPanel:Button("ClearResolutions")
-clearResolutions.displayName = "Clear all"
-clearResolutions.tooltip = "Clear all resolutions"
+clearResolutions.displayName = "All off"
+clearResolutions.tooltip = "Deactivate all resolutions"
 clearResolutions.persistent = false
 clearResolutions.height = resLabel.height
 clearResolutions.width = 90
@@ -437,13 +434,13 @@ clearResolutions.x = resolutionPanel.width - (clearResolutions.width * 3) - 30
 clearResolutions.y = 5
 clearResolutions.changed = function()
   for i,v in ipairs(resolutionInputs) do
-    v:setValue(false)
+    toggleResolutionInputs[i]:setValue(false)
   end
 end
 
 local addResolutions = resolutionPanel:Button("AddResolutions")
-addResolutions.displayName = "Add all"
-addResolutions.tooltip = "Add all resolutions"
+addResolutions.displayName = "Add on"
+addResolutions.tooltip = "Activate all resolutions"
 addResolutions.persistent = false
 addResolutions.height = clearResolutions.height
 addResolutions.width = 90
@@ -451,17 +448,13 @@ addResolutions.x = clearResolutions.x + clearResolutions.width + 10
 addResolutions.y = 5
 addResolutions.changed = function()
   for i,v in ipairs(resolutionInputs) do
-    if v.enabled then
-      v:setValue(true)
-    else
-      v:setValue(false)
-    end
+    toggleResolutionInputs[i]:setValue(true)
   end
 end
 
 local randomizeResolutions = resolutionPanel:Button("RandomizeResolutions")
-randomizeResolutions.displayName = "Randomize all"
-randomizeResolutions.tooltip = "Randomize resolutions"
+randomizeResolutions.displayName = "Randomize"
+randomizeResolutions.tooltip = "Randomize selected resolutions"
 randomizeResolutions.persistent = false
 randomizeResolutions.height = clearResolutions.height
 randomizeResolutions.width = 90
@@ -469,54 +462,90 @@ randomizeResolutions.x = addResolutions.x + addResolutions.width + 10
 randomizeResolutions.y = 5
 randomizeResolutions.changed = function()
   for i,v in ipairs(resolutionInputs) do
-    local value = 0
-    if i < 5 or v.enabled == false then
-      v:setValue(false)
-    elseif i < 9 or i > 26 then
-      v:setValue(getRandomBoolean(15))
-    elseif i < 17 then
-      v:setValue(getRandomBoolean(25))
-    else
-      v:setValue(getRandomBoolean())
-    end
-    if v.value then
-      value = getRandom(100)
-    end
+    toggleResolutionInputs[i]:setValue(getRandomBoolean())
   end
 end
 
-local perRow = 6
+local offset = 11
+local perRow = 3
 local columnCount = 0
 local rowCount = 1
-for i=1, #resolutions do
-  local resolution = resolutionPanel:OnOffButton("Resolution" .. i, (i == 20))
-  resolution.backgroundColourOff = "#ff084486"
-  resolution.backgroundColourOn = "#ff02ACFE"
-  resolution.textColourOff = "#ff22FFFF"
-  resolution.textColourOn = "#efFFFFFF"
-  resolution.displayName = resolutionNames[i]
-  resolution.tooltip = "Toggle resolution on/off"
-  resolution.size = {53,20}
-  resolution.x = (columnCount * ((resolution.width*2) + 10)) + 5
-  resolution.y = ((resolution.height + 5) * rowCount) + 5
+for i=1,9 do
+  local toggleResolution = resolutionPanel:OnOffButton("ToggleResolution" .. i, (i == 1))
+  toggleResolution.backgroundColourOff = "#ff084486"
+  toggleResolution.backgroundColourOn = "#ff02ACFE"
+  toggleResolution.textColourOff = "#ff22FFFF"
+  toggleResolution.textColourOn = "#efFFFFFF"
+  toggleResolution.displayName = " "
+  toggleResolution.tooltip = "Toggle resolution on/off"
+  toggleResolution.size = {23,20}
+  toggleResolution.x = (columnCount * 232) + 5
+  toggleResolution.y = ((toggleResolution.height + 5) * rowCount) + 5
+
+  local resolution = resolutionPanel:Menu("Resolution" .. i, resolutionNames)
+  if i == 1 then
+    resolution.selected = 20
+  elseif i == 2 then
+    resolution.selected = 23
+  elseif i == 6 then
+    resolution.selected = 22
+  elseif i == 7 then
+    resolution.selected = 18
+  else
+    resolution.selected = offset
+  end
+  if i > 2 then
+    offset = offset + 3
+  end
+  resolution.showLabel = false
+  resolution.backgroundColour = widgetBackgroundColour
+  resolution.textColour = widgetTextColour
+  resolution.arrowColour = menuArrowColour
+  resolution.outlineColour = menuOutlineColour
+  resolution.tooltip = "Select resolution"
+  resolution.size = {70,20}
+  resolution.x = toggleResolution.x + toggleResolution.width + 1
+  resolution.y = toggleResolution.y
 
   local resolutionProbability = resolutionPanel:NumBox("ResolutionProbability" .. i, 100, 0, 100, true)
-  resolutionProbability.enabled = i == 20
   resolutionProbability.unit = Unit.Percent
   resolutionProbability.textColour = widgetTextColour
   resolutionProbability.backgroundColour = widgetBackgroundColour
   resolutionProbability.showLabel = false
   resolutionProbability.tooltip = "Probability of resolution being used"
-  resolutionProbability.size = resolution.size
+  resolutionProbability.size = {42,20}
   resolutionProbability.x = resolution.x + resolution.width + 1
   resolutionProbability.y = resolution.y
 
-  resolution.changed = function(self)
-    resolutionProbability.enabled = self.value
+  local minRepeatValue = 1
+  if i == 6 then
+    minRepeatValue = 3
   end
+  local minRepeat = resolutionPanel:NumBox("MinRepeat" .. i, minRepeatValue, 1, 128, true)
+  minRepeat.textColour = widgetTextColour
+  minRepeat.backgroundColour = widgetBackgroundColour
+  minRepeat.showLabel = false
+  minRepeat.tooltip = "Set the minimum number of repeats for this resolution"
+  minRepeat.size = {36,20}
+  minRepeat.x = resolutionProbability.x + resolutionProbability.width + 1
+  minRepeat.y = resolutionProbability.y
 
+  local division = resolutionPanel:Menu("Division" .. i, divOpt)
+  division.showLabel = false
+  division.backgroundColour = widgetBackgroundColour
+  division.textColour = widgetTextColour
+  division.arrowColour = menuArrowColour
+  division.outlineColour = menuOutlineColour
+  division.tooltip = "Set a division for this resolution"
+  division.size = {45,20}
+  division.x = minRepeat.x + minRepeat.width + 1
+  division.y = minRepeat.y
+
+  table.insert(toggleResolutionInputs, toggleResolution)
   table.insert(resolutionInputs, resolution)
   table.insert(resolutionProbabilityInputs, resolutionProbability)
+  table.insert(minRepeats, minRepeat)
+  table.insert(divisions, division)
 
   columnCount = columnCount + 1
   if i % perRow == 0 then
@@ -533,7 +562,7 @@ resLabel.width = 106
 resLabel.x = 5
 resLabel.y = (25 * rowCount) + 5
 
-local baseResolution = resolutionPanel:Menu("BaseResolution", getResolutionNames())
+local baseResolution = resolutionPanel:Menu("BaseResolution", resolutionNames)
 baseResolution.displayName = resLabel.text
 baseResolution.tooltip = "The duration between resets"
 baseResolution.selected = 9
@@ -546,12 +575,6 @@ baseResolution.arrowColour = menuArrowColour
 baseResolution.outlineColour = menuOutlineColour
 baseResolution.x = resLabel.x + resLabel.width + 10
 baseResolution.y = resLabel.y
-baseResolution.changed = function(self)
-  for i,v in ipairs(resolutionInputs) do
-    v.enabled = i >= self.value
-  end
-end
-baseResolution:changed()
 
 local durationRepeatProbabilityInput = resolutionPanel:NumBox("DurationRepeatProbability", 100, 0, 100, true)
 durationRepeatProbabilityInput.unit = Unit.Percent
@@ -574,6 +597,7 @@ durationRepeatDecay.x = durationRepeatProbabilityInput.x + durationRepeatProbabi
 durationRepeatDecay.y = durationRepeatProbabilityInput.y
 
 local useGlobalProbabilityInput = resolutionPanel:NumBox("UseGlobalProbabilityInput", 50, 0, 100, true)
+useGlobalProbabilityInput.enabled = false
 useGlobalProbabilityInput.unit = Unit.Percent
 useGlobalProbabilityInput.textColour = widgetTextColour
 useGlobalProbabilityInput.backgroundColour = widgetBackgroundColour
@@ -582,6 +606,11 @@ useGlobalProbabilityInput.tooltip = "Set the probability that same resolution wi
 useGlobalProbabilityInput.size = {106,20}
 useGlobalProbabilityInput.x = durationRepeatDecay.x + durationRepeatDecay.width + 10
 useGlobalProbabilityInput.y = durationRepeatDecay.y
+
+voicesInput.changed = function(self)
+  voices = self.value
+  useGlobalProbabilityInput.enabled = voices > 1
+end
 
 --------------------------------------------------------------------------------
 -- Note Functions
@@ -597,57 +626,75 @@ function setScale()
   end
 end
 
-function getNoteDuration(currentDuration, durationRepeatProbability)
-  local activeResolutions = {} -- All active
-  local selectedResolutions = {} -- All selected
+function getNoteDuration(currentDuration, repeatCounter, durationRepeatProbability)
+  --print("repeatCounter", repeatCounter)
+  repeatCounter = repeatCounter - 1
+  -- Repeat the current duration until repeat counter reaches zero
+  if repeatCounter > 0 then
+    print("Repeating duration", repeatCounter, currentDuration)
+    return currentDuration, repeatCounter, durationRepeatProbability
+  end
+  
+  -- Find available resolutions
+  local selectedResolutions = {}
+  local selectedDivisionsAndRepeats = {}
   for i,v in ipairs(resolutionInputs) do
-    if v.enabled and v.value and getRandomBoolean(resolutionProbabilityInputs[i].value) then
-      table.insert(activeResolutions, i)
-      if getRandomBoolean(v.value) == true then
-        table.insert(selectedResolutions, i)
-      end
+    local resolutionActive = toggleResolutionInputs[i].value
+    if resolutionActive and getRandomBoolean(resolutionProbabilityInputs[i].value) then
+      table.insert(selectedResolutions, v.value)
+      table.insert(selectedDivisionsAndRepeats, {division=divisions[i].value,repeats=minRepeats[i].value})
     end
   end
 
-  if #selectedResolutions == 0 then
-    selectedResolutions = activeResolutions
+  print("#selectedResolutions", #selectedResolutions)
+
+  -- Check global resolution repeat
+  local useGlobalProbability = useGlobalProbabilityInput.value
+  if type(globalResolution) == "number" and useGlobalProbabilityInput.enabled and getRandomBoolean(useGlobalProbability) then
+    currentDuration = globalResolution
+    print("Set currentDuration from globalResolution", currentDuration)
   end
 
-  -- Failsafe in case no resolutions are activated
+  -- Failsafe in case no resolutions are selected
   if #selectedResolutions == 0 then
     if type(globalResolution) == "number" then
-      return globalResolution, durationRepeatProbabilityInput.value
+      return globalResolution, 1, durationRepeatProbabilityInput.value
     else
-      return getResolution(17), durationRepeatProbabilityInput.value
+      return getResolution(17), 1, durationRepeatProbabilityInput.value
     end
   end
 
-  -- Check resolution repeat
-  local useGlobalProbability = useGlobalProbabilityInput.value
-  if type(globalResolution) == "number" and getRandomBoolean(useGlobalProbability) then
-    currentDuration = globalResolution
-  end
+  local resolutionIndex = getIndexFromValue(currentDuration, resolutions)
+
+  -- Check resolution repeat by probability
   if type(currentDuration) == "number" then
     local durationRepeatProbabilityDecay = durationRepeatProbability * (durationRepeatDecay.value / 100)
     durationRepeatProbability = durationRepeatProbability - durationRepeatProbabilityDecay
-    local resolutionIndex = getIndexFromValue(currentDuration, resolutions)
+    -- Repeat only if current resolution is still available
     if tableIncludes(selectedResolutions, resolutionIndex) and getRandomBoolean(durationRepeatProbability) then
-      return currentDuration, durationRepeatProbability
+      print("Repeating current duration", currentDuration)
+      return currentDuration, 1, durationRepeatProbability
     end
   end
 
-  -- Remove last known resolution
+  -- Remove last known resolution if repeat was not selected
   if type(currentDuration) == "number" and #selectedResolutions > 1 then
-    table.remove(selectedResolutions, getIndexFromValue(currentDuration, selectedResolutions))
+    local removeIndex = getIndexFromValue(resolutionIndex, selectedResolutions)
+    table.remove(selectedResolutions, removeIndex)
+    table.remove(selectedDivisionsAndRepeats, removeIndex)
+    print("Remove current duration to avoid repeat", removeIndex)
   end
 
-  if #selectedResolutions == 1 then
-    globalResolution = getResolution(selectedResolutions[1])
-  else
-    globalResolution = getResolution(selectedResolutions[getRandom(#selectedResolutions)])
+  local index = 1
+  if #selectedResolutions > 1 then
+    index = getRandom(#selectedResolutions)
+    print("Index selected by random", index)
   end
 
-  return globalResolution, durationRepeatProbabilityInput.value
+  -- Get resolution and divide by the selected division - not lower than system min res (1/128)
+  globalResolution = math.max(minResolution, (getResolution(selectedResolutions[index]) / selectedDivisionsAndRepeats[index].division))
+
+  return globalResolution, selectedDivisionsAndRepeats[index].repeats, durationRepeatProbabilityInput.value
 end
 
 function getNoteToPlay(currentNote)
@@ -727,9 +774,9 @@ end
 function arpeg(voice)
   local waitDuration = nil
   local noteToPlay = nil
-  local baseDuration = 0
   local remainingDuration = 0
   local durationRepeatProbability = durationRepeatProbabilityInput.value
+  local repeatCounter = 1
   --print("Start playing voice", voice)
   while isPlaying[voice] == voice do
     local channel = nil
@@ -738,18 +785,18 @@ function arpeg(voice)
     end
     --print("arpeg gate", gate)
     if remainingDuration == 0 then
-      baseDuration = getResolution(baseResolution.value)
-      remainingDuration = baseDuration -- RESET to base
-      print("New round voice/baseDuration", voice, baseDuration)
+      remainingDuration = getResolution(baseResolution.value) -- Reset remaining duration to base duration
+      repeatCounter = 1 -- Reset repeat counter - should counter be reset here?
+      print("New round for voice, remainingDuration", voice, remainingDuration)
     end
-    waitDuration, durationRepeatProbability = getNoteDuration(waitDuration, durationRepeatProbability)
-    --print("remainingDuration, waitDuration", remainingDuration, waitDuration)
+    waitDuration, repeatCounter, durationRepeatProbability = getNoteDuration(waitDuration, repeatCounter, durationRepeatProbability)
+    print("remainingDuration, waitDuration, repeatCounter, durationRepeatProbability", remainingDuration, waitDuration, repeatCounter, durationRepeatProbability)
     if remainingDuration < waitDuration then
       waitDuration = remainingDuration
-      --print("waitDuration changed to remaining", waitDuration)
+      print("waitDuration changed to remaining", waitDuration)
     end
     local gate = getGate()
-    if gate > 0 then
+    if gate > 0 and waitDuration >= minResolution then
       noteToPlay = getNoteToPlay(noteToPlay)
     else
       noteToPlay = nil
