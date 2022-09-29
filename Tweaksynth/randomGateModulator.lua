@@ -116,6 +116,19 @@ function arpeg()
   end
 end
 
+function onNote(e)
+  local voiceId = postEvent(e)
+  if isRunning == false then
+    isRunning = true
+    arpeg()
+  end
+end
+
+function onRelease(e)
+  local voiceId = postEvent(e)
+  isRunning = false
+end
+
 function onTransport(start)
   isRunning = start
   if isRunning then

@@ -101,7 +101,7 @@ settingsPanel.backgroundColour = "404040"
 settingsPanel.x = sequencerPanel.x
 settingsPanel.y = sequencerPanel.y + sequencerPanel.height + 5
 settingsPanel.width = 700
-settingsPanel.height = 55
+settingsPanel.height = 85
 
 local notePanel = Panel("Notes")
 notePanel.backgroundColour = "404040"
@@ -115,19 +115,19 @@ resolutionPanel.backgroundColour = "404040"
 resolutionPanel.x = notePanel.x
 resolutionPanel.y = notePanel.y + notePanel.height + 5
 resolutionPanel.width = 700
-resolutionPanel.height = 135
+resolutionPanel.height = 162
 
 --------------------------------------------------------------------------------
 -- Sequencer Panel
 --------------------------------------------------------------------------------
 
 local label = sequencerPanel:Label("Label")
-label.text = "Probability Sequencer"
+label.text = "Drunken Sequencer"
 label.alpha = 0.5
 label.backgroundColour = labelBackgoundColour
 label.textColour = labelTextColour
 label.fontSize = 22
-label.width = 180
+label.width = 170
 label.x = 0
 
 local channelButton = sequencerPanel:OnOffButton("ChannelButton", false)
@@ -180,14 +180,55 @@ settingsLabel.alpha = 0.75
 settingsLabel.fontSize = 15
 settingsLabel.width = 350
 
+--- First row ---
+
+local noteRandomization = settingsPanel:NumBox("NoteRandomization", 25, 0, 100, true)
+noteRandomization.unit = Unit.Percent
+noteRandomization.textColour = widgetTextColour
+noteRandomization.backgroundColour = widgetBackgroundColour
+--noteRandomization.displayName = "Drunk Level"
+noteRandomization.displayName = "Note Movement"
+noteRandomization.tooltip = "Random note movement amount - a small amount gives small steps between notes"
+noteRandomization.size = {163,20}
+noteRandomization.x = 5
+noteRandomization.y = settingsLabel.y + settingsLabel.height + 5
+
+local noteDirection = settingsPanel:NumBox("NoteDirection", 50, 0, 100, true)
+noteDirection.unit = Unit.Percent
+noteDirection.textColour = widgetTextColour
+noteDirection.backgroundColour = widgetBackgroundColour
+noteDirection.displayName = "Direction"
+noteDirection.tooltip = "Affect the random note movement by specifying the probability of direction. <50% = more down, >50% = more up, 50% = equal chance"
+noteDirection.size = noteRandomization.size
+noteDirection.x = noteRandomization.x + noteRandomization.width + 10
+noteDirection.y = noteRandomization.y
+
+local randomReset = settingsPanel:OnOffButton("RandomReset", true)
+randomReset.enabled = false
+randomReset.backgroundColourOff = "#ff084486"
+randomReset.backgroundColourOn = "#ff02ACFE"
+randomReset.textColourOff = "#ff22FFFF"
+randomReset.textColourOn = "#efFFFFFF"
+randomReset.displayName = "Random Reset"
+randomReset.tooltip = "When direction is biased (above or below 50%), use random reset to start from a random note when highest or lowest note is reached"
+randomReset.size = noteDirection.size
+randomReset.x = noteDirection.x + noteDirection.width + 10
+randomReset.y = noteDirection.y
+
 local voicesInput = settingsPanel:NumBox("Voices", voices, 1, 16, true)
 voicesInput.textColour = widgetTextColour
 voicesInput.backgroundColour = widgetBackgroundColour
 voicesInput.displayName = "Voices"
 voicesInput.tooltip = "Number of voices playing"
-voicesInput.size = {106,20}
-voicesInput.x = 5
-voicesInput.y = settingsLabel.y + settingsLabel.height + 5
+voicesInput.size = noteDirection.size
+voicesInput.x = randomReset.x + randomReset.width + 10
+voicesInput.y = randomReset.y
+
+noteDirection.changed = function(self)
+  randomReset.enabled = self.value ~= 50
+end
+
+--- Second row ---
 
 local gateInput = settingsPanel:NumBox("Gate", 90, 0, 100, true)
 gateInput.unit = Unit.Percent
@@ -195,9 +236,9 @@ gateInput.textColour = widgetTextColour
 gateInput.backgroundColour = widgetBackgroundColour
 gateInput.displayName = "Gate"
 gateInput.tooltip = "Default gate"
-gateInput.size = voicesInput.size
-gateInput.x = voicesInput.x + voicesInput.width + 10
-gateInput.y = voicesInput.y
+gateInput.size = noteDirection.size
+gateInput.x = noteRandomization.x
+gateInput.y = noteDirection.y + noteDirection.height + 5
 
 local gateRandomization = settingsPanel:NumBox("GateRandomization", 25, 0, 100, true)
 gateRandomization.unit = Unit.Percent
@@ -207,7 +248,7 @@ gateRandomization.displayName = "Gate Rand"
 gateRandomization.tooltip = "Gate randomization amount"
 gateRandomization.size = gateInput.size
 gateRandomization.x = gateInput.x + gateInput.width + 10
-gateRandomization.y = voicesInput.y
+gateRandomization.y = gateInput.y
 
 local velocityInput = settingsPanel:NumBox("Velocity", 64, 1, 127, true)
 velocityInput.textColour = widgetTextColour
@@ -216,27 +257,17 @@ velocityInput.displayName = "Velocity"
 velocityInput.tooltip = "Default velocity"
 velocityInput.size = gateRandomization.size
 velocityInput.x = gateRandomization.x + gateRandomization.width + 10
-velocityInput.y = voicesInput.y
+velocityInput.y = gateInput.y
 
 local velocityRandomization = settingsPanel:NumBox("VelocityRandomization", 25, 0, 100, true)
 velocityRandomization.unit = Unit.Percent
 velocityRandomization.textColour = widgetTextColour
 velocityRandomization.backgroundColour = widgetBackgroundColour
-velocityRandomization.displayName = "Vel Rand"
+velocityRandomization.displayName = "Velocity Rand"
 velocityRandomization.tooltip = "Velocity randomization amount"
 velocityRandomization.size = velocityInput.size
 velocityRandomization.x = velocityInput.x + velocityInput.width + 10
-velocityRandomization.y = voicesInput.y
-
-local noteRandomization = settingsPanel:NumBox("NoteRandomization", 25, 0, 100, true)
-noteRandomization.unit = Unit.Percent
-noteRandomization.textColour = widgetTextColour
-noteRandomization.backgroundColour = widgetBackgroundColour
-noteRandomization.displayName = "Note Move"
-noteRandomization.tooltip = "Note movement randomization amount - a small amount gives small steps between notes"
-noteRandomization.size = velocityRandomization.size
-noteRandomization.x = velocityRandomization.x + velocityRandomization.width + 10
-noteRandomization.y = voicesInput.y
+velocityRandomization.y = gateInput.y
 
 --------------------------------------------------------------------------------
 -- Notes Panel
@@ -247,7 +278,7 @@ noteLabel.text = "Notes"
 noteLabel.tooltip = "Set the probability that notes will be included when generating new notes"
 noteLabel.alpha = 0.75
 noteLabel.fontSize = 15
-noteLabel.width = 60
+noteLabel.width = 50
 
 local noteInputs = {}
 local noteProbabilityInputs = {}
@@ -260,7 +291,7 @@ clearNotes.tooltip = "Deselect all notes"
 clearNotes.persistent = false
 clearNotes.height = noteLabel.height
 clearNotes.width = 90
-clearNotes.x = resolutionPanel.width - (clearNotes.width * 3) - 30
+clearNotes.x = notePanel.width - (clearNotes.width * 3) - 30
 clearNotes.y = 5
 clearNotes.changed = function()
   for _,v in ipairs(noteInputs) do
@@ -372,13 +403,13 @@ for i=1,octaves do
 end
 
 local generateKey = notePanel:Menu("GenerateKey", noteNames)
-generateKey.tooltip = "Key"
+generateKey.tooltip = "Set selected notes from key"
 generateKey.showLabel = false
 generateKey.backgroundColour = menuBackgroundColour
 generateKey.textColour = widgetTextColour
 generateKey.arrowColour = menuArrowColour
 generateKey.outlineColour = menuOutlineColour
-generateKey.size = {106,20}
+generateKey.size = {102,20}
 generateKey.x = noteLabel.x + noteLabel.width + 10
 generateKey.y = noteLabel.y
 generateKey.changed = function(self)
@@ -387,7 +418,7 @@ end
 
 local generateScale = notePanel:Menu("GenerateScale", scaleNames)
 generateScale.selected = #scaleNames
-generateScale.tooltip = "Scale"
+generateScale.tooltip = "Set selected notes from scale"
 generateScale.showLabel = false
 generateScale.backgroundColour = menuBackgroundColour
 generateScale.textColour = widgetTextColour
@@ -439,7 +470,7 @@ clearResolutions.changed = function()
 end
 
 local addResolutions = resolutionPanel:Button("AddResolutions")
-addResolutions.displayName = "Add on"
+addResolutions.displayName = "All on"
 addResolutions.tooltip = "Activate all resolutions"
 addResolutions.persistent = false
 addResolutions.height = clearResolutions.height
@@ -466,11 +497,11 @@ randomizeResolutions.changed = function()
   end
 end
 
-local offset = 11
+local offset = 5
 local perRow = 3
 local columnCount = 0
 local rowCount = 1
-for i=1,9 do
+for i=1,12 do
   local toggleResolution = resolutionPanel:OnOffButton("ToggleResolution" .. i, (i == 1))
   toggleResolution.backgroundColourOff = "#ff084486"
   toggleResolution.backgroundColourOn = "#ff02ACFE"
@@ -491,12 +522,12 @@ for i=1,9 do
     resolution.selected = 22
   elseif i == 7 then
     resolution.selected = 18
+  elseif i > 9 then
+    resolution.selected = i - 3
   else
     resolution.selected = offset
   end
-  if i > 2 then
-    offset = offset + 3
-  end
+  offset = offset + 3
   resolution.showLabel = false
   resolution.backgroundColour = widgetBackgroundColour
   resolution.textColour = widgetTextColour
@@ -560,12 +591,12 @@ resLabel.alpha = 0.5
 resLabel.fontSize = 15
 resLabel.width = 106
 resLabel.x = 5
-resLabel.y = (25 * rowCount) + 5
+resLabel.y = (25 * rowCount) + 10
 
 local baseResolution = resolutionPanel:Menu("BaseResolution", resolutionNames)
 baseResolution.displayName = resLabel.text
 baseResolution.tooltip = "The duration between resets"
-baseResolution.selected = 9
+baseResolution.selected = 7
 baseResolution.showLabel = false
 baseResolution.height = 20
 baseResolution.width = 106
@@ -626,37 +657,57 @@ function setScale()
   end
 end
 
+function adjustForDuration(decay, currentDuration)
+  -- TODO Param for adjusting decay
+  -- TODO Increase decay for longer durations - less repetition of longer notes
+  local middleIndex = 17 -- 1/4 (1 beat) -- TODO Param?
+  local middleResolution = resolutions[middleIndex]
+  local increase = 0
+  if currentDuration > middleResolution and tableIncludes(resolutions, currentDuration) then
+    -- Note is longer than 1/4 - increase decay
+    local resolutionIndex = getIndexFromValue(currentDuration, resolutions)
+    local percentIncrease = (middleIndex * resolutionIndex) / 100
+    local factor = decay / percentIncrease
+    increase = decay * (factor / 100)
+    print("Decay adjusted decay, increase", decay, increase)
+  end
+  return math.min(100, (decay + increase)) / 100
+end
+
 function getNoteDuration(currentDuration, repeatCounter, durationRepeatProbability)
   --print("repeatCounter", repeatCounter)
   repeatCounter = repeatCounter - 1
   -- Repeat the current duration until repeat counter reaches zero
   if repeatCounter > 0 then
-    print("Repeating duration", repeatCounter, currentDuration)
+    --print("Repeating duration", repeatCounter, currentDuration)
     return currentDuration, repeatCounter, durationRepeatProbability
   end
-  
+
   -- Find available resolutions
-  local selectedResolutions = {}
+  local availableResolutions = {}
   local selectedDivisionsAndRepeats = {}
   for i,v in ipairs(resolutionInputs) do
     local resolutionActive = toggleResolutionInputs[i].value
     if resolutionActive and getRandomBoolean(resolutionProbabilityInputs[i].value) then
-      table.insert(selectedResolutions, v.value)
+      table.insert(availableResolutions, v.value)
       table.insert(selectedDivisionsAndRepeats, {division=divisions[i].value,repeats=minRepeats[i].value})
     end
   end
 
-  print("#selectedResolutions", #selectedResolutions)
+  --print("#availableResolutions", #availableResolutions)
 
-  -- Check global resolution repeat
+  -- Check if we should use the global resolution
   local useGlobalProbability = useGlobalProbabilityInput.value
   if type(globalResolution) == "number" and useGlobalProbabilityInput.enabled and getRandomBoolean(useGlobalProbability) then
     currentDuration = globalResolution
-    print("Set currentDuration from globalResolution", currentDuration)
+    --print("Set currentDuration from globalResolution", currentDuration)
+    useGlobalProbability = true
+  else
+    useGlobalProbability = false
   end
 
   -- Failsafe in case no resolutions are selected
-  if #selectedResolutions == 0 then
+  if #availableResolutions == 0 then
     if type(globalResolution) == "number" then
       return globalResolution, 1, durationRepeatProbabilityInput.value
     else
@@ -664,35 +715,46 @@ function getNoteDuration(currentDuration, repeatCounter, durationRepeatProbabili
     end
   end
 
-  local resolutionIndex = getIndexFromValue(currentDuration, resolutions)
+  local resolutionIndex = nil
+  if tableIncludes(resolutions, currentDuration) then
+    resolutionIndex = getIndexFromValue(currentDuration, resolutions)
+  end
 
   -- Check resolution repeat by probability
   if type(currentDuration) == "number" then
-    local durationRepeatProbabilityDecay = durationRepeatProbability * (durationRepeatDecay.value / 100)
+    local durationRepeatProbabilityDecay = durationRepeatProbability * adjustForDuration(durationRepeatDecay.value, currentDuration)
     durationRepeatProbability = durationRepeatProbability - durationRepeatProbabilityDecay
     -- Repeat only if current resolution is still available
-    if tableIncludes(selectedResolutions, resolutionIndex) and getRandomBoolean(durationRepeatProbability) then
-      print("Repeating current duration", currentDuration)
+    if tableIncludes(availableResolutions, resolutionIndex) and getRandomBoolean(durationRepeatProbability) then
+      --print("Repeating current duration", currentDuration)
       return currentDuration, 1, durationRepeatProbability
     end
   end
 
   -- Remove last known resolution if repeat was not selected
-  if type(currentDuration) == "number" and #selectedResolutions > 1 then
-    local removeIndex = getIndexFromValue(resolutionIndex, selectedResolutions)
-    table.remove(selectedResolutions, removeIndex)
+  if type(resolutionIndex) == "number" and type(currentDuration) == "number" and #availableResolutions > 1 then
+    local removeIndex = getIndexFromValue(resolutionIndex, availableResolutions)
+    table.remove(availableResolutions, removeIndex)
     table.remove(selectedDivisionsAndRepeats, removeIndex)
-    print("Remove current duration to avoid repeat", removeIndex)
+    --print("Remove current duration to avoid repeat", removeIndex)
   end
 
+  -- Remove global resolution if it was not used?
+  --[[ if useGlobalProbabilityInput.enabled and useGlobalProbability == false and type(globalResolution) == "number" and #availableResolutions > 1 then
+    local removeIndex = getIndexFromValue(getIndexFromValue(globalResolution, resolutions), availableResolutions)
+    table.remove(availableResolutions, removeIndex)
+    table.remove(selectedDivisionsAndRepeats, removeIndex)
+    print("Remove global duration if not selected", removeIndex)
+  end ]]
+
   local index = 1
-  if #selectedResolutions > 1 then
-    index = getRandom(#selectedResolutions)
-    print("Index selected by random", index)
+  if #availableResolutions > 1 then
+    index = getRandom(#availableResolutions)
+    --print("Index selected by random", index)
   end
 
   -- Get resolution and divide by the selected division - not lower than system min res (1/128)
-  globalResolution = math.max(minResolution, (getResolution(selectedResolutions[index]) / selectedDivisionsAndRepeats[index].division))
+  globalResolution = math.max(minResolution, (getResolution(availableResolutions[index]) / selectedDivisionsAndRepeats[index].division))
 
   return globalResolution, selectedDivisionsAndRepeats[index].repeats, durationRepeatProbabilityInput.value
 end
@@ -732,8 +794,31 @@ function getNoteToPlay(currentNote)
     --print("Get random note index", noteIndex)
   else
     local currentIndex = getIndexFromValue(currentNote, selectedNotes)
-    noteIndex = randomizeValue(currentIndex, 1, #selectedNotes, noteRandomization.value)
-    --print("Get from noteIndex/currentIndex", noteIndex, currentIndex)
+    local noteDirectionProbability = noteDirection.value
+    local goUp = getRandomBoolean(noteDirectionProbability)
+    local resetFull = randomReset.value == false
+    if noteDirectionProbability == 50 then
+      -- Equal up/down
+      noteIndex = randomizeValue(currentIndex, 1, #selectedNotes, noteRandomization.value)
+      --print("Equal up/down noteIndex/currentIndex", noteIndex, currentIndex)
+    elseif goUp and (currentIndex < #selectedNotes or resetFull) then
+      if currentIndex == #selectedNotes then
+        noteIndex = 1 -- Reset to lowest index
+      else
+        noteIndex = randomizeValue(currentIndex, currentIndex, #selectedNotes, noteRandomization.value)
+      end
+      print("Up noteIndex/currentIndex", noteIndex, currentIndex)
+    elseif currentIndex > 1 or resetFull then
+      if currentIndex == 1 then
+        noteIndex = #selectedNotes -- Reset to max index
+      else
+        noteIndex = randomizeValue(currentIndex, 1, currentIndex, noteRandomization.value)
+      end
+      print("Down noteIndex/currentIndex", noteIndex, currentIndex)
+    else
+      noteIndex = getRandom(#selectedNotes)
+      print("Random note index", noteIndex)
+      end
   end
 
   return selectedNotes[noteIndex]
@@ -787,13 +872,13 @@ function arpeg(voice)
     if remainingDuration == 0 then
       remainingDuration = getResolution(baseResolution.value) -- Reset remaining duration to base duration
       repeatCounter = 1 -- Reset repeat counter - should counter be reset here?
-      print("New round for voice, remainingDuration", voice, remainingDuration)
+      --print("New round for voice, remainingDuration", voice, remainingDuration)
     end
     waitDuration, repeatCounter, durationRepeatProbability = getNoteDuration(waitDuration, repeatCounter, durationRepeatProbability)
-    print("remainingDuration, waitDuration, repeatCounter, durationRepeatProbability", remainingDuration, waitDuration, repeatCounter, durationRepeatProbability)
+    --print("remainingDuration, waitDuration, repeatCounter, durationRepeatProbability", remainingDuration, waitDuration, repeatCounter, durationRepeatProbability)
     if remainingDuration < waitDuration then
       waitDuration = remainingDuration
-      print("waitDuration changed to remaining", waitDuration)
+      --print("waitDuration changed to remaining", waitDuration)
     end
     local gate = getGate()
     if gate > 0 and waitDuration >= minResolution then
