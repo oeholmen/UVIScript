@@ -2,7 +2,7 @@
 -- Probability Sequencer
 --------------------------------------------------------------------------------
 
-require "common"
+require "generative"
 
 local backgroundColour = "303030" -- Light or Dark
 local widgetBackgroundColour = "01011F" -- Dark
@@ -13,56 +13,21 @@ local menuBackgroundColour = "01011F"
 local menuArrowColour = "66" .. labelTextColour
 local menuOutlineColour = "5f" .. widgetTextColour
 
+local colours = {
+  backgroundColour = backgroundColour,
+  widgetBackgroundColour = widgetBackgroundColour,
+  widgetTextColour = widgetTextColour,
+  labelTextColour = labelTextColour,
+  menuBackgroundColour = menuBackgroundColour,
+  menuArrowColour = menuArrowColour,
+  menuOutlineColour = menuOutlineColour
+}
+
 local voices = 1
-local octaves = 9
 local notesPlaying = {}
 local isPlaying = {}
-local noteNumberToNoteName = getNoteMapping()
 local noteNames = getNoteNames()
-local globalResolution = nil -- Holds the global resolution for all voices
-local minResolution = 0.03125 -- The lowest possible resolution
-
---------------------------------------------------------------------------------
--- Scales
---------------------------------------------------------------------------------
-
--- Make sure these are in sync with the scale names
--- Scales are defined by distance to the next step
-local scaleDefinitions = {
-  {2,2,1,2,2,2,1}, -- Major (Ionian mode)
-  {2,1,2,2,1,2,2}, -- Minor (Aeolian mode)
-  {2,1,2,2,2,2,1}, -- Harmonic minor
-  {2,1,2,2,2,1,2}, -- Dorian mode
-  {1,2,2,2,1,2,2}, -- Phrygian mode
-  {2,2,2,1,2,2,1}, -- Lydian mode
-  {2,2,1,2,2,1,2}, -- Mixolydian mode
-  {1,2,2,1,2,2,2}, -- Locrian mode
-  {2,2,2,1,2,1,2}, -- Acoustic
-  {2,1,2,1,1,3,2}, -- Blues
-  {1,2,1,3,1,2,2}, -- Alterated
-  {2,2,3,2,3}, -- Major Pentatonic
-  {3,2,2,3,2}, -- Minor Pentatonic
-  {2}, -- Whole tone scale
-  {1}, -- Chromatic - Keep last!
-}
-
-local scaleNames = {
-  "Major (Ionian)",
-  "Minor (Aeolian)",
-  "Harmonic minor",
-  "Dorian",
-  "Phrygian",
-  "Lydian",
-  "Mixolydian",
-  "Locrian",
-  "Acoustic",
-  "Blues",
-  "Alterated",
-  "Major Pentatonic",
-  "Minor Pentatonic",
-  "Whole tone",
-  "Chromatic", -- Keep last!
-}
+local minResolution = resolutions[#resolutions] -- The lowest allowed resolution
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
@@ -280,11 +245,6 @@ noteLabel.alpha = 0.75
 noteLabel.fontSize = 15
 noteLabel.width = 50
 
-local noteInputs = {}
-local noteProbabilityInputs = {}
-local octaveInputs = {}
-local octaveProbabilityInputs = {}
-
 local clearNotes = notePanel:Button("ClearNotes")
 clearNotes.displayName = "Clear notes"
 clearNotes.tooltip = "Deselect all notes"
@@ -327,126 +287,11 @@ randomizeNotes.changed = function()
   end
 end
 
-columnCount = 0
-for i=1,#noteNames do
-  local note = notePanel:OnOffButton("Note" .. i, true)
-  note.backgroundColourOff = "#ff084486"
-  note.backgroundColourOn = "#ff02ACFE"
-  note.textColourOff = "#ff22FFFF"
-  note.textColourOn = "#efFFFFFF"
-  note.displayName = noteNames[i]
-  note.tooltip = "Toggle note on/off"
-  note.size = {51,30}
-  note.x = (columnCount * (note.width + 6.6)) + 5
-  note.y = noteLabel.y + noteLabel.height + 5
-
-  local noteProbability = notePanel:NumBox("NoteProbability" .. i, 100, 0, 100, true)
-  noteProbability.unit = Unit.Percent
-  noteProbability.textColour = widgetTextColour
-  noteProbability.backgroundColour = widgetBackgroundColour
-  noteProbability.showLabel = false
-  noteProbability.tooltip = "Set the probability that '" .. noteNames[i] .. "' will be available when generating notes to play"
-  noteProbability.width = note.width
-  noteProbability.height = 22
-  noteProbability.x = note.x
-  noteProbability.y = note.y + note.height + 1
-
-  table.insert(noteInputs, note)
-  table.insert(noteProbabilityInputs, noteProbability)
-
-  columnCount = columnCount + 1
-end
-
-columnCount = 0
-
-local rising = true
-local numStepsUpDown = math.floor(octaves / 2)
-local changePerStep = 100 / numStepsUpDown
-local startValue = 0
-for i=1,octaves do
-  local octave = notePanel:OnOffButton("Octave" .. i, (startValue > 50))
-  octave.backgroundColourOff = "#ff084486"
-  octave.backgroundColourOn = "#ff02ACFE"
-  octave.textColourOff = "#ff22FFFF"
-  octave.textColourOn = "#efFFFFFF"
-  octave.displayName = "Oct " .. i - 2
-  octave.tooltip = "Toggle octave on/off"
-  octave.width = (636 / octaves)
-  octave.height = 30
-  octave.x = (columnCount * (octave.width + 6.9)) + 5
-  octave.y = 90
-
-  local octaveProbabilityInput = notePanel:NumBox("OctaveProbability" .. i, 100, 0, 100, true)
-  octaveProbabilityInput.unit = Unit.Percent
-  octaveProbabilityInput.textColour = widgetTextColour
-  octaveProbabilityInput.backgroundColour = widgetBackgroundColour
-  octaveProbabilityInput.showLabel = false
-  octaveProbabilityInput.tooltip = "Set the probability that octave " .. i - 2 .. " will be available when generating notes to play"
-  octaveProbabilityInput.width = octave.width
-  octaveProbabilityInput.height = 22
-  octaveProbabilityInput.x = octave.x
-  octaveProbabilityInput.y = octave.y + octave.height
-
-  table.insert(octaveInputs, octave)
-  table.insert(octaveProbabilityInputs, octaveProbabilityInput)
-
-  if rising then
-    startValue = startValue + changePerStep
-    if startValue >= 100 then
-      rising = false
-    end
-  else
-    startValue = startValue - changePerStep
-  end
-
-  columnCount = columnCount + 1
-end
-
-local generateKey = notePanel:Menu("GenerateKey", noteNames)
-generateKey.tooltip = "Set selected notes from key"
-generateKey.showLabel = false
-generateKey.backgroundColour = menuBackgroundColour
-generateKey.textColour = widgetTextColour
-generateKey.arrowColour = menuArrowColour
-generateKey.outlineColour = menuOutlineColour
-generateKey.size = {102,20}
-generateKey.x = noteLabel.x + noteLabel.width + 10
-generateKey.y = noteLabel.y
-generateKey.changed = function(self)
-  setScale()
-end
-
-local generateScale = notePanel:Menu("GenerateScale", scaleNames)
-generateScale.selected = #scaleNames
-generateScale.tooltip = "Set selected notes from scale"
-generateScale.showLabel = false
-generateScale.backgroundColour = menuBackgroundColour
-generateScale.textColour = widgetTextColour
-generateScale.arrowColour = menuArrowColour
-generateScale.outlineColour = menuOutlineColour
-generateScale.size = generateKey.size
-generateScale.x = generateKey.x + generateKey.width + 10
-generateScale.y = generateKey.y
-generateScale.changed = function(self)
-  setScale()
-end
+setNotesAndOctaves(notePanel, colours, noteLabel)
 
 --------------------------------------------------------------------------------
 -- Resolution Panel
 --------------------------------------------------------------------------------
-
-local divOpt = {}
-for i=1,128 do
-  table.insert(divOpt, "/ " .. i)
-end
-
-local resolutions = getResolutions()
-local resolutionNames = getResolutionNames()
-local resolutionInputs = {}
-local toggleResolutionInputs = {}
-local resolutionProbabilityInputs = {}
-local minRepeats = {}
-local divisions = {}
 
 local resLabel = resolutionPanel:Label("ResolutionsLabel")
 resLabel.text = "Resolutions"
@@ -497,93 +342,7 @@ randomizeResolutions.changed = function()
   end
 end
 
-local offset = 5
-local perRow = 3
-local columnCount = 0
-local rowCount = 1
-for i=1,12 do
-  local toggleResolution = resolutionPanel:OnOffButton("ToggleResolution" .. i, (i == 1))
-  toggleResolution.backgroundColourOff = "#ff084486"
-  toggleResolution.backgroundColourOn = "#ff02ACFE"
-  toggleResolution.textColourOff = "#ff22FFFF"
-  toggleResolution.textColourOn = "#efFFFFFF"
-  toggleResolution.displayName = " "
-  toggleResolution.tooltip = "Toggle resolution on/off"
-  toggleResolution.size = {23,20}
-  toggleResolution.x = (columnCount * 232) + 5
-  toggleResolution.y = ((toggleResolution.height + 5) * rowCount) + 5
-
-  local resolution = resolutionPanel:Menu("Resolution" .. i, resolutionNames)
-  if i == 1 then
-    resolution.selected = 20
-  elseif i == 2 then
-    resolution.selected = 23
-  elseif i == 6 then
-    resolution.selected = 22
-  elseif i == 7 then
-    resolution.selected = 18
-  elseif i > 9 then
-    resolution.selected = i - 3
-  else
-    resolution.selected = offset
-  end
-  offset = offset + 3
-  resolution.showLabel = false
-  resolution.backgroundColour = widgetBackgroundColour
-  resolution.textColour = widgetTextColour
-  resolution.arrowColour = menuArrowColour
-  resolution.outlineColour = menuOutlineColour
-  resolution.tooltip = "Select resolution"
-  resolution.size = {70,20}
-  resolution.x = toggleResolution.x + toggleResolution.width + 1
-  resolution.y = toggleResolution.y
-
-  local resolutionProbability = resolutionPanel:NumBox("ResolutionProbability" .. i, 100, 0, 100, true)
-  resolutionProbability.unit = Unit.Percent
-  resolutionProbability.textColour = widgetTextColour
-  resolutionProbability.backgroundColour = widgetBackgroundColour
-  resolutionProbability.showLabel = false
-  resolutionProbability.tooltip = "Probability of resolution being used"
-  resolutionProbability.size = {42,20}
-  resolutionProbability.x = resolution.x + resolution.width + 1
-  resolutionProbability.y = resolution.y
-
-  local minRepeatValue = 1
-  if i == 6 then
-    minRepeatValue = 3
-  end
-  local minRepeat = resolutionPanel:NumBox("MinRepeat" .. i, minRepeatValue, 1, 128, true)
-  minRepeat.textColour = widgetTextColour
-  minRepeat.backgroundColour = widgetBackgroundColour
-  minRepeat.showLabel = false
-  minRepeat.tooltip = "Set the minimum number of repeats for this resolution"
-  minRepeat.size = {36,20}
-  minRepeat.x = resolutionProbability.x + resolutionProbability.width + 1
-  minRepeat.y = resolutionProbability.y
-
-  local division = resolutionPanel:Menu("Division" .. i, divOpt)
-  division.showLabel = false
-  division.backgroundColour = widgetBackgroundColour
-  division.textColour = widgetTextColour
-  division.arrowColour = menuArrowColour
-  division.outlineColour = menuOutlineColour
-  division.tooltip = "Set a division for this resolution"
-  division.size = {45,20}
-  division.x = minRepeat.x + minRepeat.width + 1
-  division.y = minRepeat.y
-
-  table.insert(toggleResolutionInputs, toggleResolution)
-  table.insert(resolutionInputs, resolution)
-  table.insert(resolutionProbabilityInputs, resolutionProbability)
-  table.insert(minRepeats, minRepeat)
-  table.insert(divisions, division)
-
-  columnCount = columnCount + 1
-  if i % perRow == 0 then
-    rowCount = rowCount + 1
-    columnCount = 0
-  end
-end
+rowCount = setResolutions(resolutionPanel, colours)
 
 local resLabel = resolutionPanel:Label("ResolutionsLabel")
 resLabel.text = "Base Resolution"
@@ -647,137 +406,8 @@ end
 -- Note Functions
 --------------------------------------------------------------------------------
 
-function setScale()
-  local scaleDefinition = scaleDefinitions[generateScale.value]
-  local rootNote = generateKey.value - 1 -- Root note
-  local scale = createScale(scaleDefinition, rootNote)
-  for i,v in ipairs(noteInputs) do
-    local noteNumber = i + 11 -- Check note in octave above
-    v:setValue(tableIncludes(scale, noteNumber))
-  end
-end
-
-function adjustForDuration(decay, currentDuration)
-  -- TODO Param for adjusting decay
-  -- TODO Increase decay for longer durations - less repetition of longer notes
-  local middleIndex = 17 -- 1/4 (1 beat) -- TODO Param?
-  local middleResolution = resolutions[middleIndex]
-  local increase = 0
-  if currentDuration > middleResolution and tableIncludes(resolutions, currentDuration) then
-    -- Note is longer than 1/4 - increase decay
-    local resolutionIndex = getIndexFromValue(currentDuration, resolutions)
-    local percentIncrease = (middleIndex * resolutionIndex) / 100
-    local factor = decay / percentIncrease
-    increase = decay * (factor / 100)
-    print("Decay adjusted decay, increase", decay, increase)
-  end
-  return math.min(100, (decay + increase)) / 100
-end
-
-function getNoteDuration(currentDuration, repeatCounter, durationRepeatProbability)
-  --print("repeatCounter", repeatCounter)
-  repeatCounter = repeatCounter - 1
-  -- Repeat the current duration until repeat counter reaches zero
-  if repeatCounter > 0 then
-    --print("Repeating duration", repeatCounter, currentDuration)
-    return currentDuration, repeatCounter, durationRepeatProbability
-  end
-
-  -- Find available resolutions
-  local availableResolutions = {}
-  local selectedDivisionsAndRepeats = {}
-  for i,v in ipairs(resolutionInputs) do
-    local resolutionActive = toggleResolutionInputs[i].value
-    if resolutionActive and getRandomBoolean(resolutionProbabilityInputs[i].value) then
-      table.insert(availableResolutions, v.value)
-      table.insert(selectedDivisionsAndRepeats, {division=divisions[i].value,repeats=minRepeats[i].value})
-    end
-  end
-
-  --print("#availableResolutions", #availableResolutions)
-
-  -- Check if we should use the global resolution
-  local useGlobalProbability = useGlobalProbabilityInput.value
-  if type(globalResolution) == "number" and useGlobalProbabilityInput.enabled and getRandomBoolean(useGlobalProbability) then
-    currentDuration = globalResolution
-    --print("Set currentDuration from globalResolution", currentDuration)
-    useGlobalProbability = true
-  else
-    useGlobalProbability = false
-  end
-
-  -- Failsafe in case no resolutions are selected
-  if #availableResolutions == 0 then
-    if type(globalResolution) == "number" then
-      return globalResolution, 1, durationRepeatProbabilityInput.value
-    else
-      return getResolution(17), 1, durationRepeatProbabilityInput.value
-    end
-  end
-
-  local resolutionIndex = nil
-  if tableIncludes(resolutions, currentDuration) then
-    resolutionIndex = getIndexFromValue(currentDuration, resolutions)
-  end
-
-  -- Check resolution repeat by probability
-  if type(currentDuration) == "number" then
-    local durationRepeatProbabilityDecay = durationRepeatProbability * adjustForDuration(durationRepeatDecay.value, currentDuration)
-    durationRepeatProbability = durationRepeatProbability - durationRepeatProbabilityDecay
-    -- Repeat only if current resolution is still available
-    if tableIncludes(availableResolutions, resolutionIndex) and getRandomBoolean(durationRepeatProbability) then
-      --print("Repeating current duration", currentDuration)
-      return currentDuration, 1, durationRepeatProbability
-    end
-  end
-
-  -- Remove last known resolution if repeat was not selected
-  if type(resolutionIndex) == "number" and type(currentDuration) == "number" and #availableResolutions > 1 then
-    local removeIndex = getIndexFromValue(resolutionIndex, availableResolutions)
-    table.remove(availableResolutions, removeIndex)
-    table.remove(selectedDivisionsAndRepeats, removeIndex)
-    --print("Remove current duration to avoid repeat", removeIndex)
-  end
-
-  -- Remove global resolution if it was not used?
-  --[[ if useGlobalProbabilityInput.enabled and useGlobalProbability == false and type(globalResolution) == "number" and #availableResolutions > 1 then
-    local removeIndex = getIndexFromValue(getIndexFromValue(globalResolution, resolutions), availableResolutions)
-    table.remove(availableResolutions, removeIndex)
-    table.remove(selectedDivisionsAndRepeats, removeIndex)
-    print("Remove global duration if not selected", removeIndex)
-  end ]]
-
-  local index = 1
-  if #availableResolutions > 1 then
-    index = getRandom(#availableResolutions)
-    --print("Index selected by random", index)
-  end
-
-  -- Get resolution and divide by the selected division - not lower than system min res (1/128)
-  globalResolution = math.max(minResolution, (getResolution(availableResolutions[index]) / selectedDivisionsAndRepeats[index].division))
-
-  return globalResolution, selectedDivisionsAndRepeats[index].repeats, durationRepeatProbabilityInput.value
-end
-
-function getNoteToPlay(currentNote)
-  local selectedNotes = {} -- Holds note numbers that are available
-  for octaveIndex,octave in ipairs(octaveInputs) do
-    local octaveProbability = octaveProbabilityInputs[octaveIndex].value
-    if octave.value and octaveProbability > 0 then
-      for i,v in ipairs(noteInputs) do
-        -- Check if note should be added for this octave
-        local noteProbability = noteProbabilityInputs[i].value
-        if v.value and getRandomBoolean(noteProbability) and getRandomBoolean(octaveProbability) then
-          local noteNumber = i - 1 -- Base note
-          noteNumber = noteNumber + (12 * octaveIndex) -- Set octave
-          if tableIncludes(notesPlaying, noteNumber) == false then
-            table.insert(selectedNotes, noteNumber)
-            --print("Note added: noteNumber/name", noteNumber, noteNumberToNoteName[noteNumber+1])
-          end
-        end
-      end
-    end
-  end
+function generateNote(currentNote)
+  local selectedNotes = getSelectedNotes() -- Holds note numbers that are available
 
   if #selectedNotes == 0 then
     return nil
@@ -874,7 +504,14 @@ function arpeg(voice)
       repeatCounter = 1 -- Reset repeat counter - should counter be reset here?
       --print("New round for voice, remainingDuration", voice, remainingDuration)
     end
-    waitDuration, repeatCounter, durationRepeatProbability = getNoteDuration(waitDuration, repeatCounter, durationRepeatProbability)
+    local useGlobalProbability = useGlobalProbabilityInput.value
+    if useGlobalProbabilityInput.enabled == false then
+      useGlobalProbability = 0
+    end
+    waitDuration, repeatCounter, durationRepeatProbability = getNoteDuration(waitDuration, repeatCounter, durationRepeatProbability, durationRepeatDecay.value, useGlobalProbability)
+    if durationRepeatProbability == nil then
+      durationRepeatProbability = durationRepeatProbabilityInput.value
+    end
     --print("remainingDuration, waitDuration, repeatCounter, durationRepeatProbability", remainingDuration, waitDuration, repeatCounter, durationRepeatProbability)
     if remainingDuration < waitDuration then
       waitDuration = remainingDuration
@@ -882,7 +519,7 @@ function arpeg(voice)
     end
     local gate = getGate()
     if gate > 0 and waitDuration >= minResolution then
-      noteToPlay = getNoteToPlay(noteToPlay)
+      noteToPlay = generateNote(noteToPlay)
     else
       noteToPlay = nil
     end
