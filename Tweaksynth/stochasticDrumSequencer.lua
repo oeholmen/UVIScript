@@ -358,6 +358,11 @@ nextPageButton.x = cyclePagesButton.x + cyclePagesButton.width + xPadding
 pageTrigger.x = actionMenu.x + actionMenu.width + 9
 pageTrigger.y = actionMenu.y
 
+local sequencerPanelOffset = 0
+if numParts == 1 then
+  sequencerPanelOffset = 25
+end
+
 -- Add params that are to be editable per page / part
 for page=1,maxPages do
   local tableX = 100
@@ -371,7 +376,7 @@ for page=1,maxPages do
   sequencerPanel.x = 10
   sequencerPanel.y = headerPanel.height + 15
   sequencerPanel.width = 700
-  sequencerPanel.height = numParts * (tableHeight + 25) + 0
+  sequencerPanel.height = numParts * (tableHeight + 25) + sequencerPanelOffset
 
   for part=1,numParts do
     local isVisible = true

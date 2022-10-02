@@ -25,12 +25,7 @@ function randomizeValue(value, limitMin, limitMax, randomizationAmount)
 end
 
 function tableIncludes(theTable, theItem)
-  for _,v in pairs(theTable) do
-    if v == theItem then
-      return true
-    end
-  end
-  return false
+  return type(getIndexFromValue(theItem, theTable)) == "number"
 end
 
 function getIndexFromValue(value, selection)
@@ -39,7 +34,7 @@ function getIndexFromValue(value, selection)
       return i
     end
   end
-  return 1
+  return nil
 end
 
 function round(value)

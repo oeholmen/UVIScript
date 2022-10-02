@@ -2,35 +2,22 @@
 -- Generative chorder and sequencer
 --------------------------------------------------------------------------------
 
-require "generative"
+require "common"
 
-local backgroundColour = "6c6c6c" -- Light or Dark
-local menuBackgroundColour = "01011F"
-local widgetBackgroundColour = menuBackgroundColour -- Dark
+local backgroundColour = "7c7c7c" -- Light or Dark
+local widgetBackgroundColour = "111D5E" -- Dark
 local widgetTextColour = "9f02ACFE" -- Light
 local labelTextColour = "AEFEFF" -- Light
+local menuBackgroundColour = "01011F"
 local menuArrowColour = "66" .. labelTextColour
-local labelBackgoundColour = "111D5E"
+local labelBackgoundColour = widgetBackgroundColour
 local menuOutlineColour = "5f" .. widgetTextColour
 local sliderColour = "5FB5FF"
+local selectedPartColour = "cc33cc44"
 local backgroundColourOff = "ff084486"
 local backgroundColourOn = "ff02ACFE"
 local textColourOff = "ff22FFFF"
 local textColourOn = "efFFFFFF"
-
-local colours = {
-  widgetBackgroundColour = widgetBackgroundColour,
-  widgetTextColour = widgetTextColour,
-  labelTextColour = labelTextColour,
-  menuBackgroundColour = menuBackgroundColour,
-  menuArrowColour = menuArrowColour,
-  menuOutlineColour = menuOutlineColour,
-  backgroundColourOff = backgroundColourOff,
-  backgroundColourOn = backgroundColourOn,
-  textColourOff = textColourOff,
-  textColourOn = textColourOn,
-  backgroundColour = backgroundColour
-}
 
 local isPlaying = false
 local partToStepMap = {1} -- Holds the starting step for each part
@@ -38,6 +25,40 @@ local totalNumSteps = 8
 local paramsPerPart = {}
 local partSelect = {}
 local numParts = 1
+
+-- Make sure these are in sync with the scale names
+-- Scales are defined by distance to the next step
+local scaleDefinitions = {
+  {2,2,1,2,2,2,1}, -- Major (Ionian mode)
+  {2,1,2,2,1,2,2}, -- Minor (Aeolian mode)
+  {2,1,2,2,2,2,1}, -- Harmonic minor
+  {2,1,2,2,2,1,2}, -- Dorian mode
+  {1,2,2,2,1,2,2}, -- Phrygian mode
+  {2,2,2,1,2,2,1}, -- Lydian mode
+  {2,2,1,2,2,1,2}, -- Mixolydian mode
+  {1,2,2,1,2,2,2}, -- Locrian mode
+  {1,2,1,3,1,2,2}, -- Alterated
+  {2,2,3,2,3}, -- Major Pentatonic
+  {3,2,2,3,2}, -- Minor Pentatonic
+  {1}, -- Chromatic
+  {2}, -- Whole tone scale
+}
+
+local scaleNames = {
+  "Major (Ionian)",
+  "Minor (Aeolian)",
+  "Harmonic minor",
+  "Dorian",
+  "Phrygian",
+  "Lydian",
+  "Mixolydian",
+  "Locrian",
+  "Alterated",
+  "Major Pentatonic",
+  "Minor Pentatonic",
+  "Chromatic",
+  "Whole tone",
+}
 
 -- *** NOTE *** The chord definitions use steps in the selected scale, not semitones.
 -- 2 means two steps up the scale: C-E for a C major scale. A-C for an A minor scale.
@@ -54,12 +75,10 @@ local chordDefinitions = {
   --{Randomize},
 }
 
-local noteDisplay = {} -- Holds the widgets that displays the notes being played
-local maxVoices = 16 -- Max number of oplyphonic voices
+local noteInputs = {}
+local maxVoices = 16
 local notes = {} -- Holds the playing notes - notes are removed when they are finished playing
 local noteNumberToNoteName = getNoteMapping()
-local scaleDefinitions = getScaleDefinitions()
-local scaleNames = getScaleNames()
 
 setBackgroundColour(backgroundColour)
 
@@ -67,15 +86,20 @@ setBackgroundColour(backgroundColour)
 -- Scale and note functions
 --------------------------------------------------------------------------------
 
+function createFullScale(part)
+  -- Find scale definition
+  local definition = scaleDefinitions[paramsPerPart[part].scale.value]
+  -- Find root note
+  local root = paramsPerPart[part].key.value - 1
+  -- Create scale
+  paramsPerPart[part].fullScale = createScale(definition, root)
+end
+
 -- Use the selected chord definition to find the index for the next note in the chord
 function getNextScaleIndex(note, scale, chordDefinition, inversionIndex)
   local index = getIndexFromValue(note, scale)
   print("getNextScaleIndex #chordDefinition/inversionIndex", #chordDefinition, inversionIndex)
   local increment = chordDefinition[inversionIndex]
-  if index == nil then
-    index = 0
-    print("!!!Note not found in scale!!!")
-  end
   return index + increment
 end
 
@@ -101,109 +125,41 @@ function hasNoteWithinMonoLimit(notesTable, partPos)
 end
 
 function getVelocity(part, step, skipRandomize)
-  local velocityInput = paramsPerPart[part].velocityInput
-  local velocity = velocityInput.value
+  local seqVelTable = paramsPerPart[part].seqVelTable
+  local velocity = seqVelTable:getValue(step)
 
   if skipRandomize == true then
     return velocity
   end
 
   -- Randomize velocity
-  return randomizeValue(velocity, velocityInput.min, velocityInput.max, paramsPerPart[part].velRandomization.value)
+  return randomizeValue(velocity, seqVelTable.min, seqVelTable.max, paramsPerPart[part].velRandomization.value)
 end
 
 function getGate(part, step, skipRandomize)
-  local gateInput = paramsPerPart[part].gateInput
-  local gate = gateInput.value
+  local seqGateTable = paramsPerPart[part].seqGateTable
+  local gate = seqGateTable:getValue(step)
 
   if skipRandomize == true then
     return gate
   end
 
-  -- Randomize velocity
-  return randomizeValue(gate, gateInput.min, gateInput.max, paramsPerPart[part].velRandomization.value)
+  return randomizeValue(gate, seqGateTable.min, seqGateTable.max, paramsPerPart[part].gateRandomization.value)
 end
 
 --------------------------------------------------------------------------------
--- Panels
+-- Sequencer Panel
 --------------------------------------------------------------------------------
 
 local tableWidth = 700
+local tableX = 0
 
 local sequencerPanel = Panel("Sequencer")
 sequencerPanel.backgroundColour = backgroundColour
 sequencerPanel.x = 10
 sequencerPanel.y = 10
 sequencerPanel.width = tableWidth
-sequencerPanel.height = 300
-
-local notePanel = Panel("Notes")
-notePanel.backgroundColour = backgroundColour
-notePanel.x = sequencerPanel.x
-notePanel.y = sequencerPanel.y + sequencerPanel.height + 5
-notePanel.width = tableWidth
-notePanel.height = 150
-
---------------------------------------------------------------------------------
--- Notes Panel
---------------------------------------------------------------------------------
-
-local noteLabel = notePanel:Label("NoteLabel")
-noteLabel.text = "Notes"
-noteLabel.tooltip = "Set the probability that notes will be included when generating new notes"
-noteLabel.alpha = 0.75
-noteLabel.fontSize = 15
-noteLabel.width = 50
-noteLabel.height = 20
-noteLabel.y = 0
-
-local clearNotes = notePanel:Button("ClearNotes")
-clearNotes.displayName = "Clear notes"
-clearNotes.tooltip = "Deselect all notes"
-clearNotes.persistent = false
-clearNotes.height = noteLabel.height
-clearNotes.width = 90
-clearNotes.x = notePanel.width - (clearNotes.width * 3) - 30
-clearNotes.y = noteLabel.y
-clearNotes.changed = function()
-  for _,v in ipairs(noteInputs) do
-    v:setValue(false)
-  end
-end
-
-local addNotes = notePanel:Button("AddNotes")
-addNotes.displayName = "All notes"
-addNotes.tooltip = "Select all notes"
-addNotes.persistent = false
-addNotes.height = noteLabel.height
-addNotes.width = 90
-addNotes.x = clearNotes.x + clearNotes.width + 10
-addNotes.y = noteLabel.y
-addNotes.changed = function()
-  for _,v in ipairs(noteInputs) do
-    v:setValue(true)
-  end
-end
-
-local randomizeNotes = notePanel:Button("RandomizeNotes")
-randomizeNotes.displayName = "Randomize notes"
-randomizeNotes.tooltip = "Randomize all notes"
-randomizeNotes.persistent = false
-randomizeNotes.height = noteLabel.height
-randomizeNotes.width = 90
-randomizeNotes.x = addNotes.x + addNotes.width + 10
-randomizeNotes.y = noteLabel.y
-randomizeNotes.changed = function()
-  for _,v in ipairs(noteInputs) do
-    v:setValue(getRandomBoolean())
-  end
-end
-
-setNotesAndOctaves(notePanel, colours, noteLabel)
-
---------------------------------------------------------------------------------
--- Sequencer Panel
---------------------------------------------------------------------------------
+sequencerPanel.height = 450
 
 local label = sequencerPanel:Label("Label")
 label.text = "Generative Chorder"
@@ -217,10 +173,10 @@ label.size = {170,25}
 local editPartMenu = sequencerPanel:Menu("EditPart", partSelect)
 
 local channelButton = sequencerPanel:OnOffButton("ChannelButton", false)
-channelButton.backgroundColourOff = backgroundColourOff
-channelButton.backgroundColourOn = backgroundColourOn
-channelButton.textColourOff = textColourOff
-channelButton.textColourOn = textColourOn
+channelButton.backgroundColourOff = "#ff084486"
+channelButton.backgroundColourOn = "#ff02ACFE"
+channelButton.textColourOff = "#ff22FFFF"
+channelButton.textColourOn = "#efFFFFFF"
 channelButton.displayName = "Multichannel"
 channelButton.tooltip = "When multichannel mode is enabled, each voice is sent to a separate channel"
 channelButton.fillColour = "#dd000061"
@@ -229,10 +185,10 @@ channelButton.x = 324
 channelButton.y = 0
 
 local focusButton = sequencerPanel:OnOffButton("FocusPartOnOff", false)
-focusButton.backgroundColourOff = backgroundColourOff
-focusButton.backgroundColourOn = backgroundColourOn
-focusButton.textColourOff = textColourOff
-focusButton.textColourOn = textColourOn
+focusButton.backgroundColourOff = "#ff084486"
+focusButton.backgroundColourOn = "#ff02ACFE"
+focusButton.textColourOff = "#ff22FFFF"
+focusButton.textColourOn = "#efFFFFFF"
 focusButton.displayName = "Focus Part"
 focusButton.tooltip = "When focus is active, only the part selected for editing is shown and played"
 focusButton.fillColour = "#dd000061"
@@ -244,10 +200,10 @@ focusButton.changed = function(self)
 end
 
 local autoplayButton = sequencerPanel:OnOffButton("AutoPlay", true)
-autoplayButton.backgroundColourOff = backgroundColourOff
-autoplayButton.backgroundColourOn = backgroundColourOn
-autoplayButton.textColourOff = textColourOff
-autoplayButton.textColourOn = textColourOn
+autoplayButton.backgroundColourOff = "#ff084486"
+autoplayButton.backgroundColourOn = "#ff02ACFE"
+autoplayButton.textColourOff = "#ff22FFFF"
+autoplayButton.textColourOn = "#efFFFFFF"
 autoplayButton.fillColour = "#dd000061"
 autoplayButton.displayName = "Auto Play"
 autoplayButton.tooltip = "Play automatically on transport"
@@ -257,10 +213,10 @@ autoplayButton.y = 0
 
 local playButton = sequencerPanel:OnOffButton("Play", false)
 playButton.persistent = false
-playButton.backgroundColourOff = backgroundColourOff
-playButton.backgroundColourOn = backgroundColourOn
-playButton.textColourOff = textColourOff
-playButton.textColourOn = textColourOn
+playButton.backgroundColourOff = "#ff084486"
+playButton.backgroundColourOn = "#ff02ACFE"
+playButton.textColourOff = "#ff22FFFF"
+playButton.textColourOn = "#efFFFFFF"
 playButton.fillColour = "#dd000061"
 playButton.displayName = "Play"
 playButton.size = channelButton.size
@@ -289,7 +245,7 @@ editPartMenu.changed = function(self)
     local isVisible = self.value == i
 
     if isVisible then
-      for i,w in ipairs(noteDisplay) do
+      for i,w in ipairs(noteInputs) do
         w.enabled = maxVoices - v.polyphony.value <= maxVoices - i
       end
       v.partsTable.backgroundColour = "#cc33cc44"
@@ -305,12 +261,13 @@ editPartMenu.changed = function(self)
     v.stepResolution.visible = isVisible
     v.minNoteSteps.visible = isVisible
     v.maxNoteSteps.visible = isVisible
+    v.minNote.visible = isVisible
+    v.maxNote.visible = isVisible
     v.monoLimit.visible = isVisible
     v.key.visible = isVisible
+    v.scale.visible = isVisible
     v.harmonizationPropbability.visible = isVisible
-    v.velocityInput.visible = isVisible
     v.velRandomization.visible = isVisible
-    v.gateInput.visible = isVisible
     v.gateRandomization.visible = isVisible
     v.baseNoteRandomization.visible = isVisible
     v.chordDefinitionInput.visible = isVisible
@@ -348,6 +305,8 @@ numPartsBox.changed = function(self)
   for _,v in ipairs(paramsPerPart) do
     v.partsTable.visible = false
     v.positionTable.visible = false
+    v.seqVelTable.visible = false
+    v.seqGateTable.visible = false
   end
   numParts = self.value
   for i=1,numParts do
@@ -364,16 +323,17 @@ numPartsBox.changed = function(self)
       local prev = paramsPerPart[i-1]
       paramsPerPart[i].polyphony.value = prev.polyphony.value
       paramsPerPart[i].key.value = prev.key.value
-      --paramsPerPart[i].scale.value = prev.scale.value
+      paramsPerPart[i].scale.value = prev.scale.value
       paramsPerPart[i].harmonizationPropbability.value = prev.harmonizationPropbability.value
-      paramsPerPart[i].gateInput.value = prev.gateInput.value
-      paramsPerPart[i].velocityInput.value = prev.velocityInput.value
+      paramsPerPart[i].minNote.value = prev.minNote.value
+      paramsPerPart[i].maxNote.value = prev.maxNote.value
       paramsPerPart[i].monoLimit.value = prev.monoLimit.value
       paramsPerPart[i].minNoteSteps.value = prev.minNoteSteps.value
       paramsPerPart[i].maxNoteSteps.value = prev.maxNoteSteps.value
       paramsPerPart[i].numStepsBox.value = prev.numStepsBox.value
       paramsPerPart[i].numRepeatsBox.value = prev.numRepeatsBox.value
       paramsPerPart[i].stepResolution.value = prev.stepResolution.value
+      paramsPerPart[i].fullScale = prev.fullScale
       paramsPerPart[i].velRandomization.value = prev.velRandomization.value
       paramsPerPart[i].gateRandomization.value = prev.gateRandomization.value
       paramsPerPart[i].baseNoteRandomization.value = prev.baseNoteRandomization.value
@@ -464,12 +424,23 @@ function setTableWidths()
     paramsPerPart[i].positionTable.width = partTableWidth
     paramsPerPart[i].positionTable.x = x
 
+    paramsPerPart[i].seqVelTable.length = paramsPerPart[i].numStepsBox.value
+    paramsPerPart[i].seqVelTable.visible = isVisible
+    paramsPerPart[i].seqVelTable.width = partTableWidth
+    paramsPerPart[i].seqVelTable.x = x
+
+    paramsPerPart[i].seqGateTable.length = paramsPerPart[i].numStepsBox.value
+    paramsPerPart[i].seqGateTable.visible = isVisible
+    paramsPerPart[i].seqGateTable.width = partTableWidth
+    paramsPerPart[i].seqGateTable.x = x
+
     x = x + partTableWidth
   end
 end
 
 function createChordDefinition(part)
-  local maxValue = 4 -- Max value
+  local numSteps = paramsPerPart[part].numStepsBox.value
+  local maxValue = round(#paramsPerPart[part].fullScale / (128 / 12)) -- Max value depends on numbers of notes in each octave
   local maxLength = paramsPerPart[part].polyphony.value -- Max length depends on polyphony
   local definition = {} -- Table to hold definition
   local ln = getRandom(maxLength) -- Set a random length for the definition
@@ -528,6 +499,28 @@ for i=1,numPartsBox.max do
   positionTable.x = partsTable.x
   positionTable.y = partsTable.y + partsTable.height
   
+  local seqVelTable = sequencerPanel:Table("Velocity" .. i, totalNumSteps, 100, 1, 127, true)
+  seqVelTable.tooltip = "Set step velocity. Randomization available in settings."
+  seqVelTable.showPopupDisplay = true
+  seqVelTable.showLabel = true
+  seqVelTable.fillStyle = "solid"
+  seqVelTable.sliderColour = sliderColour
+  seqVelTable.width = positionTable.width
+  seqVelTable.height = 70
+  seqVelTable.x = positionTable.x
+  seqVelTable.y = partRandBox.y + 180
+  
+  local seqGateTable = sequencerPanel:Table("Gate" .. i, totalNumSteps, 100, 0, 120, true)
+  seqGateTable.tooltip = "Set step gate length. Randomization available in settings."
+  seqGateTable.showPopupDisplay = true
+  seqGateTable.showLabel = true
+  seqGateTable.fillStyle = "solid"
+  seqGateTable.sliderColour = sliderColour
+  seqGateTable.width = seqVelTable.width
+  seqGateTable.height = seqVelTable.height
+  seqGateTable.x = seqVelTable.x
+  seqGateTable.y = seqVelTable.y + seqVelTable.height + 5
+
   local generatePolyphonyPart = sequencerPanel:NumBox("GeneratePolyphony" .. i, 4, 1, maxVoices, true)
   generatePolyphonyPart.displayName = "Polyphony"
   generatePolyphonyPart.tooltip = "How many notes are played at once"
@@ -538,7 +531,7 @@ for i=1,numPartsBox.max do
   generatePolyphonyPart.x = editPartMenu.x + editPartMenu.width + 10
   generatePolyphonyPart.y = editPartMenu.y
   generatePolyphonyPart.changed = function(self)
-    for i,v in ipairs(noteDisplay) do
+    for i,v in ipairs(noteInputs) do
       v.enabled = maxVoices - self.value <= maxVoices - i
     end
   end
@@ -604,28 +597,29 @@ for i=1,numPartsBox.max do
   numRepeatsBox.x = numStepsBox.x
   numRepeatsBox.y = numStepsBox.y + numStepsBox.height + 5
 
-  local generateKeyPart = sequencerPanel:Menu("GenerateKey" .. i, getNoteNames())
-  generateKeyPart.displayName = "Root Note"
-  generateKeyPart.tooltip = "Root Note"
-  generateKeyPart.showLabel = true
-  --generateKeyPart.height = 20
-  generateKeyPart.width = stepResolution.width
-  generateKeyPart.x = stepResolution.x + stepResolution.width + 10
-  generateKeyPart.y = stepResolution.y
-  generateKeyPart.backgroundColour = menuBackgroundColour
-  generateKeyPart.textColour = widgetTextColour
-  generateKeyPart.arrowColour = menuArrowColour
-  generateKeyPart.outlineColour = menuOutlineColour
-  
-  local baseNoteRandomization = sequencerPanel:NumBox("BaseNoteProbability" .. i, 75, 0, 100, true)
-  baseNoteRandomization.displayName = "Base Chord"
-  baseNoteRandomization.tooltip = "Probability that first chord in the part will be the root chord"
-  baseNoteRandomization.unit = Unit.Percent
-  baseNoteRandomization.width = generateKeyPart.width
-  baseNoteRandomization.x = generateKeyPart.x
-  baseNoteRandomization.y = generateKeyPart.y + generateKeyPart.height + 5
-  baseNoteRandomization.backgroundColour = menuBackgroundColour
-  baseNoteRandomization.textColour = widgetTextColour
+  local generateMinPart = sequencerPanel:NumBox("GenerateMin" .. i, 24, 0, 127, true)
+  generateMinPart.unit = Unit.MidiKey
+  generateMinPart.showPopupDisplay = true
+  generateMinPart.showLabel = true
+  generateMinPart.backgroundColour = menuBackgroundColour
+  generateMinPart.textColour = widgetTextColour
+  generateMinPart.displayName = "Min Note"
+  generateMinPart.tooltip = "Lowest note"
+  generateMinPart.x = stepResolution.x + stepResolution.width + 10
+  generateMinPart.y = stepResolution.y
+  generateMinPart.width = stepResolution.width
+
+  local generateMaxPart = sequencerPanel:NumBox("GenerateMax" .. i, 84, 0, 127, true)
+  generateMaxPart.unit = Unit.MidiKey
+  generateMaxPart.showPopupDisplay = true
+  generateMaxPart.showLabel = true
+  generateMaxPart.backgroundColour = menuBackgroundColour
+  generateMaxPart.textColour = widgetTextColour
+  generateMaxPart.displayName = "Max Note"
+  generateMaxPart.tooltip = "Highest note"
+  generateMaxPart.x = generateMinPart.x
+  generateMaxPart.y = generateMinPart.y + generateMinPart.height + 5
+  generateMaxPart.width = generateMinPart.width
 
   local monoLimit = sequencerPanel:NumBox("MonoLimit" .. i, 48, 0, 64, true)
   monoLimit.unit = Unit.MidiKey
@@ -635,59 +629,88 @@ for i=1,numPartsBox.max do
   monoLimit.textColour = widgetTextColour
   monoLimit.displayName = "Mono Limit"
   monoLimit.tooltip = "Below this note there will only be played one note (polyphony=1)"
-  monoLimit.x = generateKeyPart.x + generateKeyPart.width + 10
-  monoLimit.y = generateKeyPart.y
-  monoLimit.width = stepResolution.width
+  monoLimit.x = generateMaxPart.x
+  monoLimit.y = generateMaxPart.y + generateMaxPart.height + 5
+  monoLimit.width = generateMaxPart.width
 
-  local gateInput = sequencerPanel:NumBox("GateInput" .. i, 90, 0, 100, true)
-  gateInput.unit = Unit.Percent
-  gateInput.textColour = widgetTextColour
-  gateInput.backgroundColour = widgetBackgroundColour
-  gateInput.displayName = "Gate"
-  gateInput.tooltip = "Gate Level"
-  gateInput.width = stepResolution.width
-  gateInput.x = monoLimit.x
-  gateInput.y = monoLimit.y + monoLimit.height + 5
+  generateMinPart.changed = function(self)
+    generateMaxPart:setRange(self.value, 127)
+  end
 
-  local velocityInput = sequencerPanel:NumBox("VelocityInput" .. i, 64, 1, 127, true)
-  velocityInput.textColour = widgetTextColour
-  velocityInput.backgroundColour = widgetBackgroundColour
-  velocityInput.displayName = "Velocity"
-  velocityInput.tooltip = "Default velocity"
-  velocityInput.width = stepResolution.width
-  velocityInput.x = gateInput.x
-  velocityInput.y = gateInput.y + gateInput.height + 5
+  generateMaxPart.changed = function(self)
+    generateMinPart:setRange(0, self.value)
+  end
+
+  local generateKeyPart = sequencerPanel:Menu("GenerateKey" .. i, getNoteNames())
+  generateKeyPart.tooltip = "Key"
+  generateKeyPart.showLabel = false
+  generateKeyPart.height = 20
+  generateKeyPart.width = generateMaxPart.width
+  generateKeyPart.x = generateMinPart.x + generateMinPart.width + 10
+  generateKeyPart.y = stepResolution.y
+  generateKeyPart.backgroundColour = menuBackgroundColour
+  generateKeyPart.textColour = widgetTextColour
+  generateKeyPart.arrowColour = menuArrowColour
+  generateKeyPart.outlineColour = menuOutlineColour
+  generateKeyPart.changed = function(self)
+    createFullScale(i)
+  end
+
+  local generateScalePart = sequencerPanel:Menu("GenerateScale" .. i, scaleNames)
+  generateScalePart.tooltip = "Scale"
+  generateScalePart.showLabel = false
+  generateScalePart.height = 20
+  generateScalePart.width = generateKeyPart.width
+  generateScalePart.x = generateKeyPart.x
+  generateScalePart.y = generateKeyPart.y + generateKeyPart.height + 5
+  generateScalePart.backgroundColour = menuBackgroundColour
+  generateScalePart.textColour = widgetTextColour
+  generateScalePart.arrowColour = menuArrowColour
+  generateScalePart.outlineColour = menuOutlineColour
+  generateScalePart.changed = function(self)
+    createFullScale(i)
+  end
 
   local harmonizationPropbability = sequencerPanel:NumBox("HarmonizationPropbability" .. i, 100, 0, 100, true)
   harmonizationPropbability.displayName = "Harmonize"
   harmonizationPropbability.tooltip = "When harmonizing, we get notes from the currently playing chord. Otherwise notes are selected from the current scale."
   harmonizationPropbability.unit = Unit.Percent
   harmonizationPropbability.height = 20
-  harmonizationPropbability.width = generateKeyPart.width
-  harmonizationPropbability.x = monoLimit.x + monoLimit.width + 10
-  harmonizationPropbability.y = monoLimit.y
+  harmonizationPropbability.width = generateScalePart.width
+  harmonizationPropbability.x = generateScalePart.x
+  harmonizationPropbability.y = generateScalePart.y + generateScalePart.height + 5
   harmonizationPropbability.backgroundColour = menuBackgroundColour
   harmonizationPropbability.textColour = widgetTextColour
 
-  local gateRandomization = sequencerPanel:NumBox("GateRandomization" .. i, 0, 0, 100, true)
-  gateRandomization.displayName = "Gate Rand"
-  gateRandomization.tooltip = "Amount of radomization applied to sequencer gate"
-  gateRandomization.unit = Unit.Percent
-  gateRandomization.width = harmonizationPropbability.width
-  gateRandomization.x = harmonizationPropbability.x
-  gateRandomization.y = harmonizationPropbability.y + harmonizationPropbability.height + 5
-  gateRandomization.backgroundColour = menuBackgroundColour
-  gateRandomization.textColour = widgetTextColour
-
-  local velRandomization = sequencerPanel:NumBox("VelocityRandomization" .. i, 15, 0, 100, true)
-  velRandomization.displayName = "Velocity Rand"
+  local velRandomization = sequencerPanel:NumBox("VelocityRandomization" .. i, 0, 0, 100, true)
+  velRandomization.displayName = "Velocity"
   velRandomization.tooltip = "Amount of radomization applied to sequencer velocity"
   velRandomization.unit = Unit.Percent
   velRandomization.width = editPartMenu.width
-  velRandomization.x = gateRandomization.x
-  velRandomization.y = gateRandomization.y + gateRandomization.height + 5
+  velRandomization.x = generateKeyPart.x + generateKeyPart.width + 10
+  velRandomization.y = editPartMenu.y
   velRandomization.backgroundColour = menuBackgroundColour
   velRandomization.textColour = widgetTextColour
+
+  local gateRandomization = sequencerPanel:NumBox("GateRandomization" .. i, 0, 0, 100, true)
+  gateRandomization.displayName = "Gate"
+  gateRandomization.tooltip = "Amount of radomization applied to sequencer gate"
+  gateRandomization.unit = Unit.Percent
+  gateRandomization.width = velRandomization.width
+  gateRandomization.x = velRandomization.x
+  gateRandomization.y = velRandomization.y + velRandomization.height + 5
+  gateRandomization.backgroundColour = menuBackgroundColour
+  gateRandomization.textColour = widgetTextColour
+
+  local baseNoteRandomization = sequencerPanel:NumBox("BaseNoteProbability" .. i, 75, 0, 100, true)
+  baseNoteRandomization.displayName = "Base Chord"
+  baseNoteRandomization.tooltip = "Probability that first chord in the part will be the root chord"
+  baseNoteRandomization.unit = Unit.Percent
+  baseNoteRandomization.width = gateRandomization.width
+  baseNoteRandomization.x = gateRandomization.x
+  baseNoteRandomization.y = gateRandomization.y + gateRandomization.height + 5
+  baseNoteRandomization.backgroundColour = menuBackgroundColour
+  baseNoteRandomization.textColour = widgetTextColour
 
   local voiceLabelBgColour = "9F9F9F"
   local voiceLabelTextColour = "202020"
@@ -723,7 +746,7 @@ for i=1,numPartsBox.max do
       noteInput.height = 20
       noteInput.x = ((j - 1) * (noteInput.width + 1)) - 2
       noteInput.y = voiceLabelY + 22
-      table.insert(noteDisplay, noteInput)
+      table.insert(noteInputs, noteInput)
     end
   end
 
@@ -735,7 +758,7 @@ for i=1,numPartsBox.max do
 
   local chordDefinitionInput = sequencerPanel:Label("ChordInput" .. i)
   chordDefinitionInput.text = getChordInputText(chordDefinitions[1])
-  chordDefinitionInput.tooltip = "Chord definitions build chords. Numbers represent steps up or down the scale that is currently selected. Feel free to type your own chord definitions here, or select from the menu."
+  chordDefinitionInput.tooltip = "Chord definitions build chords. Numbers represent steps up or down the scale that is currently selected. Feel free to type your own chord definitions here."
   chordDefinitionInput.editable = true
   chordDefinitionInput.backgroundColour = menuBackgroundColour
   chordDefinitionInput.backgroundColourWhenEditing = "black"
@@ -755,7 +778,7 @@ for i=1,numPartsBox.max do
   autoChordButton.textColourOff = textColourOff
   autoChordButton.textColourOn = textColourOn
   autoChordButton.width = editPartMenu.width
-  autoChordButton.x = baseNoteRandomization.x
+  autoChordButton.x = generateMinPart.x
   autoChordButton.y = chordDefinitionInput.y
 
   local randomChordButton = sequencerPanel:OnOffButton("RandomChordButton" .. i, false)
@@ -899,7 +922,7 @@ for i=1,numPartsBox.max do
   end
 
   if i == 1 then
-    spreadProbabilityLabel.x = monoLimit.x
+    spreadProbabilityLabel.x = harmonizationPropbability.x
     spreadProbabilityLabel.y = chordProbabilityLabel.y
     spreadProbabilityLabel.width = editPartMenu.width
 
@@ -962,7 +985,9 @@ for i=1,numPartsBox.max do
     end
   end
 
-  table.insert(paramsPerPart, {chordDefinitionSlots=chordDefinitionSlots,createChordDefinitionButton=createChordDefinitionButton,loadChordDefinition=loadChordDefinition,saveChordDefinition=saveChordDefinition,chordDefinitionInput=chordDefinitionInput,autoChordButton=autoChordButton,randomChordButton=randomChordButton,slotChordButton=slotChordButton,inversions=inversions,spreads=spreads,chords=chords,velRandomization=velRandomization,gateRandomization=gateRandomization,baseNoteRandomization=baseNoteRandomization,partsTable=partsTable,positionTable=positionTable,velocityInput=velocityInput,gateInput=gateInput,polyphony=generatePolyphonyPart,numStepsBox=numStepsBox,numRepeatsBox=numRepeatsBox,stepResolution=stepResolution,key=generateKeyPart,harmonizationPropbability=harmonizationPropbability,monoLimit=monoLimit,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
+  table.insert(paramsPerPart, {chordDefinitionSlots=chordDefinitionSlots,createChordDefinitionButton=createChordDefinitionButton,loadChordDefinition=loadChordDefinition,saveChordDefinition=saveChordDefinition,chordDefinitionInput=chordDefinitionInput,autoChordButton=autoChordButton,randomChordButton=randomChordButton,slotChordButton=slotChordButton,inversions=inversions,spreads=spreads,chords=chords,velRandomization=velRandomization,gateRandomization=gateRandomization,baseNoteRandomization=baseNoteRandomization,partsTable=partsTable,positionTable=positionTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,polyphony=generatePolyphonyPart,numStepsBox=numStepsBox,numRepeatsBox=numRepeatsBox,stepResolution=stepResolution,fullScale={},scale=generateScalePart,key=generateKeyPart,harmonizationPropbability=harmonizationPropbability,minNote=generateMinPart,maxNote=generateMaxPart,monoLimit=monoLimit,minNoteSteps=generateMinNoteStepsPart,maxNoteSteps=generateMaxNoteStepsPart,init=i==1})
+
+  generateScalePart:changed()
 end
 
 editPartMenu:changed()
@@ -1061,10 +1086,9 @@ function arpeg()
     end
 
     -- Number of simultainious notes are set by polyphony
-    scale = getSelectedNotes()
     local polyphony = paramsPerPart[currentPartPosition].polyphony.value
-    local minNote = scale[1]
-    local maxNote = scale[#scale]
+    local minNote = paramsPerPart[currentPartPosition].minNote.value
+    local maxNote = paramsPerPart[currentPartPosition].maxNote.value
     local mainBeatDuration = getResolution(paramsPerPart[currentPartPosition].stepResolution.value)
     local minNoteSteps = paramsPerPart[currentPartPosition].minNoteSteps.value
     local maxNoteSteps = paramsPerPart[currentPartPosition].maxNoteSteps.value
@@ -1148,14 +1172,6 @@ function arpeg()
         local baseMin = minNote
         local baseMax = maxNote
 
-        if #scale == 0 then
-          return note
-        end
-
-        if #scale == 1 then
-          return scale[1]
-        end
-
         if hasNoteWithinMonoLimit(notes, currentPartPosition) == true then
           -- Ensure we only have one note below the mono limit
           baseMin = monoLimit
@@ -1166,7 +1182,7 @@ function arpeg()
           print("Adjust baseMax to mono limit", baseMax)
         end
 
-        --scale = paramsPerPart[currentPartPosition].fullScale
+        scale = paramsPerPart[currentPartPosition].fullScale
 
         local function getBaseNote()
           local baseNote = minNote -- Start from the lowest note
@@ -1217,12 +1233,10 @@ function arpeg()
             if inversionIndex > #chordDefinition then
               inversionIndex = 1
             end
-            --local fullScale = paramsPerPart[currentPartPosition].fullScale
-            --local scaleIndex = getNextScaleIndex(prevNote, fullScale, chordDefinition, inversionIndex)
-            local scaleIndex = getNextScaleIndex(prevNote, scale, chordDefinition, inversionIndex)
+            local fullScale = paramsPerPart[currentPartPosition].fullScale
+            local scaleIndex = getNextScaleIndex(prevNote, fullScale, chordDefinition, inversionIndex)
             -- Ensure note is within range
-            --note = transpose(scale[scaleIndex], baseMin, baseMax)
-            note = scale[scaleIndex]
+            note = transpose(fullScale[scaleIndex], baseMin, baseMax)
             local noteRange = baseMax - prevNote
             local octaveFactor = 12-- / (selectedSpread / 2)
             local octaveRange = math.floor(noteRange / octaveFactor)
@@ -1256,8 +1270,7 @@ function arpeg()
 
         -- Get random note from scale
         if type(note) == "nil" then
-          --note = getNoteAccordingToScale(scale, getRandom(baseMin, baseMax))
-          note = scale[getRandom(#scale)]
+          note = getNoteAccordingToScale(scale, getRandom(baseMin, baseMax))
         end
 
         return note
@@ -1333,10 +1346,10 @@ function arpeg()
         else
           print("Voice is not playing", voice)
           local noteToPlay = getNoteToPlay(voice, chordDefinition)
-          if type(noteToPlay.note) == "number" and notesInclude(notes, noteToPlay.note) == false then
+          if notesInclude(notes, noteToPlay.note) == false then
             table.insert(notes, noteToPlay)
             print("Insert note", noteToPlay.note)
-            noteDisplay[voice].text = noteNumberToNoteName[noteToPlay.note + 1] .. " (" .. noteToPlay.note .. ")"
+            noteInputs[voice].text = noteNumberToNoteName[noteToPlay.note + 1] .. " (" .. noteToPlay.note .. ")"
             voice = voice + 1
           end
         end
@@ -1428,7 +1441,7 @@ end
 -- Save / Load
 --------------------------------------------------------------------------------
 
---[[ function onSave()
+function onSave()
   local numStepsData = {}
   local seqVelTableData = {}
   local seqGateTableData = {}
@@ -1462,4 +1475,4 @@ function onLoad(data)
       dataCounter = dataCounter + 1
     end
   end
-end ]]
+end

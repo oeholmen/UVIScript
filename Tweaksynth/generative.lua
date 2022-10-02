@@ -41,10 +41,14 @@ octaveProbabilityInputs = {}
 -- Functions
 --------------------------------------------------------------------------------
 
-function setScale(scaleIndex, keyIndex)
+function getScale(scaleIndex, keyIndex)
   local scaleDefinition = scaleDefinitions[scaleIndex]
   local rootNote = keyIndex - 1 -- Root note
-  local scale = createScale(scaleDefinition, rootNote)
+  return createScale(scaleDefinition, rootNote)
+end
+
+function setScale(scaleIndex, keyIndex)
+  local scale = getScale(scaleIndex, keyIndex)
   for i,v in ipairs(noteInputs) do
     local noteNumber = i + 11 -- Check note in octave above
     v:setValue(tableIncludes(scale, noteNumber))
@@ -73,6 +77,7 @@ function getSelectedNotes()
   --print("#selectedNotes", #selectedNotes)
   return selectedNotes
 end
+
 function adjustForDuration(decay, currentDuration)
   -- TODO Param for adjusting decay
   -- TODO Increase decay for longer durations - less repetition of longer notes
@@ -249,7 +254,7 @@ function setNotesAndOctaves(notePanel, colours, noteLabel)
   generateKey.size = {102,20}
   generateKey.x = noteLabel.x + noteLabel.width + 10
   generateKey.y = noteLabel.y
-  
+
   local generateScale = notePanel:Menu("GenerateScale", scaleNames)
   generateScale.selected = #scaleNames
   generateScale.tooltip = "Set selected notes from scale"
@@ -261,11 +266,11 @@ function setNotesAndOctaves(notePanel, colours, noteLabel)
   generateScale.size = generateKey.size
   generateScale.x = generateKey.x + generateKey.width + 10
   generateScale.y = generateKey.y
-  
+
   generateKey.changed = function(self)
     setScale(generateScale.value, self.value)
   end
-  
+
   generateScale.changed = function(self)
     setScale(self.value, generateKey.value)
   end
