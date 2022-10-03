@@ -14,7 +14,7 @@ local backgroundColourOff = "ff084486"
 local backgroundColourOn = "ff02ACFE"
 local textColourOff = "ff22FFFF"
 local textColourOn = "efFFFFFF"
-local backgroundColour = "400D51"
+local backgroundColour = "202020"
 
 local colours = {
   widgetBackgroundColour = widgetBackgroundColour,
@@ -113,7 +113,7 @@ end
 setBackgroundColour(backgroundColour)
 
 local sequencerPanel = Panel("Sequencer")
---sequencerPanel.backgroundColour = backgroundColour
+sequencerPanel.backgroundColour = backgroundColour
 sequencerPanel.x = 10
 sequencerPanel.y = 10
 sequencerPanel.width = 700
@@ -127,7 +127,7 @@ strategyPanel.width = 405
 strategyPanel.height = 110
 
 local gatePanel = Panel("GatePanel")
-gatePanel.backgroundColour = "400D51"
+gatePanel.backgroundColour = "303030"
 gatePanel.x = strategyPanel.x + strategyPanel.width + 5
 gatePanel.y = strategyPanel.y
 gatePanel.width = 140
@@ -141,7 +141,7 @@ velocityPanel.width = gatePanel.width
 velocityPanel.height = strategyPanel.height
 
 local notePanel = Panel("Notes")
-notePanel.backgroundColour = "400D51"
+notePanel.backgroundColour = "505050"
 notePanel.x = strategyPanel.x
 notePanel.y = strategyPanel.y + strategyPanel.height + 5
 notePanel.width = 700
@@ -595,7 +595,7 @@ local function generateNote()
   end
 
   if getRandomBoolean(strategyPropbability.value) then
-    note, notePosition, strategyPos = getNoteFromStrategy(selectedNotes, notePosition, strategyIndex, strategyPos)
+    note = getNoteFromStrategy(selectedNotes)
     print("Get note from scale using strategy: note/strategyPos/strategyIndex", note, strategyPos, strategyIndex)
   else
     note = selectedNotes[getRandom(#selectedNotes)]
@@ -616,7 +616,7 @@ end
 -- Strategy Functions
 --------------------------------------------------------------------------------
 
-function getNoteFromStrategy(selectedNotes, notePosition, strategyIndex, strategyPos)
+function getNoteFromStrategy(selectedNotes)
   local strategy = {}
   local input = strategyInput
   if input.enabled == true and string.len(input.text) > 0 then
@@ -676,7 +676,7 @@ function getNoteFromStrategy(selectedNotes, notePosition, strategyIndex, strateg
     end
   end
   local note = selectedNotes[notePosition]
-  return note, notePosition, strategyPos
+  return note
 end
 
 --------------------------------------------------------------------------------
@@ -759,7 +759,6 @@ function arpeg(voice)
     end
     local gate = getGate()
     if gate > 0 and waitDuration >= minResolution then
-      --noteToPlay = getNoteToPlay(noteToPlay)
       noteToPlay = generateNote()
     else
       noteToPlay = nil
@@ -767,7 +766,7 @@ function arpeg(voice)
     if type(noteToPlay) == "number" then
       local velocity = getVelocity()
       local playDuration = beat2ms(waitDuration) * gate
-        playNote(noteToPlay, velocity, playDuration, nil, channel)
+      playNote(noteToPlay, velocity, playDuration, nil, channel)
       --print("playNote noteToPlay, velocity, playDuration, voice", noteToPlay, velocity, playDuration, voice)
       -- Register playing note
       table.insert(notesPlaying, noteToPlay)

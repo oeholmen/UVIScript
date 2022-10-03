@@ -418,12 +418,12 @@ function generateNote(currentNote)
   end
 
   local noteIndex = 1
+  local currentIndex = getIndexFromValue(currentNote, selectedNotes)
 
-  if type(currentNote) == "nil" or tableIncludes(selectedNotes, currentNote) == false then
+  if type(currentNote) == "nil" or type(currentIndex) == "nil" then
     noteIndex = getRandom(#selectedNotes)
     --print("Get random note index", noteIndex)
   else
-    local currentIndex = getIndexFromValue(currentNote, selectedNotes)
     local noteDirectionProbability = noteDirection.value
     local goUp = getRandomBoolean(noteDirectionProbability)
     local resetFull = randomReset.value == false
@@ -448,7 +448,7 @@ function generateNote(currentNote)
     else
       noteIndex = getRandom(#selectedNotes)
       print("Random note index", noteIndex)
-      end
+    end
   end
 
   return selectedNotes[noteIndex]

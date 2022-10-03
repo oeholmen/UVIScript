@@ -8,7 +8,8 @@ require "resolutions"
 
 function randomizeValue(value, limitMin, limitMax, randomizationAmount)
   if randomizationAmount > 0 then
-    local changeMax = getChangeMax(limitMax, randomizationAmount)
+    local limitRange = limitMax - limitMin
+    local changeMax = getChangeMax(limitRange, randomizationAmount)
     local min = value - changeMax
     local max = value + changeMax
     if min < limitMin then
