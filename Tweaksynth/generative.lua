@@ -78,6 +78,21 @@ function getSelectedNotes()
   return selectedNotes
 end
 
+-- Get all notes that are activated in all octaves (full scale)
+function getActiveNotes()
+  local notes = {}
+  for octaveIndex=1, #octaveInputs do
+    for i,v in ipairs(noteInputs) do
+      if v.value then
+        local noteNumber = i - 1 -- Base note
+        noteNumber = noteNumber + (12 * octaveIndex) -- Set octave
+        table.insert(notes, noteNumber)
+      end
+    end
+  end
+  return notes
+end
+
 function adjustForDuration(decay, currentDuration)
   -- TODO Param for adjusting decay
   -- TODO Increase decay for longer durations - less repetition of longer notes

@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
--- Probability Sequencer
+-- Generative Strategy Sequencer
 --------------------------------------------------------------------------------
 
 require "generative"
@@ -804,5 +804,32 @@ end
 function onTransport(start)
   if autoplayButton.value == true then
     playButton:setValue(start)
+  end
+end
+
+--------------------------------------------------------------------------------
+-- Save / Load
+--------------------------------------------------------------------------------
+
+function onSave()
+  local strategyInputData = {}
+  local strategySlotsData = {}
+
+  strategyInputData = strategyInput.text
+  for _,v in ipairs(strategySlots) do
+    table.insert(strategySlotsData, v.tooltip)
+  end
+
+  return {strategyInputData, strategySlotsData}
+end
+
+function onLoad(data)
+  local strategyInputData = data[1]
+  local strategySlotsData = data[2]
+
+  strategyInput.text = strategyInputData
+  for i,v in ipairs(strategySlots) do
+    v.tooltip = strategySlotsData[i]
+    v.enabled = v.tooltip ~= "Unused"
   end
 end

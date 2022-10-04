@@ -167,16 +167,8 @@ function modulateVoice(voiceId)
   local currentResolutionIndex = getCurrentResolutionIndex(isRising)
   local duration = 0
   while hasVoiceId(voiceId) do
-    local isRisingCurrent = isRising
     duration, isRising, currentResolutionIndex = getDuration(isRising, currentResolutionIndex)
-    --if isRisingCurrent == isRising then
-      doModulation(duration, voiceId)
-    --[[ else
-      local rampValue = rampTime.value / 100
-      local rampDuration = duration * rampValue
-      sendScriptModulation(sourceIndex.value, 0, rampDuration, voiceId)
-      remove(voiceId)
-    end ]]
+    doModulation(duration, voiceId)
   end
 end
 

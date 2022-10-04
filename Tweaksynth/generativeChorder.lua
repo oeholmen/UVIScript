@@ -72,7 +72,7 @@ function getNextScaleIndex(note, scale, chordDefinition, inversionIndex)
   local index = getIndexFromValue(note, scale)
   print("getNextScaleIndex #chordDefinition/inversionIndex", #chordDefinition, inversionIndex)
   local increment = chordDefinition[inversionIndex]
-  if index == nil then
+  if type(index) == "nil" then
     index = 0
     print("!!!Note not found in scale!!!")
   end
@@ -364,7 +364,6 @@ numPartsBox.changed = function(self)
       local prev = paramsPerPart[i-1]
       paramsPerPart[i].polyphony.value = prev.polyphony.value
       paramsPerPart[i].key.value = prev.key.value
-      --paramsPerPart[i].scale.value = prev.scale.value
       paramsPerPart[i].harmonizationPropbability.value = prev.harmonizationPropbability.value
       paramsPerPart[i].gateInput.value = prev.gateInput.value
       paramsPerPart[i].velocityInput.value = prev.velocityInput.value
@@ -1062,6 +1061,7 @@ function arpeg()
 
     -- Number of simultainious notes are set by polyphony
     scale = getSelectedNotes()
+    fullScale = getActiveNotes()
     local polyphony = paramsPerPart[currentPartPosition].polyphony.value
     local minNote = scale[1]
     local maxNote = scale[#scale]
@@ -1166,8 +1166,6 @@ function arpeg()
           print("Adjust baseMax to mono limit", baseMax)
         end
 
-        --scale = paramsPerPart[currentPartPosition].fullScale
-
         local function getBaseNote()
           local baseNote = minNote -- Start from the lowest note
           local useBaseNote = currentStep == 1
@@ -1208,56 +1206,51 @@ function arpeg()
             print("startingNotes", #startingNotes)
             local prevNote = startingNotes[#startingNotes]
             print("Found prevNote", prevNote)
-            if prevNote < baseMin then
-              prevNote = transpose(prevNote, baseMin, baseMax)
-              print("Transposing prevNote to within range", prevNote)
-            end
             -- Increment inversion index
             inversionIndex = inversionIndex + 1
             if inversionIndex > #chordDefinition then
               inversionIndex = 1
             end
-            --local fullScale = paramsPerPart[currentPartPosition].fullScale
-            --local scaleIndex = getNextScaleIndex(prevNote, fullScale, chordDefinition, inversionIndex)
-            local scaleIndex = getNextScaleIndex(prevNote, scale, chordDefinition, inversionIndex)
-            -- Ensure note is within range
-            --note = transpose(scale[scaleIndex], baseMin, baseMax)
-            note = scale[scaleIndex]
-            local noteRange = baseMax - prevNote
-            local octaveFactor = 12-- / (selectedSpread / 2)
-            local octaveRange = math.floor(noteRange / octaveFactor)
-            local notesLeft = polyphony - #notes
-            local octave = 0
-            local octaveProbability = 50
-            local negOctProbability = 50
-            if selectedSpread == 1 then
-              octaveProbability = 15
-              negOctProbability = 75
-            elseif selectedSpread == 3 then
-              octaveProbability = 75
-              negOctProbability = 15
+            local scaleIndex = getNextScaleIndex(prevNote, fullScale, chordDefinition, inversionIndex)
+            note = fullScale[scaleIndex]
+            if type(note) == "number" then
+              note = transpose(note, baseMin, baseMax) -- Ensure note is 
+              local noteRange = baseMax - prevNote
+              local octaveFactor = 12-- / (selectedSpread / 2)
+              local octaveRange = math.floor(noteRange / octaveFactor)
+              local notesLeft = polyphony - #notes
+              local octave = 0
+              local octaveProbability = 50
+              local negOctProbability = 50
+              if selectedSpread == 1 then
+                octaveProbability = 15
+                negOctProbability = 75
+              elseif selectedSpread == 3 then
+                octaveProbability = 75
+                negOctProbability = 15
+              end
+              if getRandomBoolean(octaveProbability) then
+                octave = math.floor(octaveRange / notesLeft)
+              end
+              print("Check octave/note/baseMax/negOctProbability", octave, note, baseMax, negOctProbability)
+              if octave > 0 and octave < 3 and note > baseMax / 2 and getRandomBoolean(negOctProbability) then
+                octave = -octave
+                print("Negative octave", octave)
+              end
+              local octaveOffset = octave * 12
+              print("Calculate octave adjustment - noteRange/octaveRange/notesLeft/octave", noteRange, octaveRange, notesLeft, octave)
+              if octaveOffset > 0 and note + octaveOffset <= baseMax then
+                note = note + octaveOffset
+                print("Octave adjusted octave/octaveOffset/note", octave, octaveOffset, note)
+              end
+              print("Found note from prev note - note, prevNote", note, prevNote)
             end
-            if getRandomBoolean(octaveProbability) then
-              octave = math.floor(octaveRange / notesLeft)
-            end
-            if octave > 0 and octave < 3 and note > baseMax / 2 and getRandomBoolean(negOctProbability) then
-              octave = -octave
-              print("Negative octave", octave)
-            end
-            local octaveOffset = octave * 12
-            print("Calculate octave adjustment - noteRange/octaveRange/notesLeft/octave", noteRange, octaveRange, notesLeft, octave)
-            if octaveOffset > 0 and note + octaveOffset <= baseMax then
-              note = note + octaveOffset
-              print("Octave adjusted octave/octaveOffset/note", octave, octaveOffset, note)
-            end
-            print("Found note from prev note - note, prevNote", note, prevNote)
           end
         end
 
         -- Get random note from scale
         if type(note) == "nil" then
-          --note = getNoteAccordingToScale(scale, getRandom(baseMin, baseMax))
-          note = scale[getRandom(#scale)]
+          note = getNoteAccordingToScale(scale, getRandom(baseMin, baseMax))
         end
 
         return note
@@ -1428,38 +1421,37 @@ end
 -- Save / Load
 --------------------------------------------------------------------------------
 
---[[ function onSave()
+function onSave()
   local numStepsData = {}
-  local seqVelTableData = {}
-  local seqGateTableData = {}
+  local chordDefinitionInputData = {}
+  local chordDefinitionSlotsData = {}
 
   for i=1, numParts do
     table.insert(numStepsData, paramsPerPart[i].numStepsBox.value)
-    for j=1, paramsPerPart[i].numStepsBox.value do
-      table.insert(seqVelTableData, paramsPerPart[i].seqVelTable:getValue(j))
-      table.insert(seqGateTableData, paramsPerPart[i].seqGateTable:getValue(j))
+    table.insert(chordDefinitionInputData, paramsPerPart[i].chordDefinitionInput.text)
+    for _,v in ipairs(paramsPerPart[i].chordDefinitionSlots) do
+      table.insert(chordDefinitionSlotsData, v.tooltip)
     end
   end
 
-  return {numStepsData, seqVelTableData, seqGateTableData}
+  return {numStepsData, chordDefinitionInputData, chordDefinitionSlotsData}
 end
 
 function onLoad(data)
   local numStepsData = data[1]
-  local seqVelTableData = data[2]
-  local seqGateTableData = data[3]
+  local chordDefinitionInputData = data[2]
+  local chordDefinitionSlotsData = data[3]
 
   numPartsBox:setValue(#numStepsData)
 
   local dataCounter = 1
   for i,v in ipairs(numStepsData) do
     paramsPerPart[i].numStepsBox:setValue(v)
-    paramsPerPart[i].seqVelTable.length = v
-    paramsPerPart[i].seqGateTable.length = v
-    for j=1, v do
-      paramsPerPart[i].seqVelTable:setValue(j, seqVelTableData[dataCounter])
-      paramsPerPart[i].seqGateTable:setValue(j, seqGateTableData[dataCounter])
+    paramsPerPart[i].chordDefinitionInput.text = chordDefinitionInputData[i]
+    for _,v in ipairs(paramsPerPart[i].chordDefinitionSlots) do
+      v.tooltip = chordDefinitionSlotsData[dataCounter]
+      v.enabled = v.tooltip ~= "Unused"
       dataCounter = dataCounter + 1
     end
   end
-end ]]
+end

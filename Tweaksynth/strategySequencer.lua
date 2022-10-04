@@ -28,53 +28,8 @@ local paramsPerPart = {}
 local partSelect = {}
 local numParts = 1
 
--- Make sure these are in sync with the scale names
--- Scales are defined by distance to the next step
-local scaleDefinitions = {
-  {2,2,1,2,2,2,1}, -- Major (Ionian mode)
-  {2,1,2,2,1,2,2}, -- Minor (Aeolian mode)
-  {2,1,2,2,2,1,2}, -- Dorian mode
-  {1,2,2,2,1,2,2}, -- Phrygian mode
-  {2,2,2,1,2,2,1}, -- Lydian mode
-  {2,2,1,2,2,1,2}, -- Mixolydian mode
-  {1,2,2,1,2,2,2}, -- Locrian mode
-  {2,2,2,1,2,1,2}, -- Acoustic
-  {2,1,2,1,1,3,2}, -- Blues
-  {1,2,1,3,1,2,2}, -- Alterated
-  {2,2,3,2,3}, -- Major Pentatonic
-  {3,2,2,3,2}, -- Minor Pentatonic
-  {1}, -- Chomatic
-  {2}, -- Whole tone scale
-  {5,2,5},
-  {7,5},
-  {12},
-  {3},
-  {5},
-  {7}
-}
-
-local scaleNames = {
-  "Major (Ionian)",
-  "Minor (Aeolian)",
-  "Dorian",
-  "Phrygian",
-  "Lydian",
-  "Mixolydian",
-  "Locrian",
-  "Acoustic",
-  "Blues",
-  "Alterated",
-  "Major Pentatonic",
-  "Minor Pentatonic",
-  "Chomatic",
-  "Whole tone",
-  "1-4-5",
-  "1-5",
-  "1",
-  "Dim",
-  "Fours",
-  "Fives"
-}
+local scaleDefinitions = getScaleDefinitions()
+local scaleNames = getScaleNames()
 
 -- Strategies are ways to play chords and scales
 local strategies = {
