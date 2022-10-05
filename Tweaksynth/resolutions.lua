@@ -112,6 +112,28 @@ function getResolutionNames(options, max)
   return res
 end
 
+function getResolutionsByType(maxResolutionIndex)
+  if type(maxResolutionIndex) == "nil" then
+    maxResolutionIndex = #resolutions - 1
+  end
+  local resOptions = {}
+  -- Create table of resolution indexes by type (1=even,2=dot,3=tri)
+  local startPos = 11 -- Start at 1/1 - pos 11
+  for i=startPos,startPos+2 do
+    local resolutionIndex = i
+    local resolutionsOfType = {}
+    while resolutionIndex <= maxResolutionIndex do
+      table.insert(resolutionsOfType, resolutionIndex) -- insert current index in resolution options table
+      print("Insert resolutionIndex", resolutionIndex)
+      resolutionIndex = resolutionIndex + 3 -- increment index
+    end
+    print("resolutionsOfType", #resolutionsOfType)
+    table.insert(resOptions, resolutionsOfType)
+  end
+  --print("resOptions", #resOptions)
+  return resOptions
+end
+
 function getPlayDuration(duration, gate)
   if type(gate) == "nil" then
     gate = 100

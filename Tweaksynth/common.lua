@@ -72,6 +72,16 @@ function getRandomBoolean(probability)
   return getRandom(100) <= probability
 end
 
+function getRandomFromTable(theTable)
+  if #theTable == 0 then
+    return nil
+  end
+  if #theTable == 1 then
+    return theTable[1]
+  end
+  return theTable[getRandom(#theTable)]
+end
+
 function getChangeMax(max, probabilityLevel)
   return math.ceil(max * (probabilityLevel / 100))
 end

@@ -4,9 +4,6 @@
 
 require "common"
 
-local isRunning = false
-local heldNotes = {}
-
 local backgroundColour = "595959" -- Light or Dark
 local widgetBackgroundColour = "01011F" -- Dark
 local widgetTextColour = "66ff99" -- Light
