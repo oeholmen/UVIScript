@@ -72,14 +72,25 @@ function getRandomBoolean(probability)
   return getRandom(100) <= probability
 end
 
-function getRandomFromTable(theTable)
+function getRandomFromTable(theTable, except)
   if #theTable == 0 then
     return nil
   end
   if #theTable == 1 then
     return theTable[1]
   end
-  return theTable[getRandom(#theTable)]
+  local index = getRandom(#theTable)
+  local value = theTable[index]
+  print("getRandomFromTable index, value", index, value)
+  if type(except) ~= "nil" then
+    local maxRounds = 10
+    while value == except and maxRounds > 0 do
+      value = theTable[getRandom(#theTable)]
+      maxRounds = maxRounds - 1
+      print("getRandomFromTable except, maxRounds", except, maxRounds)
+    end
+  end
+  return value
 end
 
 function getChangeMax(max, probabilityLevel)
