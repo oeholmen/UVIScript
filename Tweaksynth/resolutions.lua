@@ -10,37 +10,38 @@ function getTriplet(value)
   return value / 3
 end
 
+-- NOTE: Make sure resolutions and resolutionNames are in sync
 local resolutions = {
-  128, -- "32x" -- 0
-  64, -- "16x" -- 1
-  32, -- "8x" -- 2
-  28, -- "7x" -- 3
-  24, -- "6x" -- 4
-  20, -- "5x" -- 5
-  16, -- "4x" -- 6
-  12, -- "3x" -- 7
-  8, -- "2x" -- 8
-  6, -- "1/1 dot" -- 9
-  4, -- "1/1" -- 10
-  3, -- "1/2 dot" -- 11
-  getTriplet(8), -- "1/1 tri" -- 12
-  2, -- "1/2" -- 13
-  getDotted(1), -- "1/4 dot", -- 14
-  getTriplet(4), -- "1/2 tri", -- 15
-  1, -- "1/4", -- 16
-  getDotted(0.5), -- "1/8 dot", -- 17
-  getTriplet(2), -- "1/4 tri", -- 18
-  0.5,  -- "1/8", -- 19
-  getDotted(0.25), -- "1/16 dot", -- 20
-  getTriplet(1), -- "1/8 tri", -- 21
-  0.25, -- "1/16", -- 22
-  getDotted(0.125), -- "1/32 dot", -- 23
-  getTriplet(0.5), -- "1/16 tri", -- 24
-  0.125, -- "1/32" -- 25
-  getDotted(0.0625), -- "1/64 dot", -- 26
-  getTriplet(0.25), -- "1/32 tri", -- 27
-  0.0625, -- "1/64", -- 28
-  getTriplet(0.125) -- "1/64 tri" -- 29
+  128, -- "32x" -- 1
+  64, -- "16x" -- 2
+  32, -- "8x" -- 3
+  28, -- "7x" -- 4
+  24, -- "6x" -- 5
+  20, -- "5x" -- 6
+  16, -- "4x" -- 7
+  12, -- "3x" -- 8
+  8, -- "2x" -- 9
+  6, -- "1/1 dot" -- 10
+  4, -- "1/1" -- 11
+  3, -- "1/2 dot" -- 12
+  getTriplet(8), -- "1/1 tri" -- 13
+  2, -- "1/2" -- 14
+  getDotted(1), -- "1/4 dot", -- 15
+  getTriplet(4), -- "1/2 tri", -- 16
+  1, -- "1/4", -- 17
+  getDotted(0.5), -- "1/8 dot", -- 18
+  getTriplet(2), -- "1/4 tri", -- 19
+  0.5,  -- "1/8", -- 20
+  getDotted(0.25), -- "1/16 dot", -- 21
+  getTriplet(1), -- "1/8 tri", -- 22
+  0.25, -- "1/16", -- 23
+  getDotted(0.125), -- "1/32 dot", -- 24
+  getTriplet(0.5), -- "1/16 tri", -- 25
+  0.125, -- "1/32" -- 26
+  getDotted(0.0625), -- "1/64 dot", -- 27
+  getTriplet(0.25), -- "1/32 tri", -- 28
+  0.0625, -- "1/64", -- 29
+  getTriplet(0.125) -- "1/64 tri" -- 30
 }
 
 local resolutionNames = {
