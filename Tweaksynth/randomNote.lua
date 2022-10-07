@@ -16,6 +16,10 @@ local labelBackgoundColour = "F637EC"
 local menuBackgroundColour = "01011F"
 local menuArrowColour = "66" .. labelTextColour
 local menuOutlineColour = "5f" .. widgetTextColour
+local backgroundColourOff = "ff084486"
+local backgroundColourOn = "ff02ACFE"
+local textColourOff = "ff22FFFF"
+local textColourOn = "efFFFFFF"
 
 local colours = {
   backgroundColour = backgroundColour,
@@ -28,6 +32,29 @@ local colours = {
 }
 
 setBackgroundColour(backgroundColour)
+
+--------------------------------------------------------------------------------
+-- Rytmic Fragments
+--------------------------------------------------------------------------------
+
+local resolutionFragments = {
+  {'1/16','1/16','1/8'},
+  {'1/16','1/8','1/16'},
+  {'1/4 dot','1/8'},
+  {'1/4 dot','1/16','1/16'},
+  {'1/4','1/8','1/8'},
+  {'1/8','1/4','1/8'},
+  {'1/16','1/8 dot'},
+  {'2x'},
+  {'4x'},
+}
+
+function getFragmentInputText(fragment)
+  if #fragment == 0 then
+    return ""
+  end
+  return table.concat(fragment, ",")
+end
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
@@ -66,10 +93,17 @@ settingsPanel.y = sequencerPanel.y + sequencerPanel.height + 5
 settingsPanel.width = 700
 settingsPanel.height = 30
 
+local rythmPanel = Panel("Rythm")
+rythmPanel.backgroundColour = "505050"
+rythmPanel.x = settingsPanel.x
+rythmPanel.y = settingsPanel.y + settingsPanel.height
+rythmPanel.width = 700
+rythmPanel.height = 215
+
 local notePanel = Panel("Notes")
 notePanel.backgroundColour = backgroundColour
-notePanel.x = settingsPanel.x
-notePanel.y = settingsPanel.y + settingsPanel.height + 5
+notePanel.x = rythmPanel.x
+notePanel.y = rythmPanel.y + rythmPanel.height + 5
 notePanel.width = 700
 notePanel.height = 150
 
@@ -77,19 +111,19 @@ notePanel.height = 150
 -- Sequencer Panel
 --------------------------------------------------------------------------------
 
-local label = sequencerPanel:Label("SequencerLabel")
-label.text = "Random Note Generator"
-label.alpha = 0.5
-label.backgroundColour = labelBackgoundColour
-label.textColour = labelTextColour
-label.fontSize = 22
-label.width = 210
+local sequencerLabel = sequencerPanel:Label("SequencerLabel")
+sequencerLabel.text = "Random Note Generator"
+sequencerLabel.alpha = 0.5
+sequencerLabel.backgroundColour = labelBackgoundColour
+sequencerLabel.textColour = labelTextColour
+sequencerLabel.fontSize = 22
+sequencerLabel.width = 210
 
 local channelButton = sequencerPanel:OnOffButton("ChannelButton", false)
-channelButton.backgroundColourOff = "#ff084486"
-channelButton.backgroundColourOn = "#ff02ACFE"
-channelButton.textColourOff = "#ff22FFFF"
-channelButton.textColourOn = "#efFFFFFF"
+channelButton.backgroundColourOff = backgroundColourOff
+channelButton.backgroundColourOn = backgroundColourOn
+channelButton.textColourOff = textColourOff
+channelButton.textColourOn = textColourOn
 channelButton.displayName = "Multichannel"
 channelButton.tooltip = "When multichannel mode is enabled, each voice is sent to a separate channel"
 channelButton.size = {100,22}
@@ -97,10 +131,10 @@ channelButton.x = sequencerPanel.width - (channelButton.width * 3) - 10
 channelButton.y = 5
 
 local autoplayButton = sequencerPanel:OnOffButton("AutoPlay", true)
-autoplayButton.backgroundColourOff = "#ff084486"
-autoplayButton.backgroundColourOn = "#ff02ACFE"
-autoplayButton.textColourOff = "#ff22FFFF"
-autoplayButton.textColourOn = "#efFFFFFF"
+autoplayButton.backgroundColourOff = backgroundColourOff
+autoplayButton.backgroundColourOn = backgroundColourOn
+autoplayButton.textColourOff = textColourOff
+autoplayButton.textColourOn = textColourOn
 autoplayButton.displayName = "Auto Play"
 autoplayButton.tooltip = "Play automatically on transport"
 autoplayButton.size = channelButton.size
@@ -109,10 +143,10 @@ autoplayButton.y = channelButton.y
 
 local playButton = sequencerPanel:OnOffButton("Play", false)
 playButton.persistent = false
-playButton.backgroundColourOff = "#ff084486"
-playButton.backgroundColourOn = "#ff02ACFE"
-playButton.textColourOff = "#ff22FFFF"
-playButton.textColourOn = "#efFFFFFF"
+playButton.backgroundColourOff = backgroundColourOff
+playButton.backgroundColourOn = backgroundColourOn
+playButton.textColourOff = textColourOff
+playButton.textColourOn = textColourOn
 playButton.displayName = "Play"
 playButton.size = autoplayButton.size
 playButton.x = autoplayButton.x + autoplayButton.width + 5
@@ -129,29 +163,19 @@ end
 -- Settings Panel
 --------------------------------------------------------------------------------
 
-local widgetWidth = 127
+local widgetWidth = 659 / 6
 
 local voicesInput = settingsPanel:NumBox("Voices", voices, 1, 16, true)
 voicesInput.textColour = widgetTextColour
 voicesInput.backgroundColour = widgetBackgroundColour
 voicesInput.displayName = "Voices"
 voicesInput.tooltip = "Number of voices playing"
-voicesInput.width = widgetWidth
-voicesInput.x = 10
+voicesInput.width = 90
+voicesInput.x = 5
 voicesInput.y = 0
 voicesInput.changed = function(self)
   voices = self.value
 end
-
-local reverseFragmentProbability = settingsPanel:NumBox("ReverseProbability", 0, 0, 100, true)
-reverseFragmentProbability.unit = Unit.Percent
-reverseFragmentProbability.displayName = "Reverse"
-reverseFragmentProbability.tooltip = "Probability that rythmic fragments will be played backwards"
-reverseFragmentProbability.textColour = widgetTextColour
-reverseFragmentProbability.backgroundColour = widgetBackgroundColour
-reverseFragmentProbability.width = widgetWidth
-reverseFragmentProbability.x = voicesInput.x + voicesInput.width + 10
-reverseFragmentProbability.y = voicesInput.y
 
 local noteRandomization = settingsPanel:NumBox("NoteRandomization", 25, 0, 100, true)
 noteRandomization.unit = Unit.Percent
@@ -160,8 +184,8 @@ noteRandomization.backgroundColour = widgetBackgroundColour
 noteRandomization.displayName = "Note Move"
 noteRandomization.tooltip = "Note movement amount"
 noteRandomization.width = widgetWidth
-noteRandomization.x = reverseFragmentProbability.x + reverseFragmentProbability.width + 10
-noteRandomization.y = reverseFragmentProbability.y
+noteRandomization.x = voicesInput.x + voicesInput.width + 10
+noteRandomization.y = voicesInput.y
 
 local gateInput = settingsPanel:NumBox("Gate", 90, 0, 100, true)
 gateInput.unit = Unit.Percent
@@ -182,6 +206,316 @@ gateRandomization.tooltip = "Gate randomization amount"
 gateRandomization.width = widgetWidth
 gateRandomization.x = gateInput.x + gateInput.width + 10
 gateRandomization.y = gateInput.y
+
+local velocityInput = settingsPanel:NumBox("Velocity", 64, 1, 127, true)
+velocityInput.textColour = widgetTextColour
+velocityInput.backgroundColour = widgetBackgroundColour
+velocityInput.displayName = "Velocity"
+velocityInput.tooltip = "Note velocity"
+velocityInput.width = widgetWidth
+velocityInput.x = gateRandomization.x + gateRandomization.width + 10
+velocityInput.y = gateRandomization.y
+
+local velocityAccent = settingsPanel:NumBox("VelocityAccent", 64, 1, 127, true)
+velocityAccent.textColour = widgetTextColour
+velocityAccent.backgroundColour = widgetBackgroundColour
+velocityAccent.displayName = "Accent"
+velocityAccent.tooltip = "Velocity accent amount triggered on the start of a fragment"
+velocityAccent.width = widgetWidth
+velocityAccent.x = velocityInput.x + velocityInput.width + 10
+velocityAccent.y = velocityInput.y
+
+--------------------------------------------------------------------------------
+-- Rythm Panel
+--------------------------------------------------------------------------------
+
+local rythmLabel = rythmPanel:Label("RythmLabel")
+rythmLabel.text = "Rythm"
+--rythmLabel.tooltip = "Rythm"
+rythmLabel.alpha = 0.75
+rythmLabel.fontSize = 15
+rythmLabel.width = 50
+
+local paramsPerFragment = {}
+
+for i=1,4 do
+  local offsetX = 0
+  local offsetY = 24
+  local defaultResolution = ""
+
+  if i == 1 then
+    defaultResolution = "1/8"
+  elseif i == 2 then
+    offsetX = 354
+  elseif i == 3 then
+    offsetY = 123
+  elseif i == 4 then
+    offsetX = 354
+    offsetY = 123
+  end
+
+  local fragmentActive = rythmPanel:OnOffButton("FragmentActive" .. i, true)
+  fragmentActive.backgroundColourOff = backgroundColourOff
+  fragmentActive.backgroundColourOn = backgroundColourOn
+  fragmentActive.textColourOff = "black"
+  fragmentActive.textColourOn = "black"
+  fragmentActive.fontSize = 24
+  fragmentActive.displayName = "" .. i
+  fragmentActive.tooltip = "Set fragment active for selection"
+  fragmentActive.size = {24,30}
+  fragmentActive.x = rythmLabel.x + offsetX
+  fragmentActive.y = rythmLabel.y + rythmLabel.height + offsetY
+  
+  -- Fragment Input
+  local fragmentInput = rythmPanel:Label("FragmentInput" .. i)
+  fragmentInput.text = defaultResolution -- TODO Set a default
+  fragmentInput.tooltip = "Type resolutions of the fragment definition (resolution name (1/8) or beat value (0.5)), separated by comma (,)"
+  fragmentInput.editable = true
+  fragmentInput.backgroundColour = labelTextColour
+  fragmentInput.backgroundColourWhenEditing = "white"
+  fragmentInput.textColour = "white"
+  fragmentInput.textColourWhenEditing = labelTextColour
+  fragmentInput.x = fragmentActive.x + fragmentActive.width + 3
+  fragmentInput.y = fragmentActive.y + 0
+  fragmentInput.width = 235
+  fragmentInput.height = 30
+  fragmentInput.fontSize = 20
+
+  -- Menus
+  local actions = {"Actions...", "Create fragment (even)", "Create fragment (dot)", "Create fragment (even+dot)", "Create fragment (tri)", "Create fragment (all)", "Create fragment (extended)"}
+  local fragmentActions = rythmPanel:Menu("FragmentActions" .. i, actions)
+  fragmentActions.tooltip = "Select an action (replaces current input!)"
+  fragmentActions.showLabel = false
+  fragmentActions.height = 20
+  fragmentActions.width = 75
+  fragmentActions.x = fragmentInput.x
+  fragmentActions.y = fragmentInput.y - 24
+  fragmentActions.backgroundColour = menuBackgroundColour
+  fragmentActions.textColour = widgetTextColour
+  fragmentActions.arrowColour = menuArrowColour
+  fragmentActions.outlineColour = menuOutlineColour
+  fragmentActions.changed = function(self)
+    if self.value > 1 then
+      -- Create
+      local resolutions = getResolutions()
+      local fragmentDefinition = createFragmentDefinition(self.value-1)
+      local tmp = {}
+      for _,v in ipairs(fragmentDefinition) do
+        local index = getIndexFromValue(v, resolutions)
+        local text = v
+        print("index, text", index, text)
+        if type(index) == "number" then
+          text = getResolutionName(index)
+          print("text", text)
+        end
+        table.insert(tmp, text)
+      end
+      print("#tmp", #tmp)
+      fragmentInput.text = getFragmentInputText(tmp)
+    end
+    -- Must be last
+    self:setValue(1, false)
+  end
+
+  local resolutionsByType = getResolutionsByType(26)
+  local addToFragment = {"Add..."}
+  for i=1,3 do
+    for _,v in ipairs(resolutionsByType[i]) do
+      table.insert(addToFragment, getResolutionName(v))
+    end
+  end
+
+  local fragmentAdd = rythmPanel:Menu("FragmentAdd" .. i, addToFragment)
+  fragmentAdd.tooltip = "Add to the fragment"
+  fragmentAdd.showLabel = false
+  fragmentAdd.height = 20
+  fragmentAdd.width = fragmentActions.width
+  fragmentAdd.x = fragmentActions.x + fragmentActions.width + 5
+  fragmentAdd.y = fragmentActions.y
+  fragmentAdd.backgroundColour = menuBackgroundColour
+  fragmentAdd.textColour = widgetTextColour
+  fragmentAdd.arrowColour = menuArrowColour
+  fragmentAdd.outlineColour = menuOutlineColour
+  fragmentAdd.changed = function(self)
+    if string.len(fragmentInput.text) == 0 then
+      fragmentInput.text = self.selectedText
+    else
+      fragmentInput.text = fragmentInput.text .. "," .. self.selectedText
+    end
+    -- Must be last
+    self:setValue(1, false)
+  end
+
+  local loadFragment = {"Load..."}
+  for _,v in ipairs(resolutionFragments) do
+    table.insert(loadFragment, getFragmentInputText(v))
+  end
+
+  local fragmentLoad = rythmPanel:Menu("FragmentLoad" .. i, loadFragment)
+  fragmentLoad.tooltip = "Load fragment (replaces current input!)"
+  fragmentLoad.showLabel = false
+  fragmentLoad.height = 20
+  fragmentLoad.width = fragmentActions.width
+  fragmentLoad.x = fragmentAdd.x + fragmentAdd.width + 5
+  fragmentLoad.y = fragmentAdd.y
+  fragmentLoad.backgroundColour = menuBackgroundColour
+  fragmentLoad.textColour = widgetTextColour
+  fragmentLoad.arrowColour = menuArrowColour
+  fragmentLoad.outlineColour = menuOutlineColour
+  fragmentLoad.changed = function(self)
+    fragmentInput.text = self.selectedText
+    -- Must be last
+    self:setValue(1, false)
+  end
+
+  -- Add p = play probability
+  local fragmentPlayProbabilityLabel = rythmPanel:Label("FragmentPlayProbabilityLabel" .. i)
+  fragmentPlayProbabilityLabel.text = "p"
+  fragmentPlayProbabilityLabel.tooltip = "Probability that this fragment will be selected"
+  fragmentPlayProbabilityLabel.textColour = labelTextColour
+  fragmentPlayProbabilityLabel.alpha = 0.5
+  fragmentPlayProbabilityLabel.fontSize = 20
+  fragmentPlayProbabilityLabel.width = 20
+  fragmentPlayProbabilityLabel.x = fragmentInput.x
+  fragmentPlayProbabilityLabel.y = fragmentInput.y + fragmentInput.height + 3
+
+  local fragmentPlayProbability = rythmPanel:NumBox("FragmentPlayProbability" .. i, 100, 0, 100, true)
+  fragmentPlayProbability.unit = Unit.Percent
+  fragmentPlayProbability.showLabel = false
+  fragmentPlayProbability.tooltip = fragmentPlayProbabilityLabel.tooltip
+  fragmentPlayProbability.textColour = widgetTextColour
+  fragmentPlayProbability.backgroundColour = widgetBackgroundColour
+  fragmentPlayProbability.width = 36
+  fragmentPlayProbability.x = fragmentPlayProbabilityLabel.x + fragmentPlayProbabilityLabel.width - 1
+  fragmentPlayProbability.y = fragmentPlayProbabilityLabel.y
+
+  -- Add r = repeat probability
+  local fragmentRepeatProbabilityLabel = rythmPanel:Label("FragmentRepeatProbabilityLabel" .. i)
+  fragmentRepeatProbabilityLabel.text = "r"
+  fragmentRepeatProbabilityLabel.tooltip = "Probability that this rythmic fragment will be repeated"
+  fragmentRepeatProbabilityLabel.textColour = labelTextColour
+  fragmentRepeatProbabilityLabel.alpha = 0.5
+  fragmentRepeatProbabilityLabel.fontSize = 20
+  fragmentRepeatProbabilityLabel.width = fragmentPlayProbabilityLabel.width
+  fragmentRepeatProbabilityLabel.x = fragmentPlayProbability.x + fragmentPlayProbability.width + 5
+  fragmentRepeatProbabilityLabel.y = fragmentPlayProbability.y
+
+  local fragmentRepeatProbability = rythmPanel:NumBox("FragmentRepeatProbability" .. i, 100, 0, 100, true)
+  fragmentRepeatProbability.unit = Unit.Percent
+  fragmentRepeatProbability.showLabel = false
+  fragmentRepeatProbability.tooltip = fragmentRepeatProbabilityLabel.tooltip
+  fragmentRepeatProbability.textColour = widgetTextColour
+  fragmentRepeatProbability.backgroundColour = widgetBackgroundColour
+  fragmentRepeatProbability.width = fragmentPlayProbability.width
+  fragmentRepeatProbability.x = fragmentRepeatProbabilityLabel.x + fragmentRepeatProbabilityLabel.width - 1
+  fragmentRepeatProbability.y = fragmentRepeatProbabilityLabel.y
+
+  -- Add d = repeat probability decay
+  local fragmentRepeatProbabilityDecayLabel = rythmPanel:Label("FragmentRepeatProbabilityDecayLabel" .. i)
+  fragmentRepeatProbabilityDecayLabel.text = "d"
+  fragmentRepeatProbabilityDecayLabel.tooltip = "The reduction in repeat probability for each iteration of the fragment"
+  fragmentRepeatProbabilityDecayLabel.textColour = fragmentRepeatProbabilityLabel.textColour
+  fragmentRepeatProbabilityDecayLabel.alpha = fragmentRepeatProbabilityLabel.alpha
+  fragmentRepeatProbabilityDecayLabel.fontSize = fragmentRepeatProbabilityLabel.fontSize
+  fragmentRepeatProbabilityDecayLabel.width = fragmentRepeatProbabilityLabel.width
+  fragmentRepeatProbabilityDecayLabel.x = fragmentRepeatProbability.x + fragmentRepeatProbability.width + 5
+  fragmentRepeatProbabilityDecayLabel.y = fragmentRepeatProbability.y
+
+  local fragmentRepeatProbabilityDecay = rythmPanel:NumBox("FragmentRepeatProbabilityDecay" .. i, 25, 0, 100, true)
+  fragmentRepeatProbabilityDecay.unit = Unit.Percent
+  fragmentRepeatProbabilityDecay.showLabel = false
+  fragmentRepeatProbabilityDecay.tooltip = fragmentRepeatProbabilityDecayLabel.tooltip
+  fragmentRepeatProbabilityDecay.textColour = widgetTextColour
+  fragmentRepeatProbabilityDecay.backgroundColour = widgetBackgroundColour
+  fragmentRepeatProbabilityDecay.width = fragmentRepeatProbability.width
+  fragmentRepeatProbabilityDecay.x = fragmentRepeatProbabilityDecayLabel.x + fragmentRepeatProbabilityDecayLabel.width - 1
+  fragmentRepeatProbabilityDecay.y = fragmentRepeatProbabilityDecayLabel.y
+
+  -- TODO Add m = min repeats
+  local fragmentMinRepeatsLabel = rythmPanel:Label("FragmentRepeatProbabilityDecayLabel" .. i)
+  fragmentMinRepeatsLabel.text = "m"
+  fragmentMinRepeatsLabel.tooltip = "Minimum repeats for this fragment"
+  fragmentMinRepeatsLabel.textColour = fragmentRepeatProbabilityLabel.textColour
+  fragmentMinRepeatsLabel.alpha = fragmentRepeatProbabilityLabel.alpha
+  fragmentMinRepeatsLabel.fontSize = fragmentRepeatProbabilityLabel.fontSize
+  fragmentMinRepeatsLabel.width = fragmentRepeatProbabilityLabel.width
+  fragmentMinRepeatsLabel.x = fragmentRepeatProbabilityDecay.x + fragmentRepeatProbabilityDecay.width + 5
+  fragmentMinRepeatsLabel.y = fragmentRepeatProbabilityDecay.y
+
+  local fragmentMinRepeats = rythmPanel:NumBox("FragmentMinRepeats" .. i, 1, 1, 64, true)
+  fragmentMinRepeats.showLabel = false
+  fragmentMinRepeats.tooltip = fragmentMinRepeatsLabel.tooltip
+  fragmentMinRepeats.textColour = widgetTextColour
+  fragmentMinRepeats.backgroundColour = widgetBackgroundColour
+  fragmentMinRepeats.width = 26
+  fragmentMinRepeats.x = fragmentMinRepeatsLabel.x + fragmentMinRepeatsLabel.width - 1
+  fragmentMinRepeats.y = fragmentMinRepeatsLabel.y
+
+  -- Randomize fragment probability
+  local randomizeFragmentProbabilityLabel = rythmPanel:Label("RandomizeFragmentProbabilityLabel" .. i)
+  randomizeFragmentProbabilityLabel.text = "rnd"
+  randomizeFragmentProbabilityLabel.tooltip = "Probability that rythmic fragments will be played in random order"
+  randomizeFragmentProbabilityLabel.textColour = fragmentRepeatProbabilityLabel.textColour
+  randomizeFragmentProbabilityLabel.alpha = fragmentRepeatProbabilityLabel.alpha
+  randomizeFragmentProbabilityLabel.fontSize = fragmentRepeatProbabilityLabel.fontSize
+  randomizeFragmentProbabilityLabel.width = 30
+  randomizeFragmentProbabilityLabel.x = fragmentLoad.x + fragmentLoad.width + 0
+  randomizeFragmentProbabilityLabel.y = fragmentLoad.y
+
+  local randomizeFragmentProbability = rythmPanel:NumBox("RandomizeFragmentProbability" .. i, 0, 0, 100, true)
+  randomizeFragmentProbability.unit = Unit.Percent
+  randomizeFragmentProbability.showLabel = false
+  randomizeFragmentProbability.tooltip = "Probability that rythmic fragments will be played in random order"
+  randomizeFragmentProbability.textColour = widgetTextColour
+  randomizeFragmentProbability.backgroundColour = widgetBackgroundColour
+  randomizeFragmentProbability.width = fragmentRepeatProbability.width
+  randomizeFragmentProbability.x = randomizeFragmentProbabilityLabel.x + randomizeFragmentProbabilityLabel.width - 1
+  randomizeFragmentProbability.y = randomizeFragmentProbabilityLabel.y
+
+  -- Reverse fragment probability
+  local reverseFragmentProbabilityLabel = rythmPanel:Label("ReverseFragmentProbabilityLabel" .. i)
+  reverseFragmentProbabilityLabel.text = "rev"
+  reverseFragmentProbabilityLabel.tooltip = "Probability that rythmic fragments will be played backwards"
+  reverseFragmentProbabilityLabel.textColour = fragmentRepeatProbabilityLabel.textColour
+  reverseFragmentProbabilityLabel.alpha = fragmentRepeatProbabilityLabel.alpha
+  reverseFragmentProbabilityLabel.fontSize = fragmentRepeatProbabilityLabel.fontSize
+  reverseFragmentProbabilityLabel.width = randomizeFragmentProbabilityLabel.width
+  reverseFragmentProbabilityLabel.x = randomizeFragmentProbabilityLabel.x
+  reverseFragmentProbabilityLabel.y = fragmentInput.y + 5
+
+  local reverseFragmentProbability = rythmPanel:NumBox("ReverseProbability" .. i, 0, 0, 100, true)
+  reverseFragmentProbability.unit = Unit.Percent
+  reverseFragmentProbability.showLabel = false
+  reverseFragmentProbability.tooltip = reverseFragmentProbabilityLabel.tooltip
+  reverseFragmentProbability.textColour = widgetTextColour
+  reverseFragmentProbability.backgroundColour = widgetBackgroundColour
+  reverseFragmentProbability.width = fragmentRepeatProbability.width
+  reverseFragmentProbability.x = reverseFragmentProbabilityLabel.x + reverseFragmentProbabilityLabel.width - 1
+  reverseFragmentProbability.y = reverseFragmentProbabilityLabel.y
+
+  -- Rest probability
+  local restProbabilityLabel = rythmPanel:Label("RestProbabilityLabel" .. i)
+  restProbabilityLabel.text = "rst"
+  restProbabilityLabel.tooltip = "Probability that rythmic fragments will be include rests"
+  restProbabilityLabel.textColour = fragmentRepeatProbabilityLabel.textColour
+  restProbabilityLabel.alpha = fragmentRepeatProbabilityLabel.alpha
+  restProbabilityLabel.fontSize = fragmentRepeatProbabilityLabel.fontSize
+  restProbabilityLabel.width = randomizeFragmentProbabilityLabel.width
+  restProbabilityLabel.x = reverseFragmentProbabilityLabel.x
+  restProbabilityLabel.y = fragmentMinRepeats.y
+
+  local restProbability = rythmPanel:NumBox("RestProbability" .. i, 0, 0, 100, true)
+  restProbability.unit = Unit.Percent
+  restProbability.showLabel = false
+  restProbability.tooltip = restProbabilityLabel.tooltip
+  restProbability.textColour = widgetTextColour
+  restProbability.backgroundColour = widgetBackgroundColour
+  restProbability.width = fragmentRepeatProbability.width
+  restProbability.x = restProbabilityLabel.x + restProbabilityLabel.width - 1
+  restProbability.y = restProbabilityLabel.y
+
+  table.insert(paramsPerFragment, {fragmentInput=fragmentInput, fragmentActive=fragmentActive, fragmentPlayProbability=fragmentPlayProbability, randomizeFragmentProbability=randomizeFragmentProbability, reverseFragmentProbability=reverseFragmentProbability, restProbability=restProbability, fragmentRepeatProbability=fragmentRepeatProbability, fragmentRepeatProbabilityDecay=fragmentRepeatProbabilityDecay, fragmentMinRepeats=fragmentMinRepeats})
+end
 
 --------------------------------------------------------------------------------
 -- Notes Panel
@@ -242,8 +576,8 @@ setNotesAndOctaves(notePanel, colours, noteLabel)
 -- Functions
 --------------------------------------------------------------------------------
 
+-- Include all durations faster than the total fragmentDuration
 function addDurations(resolutions, durations, fragmentDuration)
-  -- Include all durations faster than the total fragmentDuration
   for _,i in ipairs(resolutions) do
     local duration = getResolution(i)
     if duration <= fragmentDuration then
@@ -255,21 +589,38 @@ function addDurations(resolutions, durations, fragmentDuration)
 end
 
 -- Auto generate fragment
-function createFragment()
-  local minResolution = 23 -- TODO Param
+-- durationType:
+--    "Create fragment (even)" 1
+--    "Create fragment (dot)" 2
+--    "Create fragment (even+dot)" 3
+--    "Create fragment (tri)" 4
+--    "Create fragment (all)" 5
+--    "Create fragment (extended)" 6
+function createFragmentDefinition(durationType)
+  if type(durationType) == "nil" then
+    durationType = 6
+  end
+  local minResolution = 23
   local resolutionsByType = getResolutionsByType(minResolution)
   local currentDuration = 0
-  local fragmentDuration = getRandomFromTable({0.25,0.5,1,2,4,8,12,16}) -- TODO Param
+  local fragmentDuration = getRandomFromTable({1,2,4,8}) -- TODO Param?
   print("Selected fragmentDuration", fragmentDuration)
   local definition = {}
   local durations = {}
   -- Add resolutions that can fit inside the fragmentDuration
-  durations = addDurations(resolutionsByType[1], durations, fragmentDuration)
-  if getRandomBoolean(75) then -- TODO Param
+  if durationType == 1 or durationType == 3 or durationType == 5 then
+    durations = addDurations(resolutionsByType[1], durations, fragmentDuration)
+  end
+  if durationType == 2 or durationType == 3 or durationType == 5 then
     durations = addDurations(resolutionsByType[2], durations, fragmentDuration)
   end
-  if getRandomBoolean(25) then -- TODO Param
+  if durationType == 4 or durationType == 5 then
     durations = addDurations(resolutionsByType[3], durations, fragmentDuration)
+  end
+  if durationType == 6 then
+    for _,v in ipairs(getResolutionsByType()) do
+      durations = addDurations(v, durations, fragmentDuration)
+    end
   end
   print("Found durations", #durations)
   -- Select durations for the definition
@@ -277,90 +628,158 @@ function createFragment()
     local duration = getRandomFromTable(durations)
     if currentDuration + duration > fragmentDuration then
       duration = fragmentDuration - currentDuration
-      print("currentDuration + duration > fragmentDuration, duration", currentDuration, duration, fragmentDuration)
+      print("currentDuration + duration > fragmentDuration", currentDuration, duration, fragmentDuration)
     end
     currentDuration = currentDuration + duration
     table.insert(definition, duration)
     print("Add duration", duration)
   end
-  local selectProbability = 100
-  local repeatProbability = getRandom(100)-- TODO Param
-  local repeatProbabilityDecay = getRandom(50)-- TODO Param
-  local minRepeats = getRandom(4)-- TODO Param
-  return {f=definition, p=selectProbability, r=repeatProbability, d=repeatProbabilityDecay, m=minRepeats}
+  return definition
+end
+
+function verifyInput(duration)
+  if type(duration) == "number" then
+    return true
+  end
+
+  return tableIncludes(getResolutionNames(), duration)
+end
+
+function parseFragment(fragmentInputIndex)
+  if type(fragmentInputIndex) == "nil" then
+    return
+  end
+  local fragmentInput = paramsPerFragment[fragmentInputIndex].fragmentInput
+  local fragmentPlayProbability = paramsPerFragment[fragmentInputIndex].fragmentPlayProbability.value
+  local fragmentActive = paramsPerFragment[fragmentInputIndex].fragmentActive.value
+  if fragmentActive and string.len(fragmentInput.text) > 0 and getRandomBoolean(fragmentPlayProbability) then
+    local fragment = {}
+    for w in string.gmatch(fragmentInput.text, "[^,]+") do
+      w = trimStartAndEnd(w)
+      if verifyInput(w) then
+        print("Add to fragment", w)
+        table.insert(fragment, w)
+      end
+    end
+    local selectProbability = 100
+    local repeatProbability = paramsPerFragment[fragmentInputIndex].fragmentRepeatProbability.value
+    local repeatProbabilityDecay = paramsPerFragment[fragmentInputIndex].fragmentRepeatProbabilityDecay.value
+    local minRepeats = paramsPerFragment[fragmentInputIndex].fragmentMinRepeats.value
+    local reverseFragmentProbability = paramsPerFragment[fragmentInputIndex].reverseFragmentProbability.value
+    local randomizeFragmentProbability = paramsPerFragment[fragmentInputIndex].randomizeFragmentProbability.value
+    local restProbability = paramsPerFragment[fragmentInputIndex].restProbability.value
+    -- i = the fragment input number
+    -- f = the resolutions of the fragment definition (resolution name (1/8) or beat value (0.5))
+    -- p = probability of include
+    -- r = repeat probability
+    -- d = repeat probability decay
+    -- m = min repeats
+    -- rev = reverse probability
+    -- rnd = random order probability
+    -- rst = rest probability
+    return {
+      i=fragmentInputIndex,
+      f=fragment,
+      p=selectProbability,
+      r=repeatProbability,
+      d=repeatProbabilityDecay,
+      m=minRepeats,
+      rnd=randomizeFragmentProbability,
+      rev=reverseFragmentProbability,
+      rst=restProbability,
+    }
+  end
 end
 
 function getSelectedFragments()
-  -- f = the resolutions of the fragment definition (resolution name (1/8) or beat value (0.5))
-  -- p = probability of include
-  -- r = repeat probability
-  -- d = repeat probability decay
-  -- m = min repeats
-  local resolutionFragments = {
-    {f={'2x'},                   p=15,  r=3,    d=100},
-    {f={'1/1'},                  p=24,  r=9,    d=100},
-    {f={'1/2'},                  p=30,  r=15,   d=100},
-    {f={'1/4'},                  p=39,  r=30,   d=50},
-    {f={'1/8'},                  p=50,  r=75,   d=25},
-    {f={'1/16'},                 p=100, r=100,  d=1, m=4},
-    {f={'1/16','1/16','1/8'},    p=100, r=100,  d=3},
-    {f={'1/16','1/8','1/8'},     p=100, r=100,  d=3},
-    {f={'1/4 dot','1/8'},        p=100, r=100,  d=3},
-    {f={'1/4 dot','1/16','1/16'},p=100, r=100,  d=3},
-    {f={'1/4','1/8','1/8'},      p=100, r=100,  d=3},
-    {f={'1/8 tri'},              p=30,  r=100,  d=15, m=3},
-  }
   local selectedFragments = {}
-  for _,v in ipairs(resolutionFragments) do
-    if getRandomBoolean(v.p) then
-      table.insert(selectedFragments, v)
+  for i=1, #paramsPerFragment do
+    local fragment = parseFragment(i)
+    if type(fragment) == "table" then
+      table.insert(selectedFragments, fragment)
     end
   end
-  print("selectedFragments", #selectedFragments)
-  if #selectedFragments == 0 then
-    return resolutionFragments
-  end
+  print("Fragments selected from inputs", #selectedFragments)
   return selectedFragments
 end
 
 function getFragment()
-  -- TODO Generate 10(?) fragments that are selected from
-  return createFragment()
-  --return getRandomFromTable(getSelectedFragments())
+  local fragment = getRandomFromTable(getSelectedFragments())
+
+  if type(fragment) == "table" then
+    return fragment
+  end
+
+  -- Return fallback value (1/8)
+  return {f={0.5}, p=100, r=0, d=0, rev=0, rnd=0, rst=0}
 end
 
 function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
-  if type(activeFragment) == "nil" then
-    activeFragment = getFragment()
-    fragmentRepeatProbability = activeFragment.r
-  end
-
-  if (reverseFragment == false and fragmentPos == #activeFragment.f) or (reverseFragment and fragmentPos == 1) then
-    -- END OF FRAGMENT
+  local velocity = velocityInput.value
+  if type(activeFragment) == "nil" or (reverseFragment == false and fragmentPos == #activeFragment.f) or (reverseFragment and fragmentPos == 1) then
+    velocity = velocityAccent.value
+    -- END OF FRAGMENT (or no fragemt selected)
     fragmentRepeatCount = fragmentRepeatCount + 1
     -- TODO Check modulo for grouping/required number of repeats
     local mustRepeat = false
-    if type(activeFragment.m) == "number" then
+    if type(activeFragment) == "table" and type(activeFragment.m) == "number" then
       print("***MustRepeat?*** fragmentRepeatCount % activeFragment.m", fragmentRepeatCount, activeFragment.m, (fragmentRepeatCount % activeFragment.m))
       --mustRepeat = activeFragment.m % fragmentRepeatCount > 0
       mustRepeat = fragmentRepeatCount % activeFragment.m > 0
     end
+
+    -- Reload fragment in case parameters are changed
+    if type(activeFragment) == "table" then
+      local fragment = parseFragment(activeFragment.i)
+      if type(fragment) == "table" or mustRepeat == false then
+        activeFragment = fragment
+      end
+    end
+
     print("FRAGMENT fragmentRepeatCount, mustRepeat", fragmentRepeatCount, mustRepeat)
-    if mustRepeat or getRandomBoolean(fragmentRepeatProbability) then
+    if type(activeFragment) == "table" and (mustRepeat or getRandomBoolean(fragmentRepeatProbability)) then
       -- REPEAT FRAGMENT
       fragmentRepeatProbability = fragmentRepeatProbability - (fragmentRepeatProbability * (activeFragment.d / 100))
       print("REPEAT FRAGMENT, fragmentRepeatProbability", fragmentRepeatProbability)
     else
       -- CHANGE FRAGMENT
       fragmentRepeatCount = 0 -- Init repeat counter
+      -- Change to a new fragment input
       activeFragment = getFragment()
+      for i,v in ipairs(paramsPerFragment) do
+        if i == activeFragment.i then
+          v.fragmentActive.textColourOn = textColourOn
+        else
+          v.fragmentActive.textColourOn = "black"
+        end
+      end
       fragmentRepeatProbability = activeFragment.r
       print("CHANGE FRAGMENT, #fragment, fragmentRepeatProbability", #activeFragment.f, fragmentRepeatProbability)
     end
-    -- REVERSE
-    -- TODO Randomize fragment order?
-    reverseFragment = getRandomBoolean(reverseFragmentProbability.value)
-    if reverseFragment then
+    -- RANDOMIZE fragment
+    randomizeFragment = getRandomBoolean(activeFragment.rnd)
+    if randomizeFragment and #activeFragment.f > 1 then
+      local tmp = {}
+      local seen = {}
+      local maxRounds = 100
+      while #seen < #activeFragment.f and maxRounds > 0 do
+        local i = getRandom(#activeFragment.f)
+        print("maxRounds outer", maxRounds)
+        while tableIncludes(seen, i) do
+          i = getRandom(#activeFragment.f)
+          maxRounds = maxRounds - 1
+          print("maxRounds inner", maxRounds)
+        end
+        table.insert(tmp, activeFragment.f[i])
+        table.insert(seen, i)
+        print("#seen, i", #seen, i)
+      end
+      activeFragment.f = tmp
+      print("randomizeFragment")
+    end
+    -- REVERSE fragment
+    reverseFragment = getRandomBoolean(activeFragment.rev)
+    if reverseFragment and #activeFragment.f > 1 then
       print("REVERSE fragment", reverseFragment)
       fragmentPos = #activeFragment.f
     else
@@ -368,7 +787,7 @@ function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, rev
     end
     print("SET fragmentPos", fragmentPos)
   else
-    -- INCREMENT FRAGMENT POS
+    -- INCREMENT fragment pos
     local increment = 1
     if reverseFragment then
       increment = -increment
@@ -379,7 +798,7 @@ function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, rev
 
   -- Get fragment at current position
   local duration = activeFragment.f[fragmentPos]
-  if type(duration) == "string" then
+  if type(duration) == "string" or type(duration) == "nil" then
     -- If duration is string, we must resolve it from resolution names
     local resolutionIndex = getIndexFromValue(duration, getResolutionNames())
     if type(resolutionIndex) == "nil" then
@@ -391,10 +810,11 @@ function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, rev
 
   print("RETURN duration", duration)
 
-  return duration, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount
+  local rest = getRandomBoolean(activeFragment.rst)
+
+  return duration, velocity, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount
 end
 
---function generateNote(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment)
 function generateNote(note)
   local selectedNotes = getSelectedNotes() -- Holds note numbers that are available
 
@@ -420,6 +840,7 @@ function generateNote(note)
   end
   return selectedNotes[noteIndex]
 end
+
 --------------------------------------------------------------------------------
 -- Sequencer
 --------------------------------------------------------------------------------
@@ -451,6 +872,8 @@ function play(voice)
   local fragmentRepeatCount = 0
   local fragmentRepeatProbability = 0
   local duration = nil
+  local rest = false
+  local velocity = nil
   local reverseFragment = false
   while isPlaying[voice] == voice do
     local channel = nil
@@ -458,12 +881,17 @@ function play(voice)
       channel = voice
     end
     note = generateNote(note)
-    duration, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
-    local gate = randomizeValue(gateInput.value, gateInput.min, gateInput.max, gateRandomization.value)
-    playNote(note, 64, beat2ms(getPlayDuration(duration, gate)), nil, channel)
-    table.insert(notesPlaying, note) -- Register
+    duration, velocity, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
+    local doPlayNote = rest == false and type(note) == "number" and type(duration) == "number"
+    if doPlayNote then
+      local gate = randomizeValue(gateInput.value, gateInput.min, gateInput.max, gateRandomization.value)
+      playNote(note, velocity, beat2ms(getPlayDuration(duration, gate)), nil, channel)
+      table.insert(notesPlaying, note) -- Register
+    end
     waitBeat(duration)
-    table.remove(notesPlaying, getIndexFromValue(note, notesPlaying)) -- Remove
+    if doPlayNote then
+      table.remove(notesPlaying, getIndexFromValue(note, notesPlaying)) -- Remove
+    end
   end
 end
 
@@ -473,7 +901,6 @@ end
 
 function onNote(e)
   if autoplayButton.value == true then
-    table.insert(playingNotes, e.note)
     postEvent(e)
   else
     playButton:setValue(true)
@@ -482,10 +909,6 @@ end
 
 function onRelease(e)
   if autoplayButton.value == true then
-    local index = getIndexFromValue(e.note, playingNotes)
-    if type(index) == "number" then
-      table.remove(playingNotes, index)
-    end
     postEvent(e)
   else
     playButton:setValue(false)
@@ -495,5 +918,28 @@ end
 function onTransport(start)
   if autoplayButton.value == true then
     playButton:setValue(start)
+  end
+end
+
+
+--------------------------------------------------------------------------------
+-- Save / Load
+--------------------------------------------------------------------------------
+
+function onSave()
+  local fragmentInputData = {}
+
+  for _,v in ipairs(paramsPerFragment) do
+    table.insert(fragmentInputData, v.fragmentInput.text)
+  end
+
+  return {fragmentInputData}
+end
+
+function onLoad(data)
+  local fragmentInputData = data[1]
+
+  for i,v in ipairs(fragmentInputData) do
+    paramsPerFragment[i].fragmentInput.text = v
   end
 end

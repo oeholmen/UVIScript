@@ -10,17 +10,11 @@ function randomizeValue(value, limitMin, limitMax, randomizationAmount)
   if randomizationAmount > 0 then
     local limitRange = limitMax - limitMin
     local changeMax = getChangeMax(limitRange, randomizationAmount)
-    local min = value - changeMax
-    local max = value + changeMax
-    if min < limitMin then
-      min = limitMin
-    end
-    if max > limitMax then
-      max = limitMax
-    end
-    --print("Before randomize value", value)
+    local min = math.max(limitMin, (value - changeMax))
+    local max = math.min(limitMax, (value + changeMax))
+    print("Before randomize value", value)
     value = getRandom(min, max)
-    --print("After randomize value/changeMax/min/max", value, changeMax, min, max)
+    print("After randomize value/changeMax/min/max", value, changeMax, min, max)
   end
   return value
 end
@@ -95,4 +89,8 @@ end
 
 function getChangeMax(max, probabilityLevel)
   return math.ceil(max * (probabilityLevel / 100))
+end
+
+function trimStartAndEnd(s)
+  return s:match("^%s*(.-)%s*$")
 end
