@@ -1,12 +1,11 @@
 -------------------------------------------------------------------------------
--- Random note generator
+-- Sequencer using rythmic fragments
 -------------------------------------------------------------------------------
 
-require "generative"
+require "common"
 
-local voices = 1
-local isPlaying = {}
-local notesPlaying = {} -- Keep track of notes to avoid dupicates
+local isPlaying = false
+local heldNotes = {}
 
 local backgroundColour = "595959" -- Light or Dark
 local widgetBackgroundColour = "01011F" -- Dark
@@ -57,25 +56,6 @@ function getFragmentInputText(fragment)
 end
 
 --------------------------------------------------------------------------------
--- Sequencer Functions
---------------------------------------------------------------------------------
-
-function startPlaying()
-  if #isPlaying > 1 then
-    return
-  end
-  run(sequenceRunner)
-end
-
-function stopPlaying()
-  if #isPlaying == 0 then
-    return
-  end
-  isPlaying = {}
-  notesPlaying = {}
-end
-
---------------------------------------------------------------------------------
 -- Panel Definitions
 --------------------------------------------------------------------------------
 
@@ -100,62 +80,31 @@ rythmPanel.y = settingsPanel.y + settingsPanel.height
 rythmPanel.width = 700
 rythmPanel.height = 215
 
-local notePanel = Panel("Notes")
-notePanel.backgroundColour = backgroundColour
-notePanel.x = rythmPanel.x
-notePanel.y = rythmPanel.y + rythmPanel.height + 5
-notePanel.width = 700
-notePanel.height = 150
-
 --------------------------------------------------------------------------------
 -- Sequencer Panel
 --------------------------------------------------------------------------------
 
 local sequencerLabel = sequencerPanel:Label("SequencerLabel")
-sequencerLabel.text = "Random Note Generator"
+sequencerLabel.text = "Fragment Sequencer"
 sequencerLabel.alpha = 0.5
 sequencerLabel.backgroundColour = labelBackgoundColour
 sequencerLabel.textColour = labelTextColour
 sequencerLabel.fontSize = 22
 sequencerLabel.width = 210
 
-local channelButton = sequencerPanel:OnOffButton("ChannelButton", false)
-channelButton.backgroundColourOff = backgroundColourOff
-channelButton.backgroundColourOn = backgroundColourOn
-channelButton.textColourOff = textColourOff
-channelButton.textColourOn = textColourOn
-channelButton.displayName = "Multichannel"
-channelButton.tooltip = "When multichannel mode is enabled, each voice is sent to a separate channel"
-channelButton.size = {100,22}
-channelButton.x = sequencerPanel.width - (channelButton.width * 3) - 10
-channelButton.y = 5
-
-local autoplayButton = sequencerPanel:OnOffButton("AutoPlay", true)
-autoplayButton.backgroundColourOff = backgroundColourOff
-autoplayButton.backgroundColourOn = backgroundColourOn
-autoplayButton.textColourOff = textColourOff
-autoplayButton.textColourOn = textColourOn
-autoplayButton.displayName = "Auto Play"
-autoplayButton.tooltip = "Play automatically on transport"
-autoplayButton.size = channelButton.size
-autoplayButton.x = channelButton.x + channelButton.width + 5
-autoplayButton.y = channelButton.y
-
-local playButton = sequencerPanel:OnOffButton("Play", false)
-playButton.persistent = false
-playButton.backgroundColourOff = backgroundColourOff
-playButton.backgroundColourOn = backgroundColourOn
-playButton.textColourOff = textColourOff
-playButton.textColourOn = textColourOn
-playButton.displayName = "Play"
-playButton.size = autoplayButton.size
-playButton.x = autoplayButton.x + autoplayButton.width + 5
-playButton.y = channelButton.y
-playButton.changed = function(self)
-  if self.value == true then
-    startPlaying()
-  else
-    stopPlaying()
+local holdButton = sequencerPanel:OnOffButton("HoldOnOff", false)
+holdButton.backgroundColourOff = "#ff084486"
+holdButton.backgroundColourOn = "#ff02ACFE"
+holdButton.textColourOff = "#ff22FFFF"
+holdButton.textColourOn = "#efFFFFFF"
+holdButton.displayName = "Hold"
+holdButton.fillColour = "#dd000061"
+holdButton.size = {102,22}
+holdButton.x = sequencerPanel.width - holdButton.width
+holdButton.y = 5
+holdButton.changed = function(self)
+  if self.value == false then
+    heldNotes = {}
   end
 end
 
@@ -163,29 +112,19 @@ end
 -- Settings Panel
 --------------------------------------------------------------------------------
 
-local widgetWidth = 659 / 6
+local widgetWidth = 659 / 5
 
-local voicesInput = settingsPanel:NumBox("Voices", voices, 1, 16, true)
-voicesInput.textColour = widgetTextColour
-voicesInput.backgroundColour = widgetBackgroundColour
-voicesInput.displayName = "Voices"
-voicesInput.tooltip = "Number of voices playing"
-voicesInput.width = 90
-voicesInput.x = 5
-voicesInput.y = 0
-voicesInput.changed = function(self)
-  voices = self.value
-end
-
-local noteRandomization = settingsPanel:NumBox("NoteRandomization", 25, 0, 100, true)
-noteRandomization.unit = Unit.Percent
-noteRandomization.textColour = widgetTextColour
-noteRandomization.backgroundColour = widgetBackgroundColour
-noteRandomization.displayName = "Note Move"
-noteRandomization.tooltip = "Note movement amount"
-noteRandomization.width = widgetWidth
-noteRandomization.x = voicesInput.x + voicesInput.width + 10
-noteRandomization.y = voicesInput.y
+local playMode = settingsPanel:Menu("PlayMode", {"As Played", "Up", "Down", "Random", "Mono", "Duo", "Chord"})
+playMode.showLabel = false
+playMode.tooltip = "Select Play Mode"
+playMode.x = 5
+playMode.y = 0
+playMode.width = widgetWidth
+playMode.height = 20
+playMode.backgroundColour = menuBackgroundColour
+playMode.textColour = widgetTextColour
+playMode.arrowColour = menuArrowColour
+playMode.outlineColour = menuOutlineColour
 
 local gateInput = settingsPanel:NumBox("Gate", 90, 0, 100, true)
 gateInput.unit = Unit.Percent
@@ -194,8 +133,8 @@ gateInput.backgroundColour = widgetBackgroundColour
 gateInput.displayName = "Gate"
 gateInput.tooltip = "Note gate"
 gateInput.width = widgetWidth
-gateInput.x = noteRandomization.x + noteRandomization.width + 10
-gateInput.y = noteRandomization.y
+gateInput.x = playMode.x + playMode.width + 10
+gateInput.y = playMode.y
 
 local gateRandomization = settingsPanel:NumBox("GateRand", 0, 0, 100, true)
 gateRandomization.unit = Unit.Percent
@@ -518,61 +457,6 @@ for i=1,4 do
 end
 
 --------------------------------------------------------------------------------
--- Notes Panel
---------------------------------------------------------------------------------
-
-local noteLabel = notePanel:Label("NotesLabel")
-noteLabel.text = "Notes"
-noteLabel.tooltip = "Set the probability that notes will be included when generating new notes"
-noteLabel.alpha = 0.75
-noteLabel.fontSize = 15
-noteLabel.width = 50
-
-local clearNotes = notePanel:Button("ClearNotes")
-clearNotes.displayName = "Clear notes"
-clearNotes.tooltip = "Deselect all notes"
-clearNotes.persistent = false
-clearNotes.height = noteLabel.height
-clearNotes.width = 90
-clearNotes.x = notePanel.width - (clearNotes.width * 3) - 33
-clearNotes.y = 5
-clearNotes.changed = function()
-  for _,v in ipairs(noteInputs) do
-    v:setValue(false)
-  end
-end
-
-local addNotes = notePanel:Button("AddNotes")
-addNotes.displayName = "All notes"
-addNotes.tooltip = "Select all notes"
-addNotes.persistent = false
-addNotes.height = noteLabel.height
-addNotes.width = 90
-addNotes.x = clearNotes.x + clearNotes.width + 10
-addNotes.y = 5
-addNotes.changed = function()
-  for _,v in ipairs(noteInputs) do
-    v:setValue(true)
-  end
-end
-
-local randomizeNotes = notePanel:Button("RandomizeNotes")
-randomizeNotes.displayName = "Randomize notes"
-randomizeNotes.tooltip = "Randomize all notes"
-randomizeNotes.persistent = false
-randomizeNotes.height = noteLabel.height
-randomizeNotes.width = 90
-randomizeNotes.x = addNotes.x + addNotes.width + 10
-randomizeNotes.y = 5
-randomizeNotes.changed = function()
-  for _,v in ipairs(noteInputs) do
-    v:setValue(getRandomBoolean())
-  end
-end
-
-setNotesAndOctaves(notePanel, colours, noteLabel)
-
---------------------------------------------------------------------------------
 -- Functions
 --------------------------------------------------------------------------------
 
@@ -814,58 +698,66 @@ function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, rev
   return duration, velocity, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount
 end
 
-function generateNote(note)
-  local selectedNotes = getSelectedNotes() -- Holds note numbers that are available
+function getNotes(heldNoteIndex)
+  -- Reset notes table
+  local notes = {} -- Holds the note(s) that plays at this position
 
-  if #selectedNotes == 0 then
-    return nil
+  -- Increment held note position
+  heldNoteIndex = heldNoteIndex + 1
+  if heldNoteIndex > #heldNotes then
+    heldNoteIndex = 1
   end
 
-  if #selectedNotes == 1 then
-    return selectedNotes[1]
+  -- Add notes to play
+  -- "As Played", "Up", "Down", "Random", "Mono", "Duo", "Chord"
+  local sortedNotes = {}
+  for _,v in ipairs(heldNotes) do
+    table.insert(sortedNotes, v.note)
   end
-
-  local noteIndex = 1
-  local currentIndex = getIndexFromValue(note, selectedNotes)
-
-  if type(note) == "nil" or type(currentIndex) == "nil" then
-    noteIndex = getRandom(#selectedNotes)
+  if playMode.value == 3 then -- Down
+    table.sort(sortedNotes, function(a,b) return a > b end)
   else
-    local maxRounds = 100
-    repeat
-      noteIndex = randomizeValue(currentIndex, 1, #selectedNotes, noteRandomization.value)
-      maxRounds = maxRounds - 1
-    until tableIncludes(notesPlaying, selectedNotes[noteIndex]) == false or maxRounds < 1
+    table.sort(sortedNotes, function(a,b) return a < b end)
   end
-  return selectedNotes[noteIndex]
+
+  if playMode.value == 1 then
+    -- As played
+    table.insert(notes, heldNotes[heldNoteIndex].note)
+  elseif playMode.value == 2 then
+    -- Up
+    table.insert(notes, sortedNotes[heldNoteIndex])
+  elseif playMode.value == 3 then
+    -- Down
+    table.insert(notes, sortedNotes[heldNoteIndex])
+  elseif playMode.value == 4 then
+    -- Random
+    table.insert(notes, getRandomFromTable(sortedNotes))
+  elseif playMode.value == 5 then
+    -- Mono (Last held)
+    table.insert(notes, heldNotes[#heldNotes].note)
+  elseif playMode.value == 6 then
+    -- Duo (Lowest and highest held notes)
+    table.insert(notes, sortedNotes[1])
+    if #heldNotes > 1 then
+      table.insert(notes, sortedNotes[#sortedNotes])
+    end
+  elseif playMode.value == 7 then
+    -- Chord
+    for i=1,#sortedNotes do
+      table.insert(notes, sortedNotes[i])
+    end
+  end
+  print("#notes", #notes)
+  return notes, heldNoteIndex
 end
 
 --------------------------------------------------------------------------------
 -- Sequencer
 --------------------------------------------------------------------------------
 
-function sequenceRunner()
-  local currentVoices = 0
-  repeat
-    --print("sequenceRunner new round")
-    if currentVoices ~= voices then
-      --print("currentVoices ~= voices", currentVoices, voices)
-      isPlaying = {}
-      for i=1,voices do
-        table.insert(isPlaying, i)
-        if i > currentVoices then
-          spawn(play, i)
-        end
-      end
-      currentVoices = #isPlaying
-    end
-    local baseDuration = 4 -- TODO Param?
-    waitBeat(baseDuration)
-  until #isPlaying == 0
-end
-
-function play(voice)
-  local note = nil
+function play()
+  local notes = {}
+  local heldNoteIndex = 0
   local activeFragment = nil -- The fragment currently playing
   local fragmentPos = 0 -- Position in the active fragment
   local fragmentRepeatCount = 0
@@ -874,23 +766,30 @@ function play(voice)
   local rest = false
   local velocity = nil
   local reverseFragment = false
-  while isPlaying[voice] == voice do
-    local channel = nil
-    if channelButton.value then
-      channel = voice
+  while isPlaying do
+    local offset = 0
+    if #heldNotes == 0 then
+      local buffer = 1 -- How long to wait for notes before stopping the sequencer
+      wait(buffer)
+      print("waiting for heldNotes", buffer)
+      offset = offset + buffer
     end
-    note = generateNote(note)
+    if #heldNotes == 0 then
+      print("#heldNotes == 0 - stopping sequencer")
+      isPlaying = false
+      break
+    end
+    notes, heldNoteIndex = getNotes(heldNoteIndex)
     duration, velocity, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
-    local doPlayNote = rest == false and type(note) == "number" and type(duration) == "number"
+    local gate = randomizeValue(gateInput.value, gateInput.min, gateInput.max, gateRandomization.value)
+    local doPlayNote = gate > 0 and rest == false and #notes > 0
     if doPlayNote then
-      local gate = randomizeValue(gateInput.value, gateInput.min, gateInput.max, gateRandomization.value)
-      playNote(note, velocity, beat2ms(getPlayDuration(duration, gate)), nil, channel)
-      table.insert(notesPlaying, note) -- Register
+      velocity = velocity + heldNotes[heldNoteIndex].velocity / 2 -- 50% between played velocity and sequencer velocity
+      for _,note in ipairs(notes) do
+        playNote(note, velocity, beat2ms(getPlayDuration(duration, gate)) - offset)
+      end
     end
     waitBeat(duration)
-    if doPlayNote then
-      table.remove(notesPlaying, getIndexFromValue(note, notesPlaying)) -- Remove
-    end
   end
 end
 
@@ -899,24 +798,34 @@ end
 --------------------------------------------------------------------------------
 
 function onNote(e)
-  if autoplayButton.value == true then
-    postEvent(e)
-  else
-    playButton:setValue(true)
+  if holdButton.value == true then
+    for i,v in ipairs(heldNotes) do
+      if v.note == e.note then
+        -- When hold button is active
+        -- we remove the note from held notes
+        -- if table has more than one note
+        if #heldNotes > 1 then
+          table.remove(heldNotes, i)
+        end
+        break
+      end
+    end
+  end
+  table.insert(heldNotes, e)
+  if #heldNotes == 1 and isPlaying == false then
+    isPlaying = true
+    spawn(play)
   end
 end
 
 function onRelease(e)
-  if autoplayButton.value == true then
+  if holdButton.value == false then
+    for i,v in ipairs(heldNotes) do
+      if v.note == e.note then
+        table.remove(heldNotes, i)
+      end
+    end
     postEvent(e)
-  else
-    playButton:setValue(false)
-  end
-end
-
-function onTransport(start)
-  if autoplayButton.value == true then
-    playButton:setValue(start)
   end
 end
 
