@@ -56,19 +56,19 @@ settingsPanel.y = sequencerPanel.y + sequencerPanel.height + 5
 settingsPanel.width = 700
 settingsPanel.height = 30
 
-local rythmPanel = Panel("Rythm")
-rythmPanel.backgroundColour = "505050"
-rythmPanel.x = settingsPanel.x
-rythmPanel.y = settingsPanel.y + settingsPanel.height
-rythmPanel.width = 700
-rythmPanel.height = 215
-
 local notePanel = Panel("Notes")
 notePanel.backgroundColour = backgroundColour
-notePanel.x = rythmPanel.x
-notePanel.y = rythmPanel.y + rythmPanel.height + 5
+notePanel.x = settingsPanel.x
+notePanel.y = settingsPanel.y + settingsPanel.height + 5
 notePanel.width = 700
 notePanel.height = 150
+
+local rythmPanel = Panel("Rythm")
+rythmPanel.backgroundColour = "505050"
+rythmPanel.x = notePanel.x
+rythmPanel.y = notePanel.y + notePanel.height
+rythmPanel.width = 700
+rythmPanel.height = 215
 
 --------------------------------------------------------------------------------
 -- Sequencer Panel
@@ -189,18 +189,6 @@ velocityAccent.x = velocityInput.x + velocityInput.width + 10
 velocityAccent.y = velocityInput.y
 
 --------------------------------------------------------------------------------
--- Rythm Panel
---------------------------------------------------------------------------------
-
-local rythmLabel = rythmPanel:Label("RythmLabel")
-rythmLabel.text = "Rythm"
-rythmLabel.alpha = 0.75
-rythmLabel.fontSize = 15
-rythmLabel.width = 50
-
-local paramsPerFragment = getParamsPerFragment(rythmPanel, rythmLabel, colours)
-
---------------------------------------------------------------------------------
 -- Notes Panel
 --------------------------------------------------------------------------------
 
@@ -254,6 +242,18 @@ randomizeNotes.changed = function()
 end
 
 setNotesAndOctaves(notePanel, colours, noteLabel)
+
+--------------------------------------------------------------------------------
+-- Rythm Panel
+--------------------------------------------------------------------------------
+
+local rythmLabel = rythmPanel:Label("RythmLabel")
+rythmLabel.text = "Rythm"
+rythmLabel.alpha = 0.75
+rythmLabel.fontSize = 15
+rythmLabel.width = 50
+
+local paramsPerFragment = getParamsPerFragment(rythmPanel, rythmLabel, colours)
 
 --------------------------------------------------------------------------------
 -- Functions

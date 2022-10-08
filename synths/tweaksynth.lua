@@ -6604,6 +6604,6 @@ patchmakerPageButton:changed()
 setSize(720, 480)
 
 setBackgroundColour("#000066")
-setBackground("./resources/bluesquares.png")
+setBackground("../resources/bluesquares.png")
 
 makePerformanceView()

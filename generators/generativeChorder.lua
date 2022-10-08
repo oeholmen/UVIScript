@@ -638,7 +638,7 @@ for i=1,numPartsBox.max do
   monoLimit.y = generateKeyPart.y
   monoLimit.width = stepResolution.width
 
-  local gateInput = sequencerPanel:NumBox("GateInput" .. i, 90, 0, 100, true)
+  local gateInput = sequencerPanel:NumBox("GateInput" .. i, 100, 0, 100, true)
   gateInput.unit = Unit.Percent
   gateInput.textColour = widgetTextColour
   gateInput.backgroundColour = widgetBackgroundColour
