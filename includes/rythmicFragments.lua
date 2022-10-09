@@ -26,10 +26,10 @@ function fragmentDefinitionToResolutionNames(fragmentDefinition)
   for _,v in ipairs(fragmentDefinition) do
     local index = getIndexFromValue(v, resolutions)
     local text = v
-    print("index, text", index, text)
+    --print("index, text", index, text)
     if type(index) == "number" then
       text = getResolutionName(index)
-      print("text", text)
+      --print("text", text)
     end
     table.insert(parsed, text)
   end
@@ -49,9 +49,9 @@ function calculateFragmentDuration(fragmentText)
   local total = 0
   for _,v in ipairs(fragment) do
     total = total + v
-    print("calculateFragmentDuration v, total", v, total)
+    --print("calculateFragmentDuration v, total", v, total)
   end
-  print("TOTAL", total)
+  --print("TOTAL", total)
   return total
 end
 
@@ -70,7 +70,7 @@ function addDurations(resolutions, durations, fragmentDuration)
     local duration = getResolution(i)
     if duration <= fragmentDuration then
       table.insert(durations, duration)
-      print("Inserted duration", duration)
+      --print("Inserted duration", duration)
     end
   end
   return durations
@@ -86,13 +86,13 @@ end
 --    "Create fragment (extended)" 6
 function createFragmentDefinition(durationType)
   if type(durationType) == "nil" then
-    durationType = 6
+    durationType = 1
   end
   local minResolution = 23
-  local resolutionsByType = getResolutionsByType(minResolution)
+  local resolutionsByType = getResolutionsByType(minResolution, true)
   local currentDuration = 0
-  local fragmentDuration = getRandomFromTable({1,2,4,8}) -- TODO Param?
-  print("Selected fragmentDuration", fragmentDuration)
+  local fragmentDuration = getRandomFromTable({1,2,4}) -- TODO Param?
+  --print("Selected fragmentDuration", fragmentDuration)
   local definition = {}
   local durations = {}
   -- Add resolutions that can fit inside the fragmentDuration
@@ -110,17 +110,17 @@ function createFragmentDefinition(durationType)
       durations = addDurations(v, durations, fragmentDuration)
     end
   end
-  print("Found durations", #durations)
+  --print("Found durations", #durations)
   -- Select durations for the definition
   while currentDuration < fragmentDuration do
     local duration = getRandomFromTable(durations)
     if currentDuration + duration > fragmentDuration then
       duration = fragmentDuration - currentDuration
-      print("currentDuration + duration > fragmentDuration", currentDuration, duration, fragmentDuration)
+      --print("currentDuration + duration > fragmentDuration", currentDuration, duration, fragmentDuration)
     end
     currentDuration = currentDuration + duration
     table.insert(definition, duration)
-    print("Add duration", duration)
+    --print("Add duration", duration)
   end
   return definition
 end
@@ -128,17 +128,17 @@ end
 function parseToBeatValue(duration)
   if type(tonumber(duration)) == "number" then
     duration = tonumber(duration)
-    print("Duration is number", duration)
+    --print("Duration is number", duration)
     return duration
   end
 
-  print("Duration is NOT a number, try to find beat value from name", duration)
+  --print("Duration is NOT a number, try to find beat value from name", duration)
   local index = getIndexFromValue(duration, getResolutionNames())
   if type(index) == "number" then
     return getResolution(index)
   end
 
-  print("Could not resolve duration, returning 0", duration)
+  --print("Could not resolve duration, returning 0", duration)
   return 0
 end
 
@@ -146,9 +146,9 @@ function createFragmentFromText(fragmentText)
   local fragment = {}
   if string.len(fragmentText) > 0 then
     for w in string.gmatch(fragmentText, "[^,]+") do
-      print("Before parse", w)
+      --print("Before parse", w)
       w = parseToBeatValue(trimStartAndEnd(w))
-      print("Add to fragment", w)
+      --print("Add to fragment", w)
       table.insert(fragment, w)
     end
   end
@@ -202,7 +202,7 @@ function getSelectedFragments()
       table.insert(selectedFragments, fragment)
     end
   end
-  print("Fragments selected from inputs", #selectedFragments)
+  --print("Fragments selected from inputs", #selectedFragments)
   return selectedFragments
 end
 
@@ -218,14 +218,15 @@ function getFragment()
 end
 
 function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
+  local isRepeat = false
   local isFragmentStart = type(activeFragment) == "nil" or (reverseFragment == false and fragmentPos == #activeFragment.f) or (reverseFragment and fragmentPos == 1)
   if isFragmentStart then
+    local mustRepeat = false
     -- Start fragment (previous fragment is completed or no fragemt is selected)
     fragmentRepeatCount = fragmentRepeatCount + 1
     -- Check modulo for grouping/required number of repeats
-    local mustRepeat = false
     if type(activeFragment) == "table" and type(activeFragment.m) == "number" then
-      print("***MustRepeat?*** fragmentRepeatCount % activeFragment.m", fragmentRepeatCount, activeFragment.m, (fragmentRepeatCount % activeFragment.m))
+      --print("***MustRepeat?*** fragmentRepeatCount % activeFragment.m", fragmentRepeatCount, activeFragment.m, (fragmentRepeatCount % activeFragment.m))
       mustRepeat = fragmentRepeatCount % activeFragment.m > 0
     end
 
@@ -237,11 +238,12 @@ function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, rev
       end
     end
 
-    print("FRAGMENT fragmentRepeatCount, mustRepeat", fragmentRepeatCount, mustRepeat)
+    --print("FRAGMENT fragmentRepeatCount, mustRepeat", fragmentRepeatCount, mustRepeat)
     if type(activeFragment) == "table" and (mustRepeat or getRandomBoolean(fragmentRepeatProbability)) then
       -- REPEAT FRAGMENT
+      isRepeat = true
       fragmentRepeatProbability = fragmentRepeatProbability - (fragmentRepeatProbability * (activeFragment.d / 100))
-      print("REPEAT FRAGMENT, fragmentRepeatProbability", fragmentRepeatProbability)
+      --print("REPEAT FRAGMENT, fragmentRepeatProbability", fragmentRepeatProbability)
     else
       -- CHANGE FRAGMENT
       fragmentRepeatCount = 0 -- Init repeat counter
@@ -255,7 +257,7 @@ function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, rev
         end
       end
       fragmentRepeatProbability = activeFragment.r
-      print("CHANGE FRAGMENT, #fragment, fragmentRepeatProbability", #activeFragment.f, fragmentRepeatProbability)
+      --print("CHANGE FRAGMENT, #fragment, fragmentRepeatProbability", #activeFragment.f, fragmentRepeatProbability)
     end
     -- RANDOMIZE fragment
     randomizeFragment = #activeFragment.f > 1 and getRandomBoolean(activeFragment.rnd)
@@ -265,28 +267,28 @@ function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, rev
       local maxRounds = 100
       while #seen < #activeFragment.f and maxRounds > 0 do
         local i = getRandom(#activeFragment.f)
-        print("maxRounds outer", maxRounds)
+        --print("maxRounds outer", maxRounds)
         while tableIncludes(seen, i) do
           i = getRandom(#activeFragment.f)
           maxRounds = maxRounds - 1
-          print("maxRounds inner", maxRounds)
+          --print("maxRounds inner", maxRounds)
         end
         table.insert(tmp, activeFragment.f[i])
         table.insert(seen, i)
-        print("#seen, i", #seen, i)
+        --print("#seen, i", #seen, i)
       end
       activeFragment.f = tmp
-      print("randomizeFragment")
+      --print("randomizeFragment")
     end
     -- REVERSE fragment
     reverseFragment = #activeFragment.f > 1 and getRandomBoolean(activeFragment.rev)
     if reverseFragment then
-      print("REVERSE fragment", reverseFragment)
+      --print("REVERSE fragment", reverseFragment)
       fragmentPos = #activeFragment.f
     else
       fragmentPos = 1
     end
-    print("SET fragmentPos", fragmentPos)
+    --print("SET fragmentPos", fragmentPos)
   else
     -- INCREMENT fragment pos
     local increment = 1
@@ -294,7 +296,7 @@ function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, rev
       increment = -increment
     end
     fragmentPos = fragmentPos + increment
-    print("INCREMENT FRAGMENT POS", fragmentPos)
+    --print("INCREMENT FRAGMENT POS", fragmentPos)
   end
 
   -- Get fragment at current position
@@ -309,30 +311,40 @@ function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, rev
     end
   end
 
-  print("RETURN duration", duration)
+  --print("RETURN duration", duration)
 
   local rest = getRandomBoolean(activeFragment.rst)
 
-  return duration, isFragmentStart, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount
+  return duration, isFragmentStart, isRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount
 end
 
-function getParamsPerFragment(rythmPanel, rythmLabel, colours)
-  for i=1,4 do
-    local offsetX = 0
-    local offsetY = 24
+function getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelectors)
+  if type(numSelectors) == "nil" then
+    numSelectors = 4
+  end
+  local perColumn = 2
+  local rowCounter = 0
+  local columnCounter = 0
+  for i=1,numSelectors do
+    --local offsetX = 0
+    local offsetX = 354
+    local offsetY = 100
     local defaultResolution = ""
+
+    offsetX = offsetX * columnCounter
+    offsetY = (offsetY * rowCounter) + 24
   
     if i == 1 then
       defaultResolution = "1/8"
-    elseif i == 2 then
-      offsetX = 354
-    elseif i == 3 then
-      offsetY = 123
-    elseif i == 4 then
-      offsetX = 354
-      offsetY = 123
     end
-  
+
+    -- Increment counters
+    columnCounter = columnCounter + 1
+    if columnCounter >= perColumn then
+      columnCounter = 0
+      rowCounter = rowCounter + 1
+    end
+
     local fragmentActive = rythmPanel:OnOffButton("FragmentActive" .. i, true)
     fragmentActive.backgroundColourOff = colours.backgroundColourOff
     fragmentActive.backgroundColourOn = colours.backgroundColourOn
@@ -386,14 +398,14 @@ function getParamsPerFragment(rythmPanel, rythmLabel, colours)
       if self.value > 1 then
         -- Create
         local fragmentDefinition = fragmentDefinitionToResolutionNames(createFragmentDefinition(self.value-1))
-        print("#fragmentDefinition", #fragmentDefinition)
+        --print("#fragmentDefinition", #fragmentDefinition)
         fragmentInput.text = getFragmentInputText(fragmentDefinition)
       end
       -- Must be last
       self:setValue(1, false)
     end
   
-    local resolutionsByType = getResolutionsByType(26)
+    local resolutionsByType = getResolutionsByType(26, false)
     local addToFragment = {"Add..."}
     for i=1,3 do
       for _,v in ipairs(resolutionsByType[i]) do
@@ -589,7 +601,7 @@ function getParamsPerFragment(rythmPanel, rythmLabel, colours)
     restProbability.width = fragmentRepeatProbability.width
     restProbability.x = restProbabilityLabel.x + restProbabilityLabel.width - 1
     restProbability.y = restProbabilityLabel.y
-  
+
     table.insert(paramsPerFragment, {fragmentInput=fragmentInput, fragmentActive=fragmentActive, fragmentPlayProbability=fragmentPlayProbability, randomizeFragmentProbability=randomizeFragmentProbability, reverseFragmentProbability=reverseFragmentProbability, restProbability=restProbability, fragmentRepeatProbability=fragmentRepeatProbability, fragmentRepeatProbabilityDecay=fragmentRepeatProbabilityDecay, fragmentMinRepeats=fragmentMinRepeats})
   end
   return paramsPerFragment

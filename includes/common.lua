@@ -12,9 +12,9 @@ function randomizeValue(value, limitMin, limitMax, randomizationAmount)
     local changeMax = getChangeMax(limitRange, randomizationAmount)
     local min = math.max(limitMin, (value - changeMax))
     local max = math.min(limitMax, (value + changeMax))
-    print("Before randomize value", value)
+    --print("Before randomize value", value)
     value = getRandom(min, max)
-    print("After randomize value/changeMax/min/max", value, changeMax, min, max)
+    --print("After randomize value/changeMax/min/max", value, changeMax, min, max)
   end
   return value
 end
@@ -34,7 +34,7 @@ end
 
 function round(value)
   local int, frac = math.modf(value)
-  print("int/frac", int, frac)
+  --print("int/frac", int, frac)
   if math.abs(frac) < 0.5 then
     value = int
   elseif value < 0 then
@@ -75,13 +75,13 @@ function getRandomFromTable(theTable, except)
   end
   local index = getRandom(#theTable)
   local value = theTable[index]
-  print("getRandomFromTable index, value", index, value)
+  --print("getRandomFromTable index, value", index, value)
   if type(except) ~= "nil" then
     local maxRounds = 10
     while value == except and maxRounds > 0 do
       value = theTable[getRandom(#theTable)]
       maxRounds = maxRounds - 1
-      print("getRandomFromTable except, maxRounds", except, maxRounds)
+      --print("getRandomFromTable except, maxRounds", except, maxRounds)
     end
   end
   return value
