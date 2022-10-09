@@ -3,4 +3,4 @@
 .AppleDouble
 .LSOverride
 # Ignore lua scripts in the root folder - they are just to keep the old multis working
-*.lua
+/*.lua
