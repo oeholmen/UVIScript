@@ -247,7 +247,7 @@ function play()
     notes, heldNoteIndex = getNotes(heldNoteIndex)
     duration, isFragmentStart, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
     local gate = randomizeValue(gateInput.value, gateInput.min, gateInput.max, gateRandomization.value)
-    local doPlayNote = gate > 0 and rest == false and #notes > 0
+    local doPlayNote = gate > 0 and rest == false and #notes > 0 and type(duration) == "number"
     if doPlayNote then
       -- TODO Add option to accent every n-th beat?
       local velocity = velocityInput.value
@@ -259,6 +259,9 @@ function play()
       for _,note in ipairs(notes) do
         playNote(note, velocity, beat2ms(getPlayDuration(duration, gate)) - offset)
       end
+    end
+    if type(duration) == "nil" then
+      duration = 1 -- Failsafe
     end
     waitBeat(duration)
   end

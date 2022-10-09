@@ -341,7 +341,7 @@ function play(voice)
     end
     note = generateNote(note)
     duration, isFragmentStart, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
-    local doPlayNote = rest == false and type(note) == "number"
+    local doPlayNote = rest == false and type(note) == "number" and type(duration) == "number"
     if doPlayNote then
       local gate = randomizeValue(gateInput.value, gateInput.min, gateInput.max, gateRandomization.value)
       local velocity = velocityInput.value
@@ -351,6 +351,9 @@ function play(voice)
       end
       playNote(note, velocity, beat2ms(getPlayDuration(duration, gate)), nil, channel)
       table.insert(notesPlaying, note) -- Register
+    end
+    if type(duration) == "nil" then
+      duration = 1 -- Failsafe
     end
     waitBeat(duration)
     if doPlayNote then

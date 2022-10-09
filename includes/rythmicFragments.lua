@@ -181,8 +181,8 @@ function parseFragment(fragmentInputIndex)
     -- rnd = random order probability
     -- rst = rest probability
     return {
-      i=fragmentInputIndex,
       f=fragment,
+      i=fragmentInputIndex,
       p=selectProbability,
       r=repeatProbability,
       d=repeatProbabilityDecay,
@@ -213,8 +213,7 @@ function getFragment()
     return fragment
   end
 
-  -- Return fallback value (1/8)
-  return {f={0.5}, p=100, r=0, d=0, rev=0, rnd=0, rst=0}
+  return {f={}, i=0, p=0, r=0, d=0, rev=0, rnd=0, rst=0}
 end
 
 function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
@@ -301,15 +300,16 @@ function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, rev
 
   -- Get fragment at current position
   local duration = activeFragment.f[fragmentPos]
-  if type(duration) == "string" or type(duration) == "nil" then
+  --[[ if type(duration) == "string" or type(duration) == "nil" then
+    duration = getBeatValueForResolutionName(duration)
     -- If duration is string, we must resolve it from resolution names
     local resolutionIndex = getIndexFromValue(duration, getResolutionNames())
     if type(resolutionIndex) == "nil" then
-      resolutionIndex = 20 -- 1/8 as a failsafe in case the resolution could not be resolved
+      duration = nil
     else
       duration = getResolution(resolutionIndex)
     end
-  end
+  end ]]
 
   --print("RETURN duration", duration)
 
@@ -326,13 +326,12 @@ function getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelectors)
   local rowCounter = 0
   local columnCounter = 0
   for i=1,numSelectors do
-    --local offsetX = 0
     local offsetX = 354
     local offsetY = 100
     local defaultResolution = ""
 
     offsetX = offsetX * columnCounter
-    offsetY = (offsetY * rowCounter) + 24
+    offsetY = (offsetY * rowCounter) + 30
   
     if i == 1 then
       defaultResolution = "1/8"
