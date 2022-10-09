@@ -287,7 +287,7 @@ randomizeNotes.changed = function()
   end
 end
 
-setNotesAndOctaves(notePanel, colours, noteLabel)
+createNoteAndOctaveSelector(notePanel, colours, noteLabel)
 
 --------------------------------------------------------------------------------
 -- Resolution Panel
@@ -342,7 +342,7 @@ randomizeResolutions.changed = function()
   end
 end
 
-rowCount = setResolutions(resolutionPanel, colours)
+rowCount = createResolutionSelector(resolutionPanel, colours)
 
 local resLabel = resolutionPanel:Label("ResolutionsLabel")
 resLabel.text = "Base Resolution"

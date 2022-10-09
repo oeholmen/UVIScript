@@ -199,7 +199,7 @@ randomizeNotes.changed = function()
   end
 end
 
-setNotesAndOctaves(notePanel, colours, noteLabel)
+createNoteAndOctaveSelector(notePanel, colours, noteLabel)
 
 --------------------------------------------------------------------------------
 -- Sequencer Panel

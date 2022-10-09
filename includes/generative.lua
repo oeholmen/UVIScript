@@ -55,6 +55,7 @@ function setScale(scaleIndex, keyIndex)
   end
 end
 
+-- Get notes that are activated in selected octaves, filtered by probability
 function getSelectedNotes()
   local selectedNotes = {} -- Holds note numbers that are available
   for octaveIndex,octave in ipairs(octaveInputs) do
@@ -183,7 +184,7 @@ function getNoteDuration(currentDuration, repeatCounter, durationRepeatProbabili
   return globalResolution, selectedDivisionsAndRepeats[index].repeats, nil
 end
 
-function setNotesAndOctaves(notePanel, colours, noteLabel)
+function createNoteAndOctaveSelector(notePanel, colours, noteLabel)
   local columnCount = 0
   for i=1,#noteNames do
     local note = notePanel:OnOffButton("Note" .. i, true)
@@ -291,7 +292,7 @@ function setNotesAndOctaves(notePanel, colours, noteLabel)
   end
 end
 
-function setResolutions(resolutionPanel, colours, numResolutions)
+function createResolutionSelector(resolutionPanel, colours, numResolutions)
   if type(numResolutions) == "nil" then
     numResolutions = 12
   end
