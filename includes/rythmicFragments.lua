@@ -14,7 +14,9 @@ local resolutionFragments = {
   {'1/4 dot','1/16','1/16'},
   {'1/4','1/8','1/8'},
   {'1/8','1/4','1/8'},
+  {'1/4','1/8','1/16','1/16'},
   {'1/16','1/8 dot'},
+  {'1/8 dot'},
   {'2x'},
   {'4x'},
 }
@@ -194,20 +196,20 @@ function parseFragment(fragmentInputIndex)
   end
 end
 
-function getSelectedFragments()
+function getSelectedFragments(fragmentIndexes)
   local selectedFragments = {}
   for i=1, #paramsPerFragment do
     local fragment = parseFragment(i)
-    if type(fragment) == "table" then
+    local includeFragment = type(fragmentIndexes) ~= "table" or #fragmentIndexes == 0 or tableIncludes(fragmentIndexes, i)
+    if type(fragment) == "table" and includeFragment then
       table.insert(selectedFragments, fragment)
     end
   end
-  --print("Fragments selected from inputs", #selectedFragments)
   return selectedFragments
 end
 
-function getFragment()
-  local fragment = getRandomFromTable(getSelectedFragments())
+function getFragment(fragmentIndexes)
+  local fragment = getRandomFromTable(getSelectedFragments(fragmentIndexes))
 
   if type(fragment) == "table" then
     return fragment
@@ -216,7 +218,16 @@ function getFragment()
   return {f={}, i=0, p=0, r=0, d=0, rev=0, rnd=0, rst=0}
 end
 
-function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
+function getRestProbability(activeFragment, isFragmentStart)
+  local restProbability = activeFragment.rst
+  -- TODO Should there be less probability at fragment start? Param?
+  --[[ if isFragmentStart and #activeFragment.f > 1 and restProbability > 0 then
+    restProbability = math.floor(restProbability / 2) -- Half probability
+  end ]]
+  return restProbability
+end
+
+function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount, sources)
   local isRepeat = false
   local isFragmentStart = type(activeFragment) == "nil" or (reverseFragment == false and fragmentPos == #activeFragment.f) or (reverseFragment and fragmentPos == 1)
   if isFragmentStart then
@@ -246,8 +257,14 @@ function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, rev
     else
       -- CHANGE FRAGMENT
       fragmentRepeatCount = 0 -- Init repeat counter
+      -- Register old fragemnt index (if any)
+      local prevFragmentIndex = nil
+      if type(activeFragment) == "table" then
+        prevFragmentIndex = activeFragment.i
+      end
       -- Change to a new fragment input
-      activeFragment = getFragment()
+      activeFragment = getFragment(sources)
+      isRepeat = prevFragmentIndex == activeFragment.i -- Check if same as previous
       for i,v in ipairs(paramsPerFragment) do
         if i == activeFragment.i then
           v.fragmentActive.textColourOn = "white"
@@ -300,20 +317,10 @@ function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, rev
 
   -- Get fragment at current position
   local duration = activeFragment.f[fragmentPos]
-  --[[ if type(duration) == "string" or type(duration) == "nil" then
-    duration = getBeatValueForResolutionName(duration)
-    -- If duration is string, we must resolve it from resolution names
-    local resolutionIndex = getIndexFromValue(duration, getResolutionNames())
-    if type(resolutionIndex) == "nil" then
-      duration = nil
-    else
-      duration = getResolution(resolutionIndex)
-    end
-  end ]]
 
   --print("RETURN duration", duration)
 
-  local rest = getRandomBoolean(activeFragment.rst)
+  local rest = getRandomBoolean(getRestProbability(activeFragment, isFragmentStart))
 
   return duration, isFragmentStart, isRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount
 end
