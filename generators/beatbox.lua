@@ -10,6 +10,7 @@ local voices = 8
 local beatCounter = 1
 local isPlaying = false
 local playingVoices = {}
+local roundCounterPerVoice = {}
 
 local backgroundColour = "595959" -- Light or Dark
 local widgetBackgroundColour = "01011F" -- Dark
@@ -129,13 +130,15 @@ end
 -- Settings Panel
 --------------------------------------------------------------------------------
 
-local widgetWidth = 659 / 3
+local widgetHeight = 20
+local widgetWidth = 659 / 4
 
 local velocityInput = settingsPanel:NumBox("Velocity", 64, 1, 127, true)
 velocityInput.textColour = widgetTextColour
 velocityInput.backgroundColour = widgetBackgroundColour
 velocityInput.displayName = "Velocity"
 velocityInput.tooltip = "Note velocity"
+velocityInput.height = widgetHeight
 velocityInput.width = widgetWidth
 velocityInput.x = 5
 velocityInput.y = 0
@@ -145,6 +148,7 @@ velocityAccent.textColour = widgetTextColour
 velocityAccent.backgroundColour = widgetBackgroundColour
 velocityAccent.displayName = "Accent"
 velocityAccent.tooltip = "Velocity accent amount triggered on the start of a fragment"
+velocityAccent.height = widgetHeight
 velocityAccent.width = widgetWidth
 velocityAccent.x = velocityInput.x + velocityInput.width + 10
 velocityAccent.y = velocityInput.y
@@ -156,26 +160,112 @@ accentFragmentStart.backgroundColourOff = backgroundColourOff
 accentFragmentStart.backgroundColourOn = backgroundColourOn
 accentFragmentStart.textColourOff = textColourOff
 accentFragmentStart.textColourOn = textColourOn
+accentFragmentStart.height = widgetHeight
 accentFragmentStart.width = velocityAccent.width
 accentFragmentStart.x = velocityAccent.x + velocityAccent.width + 10
 accentFragmentStart.y = velocityAccent.y
 
+local presets = {"Load preset...", "Kick on downbeat"}
+local presetMenu = settingsPanel:Menu("Presets", presets)
+presetMenu.tooltip = "Select a preset - NOTE Overrides existing settings!"
+presetMenu.showLabel = false
+presetMenu.height = widgetHeight
+presetMenu.width = accentFragmentStart.width
+presetMenu.x = accentFragmentStart.x + accentFragmentStart.width + 10
+presetMenu.y = accentFragmentStart.y
+presetMenu.backgroundColour = colours.menuBackgroundColour
+presetMenu.textColour = colours.widgetTextColour
+presetMenu.arrowColour = colours.menuArrowColour
+presetMenu.outlineColour = colours.menuOutlineColour
+presetMenu.changed = function(self)
+  print("Loading preset " .. self.value)
+end
+
+  --------------------------------------------------------------------------------
+-- Notes Panel
 --------------------------------------------------------------------------------
--- Drum Panel
---------------------------------------------------------------------------------
+
+local partInEditMode = nil
+local bounds = {}
+local paramsPerNote = {}
 
 local noteLabel = notePanel:Label("NotesLabel")
 noteLabel.text = "Drums"
 noteLabel.tooltip = "Select drums"
 noteLabel.alpha = 0.75
 noteLabel.fontSize = 15
-noteLabel.width = 50
+noteLabel.width = 60
 noteLabel.x = 0
 noteLabel.y = 0
 
-local isInEditMode = false
-local bounds = {}
-local paramsPerNote = {}
+local all0Percent = notePanel:Button("All0Percent")
+all0Percent.visible = false
+all0Percent.displayName = "Set 0%"
+all0Percent.tooltip = "Set all fragment probabilities to 0"
+all0Percent.persistent = false
+all0Percent.height = 20
+all0Percent.width = 90
+all0Percent.x = notePanel.width - (all0Percent.width * 4) - 39
+all0Percent.y = 3
+all0Percent.changed = function()
+  if type(partInEditMode) == "number" then
+    for _,v in ipairs(paramsPerNote[partInEditMode].sourceSelectors) do
+      v:setValue(0)
+    end
+  end
+end
+
+local all50percent = notePanel:Button("All50percent")
+all50percent.visible = false
+all50percent.displayName = "Set 50%"
+all50percent.tooltip = "Set all fragment probabilities to 50%"
+all50percent.persistent = false
+all50percent.height = all0Percent.height
+all50percent.width = all0Percent.width
+all50percent.x = all0Percent.x + all0Percent.width + 10
+all50percent.y = 5
+all50percent.changed = function()
+  if type(partInEditMode) == "number" then
+    for _,v in ipairs(paramsPerNote[partInEditMode].sourceSelectors) do
+      v:setValue(50)
+    end
+  end
+end
+
+local all100Percent = notePanel:Button("All100Percent")
+all100Percent.visible = false
+all100Percent.displayName = "Set 100%"
+all100Percent.tooltip = "Set all fragment probabilities to 100"
+all100Percent.persistent = false
+all100Percent.height = all50percent.height
+all100Percent.width = all50percent.width
+all100Percent.x = all50percent.x + all50percent.width + 10
+all100Percent.y = 5
+all100Percent.changed = function()
+  if type(partInEditMode) == "number" then
+    for _,v in ipairs(paramsPerNote[partInEditMode].sourceSelectors) do
+      v:setValue(100)
+    end
+  end
+end
+
+local setRandomPercent = notePanel:Button("SetRandomPercent")
+setRandomPercent.visible = false
+setRandomPercent.displayName = "Set random %"
+setRandomPercent.tooltip = "Randomize fragment probabilities"
+setRandomPercent.persistent = false
+setRandomPercent.height = all100Percent.height
+setRandomPercent.width = all100Percent.width
+setRandomPercent.x = all100Percent.x + all100Percent.width + 10
+setRandomPercent.y = 5
+setRandomPercent.changed = function()
+  if type(partInEditMode) == "number" then
+    for _,v in ipairs(paramsPerNote[partInEditMode].sourceSelectors) do
+      v:setValue(getRandom(100))
+    end
+  end
+end
+
 for i=1,voices do
   local types = {"Kick", "Snare", "Hihat", "Clap", "Toms", "Cymbal", "Tambourine", "Perc"}
   local typeLabel = notePanel:Label("Label" .. i)
@@ -184,6 +274,7 @@ for i=1,voices do
   typeLabel.text = types[i]
   typeLabel.backgroundColour = menuBackgroundColour
   typeLabel.backgroundColourWhenEditing = "#cccccc"
+  typeLabel.textColour = "9f9f9f"
   typeLabel.width = 80
   typeLabel.height = 22
   typeLabel.x = ((typeLabel.width + 6) * (i - 1)) + 8
@@ -236,8 +327,10 @@ for i=1,voices do
   listen.tooltip = "Note learn"
   listen.textColourOff = "white"
   listen.backgroundColourOn = "green"
-  listen.height = noteProbability.height
-  listen.width = 25
+  --listen.normalImage = "../resources/headphones.png"
+  --listen.pressedImage = "../resources/headphones.png"
+  listen.height = 24
+  listen.width = 24
   listen.x = triggerNote.x
   listen.y = triggerNote.y + triggerNote.height
   listen.changed = function(self)
@@ -248,18 +341,23 @@ for i=1,voices do
     end
   end
 
-  local edit = notePanel:Button("Edit" .. i)
+  local edit = notePanel:OnOffButton("Edit" .. i)
   edit.displayName = "E"
   edit.tooltip = "Edit note details"
-  edit.height = noteProbability.height
+  edit.textColourOff = "white"
+  edit.backgroundColourOn = "orange"
+  --edit.normalImage = "../resources/edit.png"
+  --edit.pressedImage = "../resources/edit.png"
+  edit.height = listen.height
   edit.width = listen.width
   edit.x = listen.x + listen.width + 4
   edit.y = listen.y
   edit.changed = function(self)
-    if isInEditMode == false then
+    if type(partInEditMode) == "nil" then
       for j,v in ipairs(paramsPerNote) do
         local isVisible = i == j
         if isVisible then
+          partInEditMode = j
           --noteLabel.text = v.typeLabel.text
           -- Remember bounds
           bounds = {
@@ -285,6 +383,7 @@ for i=1,voices do
         v.triggerNote.visible = isVisible
         v.noteProbability.visible = isVisible
         v.accent.visible = isVisible
+        v.restFirstBeatProbability.visible = isVisible
         v.downBeatProbability.visible = isVisible
         v.upBeatProbability.visible = isVisible
         v.sourceLabel.visible = isVisible
@@ -293,6 +392,10 @@ for i=1,voices do
         v.edit.displayName = "X"
         v.mute.visible = isVisible
       end
+      all0Percent.visible = true
+      all100Percent.visible = true
+      all50percent.visible = true
+      setRandomPercent.visible = true
     else
       for j,v in ipairs(paramsPerNote) do
         if i == j then
@@ -311,6 +414,7 @@ for i=1,voices do
         v.edit.visible = true
         v.edit.displayName = "E"
         v.accent.visible = false
+        v.restFirstBeatProbability.visible = false
         v.downBeatProbability.visible = false
         v.upBeatProbability.visible = false
         v.sourceLabel.visible = false
@@ -318,9 +422,13 @@ for i=1,voices do
           w.visible = false
         end
       end
+      all0Percent.visible = false
+      all100Percent.visible = false
+      all50percent.visible = false
+      setRandomPercent.visible = false
+      partInEditMode = nil
     end
     --noteLabel.text = "Drums"
-    isInEditMode = isInEditMode == false
   end
 
   local mute = notePanel:OnOffButton("Mute" .. i)
@@ -328,21 +436,24 @@ for i=1,voices do
   mute.tooltip = "Mute note"
   mute.textColourOff = "white"
   mute.backgroundColourOn = "red"
-  mute.height = noteProbability.height
+  --mute.normalImage = "../resources/sound_on.png"
+  --mute.pressedImage = "../resources/sound_off.png"
+  mute.height = edit.height
   mute.width = edit.width
   mute.x = edit.x + edit.width + 4
   mute.y = edit.y
 
-  local accent = notePanel:NumBox("NoteAccent" .. i, 0, 0, 16, true)
-  accent.visible = false
-  accent.displayName = "Accent"
-  accent.tooltip = "Accent every n-th trigger"
-  accent.backgroundColour = menuBackgroundColour
-  accent.textColour = menuTextColour
-  accent.height = triggerNote.height
-  accent.width = 120
-  accent.x = typeLabel.width + 20
-  accent.y = noteLabel.height + 5
+  local restFirstBeatProbability = notePanel:NumBox("RestFirstBeatProbability" .. i, 0, 0, 100, true)
+  restFirstBeatProbability.unit = Unit.Percent
+  restFirstBeatProbability.visible = false
+  restFirstBeatProbability.displayName = "Rst 1st Bt"
+  restFirstBeatProbability.tooltip = "Probability that a rest will be played if triggered at the start of a beat"
+  restFirstBeatProbability.backgroundColour = menuBackgroundColour
+  restFirstBeatProbability.textColour = menuTextColour
+  restFirstBeatProbability.height = triggerNote.height
+  restFirstBeatProbability.width = 120
+  restFirstBeatProbability.x = typeLabel.width + 20
+  restFirstBeatProbability.y = noteLabel.height + 5
 
   local downBeatProbabilityDefault = 100
   if i == 2 then
@@ -355,10 +466,10 @@ for i=1,voices do
   downBeatProbability.tooltip = "Probability of being played in the downbeat"
   downBeatProbability.backgroundColour = menuBackgroundColour
   downBeatProbability.textColour = menuTextColour
-  downBeatProbability.height = accent.height
-  downBeatProbability.width = accent.width
-  downBeatProbability.x = accent.x
-  downBeatProbability.y = accent.y + accent.height
+  downBeatProbability.height = restFirstBeatProbability.height
+  downBeatProbability.width = restFirstBeatProbability.width
+  downBeatProbability.x = restFirstBeatProbability.x
+  downBeatProbability.y = restFirstBeatProbability.y + restFirstBeatProbability.height
 
   local upBeatProbabilityDefault = 100
   if i == 1 then
@@ -371,8 +482,8 @@ for i=1,voices do
   upBeatProbability.tooltip = "Probability of being played in the upbeat"
   upBeatProbability.backgroundColour = menuBackgroundColour
   upBeatProbability.textColour = menuTextColour
-  upBeatProbability.height = accent.height
-  upBeatProbability.width = accent.width
+  upBeatProbability.height = restFirstBeatProbability.height
+  upBeatProbability.width = restFirstBeatProbability.width
   upBeatProbability.x = downBeatProbability.x
   upBeatProbability.y = downBeatProbability.y + downBeatProbability.height
 
@@ -380,16 +491,16 @@ for i=1,voices do
   sourceLabel.visible = false
   sourceLabel.text = "Sources"
   sourceLabel.tooltip = "Select the fragments that are available for this part - NOTE: If all are 0, then all fragments can be selected."
-  sourceLabel.height = accent.height
-  sourceLabel.width = accent.width
+  sourceLabel.height = restFirstBeatProbability.height
+  sourceLabel.width = 60
   sourceLabel.x = upBeatProbability.x + upBeatProbability.width + 10
-  sourceLabel.y = accent.y
+  sourceLabel.y = noteLabel.y
 
   local sourceSelectors = {}
   local rowCounter = 1
   local columnCounter = 0
   for j=1, voices do
-    local sourceSelector = notePanel:NumBox("SourceSelector" .. i .. "_" .. j, 0, 0, 100, true)
+    local sourceSelector = notePanel:NumBox("SourceSelector" .. i .. "_" .. j, 100, 0, 100, true)
     sourceSelector.unit = Unit.Percent
     sourceSelector.visible = false
     sourceSelector.displayName = "Rythm " .. j
@@ -398,7 +509,7 @@ for i=1,voices do
     sourceSelector.textColour = menuTextColour
     sourceSelector.size = {112,22}
     sourceSelector.x = sourceLabel.x + (columnCounter * (sourceSelector.width + 5))
-    sourceSelector.y = sourceLabel.y + (sourceLabel.height * rowCounter)
+    sourceSelector.y = sourceLabel.y + (sourceLabel.height * rowCounter) + 5
     table.insert(sourceSelectors, sourceSelector)
     columnCounter = columnCounter + 1
     if j == voices / 2 then
@@ -407,7 +518,18 @@ for i=1,voices do
     end
   end
 
-  table.insert(paramsPerNote, {typeLabel=typeLabel, triggerNote=triggerNote, noteProbability=noteProbability, accent=accent, downBeatProbability=downBeatProbability, upBeatProbability=upBeatProbability, sourceLabel=sourceLabel, sourceSelectors=sourceSelectors, listen=listen, edit=edit, mute=mute})
+  local accent = notePanel:NumBox("NoteAccent" .. i, 0, 0, 16, true)
+  accent.visible = false
+  accent.displayName = "Accent"
+  accent.tooltip = "Accent every n-th trigger"
+  accent.backgroundColour = menuBackgroundColour
+  accent.textColour = menuTextColour
+  accent.height = triggerNote.height
+  accent.width = 112
+  accent.x = sourceLabel.x
+  accent.y = upBeatProbability.y
+
+  table.insert(paramsPerNote, {typeLabel=typeLabel, triggerNote=triggerNote, noteProbability=noteProbability, accent=accent, restFirstBeatProbability=restFirstBeatProbability, downBeatProbability=downBeatProbability, upBeatProbability=upBeatProbability, sourceLabel=sourceLabel, sourceSelectors=sourceSelectors, listen=listen, edit=edit, mute=mute})
 end
 
 --------------------------------------------------------------------------------
@@ -502,6 +624,7 @@ function stopPlaying()
   end
   isPlaying = false
   playingVoices = {}
+  roundCounterPerVoice = {}
   for _,v in ipairs(paramsPerFragment) do
     v.fragmentActive.textColourOn = "black"
   end
@@ -551,15 +674,17 @@ function isNoteActive(voice)
 end
 
 function sequenceRunner()
-  local beat = 1 -- Base beat resolution
+  --local beat = 1 -- Base beat resolution
   isPlaying = true
   playingVoices = {}
+  roundCounterPerVoice = {}
   for voice=1,voices do
     table.insert(playingVoices, false) -- Init voices
+    table.insert(roundCounterPerVoice, 0) -- Init rounds
   end
   beatCounter = 1 -- Reset when starting sequencer
   while isPlaying do
-    print("*** BEAT isDownBeat ***", beatCounter, isDownBeat())
+    --print("*** BEAT isDownBeat ***", beatCounter, isDownBeat())
     -- Check playing voices
     for voice=1,voices do
       if playingVoices[voice] == false then
@@ -570,25 +695,32 @@ function sequenceRunner()
         end
       end
     end
-    waitBeat(beat)
-    beatCounter = beatCounter + beat
+    waitBeat(1)
+    beatCounter = beatCounter + 1
   end
 end
 
 function play(voice)
-  local round = 0
+  --local round = 0
   local playDuration = 0 -- Keep track of the played duration
   -- First
   local duration, isFragmentStart, isRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = getDuration(nil, 0, 0, false, 0, getSources(voice))
   -- Start loop
   while playingVoices[voice] do
-    round = round + 1
+    roundCounterPerVoice[voice] = roundCounterPerVoice[voice] + 1
 
     if type(duration) == "nil" or isNoteActive(voice) == false or (isDownBeat() and getPlayOnDownBeat(voice) == false) or (isUpBeat() and getPlayOnUpBeat(voice) == false) then
       -- Return voice to sequence runner
-      print("BEFORE: Breaking loop for voice", voice)
+      print("BEFORE: Breaking loop for voice, isNoteActive(voice), duration", voice, isNoteActive(voice), duration)
       playingVoices[voice] = false
       break
+    end
+
+    local restFirstBeatProbability = paramsPerNote[voice].restFirstBeatProbability.value
+    local isStartOfBeat = math.floor(playDuration) == playDuration
+    print("isStartOfBeat, math.floor(playDuration), playDuration, voice", isStartOfBeat, math.floor(playDuration), playDuration, voice)
+    if isStartOfBeat and getRandomBoolean(restFirstBeatProbability) then
+      rest = true
     end
 
     local accentEvery = paramsPerNote[voice].accent.value
@@ -596,11 +728,12 @@ function play(voice)
     local doPlayNote = rest == false and type(note) == "number"
     if doPlayNote then
       local velocity = velocityInput.value
-      if (accentEvery > 0 and round % accentEvery == 0) or (accentFragmentStart.value and isFragmentStart and #activeFragment.f > 1) then
-        print("accentEvery, round", accentEvery, round)
+      if (accentEvery > 0 and roundCounterPerVoice[voice] % accentEvery == 0) or (accentFragmentStart.value and isFragmentStart and #activeFragment.f > 1) then
+        --print("accentEvery, round", accentEvery, roundCounterPerVoice[voice])
         velocity = velocityAccent.value
       end
       playNote(note, velocity, beat2ms(getPlayDuration(duration)), nil, getChannel())
+      paramsPerNote[voice].typeLabel.textColour = "efefef"
     end
 
     -- Update total play duration
@@ -612,12 +745,13 @@ function play(voice)
     -- Check if loop should be broken at the start of next round
     local remainingInBeat = math.ceil(playDuration) - playDuration
     --print("AFTER playDuration, remainingInBeat, isFragmentStart, isRepeat, voice", playDuration, remainingInBeat, isFragmentStart, isRepeat, "voice " .. voice)
-    if remainingInBeat == 0 and round > 1 and isFragmentStart == true and isRepeat == false then
-      print("AFTER: Breaking loop for voice", voice)
+    if type(duration) == "nil" or (remainingInBeat == 0 and roundCounterPerVoice[voice] > 1 and isFragmentStart == true and isRepeat == false) then
+      print("AFTER: Breaking loop for voice, remainingInBeat, duration", voice, remainingInBeat, duration)
       playingVoices[voice] = false
     else
       waitBeat(duration)
     end
+    paramsPerNote[voice].typeLabel.textColour = "9f9f9f"
   end
 end
 

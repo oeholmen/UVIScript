@@ -6,7 +6,7 @@ require "../includes/common"
 
 local paramsPerFragment = {}
 
--- TODO Expand defaults
+-- Expand defaults
 local resolutionFragments = {
   {'1/16','1/16','1/8'},
   {'1/16','1/8','1/16'},
@@ -16,6 +16,8 @@ local resolutionFragments = {
   {'1/8','1/4','1/8'},
   {'1/4','1/8','1/16','1/16'},
   {'1/16','1/8 dot'},
+  {'1/8 dot','1/16'},
+  {'1/16','1/16','1/16','1/16','1/16','1/16','1/16','1/32','1/32'},
   {'1/8 dot'},
   {'2x'},
   {'4x'},
@@ -200,7 +202,7 @@ function getSelectedFragments(fragmentIndexes)
   local selectedFragments = {}
   for i=1, #paramsPerFragment do
     local fragment = parseFragment(i)
-    local includeFragment = type(fragmentIndexes) ~= "table" or #fragmentIndexes == 0 or tableIncludes(fragmentIndexes, i)
+    local includeFragment = type(fragmentIndexes) ~= "table" or tableIncludes(fragmentIndexes, i)
     if type(fragment) == "table" and includeFragment then
       table.insert(selectedFragments, fragment)
     end
@@ -216,15 +218,6 @@ function getFragment(fragmentIndexes)
   end
 
   return {f={}, i=0, p=0, r=0, d=0, rev=0, rnd=0, rst=0}
-end
-
-function getRestProbability(activeFragment, isFragmentStart)
-  local restProbability = activeFragment.rst
-  -- TODO Should there be less probability at fragment start? Param?
-  --[[ if isFragmentStart and #activeFragment.f > 1 and restProbability > 0 then
-    restProbability = math.floor(restProbability / 2) -- Half probability
-  end ]]
-  return restProbability
 end
 
 function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount, sources)
@@ -320,7 +313,7 @@ function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, rev
 
   --print("RETURN duration", duration)
 
-  local rest = getRandomBoolean(getRestProbability(activeFragment, isFragmentStart))
+  local rest = getRandomBoolean(activeFragment.rst)
 
   return duration, isFragmentStart, isRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount
 end
@@ -525,7 +518,7 @@ function getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelectors)
     fragmentRepeatProbabilityDecay.x = fragmentRepeatProbabilityDecayLabel.x + fragmentRepeatProbabilityDecayLabel.width - 1
     fragmentRepeatProbabilityDecay.y = fragmentRepeatProbabilityDecayLabel.y
   
-    -- TODO Add m = min repeats
+    -- Add m = min repeats
     local fragmentMinRepeatsLabel = rythmPanel:Label("FragmentRepeatProbabilityDecayLabel" .. i)
     fragmentMinRepeatsLabel.text = "m"
     fragmentMinRepeatsLabel.tooltip = "Minimum repeats for this fragment"
