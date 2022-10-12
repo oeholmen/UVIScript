@@ -17,6 +17,7 @@ local resolutionFragments = {
   {'1/4','1/8','1/16','1/16'},
   {'1/16','1/8 dot'},
   {'1/8 dot','1/16'},
+  {'1/2 dot','1/4'},
   {'1/16','1/16','1/16','1/16','1/16','1/16','1/16','1/32','1/32'},
   {'1/8 dot'},
   {'2x'},
@@ -66,7 +67,6 @@ function getFragmentInputText(fragment)
   end
   return table.concat(fragment, ",")
 end
-
 
 -- Include all durations faster than the total fragmentDuration
 function addDurations(resolutions, durations, fragmentDuration)
