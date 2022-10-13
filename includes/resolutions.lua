@@ -134,6 +134,7 @@ function getResolutionsByType(maxResolutionIndex, randomizeStartPos)
     print("resolutionsOfType", #resolutionsOfType)
     table.insert(resOptions, resolutionsOfType)
   end
+  table.insert(resOptions, {3,4,5,6,7,8,9,10,11,12,14}) -- Add the "slow" x resolutions
   --print("resOptions", #resOptions)
   return resOptions
 end

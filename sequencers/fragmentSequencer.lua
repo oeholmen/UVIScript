@@ -245,7 +245,7 @@ function play()
       break
     end
     notes, heldNoteIndex = getNotes(heldNoteIndex)
-    duration, isFragmentStart, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
+    duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
     local gate = randomizeValue(gateInput.value, gateInput.min, gateInput.max, gateRandomization.value)
     local doPlayNote = gate > 0 and rest == false and #notes > 0 and type(duration) == "number"
     if doPlayNote then

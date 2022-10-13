@@ -19,10 +19,16 @@ local resolutionFragments = {
   {'1/8 dot','1/16'},
   {'1/2 dot','1/4'},
   {'1/16','1/16','1/16','1/16','1/16','1/16','1/16','1/32','1/32'},
-  {'1/8 dot'},
-  {'2x'},
-  {'4x'},
+  {'1/8','1/8','1/16','1/4','1/8','1/16','1/8','1/16','1/16'},
+  {'-1/1 dot','1/4 dot','1/8'},
+  {'-1/4','1/4','-1/4','1/8 dot','1/16'},
+  {'1/4','-1/4','1/4','-1/4','1/4','-1/4','1/4 dot','-1/16','1/16'},
+  {'1.75','1/16','-1/4','-1/8','1/8'}
 }
+
+function getResolutionFragments()
+  return resolutionFragments
+end
 
 -- Turn all recognized fragment items into note names
 function fragmentDefinitionToResolutionNames(fragmentDefinition)
@@ -53,11 +59,32 @@ function calculateFragmentDuration(fragmentText)
   local fragment = createFragmentFromText(fragmentText)
   local total = 0
   for _,v in ipairs(fragment) do
-    total = total + v
+    total = total + math.abs(v)
     --print("calculateFragmentDuration v, total", v, total)
   end
   --print("TOTAL", total)
   return total
+end
+
+function getRandomFragment(slow)
+  if slow == true then
+    local resolutionsByType = getResolutionsByType()
+    return getFragmentInputText({getResolutionName(getRandomFromTable(resolutionsByType[4]))})
+  end
+  if getRandomBoolean() then
+    return getFragmentInputText(getRandomFromTable(resolutionFragments))
+  elseif getRandomBoolean() then
+    local minResolution = 26
+    local resolutionsByType = getResolutionsByType(minResolution)
+    if getRandomBoolean() then
+      resolutionsByType = resolutionsByType[1]
+    else
+      resolutionsByType = resolutionsByType[2]
+    end
+    return getFragmentInputText({getResolutionName(getRandomFromTable(resolutionsByType))})
+  else
+    return getFragmentInputText(fragmentDefinitionToResolutionNames(createFragmentDefinition(3)))
+  end
 end
 
 -- Get the fragment as text for fragment input
@@ -137,8 +164,18 @@ function parseToBeatValue(duration)
   end
 
   --print("Duration is NOT a number, try to find beat value from name", duration)
+  -- TODO Check if duration starts with a '-' indicating pause
+  local isRest = string.sub(duration,1,1) == "-"
+  if isRest then
+    duration = string.sub(duration, 2, string.len(duration))
+    --print("Duration starts with - 'REST'", duration)
+  end
   local index = getIndexFromValue(duration, getResolutionNames())
   if type(index) == "number" then
+    --print("Found duration", duration)
+    if isRest then
+      return -getResolution(index)
+    end
     return getResolution(index)
   end
 
@@ -183,7 +220,7 @@ function parseFragment(fragmentInputIndex)
     -- m = min repeats
     -- rev = reverse probability
     -- rnd = random order probability
-    -- rst = rest probability
+    -- rst = rest randomization probability
     return {
       f=fragment,
       i=fragmentInputIndex,
@@ -220,11 +257,21 @@ function getFragment(fragmentIndexes)
   return {f={}, i=0, p=0, r=0, d=0, rev=0, rnd=0, rst=0}
 end
 
+function flashFragmentActive(fragmentActive, duration)
+  if type(duration) == "nil" then
+    duration = 1
+  end
+  local flashDuration = math.min(150, beat2ms(duration))
+  fragmentActive.textColourOn = "white"
+  wait(flashDuration)
+  fragmentActive.textColourOn = "black"
+end
+
 function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount, sources)
   local isRepeat = false
+  local mustRepeat = false
   local isFragmentStart = type(activeFragment) == "nil" or (reverseFragment == false and fragmentPos == #activeFragment.f) or (reverseFragment and fragmentPos == 1)
   if isFragmentStart then
-    local mustRepeat = false
     -- Start fragment (previous fragment is completed or no fragemt is selected)
     fragmentRepeatCount = fragmentRepeatCount + 1
     -- Check modulo for grouping/required number of repeats
@@ -246,7 +293,7 @@ function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, rev
       -- REPEAT FRAGMENT
       isRepeat = true
       fragmentRepeatProbability = fragmentRepeatProbability - (fragmentRepeatProbability * (activeFragment.d / 100))
-      --print("REPEAT FRAGMENT, fragmentRepeatProbability", fragmentRepeatProbability)
+      --print("REPEAT FRAGMENT, activeFragment.i, fragmentRepeatProbability", activeFragment.i, fragmentRepeatProbability)
     else
       -- CHANGE FRAGMENT
       fragmentRepeatCount = 0 -- Init repeat counter
@@ -258,15 +305,8 @@ function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, rev
       -- Change to a new fragment input
       activeFragment = getFragment(sources)
       isRepeat = prevFragmentIndex == activeFragment.i -- Check if same as previous
-      for i,v in ipairs(paramsPerFragment) do
-        if i == activeFragment.i then
-          v.fragmentActive.textColourOn = "white"
-        else
-          v.fragmentActive.textColourOn = "black"
-        end
-      end
       fragmentRepeatProbability = activeFragment.r
-      --print("CHANGE FRAGMENT, #fragment, fragmentRepeatProbability", #activeFragment.f, fragmentRepeatProbability)
+      --print("CHANGE FRAGMENT, activeFragment.i, fragmentRepeatProbability", activeFragment.i, fragmentRepeatProbability)
     end
     -- RANDOMIZE fragment
     randomizeFragment = #activeFragment.f > 1 and getRandomBoolean(activeFragment.rnd)
@@ -313,9 +353,18 @@ function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, rev
 
   --print("RETURN duration", duration)
 
-  local rest = getRandomBoolean(activeFragment.rst)
+  local rest = false
 
-  return duration, isFragmentStart, isRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount
+  -- A negative duration means a rest
+  if type(duration) == "number" and duration < 0 then
+    rest = getRandomBoolean(activeFragment.rst) == false -- Apply randomization
+    duration = math.abs(duration)
+    --print("Rest detected for duration in activeFragment.i at fragmentPos, rest", duration, activeFragment.i, fragmentPos, rest)
+  else
+    rest = getRandomBoolean(activeFragment.rst) -- Apply randomization
+  end
+
+  return duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount
 end
 
 function getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelectors)
@@ -359,7 +408,7 @@ function getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelectors)
     -- Fragment Input
     local fragmentInput = rythmPanel:Label("FragmentInput" .. i)
     fragmentInput.text = defaultResolution
-    fragmentInput.label = "Input the resolutions of the fragment definition. Use resolution names (1/8) or beat values (0.5), separated by comma (,)"
+    fragmentInput.label = "Fragment definition. Use resolution names (1/8) or beat values (0.5), separated by comma (,). Prefix resolution with '-' (minus) for rests. Click to type, or select from the menus."
     fragmentInput.tooltip = fragmentInput.label
     fragmentInput.editable = true
     fragmentInput.backgroundColour = colours.labelTextColour
@@ -378,6 +427,7 @@ function getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelectors)
       else
         fragmentInput.tooltip = "Total beat duration is " .. total
       end
+      paramsPerFragment[i].fragmentInputDirty = true
     end
   
     -- Menus
@@ -404,12 +454,10 @@ function getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelectors)
       self:setValue(1, false)
     end
   
-    local resolutionsByType = getResolutionsByType(26, false)
+    local resolutionNames = getResolutionNames()
     local addToFragment = {"Add..."}
-    for i=1,3 do
-      for _,v in ipairs(resolutionsByType[i]) do
-        table.insert(addToFragment, getResolutionName(v))
-      end
+    for _,v in ipairs(resolutionNames) do
+      table.insert(addToFragment, v)
     end
   
     local fragmentAdd = rythmPanel:Menu("FragmentAdd" .. i, addToFragment)
@@ -583,7 +631,7 @@ function getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelectors)
     -- Rest probability
     local restProbabilityLabel = rythmPanel:Label("RestProbabilityLabel" .. i)
     restProbabilityLabel.text = "rst"
-    restProbabilityLabel.tooltip = "Probability that rythmic fragments will be include rests"
+    restProbabilityLabel.tooltip = "Probability of rest randomization"
     restProbabilityLabel.textColour = fragmentRepeatProbabilityLabel.textColour
     restProbabilityLabel.alpha = fragmentRepeatProbabilityLabel.alpha
     restProbabilityLabel.fontSize = fragmentRepeatProbabilityLabel.fontSize
@@ -601,7 +649,7 @@ function getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelectors)
     restProbability.x = restProbabilityLabel.x + restProbabilityLabel.width - 1
     restProbability.y = restProbabilityLabel.y
 
-    table.insert(paramsPerFragment, {fragmentInput=fragmentInput, fragmentActive=fragmentActive, fragmentPlayProbability=fragmentPlayProbability, randomizeFragmentProbability=randomizeFragmentProbability, reverseFragmentProbability=reverseFragmentProbability, restProbability=restProbability, fragmentRepeatProbability=fragmentRepeatProbability, fragmentRepeatProbabilityDecay=fragmentRepeatProbabilityDecay, fragmentMinRepeats=fragmentMinRepeats})
+    table.insert(paramsPerFragment, {fragmentInput=fragmentInput, fragmentInputDirty=false, fragmentActive=fragmentActive, fragmentPlayProbability=fragmentPlayProbability, randomizeFragmentProbability=randomizeFragmentProbability, reverseFragmentProbability=reverseFragmentProbability, restProbability=restProbability, fragmentRepeatProbability=fragmentRepeatProbability, fragmentRepeatProbabilityDecay=fragmentRepeatProbabilityDecay, fragmentMinRepeats=fragmentMinRepeats})
   end
   return paramsPerFragment
 end

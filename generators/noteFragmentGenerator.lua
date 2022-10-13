@@ -340,7 +340,7 @@ function play(voice)
       channel = voice
     end
     note = generateNote(note)
-    duration, isFragmentStart, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
+    duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
     local doPlayNote = rest == false and type(note) == "number" and type(duration) == "number"
     if doPlayNote then
       local gate = randomizeValue(gateInput.value, gateInput.min, gateInput.max, gateRandomization.value)
