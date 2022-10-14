@@ -214,7 +214,44 @@ randomNoteMode.changed = function(self)
   print("randomNoteMode, voices", self.value, voices)
 end
 
-local templates = {"Tools...", "--- Templates ---", "Kick on down, snare on up", "Four on the floor", "--- Downbeat/upbeat ---", "All downbeat/upbeat on", "Downbeat on even, upbeat on odd", "--- Fragment/sources ---", "Part to source", "All sources on", "All sources off", "Clear fragment inputs", "--- Notes ---", "Mute all", "Unmute all", "Toggle mute", "Set all note probabilities to 100%", "Set all note probabilities to 0%", "--- Randomize ---", "Randomize fragment inputs", "Randomize fragment inputs (slow)", "Randomize note probability", "Randomize source probability", "Randomize downbeat/upbeat probability", "Randomize all settings", "--- Reset ---", "Reset to default settings", "Set all to zero"}
+local templates = {
+  "Tools...",
+  --- Templates ---
+  "--- Templates ---",
+  "Kick on down, snare on up",
+  "Four on the floor",
+  --- Downbeat/upbeat ---
+  "--- Downbeat/upbeat ---",
+  "All downbeat/upbeat on",
+  "Downbeat on even, upbeat on odd",
+  "Randomize downbeat/upbeat probability",
+  --- Part sources ---
+  "--- Part sources ---",
+  "Part to source",
+  "All sources on",
+  "All sources off",
+  "Randomize source probability",
+  --- Rythmic fragments ---
+  "--- Rythmic fragments ---",
+  "Clear fragments",
+  "Randomize fragments",
+  "Randomize fragments (single)",
+  "Randomize fragments (slow)",
+  --- Notes ---
+  "--- Notes ---",
+  "Mute all",
+  "Unmute all",
+  "Toggle mute",
+  "Set all note probabilities to 100%",
+  "Set all note probabilities to 0%",
+  "Randomize note probabilities",
+  "Randomize note triggers",
+  --- All settings ---
+  "--- All settings ---",
+  "Set to default",
+  "Set to zero",
+  "Randomize",
+}
 local templateMenu = settingsPanel:Menu("Templates", templates)
 templateMenu.tooltip = "Select a tool - NOTE Will change current settings!"
 templateMenu.showLabel = false
@@ -238,11 +275,11 @@ templateMenu.changed = function(self)
         else
           w:setValue(0)
         end
-      elseif self.selectedText == "Randomize all settings" or self.selectedText == "Randomize source probability" then
+      elseif self.selectedText == "Randomize" or self.selectedText == "Randomize source probability" then
         w:setValue(getRandom(100))
-      elseif self.selectedText == "All sources on" or self.selectedText == "Reset to default settings" then
+      elseif self.selectedText == "All sources on" or self.selectedText == "Set to default" then
         w:setValue(100)
-      elseif self.selectedText == "All sources off" or self.selectedText == "Set all to zero" then
+      elseif self.selectedText == "All sources off" or self.selectedText == "Set to zero" then
         w:setValue(0)
       end
     end
@@ -267,18 +304,22 @@ templateMenu.changed = function(self)
       v.noteProbability:setValue(0)
     elseif self.selectedText == "Toggle mute" then
       v.mute:setValue(v.mute.value == false)
-    elseif self.selectedText == "Clear fragment inputs" then
+    elseif self.selectedText == "Clear fragments" then
       paramsPerFragment[part].fragmentInput.text = ""
-    elseif self.selectedText == "Randomize fragment inputs" then
+    elseif self.selectedText == "Randomize fragments" then
       paramsPerFragment[part].fragmentInput.text = getRandomFragment()
-    elseif self.selectedText == "Randomize fragment inputs (slow)" then
-      paramsPerFragment[part].fragmentInput.text = getRandomFragment(true)
-    elseif self.selectedText == "Randomize note probability" then
+    elseif self.selectedText == "Randomize fragments (single)" then
+      paramsPerFragment[part].fragmentInput.text = getRandomFragment('single')
+    elseif self.selectedText == "Randomize fragments (slow)" then
+      paramsPerFragment[part].fragmentInput.text = getRandomFragment('slow')
+    elseif self.selectedText == "Randomize note probabilities" then
       v.noteProbability:setValue(getRandom(100))
+    elseif self.selectedText == "Randomize note triggers" then
+      v.noteInput:setValue(getRandom(21, 108))
     elseif self.selectedText == "Randomize downbeat/upbeat probability" then
       v.downBeatProbability:setValue(getRandom(100))
       v.upBeatProbability:setValue(getRandom(100))
-    elseif self.selectedText == "Randomize all settings" then
+    elseif self.selectedText == "Randomize" then
       paramsPerFragment[part].fragmentInput.text = getRandomFragment()
       v.mute:setValue(false)
       v.accentFragmentStart:setValue(getRandomBoolean(25))
@@ -290,7 +331,7 @@ templateMenu.changed = function(self)
       v.noteProbability:setValue(getRandom(100))
       v.downBeatProbability:setValue(getRandom(100))
       v.upBeatProbability:setValue(getRandom(100))
-    elseif self.selectedText == "Reset to default settings" then
+    elseif self.selectedText == "Set to default" then
       if part == 1 then
         paramsPerFragment[part].fragmentInput.text = "1/8"
       else
@@ -306,7 +347,7 @@ templateMenu.changed = function(self)
       v.noteProbability:setValue(100)
       v.downBeatProbability:setValue(100)
       v.upBeatProbability:setValue(100)
-    elseif self.selectedText == "Set all to zero" then
+    elseif self.selectedText == "Set to zero" then
       paramsPerFragment[part].fragmentInput.text = ""
       v.mute:setValue(false)
       v.accentFragmentStart:setValue(false)
@@ -366,8 +407,8 @@ end
 local rowSpacing = 3
 
 local noteLabel = notePanel:Label("NotesLabel")
-noteLabel.text = "Drums"
-noteLabel.tooltip = "Select drums"
+noteLabel.text = "Notes"
+noteLabel.tooltip = "Select notes"
 noteLabel.alpha = 0.75
 noteLabel.fontSize = 15
 noteLabel.width = 60
@@ -445,7 +486,7 @@ end
 for i=1,numNotes do
   local types = {"Kick", "Snare", "Hihat", "Clap", "Toms", "Cymbal", "Tambourine", "Perc"}
   local noteInputLabel = notePanel:Label("Label" .. i)
-  noteInputLabel.tooltip = "Part Label"
+  noteInputLabel.tooltip = "Editable label for this note trigger"
   noteInputLabel.editable = true
   noteInputLabel.text = types[i]
   noteInputLabel.backgroundColour = menuBackgroundColour

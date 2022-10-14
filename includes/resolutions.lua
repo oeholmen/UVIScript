@@ -131,10 +131,16 @@ function getResolutionsByType(maxResolutionIndex, randomizeStartPos)
       print("Insert resolutionIndex", resolutionIndex)
       resolutionIndex = resolutionIndex + 3 -- increment index
     end
-    print("resolutionsOfType", #resolutionsOfType)
+    print("#resolutionsOfType, i", #resolutionsOfType, i)
     table.insert(resOptions, resolutionsOfType)
   end
-  table.insert(resOptions, {3,4,5,6,7,8,9,10,11,12,14}) -- Add the "slow" x resolutions
+  local slowResolutions = {}
+  for i=3, 12 do
+    print("Add slowResolution, index", i)
+    table.insert(slowResolutions, i)
+  end
+  print("#slowResolutions", #slowResolutions)
+  table.insert(resOptions, slowResolutions) -- Add the "slow" x resolutions
   --print("resOptions", #resOptions)
   return resOptions
 end

@@ -66,24 +66,36 @@ function calculateFragmentDuration(fragmentText)
   return total
 end
 
-function getRandomFragment(slow)
-  if slow == true then
-    local resolutionsByType = getResolutionsByType()
-    return getFragmentInputText({getResolutionName(getRandomFromTable(resolutionsByType[4]))})
+function getRandomFragment(type)
+  local minResolution = 26
+  local resolutionsByType = getResolutionsByType(minResolution)
+  if type == 'slow' then
+    return getFragmentInputText(fragmentDefinitionToResolutionNames(createFragmentDefinition(7)))
+  end
+  if type == 'single' then
+    if getRandomBoolean() then
+      return getFragmentInputText({getResolutionName(getRandomFromTable(resolutionsByType[1]))})
+    elseif getRandomBoolean() then
+      return getFragmentInputText({getResolutionName(getRandomFromTable(resolutionsByType[2]))})
+    else
+      return getFragmentInputText({getResolutionName(getRandomFromTable(resolutionsByType[4]))})
+    end
   end
   if getRandomBoolean() then
-    return getFragmentInputText(getRandomFromTable(resolutionFragments))
+    return getFragmentInputText(getRandomFromTable(resolutionFragments)) -- Select from the presets
   elseif getRandomBoolean() then
-    local minResolution = 26
-    local resolutionsByType = getResolutionsByType(minResolution)
     if getRandomBoolean() then
-      resolutionsByType = resolutionsByType[1]
+      resolutionsByType = resolutionsByType[1] -- Even
     else
-      resolutionsByType = resolutionsByType[2]
+      resolutionsByType = resolutionsByType[2] -- Dot
     end
-    return getFragmentInputText({getResolutionName(getRandomFromTable(resolutionsByType))})
+    return getFragmentInputText({getResolutionName(getRandomFromTable(resolutionsByType))}) -- Single
+  elseif getRandomBoolean() then
+    return getFragmentInputText(fragmentDefinitionToResolutionNames(createFragmentDefinition(3))) -- Even
+  elseif getRandomBoolean() then
+    return getFragmentInputText(fragmentDefinitionToResolutionNames(createFragmentDefinition(1))) -- Dot
   else
-    return getFragmentInputText(fragmentDefinitionToResolutionNames(createFragmentDefinition(3)))
+    return getFragmentInputText(fragmentDefinitionToResolutionNames(createFragmentDefinition(7))) -- Long duration
   end
 end
 
@@ -95,13 +107,13 @@ function getFragmentInputText(fragment)
   return table.concat(fragment, ",")
 end
 
--- Include all durations faster than the total fragmentDuration
-function addDurations(resolutions, durations, fragmentDuration)
-  for _,i in ipairs(resolutions) do
+-- Include all durations shorter than or equal to the total fragmentDuration
+function addDurations(resolutionIndexes, durations, fragmentDuration)
+  for _,i in ipairs(resolutionIndexes) do
     local duration = getResolution(i)
     if duration <= fragmentDuration then
       table.insert(durations, duration)
-      --print("Inserted duration", duration)
+      print("addDurations() Inserted duration", duration)
     end
   end
   return durations
@@ -115,6 +127,7 @@ end
 --    "Create fragment (tri)" 4
 --    "Create fragment (all)" 5
 --    "Create fragment (extended)" 6
+--    "Create fragment (slow)" 7
 function createFragmentDefinition(durationType)
   if type(durationType) == "nil" then
     durationType = 1
@@ -122,7 +135,8 @@ function createFragmentDefinition(durationType)
   local minResolution = 23
   local resolutionsByType = getResolutionsByType(minResolution, true)
   local currentDuration = 0
-  local fragmentDuration = getRandomFromTable({1,2,4}) -- TODO Param?
+  local fragmentDurations = {1,2,4}
+  local fragmentDuration = getRandomFromTable(fragmentDurations) -- TODO Param?
   --print("Selected fragmentDuration", fragmentDuration)
   local definition = {}
   local durations = {}
@@ -137,21 +151,32 @@ function createFragmentDefinition(durationType)
     durations = addDurations(resolutionsByType[3], durations, fragmentDuration)
   end
   if durationType == 6 then
+    -- Extended includes both long and short durations
+    local extended = resolutionsByType[4]
+    for _,v in ipairs(fragmentDurations) do
+      table.insert(extended, v)
+    end
+    fragmentDuration = getResolution(getRandomFromTable(extended))
     for _,v in ipairs(getResolutionsByType()) do
       durations = addDurations(v, durations, fragmentDuration)
     end
   end
-  --print("Found durations", #durations)
+  if durationType == 7 then
+    fragmentDuration = getResolution(getRandomFromTable(resolutionsByType[4]))
+    print("Selected fragmentDuration", fragmentDuration)
+    durations = addDurations(resolutionsByType[4], durations, fragmentDuration)
+  end
+  print("Found durations", #durations)
   -- Select durations for the definition
   while currentDuration < fragmentDuration do
     local duration = getRandomFromTable(durations)
     if currentDuration + duration > fragmentDuration then
       duration = fragmentDuration - currentDuration
-      --print("currentDuration + duration > fragmentDuration", currentDuration, duration, fragmentDuration)
+      print("currentDuration + duration > fragmentDuration", currentDuration, duration, fragmentDuration)
     end
     currentDuration = currentDuration + duration
     table.insert(definition, duration)
-    --print("Add duration", duration)
+    print("Add duration", duration)
   end
   return definition
 end
@@ -431,7 +456,7 @@ function getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelectors)
     end
   
     -- Menus
-    local actions = {"Actions...", "Create fragment (even)", "Create fragment (dot)", "Create fragment (even+dot)", "Create fragment (tri)", "Create fragment (all)", "Create fragment (extended)"}
+    local actions = {"Actions...", "Create fragment (even)", "Create fragment (dot)", "Create fragment (even+dot)", "Create fragment (tri)", "Create fragment (all)", "Create fragment (extended)", "Create fragment (slow)"}
     local fragmentActions = rythmPanel:Menu("FragmentActions" .. i, actions)
     fragmentActions.tooltip = "Select an action (replaces current input!)"
     fragmentActions.showLabel = false
