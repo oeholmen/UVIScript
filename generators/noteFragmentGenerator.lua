@@ -248,10 +248,10 @@ createNoteAndOctaveSelector(notePanel, colours, noteLabel)
 --------------------------------------------------------------------------------
 
 local rythmLabel = rythmPanel:Label("RythmLabel")
-rythmLabel.text = "Rythm"
+rythmLabel.text = "Rythmic fragments"
 rythmLabel.alpha = 0.75
 rythmLabel.fontSize = 15
-rythmLabel.width = 50
+rythmLabel.width = 120
 
 local paramsPerFragment = getParamsPerFragment(rythmPanel, rythmLabel, colours)
 

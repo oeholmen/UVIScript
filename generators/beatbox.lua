@@ -195,7 +195,7 @@ velocityAccent.x = velocityInput.x + velocityInput.width + 10
 velocityAccent.y = velocityInput.y
 
 local randomNoteMode = settingsPanel:OnOffButton("RandomNoteMode", false)
-randomNoteMode.displayName = "Random note"
+randomNoteMode.displayName = "Single note"
 randomNoteMode.tooltip = "When this is activated only one note is played at once, and notes are selected by random from the configured parts"
 randomNoteMode.backgroundColourOff = backgroundColourOff
 randomNoteMode.backgroundColourOn = backgroundColourOn
