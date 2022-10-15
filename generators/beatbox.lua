@@ -171,7 +171,7 @@ timeSignature.changed = function(self)
   end
   beatBase = tonumber(signature[1])
   beatResolution = getResolution(getIndexFromValue("1/" .. signature[2], getResolutionNames()))
-  print("timeSignature, beatBase, beatResolution", self.selectedText, beatBase, beatResolution)
+  --print("timeSignature, beatBase, beatResolution", self.selectedText, beatBase, beatResolution)
 end
 
 local velocityInput = settingsPanel:NumBox("Velocity", 90, 1, 127, true)
@@ -211,7 +211,7 @@ randomNoteMode.changed = function(self)
   else
     voices = numNotes
   end
-  print("randomNoteMode, voices", self.value, voices)
+  --print("randomNoteMode, voices", self.value, voices)
 end
 
 local templates = {
@@ -220,23 +220,6 @@ local templates = {
   "--- Templates ---",
   "Kick on down, snare on up",
   "Four on the floor",
-  --- Downbeat/upbeat ---
-  "--- Downbeat/upbeat ---",
-  "All downbeat/upbeat on",
-  "Downbeat on even, upbeat on odd",
-  "Randomize downbeat/upbeat probability",
-  --- Part sources ---
-  "--- Part sources ---",
-  "Part to source",
-  "All sources on",
-  "All sources off",
-  "Randomize source probability",
-  --- Rythmic fragments ---
-  "--- Rythmic fragments ---",
-  "Clear fragments",
-  "Randomize fragments",
-  "Randomize fragments (single)",
-  "Randomize fragments (slow)",
   --- Notes ---
   "--- Notes ---",
   "Mute all",
@@ -246,6 +229,23 @@ local templates = {
   "Set all note probabilities to 0%",
   "Randomize note probabilities",
   "Randomize note triggers",
+  --- Downbeat/upbeat ---
+  "--- Downbeat/upbeat ---",
+  "All downbeat/upbeat on",
+  "Downbeat on even, upbeat on odd",
+  "Randomize downbeat/upbeat probability",
+  --- Rythmic fragments ---
+  "--- Rythmic fragments ---",
+  "Clear fragments",
+  "Randomize fragments",
+  "Randomize fragments (single)",
+  "Randomize fragments (slow)",
+  --- Part sources ---
+  "--- Part sources ---",
+  "Part to source",
+  "All sources on",
+  "All sources off",
+  "Randomize source probability",
   --- All settings ---
   "--- All settings ---",
   "Set to default",
@@ -900,11 +900,7 @@ function stopPlaying()
     return
   end
   isPlaying = false
-  playingVoices = {}
-  roundCounterPerVoice = {}
-  for _,v in ipairs(paramsPerFragment) do
-    v.fragmentActive.textColourOn = "black"
-  end
+  initNotes()
 end
 
 --------------------------------------------------------------------------------
@@ -975,6 +971,10 @@ function initNotes()
   for voice=1,numNotes do
     table.insert(playingVoices, false) -- Init voices
     table.insert(roundCounterPerVoice, 0) -- Init rounds
+    setSourceActive(voice)
+  end
+  for _,v in ipairs(paramsPerFragment) do
+    v.fragmentActive.textColourOn = "black"
   end
   for _,v in ipairs(paramsPerFragment) do
     v.fragmentInputDirty = false
@@ -1053,10 +1053,24 @@ function useAccent(voice, activeFragment, isStartOfBeat, isFragmentStart, mustRe
 end
 
 function flashNoteLabel(voice, duration)
-  local flashDuration = math.min(150, beat2ms(duration))
+  local flashDuration = 150--math.min(150, beat2ms(duration))
+  if type(duration) == "number" then
+    flashDuration = math.min(flashDuration, beat2ms(duration))
+  end
   paramsPerNote[voice].noteInputLabel.textColour = "efefef"
   wait(flashDuration)
   paramsPerNote[voice].noteInputLabel.textColour = "9f9f9f"
+end
+
+-- Set textcolour on the active source for the given voice
+function setSourceActive(voice, activeFragment)
+  for i,v in ipairs(paramsPerNote[voice].sourceSelectors) do
+    if type(activeFragment) == "table" and activeFragment.i == i then
+      v.textColour = labelBackgoundColour
+    else
+      v.textColour = menuTextColour
+    end
+  end
 end
 
 function playRandomNote()
@@ -1094,7 +1108,7 @@ function sequenceRunner()
   beatCounter = 1 -- Reset when starting sequencer
   initNotes()
   while isPlaying do
-    print("sequenceRunner, beatCounter, isDownBeat", beatCounter, isDownBeat())
+    --print("sequenceRunner, beatCounter, isDownBeat", beatCounter, isDownBeat())
     if randomNoteMode.value then
       playRandomNote()
     else
@@ -1119,6 +1133,7 @@ function play(voice)
     if type(duration) == "nil" or activeFragment.i == 0 or isNoteActive(voice) == false or (isDownBeat() and canPlayOnDownBeat(voice) == false) or (isUpBeat() and canPlayOnUpBeat(voice) == false) then
       -- Return voice to sequence runner
       --print("BEFORE: Breaking loop for voice, isNoteActive(voice), duration", isNoteActive(voice), duration, "voice " .. voice)
+      setSourceActive(voice)
       playingVoices[voice] = false
       break
     end
@@ -1126,14 +1141,14 @@ function play(voice)
     -- Check rest at start of beat
     local isStartOfBeat = math.floor(playDuration) == playDuration
     if isStartOfBeat and getRandomBoolean(paramsPerNote[voice].restFirstBeatProbability.value) then
-      print("REST isStartOfBeat, voice", isStartOfBeat, voice)
+      --print("REST isStartOfBeat, voice", isStartOfBeat, voice)
       rest = true
     end
 
     -- Check rest at start of fragment - only if fragment has more than one item
     if isFragmentStart and (#activeFragment.f > 1 or (activeFragment.m > 1 and mustRepeat == false)) then
       if getRandomBoolean(paramsPerNote[voice].restFirstInFragmentProbability.value) then
-        print("REST isFragmentStart, voice", isFragmentStart, voice)
+        --print("REST isFragmentStart, voice", isFragmentStart, voice)
         rest = true
       end
     end
@@ -1147,6 +1162,11 @@ function play(voice)
       end
       --print("play: note, velocity, duration, isDownBeat", note, velocity, duration, isDownBeat(), "voice " .. voice)
       playNote(note, velocity, beat2ms(getPlayDuration(duration)), nil, getChannel())
+
+      if isFragmentStart then
+        setSourceActive(voice, activeFragment)
+      end
+
       for i,v in ipairs(paramsPerFragment) do
         if activeFragment.i == i then
           spawn(flashFragmentActive, v.fragmentActive, duration)
@@ -1179,6 +1199,7 @@ function play(voice)
         fragmentInputDirty = paramsPerFragment[activeFragment.i].fragmentInputDirty
         paramsPerFragment[activeFragment.i].fragmentInputDirty = false
       end
+      setSourceActive(voice, activeFragment)
       --print("NEXT: Breaking loop for voice, remainingInBeat, isDownBeat(), fragmentInputDirty, duration", remainingInBeat, isDownBeat(), fragmentInputDirty, duration, "voice " .. voice)
       playingVoices[voice] = false
     else
@@ -1196,6 +1217,11 @@ function onNote(e)
   if type(noteListen) == "number" then
     paramsPerNote[noteListen].noteInput:setValue(e.note)
     paramsPerNote[noteListen].listen:setValue(false)
+  end
+  for i,v in ipairs(paramsPerNote) do
+    if v.noteInput.value == e.note then
+      spawn(flashNoteLabel, i)
+    end
   end
   if autoplayButton.value == true then
     postEvent(e)
