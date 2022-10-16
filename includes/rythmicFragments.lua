@@ -69,10 +69,10 @@ end
 function getRandomFragment(type)
   local minResolution = 26
   local resolutionsByType = getResolutionsByType(minResolution)
-  if type == 'slow' then
-    return getFragmentInputText(fragmentDefinitionToResolutionNames(createFragmentDefinition(7)))
+  if type == "slow" then
+    return getFragmentInputText(fragmentDefinitionToResolutionNames(createFragmentDefinition(6)))
   end
-  if type == 'single' then
+  if type == "single" then
     if getRandomBoolean() then
       return getFragmentInputText({getResolutionName(getRandomFromTable(resolutionsByType[1]))})
     elseif getRandomBoolean() then
@@ -81,22 +81,23 @@ function getRandomFragment(type)
       return getFragmentInputText({getResolutionName(getRandomFromTable(resolutionsByType[4]))})
     end
   end
-  if getRandomBoolean() then
-    return getFragmentInputText(getRandomFromTable(resolutionFragments)) -- Select from the presets
-  elseif getRandomBoolean() then
+  if type == "extended" then
     if getRandomBoolean() then
-      resolutionsByType = resolutionsByType[1] -- Even
+      return getFragmentInputText(getRandomFromTable(resolutionFragments)) -- Select from the presets
+    elseif getRandomBoolean() then
+      if getRandomBoolean() then
+        resolutionsByType = resolutionsByType[1] -- Even
+      else
+        resolutionsByType = resolutionsByType[2] -- Dot
+      end
+      return getFragmentInputText({getResolutionName(getRandomFromTable(resolutionsByType))}) -- Single
+    elseif getRandomBoolean() then
+      return getFragmentInputText(fragmentDefinitionToResolutionNames(createFragmentDefinition(1))) -- Even+dot
     else
-      resolutionsByType = resolutionsByType[2] -- Dot
+      return getFragmentInputText(fragmentDefinitionToResolutionNames(createFragmentDefinition(6))) -- Long duration
     end
-    return getFragmentInputText({getResolutionName(getRandomFromTable(resolutionsByType))}) -- Single
-  elseif getRandomBoolean() then
-    return getFragmentInputText(fragmentDefinitionToResolutionNames(createFragmentDefinition(3))) -- Even
-  elseif getRandomBoolean() then
-    return getFragmentInputText(fragmentDefinitionToResolutionNames(createFragmentDefinition(1))) -- Dot
-  else
-    return getFragmentInputText(fragmentDefinitionToResolutionNames(createFragmentDefinition(7))) -- Long duration
   end
+  return getFragmentInputText(fragmentDefinitionToResolutionNames(createFragmentDefinition(1)))
 end
 
 -- Get the fragment as text for fragment input
@@ -121,17 +122,17 @@ end
 
 -- Auto generate fragment
 -- durationType:
---    "Create fragment (even)" 1
---    "Create fragment (dot)" 2
---    "Create fragment (even+dot)" 3
---    "Create fragment (tri)" 4
---    "Create fragment (all)" 5
---    "Create fragment (extended)" 6
---    "Create fragment (slow)" 7
+--    "Create fragment (even+dot)" 1
+--    "Create fragment (even)" 2
+--    "Create fragment (tri)" 3
+--    "Create fragment (all)" 4
+--    "Create fragment (extended)" 5
+--    "Create fragment (slow)" 6
 function createFragmentDefinition(durationType)
   if type(durationType) == "nil" then
     durationType = 1
   end
+  --local startResolution = 17
   local minResolution = 23
   local resolutionsByType = getResolutionsByType(minResolution, true)
   local currentDuration = 0
@@ -141,16 +142,19 @@ function createFragmentDefinition(durationType)
   local definition = {}
   local durations = {}
   -- Add resolutions that can fit inside the fragmentDuration
-  if durationType == 1 or durationType == 3 or durationType == 5 then
-    durations = addDurations(resolutionsByType[1], durations, fragmentDuration)
+  if durationType == 1 or durationType == 2 or durationType == 4 then
+    --durations = addDurations(resolutionsByType[1], durations, fragmentDuration)
+    durations = addDurations({17,20,23}, durations, fragmentDuration)
   end
-  if durationType == 2 or durationType == 3 or durationType == 5 then
-    durations = addDurations(resolutionsByType[2], durations, fragmentDuration)
+  if durationType == 1 or durationType == 4 then
+    --durations = addDurations(resolutionsByType[2], durations, fragmentDuration)
+    durations = addDurations({15,18}, durations, fragmentDuration)
   end
-  if durationType == 4 or durationType == 5 then
-    durations = addDurations(resolutionsByType[3], durations, fragmentDuration)
+  if durationType == 3 or durationType == 4 then
+    --durations = addDurations(resolutionsByType[3], durations, fragmentDuration)
+    durations = addDurations({19,22}, durations, fragmentDuration)
   end
-  if durationType == 6 then
+  if durationType == 5 then
     -- Extended includes both long and short durations
     local extended = resolutionsByType[4]
     for _,v in ipairs(fragmentDurations) do
@@ -161,7 +165,7 @@ function createFragmentDefinition(durationType)
       durations = addDurations(v, durations, fragmentDuration)
     end
   end
-  if durationType == 7 then
+  if durationType == 6 then
     fragmentDuration = getResolution(getRandomFromTable(resolutionsByType[4]))
     print("Selected fragmentDuration", fragmentDuration)
     durations = addDurations(resolutionsByType[4], durations, fragmentDuration)
@@ -456,7 +460,13 @@ function getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelectors)
     end
   
     -- Menus
-    local actions = {"Actions...", "Create fragment (even)", "Create fragment (dot)", "Create fragment (even+dot)", "Create fragment (tri)", "Create fragment (all)", "Create fragment (extended)", "Create fragment (slow)"}
+    --    "Create fragment (even+dot)" 1
+    --    "Create fragment (even)" 2
+    --    "Create fragment (tri)" 3
+    --    "Create fragment (all)" 4
+    --    "Create fragment (extended)" 5
+    --    "Create fragment (slow)" 6
+    local actions = {"Actions...", "Create fragment (even+dot)", "Create fragment (even)", "Create fragment (tri)", "Create fragment (all)", "Create fragment (extended)", "Create fragment (slow)"}
     local fragmentActions = rythmPanel:Menu("FragmentActions" .. i, actions)
     fragmentActions.tooltip = "Select an action (replaces current input!)"
     fragmentActions.showLabel = false

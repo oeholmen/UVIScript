@@ -113,17 +113,19 @@ function getResolutionNames(options, max)
   return res
 end
 
-function getResolutionsByType(maxResolutionIndex, randomizeStartPos)
+function getResolutionsByType(maxResolutionIndex, startPosIndex)
   if type(maxResolutionIndex) == "nil" then
     maxResolutionIndex = #resolutions - 1
   end
+  if type(startPosIndex) == "boolean" then
+    startPosIndex = getRandomFromTable({11,14,17,20})
+  end
+  if type(startPosIndex) == "nil" then
+    startPosIndex = 11
+  end
   local resOptions = {}
   -- Create table of resolution indexes by type (1=even,2=dot,3=tri)
-  local startPos = 11 -- Start at pos 11 (1/1)
-  if randomizeStartPos == true then
-    startPos = getRandomFromTable({11,14,17,20}) -- TODO Param?
-  end
-  for i=startPos,startPos+2 do
+  for i=startPosIndex,startPosIndex+2 do
     local resolutionIndex = i
     local resolutionsOfType = {}
     while resolutionIndex <= maxResolutionIndex do
