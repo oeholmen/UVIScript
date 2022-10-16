@@ -136,7 +136,7 @@ function createFragmentDefinition(durationType)
   local minResolution = 23
   local resolutionsByType = getResolutionsByType(minResolution, true)
   local currentDuration = 0
-  local fragmentDurations = {1,2,4}
+  local fragmentDurations = {1,2,3,4}
   local fragmentDuration = getRandomFromTable(fragmentDurations) -- TODO Param?
   --print("Selected fragmentDuration", fragmentDuration)
   local definition = {}
@@ -276,8 +276,20 @@ function getSelectedFragments(fragmentIndexes)
   return selectedFragments
 end
 
-function getFragment(fragmentIndexes)
-  local fragment = getRandomFromTable(getSelectedFragments(fragmentIndexes))
+function getFragment(fragmentIndexes, prevFragmentIndex)
+  local selectedFragments = getSelectedFragments(fragmentIndexes)
+
+  -- Remove the previous fragment if present in selected, and there is more than one fragment selected
+  if #selectedFragments > 1 and type(prevFragmentIndex) == "number" and prevFragmentIndex > 0 then
+    for i,v in ipairs(selectedFragments) do
+      if v.i == prevFragmentIndex then
+        table.remove(selectedFragments, i)
+        break
+      end
+    end
+  end
+
+  local fragment = getRandomFromTable(selectedFragments)
 
   if type(fragment) == "table" then
     return fragment
@@ -332,7 +344,7 @@ function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, rev
         prevFragmentIndex = activeFragment.i
       end
       -- Change to a new fragment input
-      activeFragment = getFragment(sources)
+      activeFragment = getFragment(sources, prevFragmentIndex)
       isRepeat = prevFragmentIndex == activeFragment.i -- Check if same as previous
       fragmentRepeatProbability = activeFragment.r
       --print("CHANGE FRAGMENT, activeFragment.i, fragmentRepeatProbability", activeFragment.i, fragmentRepeatProbability)

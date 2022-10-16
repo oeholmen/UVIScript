@@ -926,8 +926,6 @@ function getChannel(voice)
 end
 
 function isDownBeat()
-  -- beatcounter = 1
-  -- beatBase = 3
   return (beatCounter - 1) % beatBase == 0 or (beatBase > 3 and (beatCounter - 1) % math.ceil(beatBase / 2) == 0)
 end
 
