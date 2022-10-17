@@ -19,6 +19,10 @@ local paramsPerNote = {}
 local paramsPerFragment = {}
 local bounds = {}
 
+-- Add maps for different setups
+local noteMap = {36,38,42,39,41,49,54,66}
+local noteLabels = {"Kick", "Snare", "Hihat", "Clap", "Low Tom", "Cymbal", "Tambourine", "Perc"}
+
 local backgroundColour = "595959" -- Light or Dark
 local widgetBackgroundColour = "01011F" -- Dark
 local widgetTextColour = "66ff99" -- Light
@@ -159,7 +163,7 @@ timeSignature.textColour = colours.widgetTextColour
 timeSignature.arrowColour = colours.menuArrowColour
 timeSignature.outlineColour = colours.menuOutlineColour
 timeSignature.height = widgetHeight
-timeSignature.width = widgetWidth
+timeSignature.width = 45
 timeSignature.x = 5
 timeSignature.y = 0
 timeSignature.changed = function(self)
@@ -180,7 +184,7 @@ velocityInput.backgroundColour = widgetBackgroundColour
 velocityInput.displayName = "Velocity"
 velocityInput.tooltip = "Note velocity"
 velocityInput.height = widgetHeight
-velocityInput.width = widgetWidth
+velocityInput.width = 90
 velocityInput.x = timeSignature.x + timeSignature.width + 10
 velocityInput.y = timeSignature.y
 
@@ -190,9 +194,36 @@ velocityAccent.backgroundColour = widgetBackgroundColour
 velocityAccent.displayName = "Accent"
 velocityAccent.tooltip = "Velocity accent amount triggered on the start of a fragment"
 velocityAccent.height = widgetHeight
-velocityAccent.width = widgetWidth
+velocityAccent.width = velocityInput.width
 velocityAccent.x = velocityInput.x + velocityInput.width + 10
 velocityAccent.y = velocityInput.y
+
+local evolveFragmentProbability = settingsPanel:NumBox("EvolveFragmentProbability", 0, 0, 100, true)
+evolveFragmentProbability.unit = Unit.Percent
+evolveFragmentProbability.textColour = widgetTextColour
+evolveFragmentProbability.backgroundColour = widgetBackgroundColour
+evolveFragmentProbability.displayName = "Evolve"
+evolveFragmentProbability.tooltip = "Set the probability that fragments will change over time, using the resolutions present in the fragments"
+evolveFragmentProbability.height = widgetHeight
+evolveFragmentProbability.width = 120
+evolveFragmentProbability.x = velocityAccent.x + velocityAccent.width + 10
+evolveFragmentProbability.y = velocityAccent.y
+
+local randomizeCurrentResolutionProbability = settingsPanel:NumBox("RandomizeCurrentResolutionProbability", 0, 0, 100, true)
+randomizeCurrentResolutionProbability.unit = Unit.Percent
+randomizeCurrentResolutionProbability.textColour = widgetTextColour
+randomizeCurrentResolutionProbability.backgroundColour = widgetBackgroundColour
+randomizeCurrentResolutionProbability.displayName = "Adjust"
+randomizeCurrentResolutionProbability.tooltip = "Set the probability that evolve will add resolutions, based on the resolutions present in the fragments"
+randomizeCurrentResolutionProbability.height = widgetHeight
+randomizeCurrentResolutionProbability.width = 120
+randomizeCurrentResolutionProbability.x = evolveFragmentProbability.x + evolveFragmentProbability.width + 10
+randomizeCurrentResolutionProbability.y = evolveFragmentProbability.y
+
+evolveFragmentProbability.changed = function(self)
+  randomizeCurrentResolutionProbability.enabled = self.value > 0
+end
+evolveFragmentProbability:changed()
 
 local randomNoteMode = settingsPanel:OnOffButton("RandomNoteMode", false)
 randomNoteMode.displayName = "Single note"
@@ -202,9 +233,9 @@ randomNoteMode.backgroundColourOn = backgroundColourOn
 randomNoteMode.textColourOff = textColourOff
 randomNoteMode.textColourOn = textColourOn
 randomNoteMode.height = widgetHeight
-randomNoteMode.width = velocityAccent.width
-randomNoteMode.x = velocityAccent.x + velocityAccent.width + 10
-randomNoteMode.y = velocityAccent.y
+randomNoteMode.width = 85
+randomNoteMode.x = randomizeCurrentResolutionProbability.x + randomizeCurrentResolutionProbability.width + 10
+randomNoteMode.y = randomizeCurrentResolutionProbability.y
 randomNoteMode.changed = function(self)
   if self.value then
     voices = 1
@@ -216,6 +247,11 @@ end
 
 local templates = {
   "Tools...",
+  --- Note Maps --
+  "--- Mappings ---",
+  "BeatBox Anthology 2",
+  "Prime 8",
+  "Soul Drums",
   --- Templates ---
   "--- Templates ---",
   "Kick on down, snare on up",
@@ -236,6 +272,7 @@ local templates = {
   --- Rythmic fragments ---
   "--- Rythmic fragments ---",
   "Clear fragments",
+  "Clear evolve memory",
   "Randomize fragments",
   "Randomize fragments (single)",
   "Randomize fragments (slow)",
@@ -256,7 +293,7 @@ local templateMenu = settingsPanel:Menu("Templates", templates)
 templateMenu.tooltip = "Select a tool - NOTE Will change current settings!"
 templateMenu.showLabel = false
 templateMenu.height = widgetHeight
-templateMenu.width = randomNoteMode.width
+templateMenu.width = 85
 templateMenu.x = randomNoteMode.x + randomNoteMode.width + 10
 templateMenu.y = randomNoteMode.y
 templateMenu.backgroundColour = colours.menuBackgroundColour
@@ -283,7 +320,22 @@ templateMenu.changed = function(self)
         w:setValue(0)
       end
     end
-    if self.selectedText == "Mute all" then
+    if self.selectedText == "BeatBox Anthology 2" then
+      noteMap = {36,38,42,39,41,49,54,66}
+      noteLabels = {"Kick", "Snare", "Hihat", "Clap", "Low Tom", "Cymbal", "Tambourine", "Perc"}
+      v.noteInput.value = noteMap[part]
+      v.noteInputLabel.text = noteLabels[part]
+    elseif self.selectedText == "Prime 8" then
+      noteMap = {36,38,42,39,41,49,37,47}
+      noteLabels = {"Kick", "Snare", "Hihat", "Clap", "Low Tom", "Cymbal", "Rimshot", "Cowbell"}
+      v.noteInput.value = noteMap[part]
+      v.noteInputLabel.text = noteLabels[part]
+    elseif self.selectedText == "Soul Drums" then
+      noteMap = {36,38,42,39,41,49,37,54}
+      noteLabels = {"Kick", "Snare", "Hihat", "Clap", "Low Tom", "Cymbal", "Rimshot", "Tambourine"}
+      v.noteInput.value = noteMap[part]
+      v.noteInputLabel.text = noteLabels[part]
+    elseif self.selectedText == "Mute all" then
       v.mute:setValue(true)
     elseif self.selectedText == "Unmute all" then
       v.mute:setValue(false)
@@ -388,6 +440,8 @@ templateMenu.changed = function(self)
   end
   if self.selectedText == "Four on the floor" or self.selectedText == "Kick on down, snare on up" then
     paramsPerFragment[1].fragmentInput.text = "1/4"
+  elseif self.selectedText == "Clear evolve memory" then
+    clearResolutionsForEvolve()
   end
   -- Must be last
   self:setValue(1, false)
@@ -460,11 +514,10 @@ setRandomPercent.changed = function()
 end
 
 for i=1,numNotes do
-  local types = {"Kick", "Snare", "Hihat", "Clap", "Toms", "Cymbal", "Tambourine", "Perc"}
   local noteInputLabel = notePanel:Label("Label" .. i)
   noteInputLabel.tooltip = "Editable label for this note trigger"
   noteInputLabel.editable = true
-  noteInputLabel.text = types[i]
+  noteInputLabel.text = noteLabels[i]
   noteInputLabel.backgroundColour = menuBackgroundColour
   noteInputLabel.backgroundColourWhenEditing = "#cccccc"
   noteInputLabel.textColour = "9f9f9f"
@@ -473,22 +526,7 @@ for i=1,numNotes do
   noteInputLabel.x = ((noteInputLabel.width + 10) * (i - 1)) + 10
   noteInputLabel.y = noteLabel.height + 5
 
-  local noteInput = notePanel:NumBox("TriggerNote" .. i, 36, 0, 127, true)
-  if i == 2 then
-    noteInput.value = 38
-  elseif i == 3 then
-    noteInput.value = 42
-  elseif i == 4 then
-    noteInput.value = 39
-  elseif i == 5 then
-    noteInput.value = 41
-  elseif i == 6 then
-    noteInput.value = 49
-  elseif i == 7 then
-    noteInput.value = 54
-  elseif i == 8 then
-    noteInput.value = 66
-  end
+  local noteInput = notePanel:NumBox("TriggerNote" .. i, noteMap[i], 0, 127, true)
   noteInput.displayName = "Note"
   noteInput.tooltip = "The note to trigger"
   noteInput.unit = Unit.MidiKey
@@ -940,6 +978,7 @@ end
 function initNotes()
   playingVoices = {}
   roundCounterPerVoice = {}
+  clearResolutionsForEvolve()
   for voice=1,numNotes do
     table.insert(playingVoices, false) -- Init voices
     table.insert(roundCounterPerVoice, 0) -- Init rounds
@@ -1090,6 +1129,9 @@ function sequenceRunner()
     beatCounter = beatCounter + 1--beatResolution
     if beatCounter > beatBase then
       beatCounter = 1 -- Reset counter
+      if getRandomBoolean(evolveFragmentProbability.value) then
+        evolveFragments(randomizeCurrentResolutionProbability.value)
+      end
     end
   end
 end

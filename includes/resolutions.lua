@@ -10,6 +10,14 @@ function getTriplet(value)
   return value / 3
 end
 
+function getEvenFromDotted(value)
+  return value / 1.5
+end
+
+function getEvenFromTriplet(value)
+  return value * 3
+end
+
 -- NOTE: Make sure resolutions and resolutionNames are in sync
 local resolutions = {
   128, -- "32x" -- 1
@@ -113,16 +121,11 @@ function getResolutionNames(options, max)
   return res
 end
 
-function getResolutionsByType(maxResolutionIndex, startPosIndex)
+function getResolutionsByType(maxResolutionIndex)
   if type(maxResolutionIndex) == "nil" then
     maxResolutionIndex = #resolutions - 1
   end
-  if type(startPosIndex) == "boolean" then
-    startPosIndex = getRandomFromTable({11,14,17,20})
-  end
-  if type(startPosIndex) == "nil" then
-    startPosIndex = 11
-  end
+  local startPosIndex = 11
   local resOptions = {}
   -- Create table of resolution indexes by type (1=even,2=dot,3=tri)
   for i=startPosIndex,startPosIndex+2 do
@@ -130,18 +133,18 @@ function getResolutionsByType(maxResolutionIndex, startPosIndex)
     local resolutionsOfType = {}
     while resolutionIndex <= maxResolutionIndex do
       table.insert(resolutionsOfType, resolutionIndex) -- insert current index in resolution options table
-      print("Insert resolutionIndex", resolutionIndex)
+      --print("Insert resolutionIndex", resolutionIndex)
       resolutionIndex = resolutionIndex + 3 -- increment index
     end
-    print("#resolutionsOfType, i", #resolutionsOfType, i)
+    --print("#resolutionsOfType, i", #resolutionsOfType, i)
     table.insert(resOptions, resolutionsOfType)
   end
   local slowResolutions = {}
-  for i=3, 12 do
-    print("Add slowResolution, index", i)
+  for i=3,11 do
+    --print("Add slowResolution, index", i)
     table.insert(slowResolutions, i)
   end
-  print("#slowResolutions", #slowResolutions)
+  --print("#slowResolutions", #slowResolutions)
   table.insert(resOptions, slowResolutions) -- Add the "slow" x resolutions
   --print("resOptions", #resOptions)
   return resOptions
