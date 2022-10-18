@@ -252,6 +252,8 @@ local templates = {
   "BeatBox Anthology 2",
   "Prime 8",
   "Soul Drums",
+  "Minor scale",
+  "Major scale",
   --- Templates ---
   "--- Templates ---",
   "Kick on down, snare on up",
@@ -272,7 +274,7 @@ local templates = {
   --- Rythmic fragments ---
   "--- Rythmic fragments ---",
   "Clear fragments",
-  "Clear evolve memory",
+  --"Clear evolve memory",
   "Randomize fragments",
   "Randomize fragments (single)",
   "Randomize fragments (slow)",
@@ -333,6 +335,16 @@ templateMenu.changed = function(self)
     elseif self.selectedText == "Soul Drums" then
       noteMap = {36,38,42,39,41,49,37,54}
       noteLabels = {"Kick", "Snare", "Hihat", "Clap", "Low Tom", "Cymbal", "Rimshot", "Tambourine"}
+      v.noteInput.value = noteMap[part]
+      v.noteInputLabel.text = noteLabels[part]
+    elseif self.selectedText == "Minor scale" then
+      noteMap = {36,38,39,41,43,44,46,48}
+      noteLabels = {"C", "D", "Eb", "F", "G", "Ab", "Bb", "C"}
+      v.noteInput.value = noteMap[part]
+      v.noteInputLabel.text = noteLabels[part]
+    elseif self.selectedText == "Major scale" then
+      noteMap = {36,38,40,41,43,45,47,48}
+      noteLabels = {"C", "D", "E", "F", "G", "A", "B", "C"}
       v.noteInput.value = noteMap[part]
       v.noteInputLabel.text = noteLabels[part]
     elseif self.selectedText == "Mute all" then
@@ -1009,7 +1021,7 @@ function selectNote(note)
   end
   --print("#selectedNotes, #activeNotes", #selectedNotes, #activeNotes)
   local newNote = getRandomFromTable(selectedNotes)
-  if type(newNote) == "nil" and #activeNotes > 0 then
+  if type(newNote) == "nil" then
     newNote = getRandomFromTable(activeNotes)
   end
   --print("#selectedNotes, new, old", #selectedNotes, newNote, note)
@@ -1094,18 +1106,15 @@ function playRandomNote()
   local noteInputNumber = selectNote()
   --print("Found note", note)
   if type(noteInputNumber) == "number" then
-    playingVoices[noteInputNumber] = true--(isDownBeat() and getPlayOnDownBeat(noteInputNumber)) or (isUpBeat() and getPlayOnUpBeat(noteInputNumber))
-    if playingVoices[noteInputNumber] then
-      --print("Play selected note", note)
-      spawn(play, noteInputNumber)
-    end
+    --print("Play selected note", note)
+    spawn(play, noteInputNumber)
   end
 end
 
 function playVoices()
   for voice=1,voices do
     if playingVoices[voice] == false then
-      playingVoices[voice] = isNoteActive(voice)-- and ((isDownBeat() and getPlayOnDownBeat(voice)) or (isUpBeat() and getPlayOnUpBeat(voice)))
+      playingVoices[voice] = isNoteActive(voice)
       if playingVoices[voice] then
         --print("Play voice", voice)
         spawn(play, voice)
@@ -1211,7 +1220,6 @@ function play(voice)
     -- Check if loop should be broken at the start of next round
     local remainingInBeat = math.ceil(playDuration) - playDuration
     --print("NEXT: duration, remainingInBeat, isFragmentStart, isRepeat", duration, remainingInBeat, isFragmentStart, isRepeat, "voice " .. voice)
-    --if type(duration) == "nil" or (remainingInBeat == 0 and waitDuration <= beat and roundCounterPerVoice[voice] > 1 and isFragmentStart == true and isRepeat == false) then
     if type(duration) == "nil" or (activeFragment.i > 0 and paramsPerFragment[activeFragment.i].fragmentInputDirty) or (waitDuration <= beatResolution and roundCounterPerVoice[voice] > 1 and isFragmentStart == true and isRepeat == false) then
       local fragmentInputDirty = false
       if activeFragment.i > 0 then

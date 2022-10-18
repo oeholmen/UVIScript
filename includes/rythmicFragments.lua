@@ -359,7 +359,7 @@ function evolveFragment(fragmentIndex, previous, randomizeCurrentResolutionProba
     end
 
     -- OPTION: Use resolution from the previous fragment
-    local usePreviousResolutionProbability = 75
+    local usePreviousResolutionProbability = 75 -- TODO Param?
     if type(resolution) == "nil" and getRandomBoolean(usePreviousResolutionProbability) then
       resolution = previous
       print("Got resolution from the previous fragment")
@@ -384,6 +384,7 @@ end
 
 function setResolutionsForEvolve()
   local numFragments = #paramsPerFragment
+  --if #resolutionsForEvolve > (#getResolutions() / 2) then
   if #resolutionsForEvolve > (numFragments ^ 3) then
     local removeAmount = #resolutionsForEvolve / 2 -- Remove first half
     for i=1,removeAmount do
@@ -395,17 +396,14 @@ function setResolutionsForEvolve()
     local fragment = parseFragment(i)
     if type(fragment) == "table" then
       for _,v in ipairs(fragment.f) do
-        table.insert(resolutionsForEvolve, v)
-        print("Add to resolutionsForEvolve", v)
+        --if tableIncludes(resolutionsForEvolve, v) == false then
+          table.insert(resolutionsForEvolve, v)
+          print("Add to resolutionsForEvolve", v)
+        --end
       end
     end
   end
   print("resolutionsForEvolve", #resolutionsForEvolve)
-  if #resolutionsForEvolve < #resolutionsForEvolve then
-    for _,v in ipairs(singleResolutions) do
-      table.insert(resolutionsForEvolve, getResolution(v))
-    end
-  end
 end
 
 -- TODO Establish settings for evolve? Frequency of evolve?
