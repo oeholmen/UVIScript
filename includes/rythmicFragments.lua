@@ -413,7 +413,7 @@ end
 
 function setResolutionsForEvolve()
   local numFragments = #paramsPerFragment
-  -- Remove some resolutions if memory is "full"
+  -- Remove the "oldest" resolutions if memory is full
   if #resolutionsForEvolve > math.ceil(numFragments ^ 2.5) then
     local removeAmount = #resolutionsForEvolve / 2 -- Remove first half
     for i=1,removeAmount do
@@ -426,6 +426,7 @@ function setResolutionsForEvolve()
     local fragment = parseFragment(i)
     if type(fragment) == "table" then
       for _,v in ipairs(fragment.f) do
+        -- TODO Check that no resolution "takes over" if there are few resolutions to choose from
         table.insert(resolutionsForEvolve, v)
         print("Add to resolutionsForEvolve", v)
       end
@@ -438,12 +439,14 @@ end
 -- TODO Store evolved states?
 -- TODO Menu for selecting evolve?
 -- TODO Evolve other fragment settings?
-function evolveFragments(randomizeCurrentResolutionProbability)
+function evolveFragments(previous, randomizeCurrentResolutionProbability)
   setResolutionsForEvolve()
-  local previous = nil
-  for i=1,#paramsPerFragment do
-    previous = evolveFragment(i, previous, randomizeCurrentResolutionProbability)
+  for i,v in ipairs(paramsPerFragment) do
+    if string.len(v.fragmentInput.text) > 0 then
+      previous = evolveFragment(i, previous, randomizeCurrentResolutionProbability)
+    end
   end
+  return previous
 end
 
 function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount, sources)

@@ -1152,6 +1152,7 @@ function playVoices()
 end
 
 function sequenceRunner()
+  local previous = nil
   isPlaying = true
   beatCounter = 1 -- Reset when starting sequencer
   initNotes()
@@ -1167,7 +1168,7 @@ function sequenceRunner()
     if beatCounter > beatBase then
       beatCounter = 1 -- Reset counter
       if getRandomBoolean(evolveFragmentProbability.value) then
-        evolveFragments(randomizeCurrentResolutionProbability.value)
+        previous = evolveFragments(previous, randomizeCurrentResolutionProbability.value)
       end
     end
   end
