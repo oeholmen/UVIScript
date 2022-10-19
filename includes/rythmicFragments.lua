@@ -70,33 +70,6 @@ function calculateFragmentDuration(fragmentText)
   return total
 end
 
-function getRandomFragment(type)
-  if type == "slow" then
-    return getFragmentInputText(fragmentDefinitionToResolutionNames(createFragmentDefinition(4)))
-  end
-  if type == "single" then
-    if getRandomBoolean(75) then
-      return getFragmentInputText({getResolutionName(getRandomFromTable(singleResolutions))})
-    end
-    return getFragmentInputText({getResolutionName(getRandom(7,11))})
-  end
-  if type == "extended" then
-    local option = getRandom(4)
-    if option == 1 and getRandomBoolean() then
-      return getFragmentInputText(getRandomFromTable(resolutionFragments)) -- Select from the presets
-    elseif option == 2 then
-      return getFragmentInputText({getResolutionName(getRandomFromTable(singleResolutions))}) -- Single
-    elseif option == 3 then
-      return getFragmentInputText(fragmentDefinitionToResolutionNames(createFragmentDefinition(1))) -- Even+dot
-    end
-    return getFragmentInputText(fragmentDefinitionToResolutionNames(createFragmentDefinition(4))) -- Long duration
-  end
-  if getRandomBoolean(15) then
-    return getFragmentInputText({getResolutionName(getRandomFromTable(singleResolutions))}) -- Single
-  end
-  return getFragmentInputText(fragmentDefinitionToResolutionNames(createFragmentDefinition(1)))
-end
-
 -- Get the fragment as text for fragment input
 function getFragmentInputText(fragment)
   if #fragment == 0 then
@@ -117,6 +90,28 @@ function addDurations(resolutionIndexes, durations, fragmentDuration)
   return durations
 end
 
+-- Returns a probability (between 0-100) for the given resolution index
+function getProbabilityForResolutionIndex(i)
+  local baseProbability = math.ceil(100 / getResolution(i))
+  local factor = i / 2
+  return math.min(100, math.floor(baseProbability * factor))
+end
+
+-- Returns indexes for "whole" resolutions, filtered by probability
+function getSlowResolutions()
+  local slowResolutions = {}
+  for _,i in ipairs(resolutionsByType[4]) do
+    local probability = getProbabilityForResolutionIndex(i)
+    print("getSlowResolutions - set probability for resolution", probability, getResolution(i))
+    if getRandomBoolean(probability) then
+      table.insert(slowResolutions, i)
+      print("getSlowResolutions - included slow resolution")
+    end
+  end
+  print("getSlowResolutions - found slow resolutions", #slowResolutions)
+  return slowResolutions
+end
+
 -- Auto generate fragment
 -- durationType:
 --    "Create fragment (even+dot)" 1
@@ -131,7 +126,6 @@ function createFragmentDefinition(durationType)
   local fragmentDurations = {1,2,3,4}
   local fragmentDuration = getRandomFromTable(fragmentDurations) -- TODO Param?
   --print("Selected fragmentDuration", fragmentDuration)
-  local definition = {}
   local durations = {}
   -- Add resolutions that can fit inside the fragmentDuration
   if durationType == 1 or durationType == 2 then -- Add even
@@ -145,22 +139,23 @@ function createFragmentDefinition(durationType)
   end
   if durationType == 3 then
     -- Extended includes both long and short durations
-    local extendedDurations = resolutionsByType[4]
+    local extendedDurations = getSlowResolutions()
     for _,v in ipairs(fragmentDurations) do
       table.insert(extendedDurations, v)
     end
     fragmentDuration = getResolution(getRandomFromTable(extendedDurations))
-    for _,v in ipairs(resolutionsByType) do
-      durations = addDurations(v, durations, fragmentDuration)
-    end
+    durations = addDurations(getSelectedResolutions(), durations, fragmentDuration)
   end
   if durationType == 4 then
-    fragmentDuration = getResolution(getRandomFromTable(resolutionsByType[4]))
+    -- Slow durations
+    local slowResolutions = getSlowResolutions()
+    fragmentDuration = getResolution(getRandomFromTable(slowResolutions))
     print("Selected fragmentDuration", fragmentDuration)
-    durations = addDurations(resolutionsByType[4], durations, fragmentDuration)
+    durations = addDurations(slowResolutions, durations, fragmentDuration)
   end
   print("Found durations", #durations)
-  -- Select durations for the definition
+  -- Select durations to fill the definition until the total fragment duration is reached
+  local definition = {}
   while currentDuration < fragmentDuration do
     local duration = getRandomFromTable(durations)
     if currentDuration + duration > fragmentDuration then
@@ -268,8 +263,8 @@ end
 function getFragment(fragmentIndexes, prevFragmentIndex)
   local selectedFragments = getSelectedFragments(fragmentIndexes)
 
-  -- Remove the previous fragment if present in selected, and there is more than one fragment selected
-  if #selectedFragments > 0 and type(prevFragmentIndex) == "number" and prevFragmentIndex > 0 then
+  -- Remove the previous fragment to avoid repeat unless it is the only available fragment
+  if #selectedFragments > 1 and type(prevFragmentIndex) == "number" and prevFragmentIndex > 0 then
     for i,v in ipairs(selectedFragments) do
       if v.i == prevFragmentIndex then
         table.remove(selectedFragments, i)
@@ -297,12 +292,33 @@ function flashFragmentActive(fragmentActive, duration)
   fragmentActive.textColourOn = "black"
 end
 
+-- Returns a table of resolutions indexes that are "approved" to use
+function getSelectedResolutions()
+  local selectedResolutions = getSlowResolutions()
+  for i=1,3 do
+    for _,resolutionIndex in ipairs(resolutionsByType[i]) do
+      -- Limit dotted/tri resolutions above 1/8 dot and 1/16 tri
+      if (i == 2 and resolutionIndex > 18) or (i == 3 and resolutionIndex > 25) then
+        break
+      end
+      table.insert(selectedResolutions, resolutionIndex)
+    end
+  end
+  return selectedResolutions
+end
+
+-- Tries to adjust the given resolution by adjusting
+-- length, and/or setting a even/dot/tri value variant
 function getResolutionFromCurrentIndex(currentResolution)
   local resolutions = getResolutions()
   local currentIndex = getIndexFromValue(currentResolution, resolutions)
   if type(currentIndex) == "nil" then
     return
   end
+
+  -- Include the resolutions that are available
+  local selectedResolutions = getSelectedResolutions()
+
   print("BEFORE currentIndex", currentIndex)
   local resolutionIndex = currentIndex
   local availableChanges = {}
@@ -317,60 +333,73 @@ function getResolutionFromCurrentIndex(currentResolution)
     print("getEvenOrSlow", resolution)
   end
   if type(resolution) == "number" then
-    if getRandomBoolean() then
-      resolution = resolution / 2
-      print("Faster resolution", resolution)
-    else
-      resolution = resolution * 2
+    local wasChanged = false
+    local doubleResIndex = getIndexFromValue((resolution * 2), resolutions)
+    -- Double or half duration
+    if type(doubleResIndex) == "number" and tableIncludes(selectedResolutions, doubleResIndex) and getRandomBoolean() then
+      resolution = resolutions[doubleResIndex]
+      wasChanged = true
       print("Slower resolution", resolution)
+    elseif getRandomBoolean() then
+      resolution = resolution / 2
+      wasChanged = true
+      print("Faster resolution", resolution)
     end
-    if getRandomBoolean() then
+    -- Dot or tri
+    if wasChanged == false or getRandomBoolean() then
       if tableIncludes(resolutionsByType[3], currentIndex) then
         resolution = getTriplet(resolution)
         print("getTriplet", resolution)
-      elseif resolution > 0.25 then -- TODO Limit for max resolution?
-        resolution = getDotted(resolution)
-        print("getDotted", resolution)
+      else
+        local dottedResIndex = getIndexFromValue(getDotted(resolution), resolutions)
+        if type(dottedResIndex) == "number" and tableIncludes(selectedResolutions, dottedResIndex) then
+          resolution = resolutions[dottedResIndex]
+          print("getDotted", resolution)
+        end
       end
     end
   end
   currentIndex = getIndexFromValue(resolution, resolutions)
   print("AFTER currentIndex", currentIndex)
-  if type(currentIndex) == "number" and currentIndex < #resolutions and currentIndex > 2 then -- TODO Param for lowest and or highest?
+  if type(currentIndex) == "number" and tableIncludes(selectedResolutions, currentIndex) then
     print("Got resolution from the current index")
     return resolutions[currentIndex]
   end
 end
 
+-- Remove first resolution and append a (new) resolution last in the fragments
+-- Returns the removed resolution (or nil if no resolution was removed for some reason)
 function evolveFragment(fragmentIndex, previous, randomizeCurrentResolutionProbability)
-  -- Remove first resolution and append a (new) resolution last in the fragments
   local fragment = parseFragment(fragmentIndex)
   local removed = nil
   if type(fragment) == "table" then
     removed = fragment.f[1]
     table.remove(fragment.f, 1) -- Remove first
 
-    -- Find a resolution
+    -- Holds the evolved resolution
     local resolution = nil
 
-    -- OPTION: Create a resolution based on the current index
+    -- Select evolve strategy
+
+    -- Strategy 1: Create a resolution based on the current index
     if type(randomizeCurrentResolutionProbability) == "number" and getRandomBoolean(randomizeCurrentResolutionProbability) then
       resolution = getResolutionFromCurrentIndex(removed)
     end
 
-    -- OPTION: Use resolution from the previous fragment
+    -- Strategy 2: Use resolution from the previous fragment
     local usePreviousResolutionProbability = 75 -- TODO Param?
     if type(resolution) == "nil" and getRandomBoolean(usePreviousResolutionProbability) then
       resolution = previous
       print("Got resolution from the previous fragment")
     end
 
-    -- OPTION: Get a resolution from the evolve memory
+    -- Strategy 3: Get a resolution from the evolve memory
     if type(resolution) == "nil" then
       print("Got resolution from the evolve memory")
       resolution = getRandomFromTable(resolutionsForEvolve)
     end
 
+    -- Set the resolution on the fragment, and update fragment input text
     table.insert(fragment.f, resolution)
     print("Found resolution for evolve", resolution)
     paramsPerFragment[fragmentIndex].fragmentInput.text = getFragmentInputText(fragmentDefinitionToResolutionNames(fragment.f))
@@ -379,31 +408,30 @@ function evolveFragment(fragmentIndex, previous, randomizeCurrentResolutionProba
 end
 
 function clearResolutionsForEvolve()
-  resolutionsForEvolve = {} -- Clear resolutions
+  resolutionsForEvolve = {}
 end
 
 function setResolutionsForEvolve()
   local numFragments = #paramsPerFragment
-  --if #resolutionsForEvolve > (#getResolutions() / 2) then
-  if #resolutionsForEvolve > (numFragments ^ 3) then
+  -- Remove some resolutions if memory is "full"
+  if #resolutionsForEvolve > math.ceil(numFragments ^ 2.5) then
     local removeAmount = #resolutionsForEvolve / 2 -- Remove first half
     for i=1,removeAmount do
       table.remove(resolutionsForEvolve, 1)
     end
     print("Removed from resolutionsForEvolve", removeAmount)
   end
+  -- Find all resolutions that are present in the current fragments, and add to evolve memory
   for i=1,numFragments do
     local fragment = parseFragment(i)
     if type(fragment) == "table" then
       for _,v in ipairs(fragment.f) do
-        --if tableIncludes(resolutionsForEvolve, v) == false then
-          table.insert(resolutionsForEvolve, v)
-          print("Add to resolutionsForEvolve", v)
-        --end
+        table.insert(resolutionsForEvolve, v)
+        print("Add to resolutionsForEvolve", v)
       end
     end
   end
-  print("resolutionsForEvolve", #resolutionsForEvolve)
+  print("Total resolutionsForEvolve", #resolutionsForEvolve)
 end
 
 -- TODO Establish settings for evolve? Frequency of evolve?

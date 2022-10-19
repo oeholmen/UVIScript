@@ -139,10 +139,13 @@ function getResolutionsByType(maxResolutionIndex)
     --print("#resolutionsOfType, i", #resolutionsOfType, i)
     table.insert(resOptions, resolutionsOfType)
   end
+  -- Add the resolutions that are whole numbers (1,2,3,4...)
   local slowResolutions = {}
-  for i=3,11 do
-    --print("Add slowResolution, index", i)
-    table.insert(slowResolutions, i)
+  for i,resolution in ipairs(resolutions) do
+    if resolution % 1 == 0 then
+      table.insert(slowResolutions, i)
+      print("getResolutionsByType - included slow resolution", resolution)
+    end
   end
   --print("#slowResolutions", #slowResolutions)
   table.insert(resOptions, slowResolutions) -- Add the "slow" x resolutions

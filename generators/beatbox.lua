@@ -27,7 +27,7 @@ local backgroundColour = "595959" -- Light or Dark
 local widgetBackgroundColour = "01011F" -- Dark
 local widgetTextColour = "66ff99" -- Light
 local labelTextColour = "black"
-local labelBackgoundColour = "F637EC"
+local labelBackgoundColour = "3AB0FF"
 local menuBackgroundColour = "01011F"
 local menuTextColour = "#9f02ACFE"
 local menuArrowColour = "66" .. labelTextColour
@@ -292,7 +292,7 @@ local templates = {
   "Randomize",
 }
 local templateMenu = settingsPanel:Menu("Templates", templates)
-templateMenu.tooltip = "Select a tool - NOTE Will change current settings!"
+templateMenu.tooltip = "Select a tool - NOTE: Will change current settings!"
 templateMenu.showLabel = false
 templateMenu.height = widgetHeight
 templateMenu.width = 85
@@ -364,13 +364,13 @@ templateMenu.changed = function(self)
     elseif self.selectedText == "Clear fragments" then
       paramsPerFragment[part].fragmentInput.text = ""
     elseif self.selectedText == "Randomize fragments" then
-      paramsPerFragment[part].fragmentInput.text = getRandomFragment()
+      paramsPerFragment[part].fragmentInput.text = getRandomFragment(1)
     elseif self.selectedText == "Randomize fragments (single)" then
-      paramsPerFragment[part].fragmentInput.text = getRandomFragment('single')
-    elseif self.selectedText == "Randomize fragments (slow)" then
-      paramsPerFragment[part].fragmentInput.text = getRandomFragment('slow')
+      paramsPerFragment[part].fragmentInput.text = getRandomFragment(2)
     elseif self.selectedText == "Randomize fragments (extended)" then
-      paramsPerFragment[part].fragmentInput.text = getRandomFragment('extended')
+      paramsPerFragment[part].fragmentInput.text = getRandomFragment(3)
+    elseif self.selectedText == "Randomize fragments (slow)" then
+      paramsPerFragment[part].fragmentInput.text = getRandomFragment(4)
     elseif self.selectedText == "Randomize note probabilities" then
       v.noteProbability:setValue(getRandom(100))
     elseif self.selectedText == "Randomize note triggers" then
@@ -380,7 +380,7 @@ templateMenu.changed = function(self)
       v.restUpBeatProbability:setValue(getRandom(100))
       v.restFirstInFragmentProbability:setValue(getRandom(100))
     elseif self.selectedText == "Randomize" then
-      paramsPerFragment[part].fragmentInput.text = getRandomFragment()
+      paramsPerFragment[part].fragmentInput.text = getRandomFragment(1)
       v.mute:setValue(false)
       v.accentFragmentStart:setValue(getRandomBoolean(25))
       v.accentDownBeat:setValue(getRandomBoolean(25))
@@ -921,10 +921,42 @@ end
 -- Functions
 --------------------------------------------------------------------------------
 
+-- Returns a fragment that can be set directly on fragmentInput.text
+-- Used by the tools menu
+-- 1 = Default (even+dot)
+-- 2 = Single
+-- 3 = Extended (fast+slow)
+-- 4 = Slow
+function getRandomFragment(definitionNumber)
+  local fragmentDefinition = {}
+  if definitionNumber == 2 then
+    fragmentDefinition = {getResolution(getRandomFromTable(getSelectedResolutions()))} -- Single
+  else
+    fragmentDefinition = createFragmentDefinition(definitionNumber)
+  end
+  return getFragmentInputText(fragmentDefinitionToResolutionNames(fragmentDefinition))
+end
+
 function getNote(voice)
-  local noteProbability = paramsPerNote[voice].noteProbability.value
-  if getRandomBoolean(noteProbability) then
-    return paramsPerNote[voice].noteInput.value
+  if randomNoteMode.value then
+    -- When random note mode is selected, we select a random note after filtering for probability
+    local selected = {}
+    for i=1,numNotes do
+      if isNoteActive(i) and getRandomBoolean(paramsPerNote[i].noteProbability.value) then
+        --print("Note is selected", i)
+        table.insert(selected, i)
+      end
+    end
+    local note = getRandomFromTable(selected)
+    if type(note) == "number" then
+      return paramsPerNote[note].noteInput.value
+    end
+  else
+    -- When random note mode is not selected, we get the note number for the given voice, if probability hits
+    local noteProbability = paramsPerNote[voice].noteProbability.value
+    if getRandomBoolean(noteProbability) then
+      return paramsPerNote[voice].noteInput.value
+    end
   end
 end
 
@@ -942,10 +974,6 @@ function stopPlaying()
   isPlaying = false
   initNotes()
 end
-
---------------------------------------------------------------------------------
--- Sequencer
---------------------------------------------------------------------------------
 
 function getSources(voice)
   local sources = {}
@@ -1004,12 +1032,12 @@ function initNotes()
   end
 end
 
-function selectNote(note)
-  --print("selectNote", note)
+function selectVoice(voice)
+  --print("selectVoice", voice)
   local activeNotes = {}
   local selectedNotes = {}
   for i=1,numNotes do
-    --print("numNotes, note", numNotes, i)
+    --print("numNotes, voice", numNotes, i)
     if isNoteActive(i) then
       --print("Note is active")
       table.insert(activeNotes, i)
@@ -1024,15 +1052,15 @@ function selectNote(note)
   if type(newNote) == "nil" then
     newNote = getRandomFromTable(activeNotes)
   end
-  --print("#selectedNotes, new, old", #selectedNotes, newNote, note)
-  if type(newNote) == "number" and newNote ~= note then
-    if type(note) == "number" then
-      playingVoices[note] = false
+  --print("#selectedNotes, new, old", #selectedNotes, newNote, voice)
+  if type(newNote) == "number" and newNote ~= voice then
+    if type(voice) == "number" then
+      playingVoices[voice] = false
     end
-    note = newNote
-    playingVoices[note] = true
+    voice = newNote
+    playingVoices[voice] = true
   end
-  return note
+  return voice
 end
 
 function hasPlayingVoice()
@@ -1096,18 +1124,18 @@ function setSourceActive(voice, activeFragment)
   end
 end
 
-function playRandomNote()
-  -- Check if a note is already playing
+function playRandomVoice()
+  -- Check if a voice is already playing
   if hasPlayingVoice() then
     return
   end
   --print("No playing voices - continue")
-  -- If no playing notes, select a new note
-  local noteInputNumber = selectNote()
-  --print("Found note", note)
-  if type(noteInputNumber) == "number" then
-    --print("Play selected note", note)
-    spawn(play, noteInputNumber)
+  -- If no playing voice, select a new voice
+  local voice = selectVoice()
+  --print("Found voice", voice)
+  if type(voice) == "number" then
+    --print("Play selected voice", voice)
+    spawn(play, voice)
   end
 end
 
@@ -1130,7 +1158,7 @@ function sequenceRunner()
   while isPlaying do
     --print("sequenceRunner, beatCounter, isDownBeat", beatCounter, isDownBeat())
     if randomNoteMode.value then
-      playRandomNote()
+      playRandomVoice()
     else
       playVoices()
     end
@@ -1211,7 +1239,7 @@ function play(voice)
 
     -- Select a new note (voice) if in random note mode
     if randomNoteMode.value then
-      voice = selectNote(voice)
+      voice = selectVoice(voice)
     end
 
     -- Get next

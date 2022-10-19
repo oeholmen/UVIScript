@@ -8,7 +8,7 @@ local backgroundColour = "595959" -- Light or Dark
 local widgetBackgroundColour = "01011F" -- Dark
 local widgetTextColour = "66ff99" -- Light
 local labelTextColour = "black"
-local labelBackgoundColour = "F637EC"
+local labelBackgoundColour = "F8B400"
 
 setBackgroundColour(backgroundColour)
 
@@ -28,9 +28,9 @@ label.alpha = 0.5
 label.backgroundColour = labelBackgoundColour
 label.textColour = labelTextColour
 label.fontSize = 22
-label.width = 120
+label.width = 140
 
-local probability = panel:NumBox("Probability", 100, 0, 100, true)
+local probability = panel:NumBox("Probability", 50, 0, 100, true)
 probability.unit = Unit.Percent
 probability.displayName = "Probability"
 probability.tooltip = "Probability that incoming notes will be transposed"
@@ -83,6 +83,6 @@ function setOctave(note)
 end
 
 function onNote(e)
-  e.note = setOctave(e.note)
-  postEvent(e)
+  local note = setOctave(e.note)
+  playNote(note, e.velocity)
 end

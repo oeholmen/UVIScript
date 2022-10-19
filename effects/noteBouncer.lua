@@ -143,10 +143,12 @@ function bounce(e)
     end
     local velocity = randomizeValue(e.velocity, 1, 127, 9)
     playNote(note, velocity, beat2ms(duration))
+    print("round, note, duration", round, note, duration)
     waitBeat(duration)
     isRising, currentResolutionIndex = getDuration(isRising, currentResolutionIndex)
     if loop.value == false and (currentResolutionIndex == waitResolution.value or currentResolutionIndex == waitResolutionMin.value) then
       postEvent(e)
+      print("Bounce complete")
       break
     end
     duration = getResolution(currentResolutionIndex)
@@ -156,6 +158,7 @@ end
 
 function onNote(e)
   if getRandomBoolean(probability.value) then
+    print("Start bounce")
     spawn(bounce, e)
   else
     postEvent(e)
