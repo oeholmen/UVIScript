@@ -144,7 +144,7 @@ function getResolutionsByType(maxResolutionIndex)
   for i,resolution in ipairs(resolutions) do
     if resolution % 1 == 0 then
       table.insert(slowResolutions, i)
-      print("getResolutionsByType - included slow resolution", resolution)
+      --print("getResolutionsByType - included slow resolution", resolution)
     end
   end
   --print("#slowResolutions", #slowResolutions)

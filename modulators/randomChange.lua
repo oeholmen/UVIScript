@@ -26,6 +26,7 @@ panel.height = 40
 
 local label = panel:Label("Label")
 label.text = "Random Change"
+label.tooltip = "A script modulator that sends a random value at the given time, if probability hits"
 label.alpha = 0.5
 label.backgroundColour = labelBackgoundColour
 label.textColour = labelTextColour

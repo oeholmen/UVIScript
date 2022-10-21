@@ -2,7 +2,8 @@
 -- Generative Strategy Sequencer
 --------------------------------------------------------------------------------
 
-require "../includes/generative"
+require "../includes/noteSelector"
+require "../includes/rythmicFragments"
 
 local widgetBackgroundColour = "01011F" -- Dark
 local widgetTextColour = "9f02ACFE" -- Light
@@ -15,11 +16,12 @@ local backgroundColourOn = "ff02ACFE"
 local textColourOff = "ff22FFFF"
 local textColourOn = "efFFFFFF"
 local backgroundColour = "202020"
+local knobFillColour = "E6D5B8" -- Light
 
 local colours = {
   widgetBackgroundColour = widgetBackgroundColour,
   widgetTextColour = widgetTextColour,
-  labelTextColour = labelTextColour,
+  labelTextColour = "black", -- Used for rythmic fragments
   menuBackgroundColour = menuBackgroundColour,
   menuArrowColour = menuArrowColour,
   menuOutlineColour = menuOutlineColour,
@@ -29,6 +31,10 @@ local colours = {
   textColourOn = textColourOn,
   backgroundColour = backgroundColour
 }
+
+local voices = 1
+local isPlaying = {}
+local baseDuration = nil
 
 --------------------------------------------------------------------------------
 -- Strategies
@@ -58,18 +64,13 @@ local strategies = {
   {3,-2},
 }
 
-local voices = 1
-local isPlaying = {}
-local globalResolution = nil -- Holds the global resolution for all voices
-local minResolution = resolutions[#resolutions] -- The lowest allowed resolution
-
-local strategyPos = 1 -- Holds the position in the selected strategy
-local notePosition = 0 -- Holds the current note position
+local strategyPos = {} -- Holds the position in the selected strategy
+local notePosition = {} -- Holds the current note position
 local strategyIndex = getRandom(#strategies) -- Holds the selected strategy - start with a random strategy
-local notes = {} -- Holds the playing notes - notes are removed when they are finished playing
+local unusedStrategySlotDefaultText = "Unused"
 
 function getStrategyInputText(strategy)
-  if #strategy == 0 then
+  if type(strategy) == nil or #strategy == 0 then
     return "Randomize"
   end
   return table.concat(strategy, ",")
@@ -82,7 +83,7 @@ function createStrategy()
   for i=1, ln do
     local value = getRandom(-7,7)
     table.insert(strategy, value)
-    print("Add value to strategy", value)
+    --print("Add value to strategy", value)
   end
   return strategy
 end
@@ -126,19 +127,19 @@ strategyPanel.y = sequencerPanel.y + sequencerPanel.height + 5
 strategyPanel.width = 405
 strategyPanel.height = 110
 
-local gatePanel = Panel("GatePanel")
-gatePanel.backgroundColour = "303030"
-gatePanel.x = strategyPanel.x + strategyPanel.width + 5
-gatePanel.y = strategyPanel.y
-gatePanel.width = 140
-gatePanel.height = strategyPanel.height
+local gateVelPanel = Panel("GateVelocityPanel")
+gateVelPanel.backgroundColour = "303030"
+gateVelPanel.x = strategyPanel.x + strategyPanel.width + 5
+gateVelPanel.y = strategyPanel.y
+gateVelPanel.width = 140
+gateVelPanel.height = strategyPanel.height
 
-local velocityPanel = Panel("VelovityPanel")
-velocityPanel.backgroundColour = "003865"
-velocityPanel.x = gatePanel.x + gatePanel.width + 5
-velocityPanel.y = strategyPanel.y
-velocityPanel.width = gatePanel.width
-velocityPanel.height = strategyPanel.height
+local voicePanel = Panel("VoicePanel")
+voicePanel.backgroundColour = "003865"
+voicePanel.x = gateVelPanel.x + gateVelPanel.width + 5
+voicePanel.y = strategyPanel.y
+voicePanel.width = gateVelPanel.width
+voicePanel.height = strategyPanel.height
 
 local notePanel = Panel("Notes")
 notePanel.backgroundColour = "505050"
@@ -147,12 +148,12 @@ notePanel.y = strategyPanel.y + strategyPanel.height + 5
 notePanel.width = 700
 notePanel.height = 150
 
-local resolutionPanel = Panel("Resolutions")
-resolutionPanel.backgroundColour = "003865"
-resolutionPanel.x = notePanel.x
-resolutionPanel.y = notePanel.y + notePanel.height + 5
-resolutionPanel.width = 700
-resolutionPanel.height = 162
+local rythmPanel = Panel("Resolutions")
+rythmPanel.backgroundColour = "003865"
+rythmPanel.x = notePanel.x
+rythmPanel.y = notePanel.y + notePanel.height + 5
+rythmPanel.width = 700
+rythmPanel.height = 220
 
 --------------------------------------------------------------------------------
 -- Sequencer Panel
@@ -210,23 +211,17 @@ end
 -- Settings Panel
 --------------------------------------------------------------------------------
 
-local gateLabel = gatePanel:Label("SettingsLabel")
-gateLabel.text = "Gate"
-gateLabel.alpha = 0.75
-gateLabel.fontSize = 15
-gateLabel.width = 120
-
-local gateInput = gatePanel:NumBox("Gate", 90, 0, 100, true)
+local gateInput = gateVelPanel:NumBox("Gate", 90, 0, 100, true)
 gateInput.unit = Unit.Percent
 gateInput.textColour = widgetTextColour
 gateInput.backgroundColour = widgetBackgroundColour
-gateInput.displayName = "Level"
-gateInput.tooltip = "Default gate"
+gateInput.displayName = "Gate"
+gateInput.tooltip = "Note gate level"
 gateInput.size = {130,20}
 gateInput.x = 5
-gateInput.y = gateLabel.y + gateLabel.height + 15
+gateInput.y = 7
 
-local gateRandomization = gatePanel:NumBox("GateRandomization", 25, 0, 100, true)
+local gateRandomization = gateVelPanel:NumBox("GateRandomization", 15, 0, 100, true)
 gateRandomization.unit = Unit.Percent
 gateRandomization.textColour = widgetTextColour
 gateRandomization.backgroundColour = widgetBackgroundColour
@@ -234,24 +229,18 @@ gateRandomization.displayName = "Randomization"
 gateRandomization.tooltip = "Gate randomization amount"
 gateRandomization.size = gateInput.size
 gateRandomization.x = gateInput.x
-gateRandomization.y = gateInput.y + gateInput.height + 15
+gateRandomization.y = gateInput.y + gateInput.height + 5
 
-local velocityLabel = velocityPanel:Label("SettingsLabel")
-velocityLabel.text = "Velocity"
-velocityLabel.alpha = 0.75
-velocityLabel.fontSize = 15
-velocityLabel.width = 120
-
-local velocityInput = velocityPanel:NumBox("Velocity", 64, 1, 127, true)
+local velocityInput = gateVelPanel:NumBox("Velocity", 64, 1, 127, true)
 velocityInput.textColour = widgetTextColour
 velocityInput.backgroundColour = widgetBackgroundColour
-velocityInput.displayName = "Level"
+velocityInput.displayName = "Velocity"
 velocityInput.tooltip = "Default velocity"
 velocityInput.size = gateRandomization.size
-velocityInput.x = 5
-velocityInput.y = velocityLabel.y + velocityLabel.height + 15
+velocityInput.x = gateRandomization.x
+velocityInput.y = gateRandomization.y + gateRandomization.height + 5
 
-local velocityRandomization = velocityPanel:NumBox("VelocityRandomization", 25, 0, 100, true)
+local velocityRandomization = gateVelPanel:NumBox("VelocityRandomization", 15, 0, 100, true)
 velocityRandomization.unit = Unit.Percent
 velocityRandomization.textColour = widgetTextColour
 velocityRandomization.backgroundColour = widgetBackgroundColour
@@ -259,7 +248,48 @@ velocityRandomization.displayName = "Randomization"
 velocityRandomization.tooltip = "Velocity randomization amount"
 velocityRandomization.size = velocityInput.size
 velocityRandomization.x = velocityInput.x
-velocityRandomization.y = velocityInput.y + velocityInput.height + 15
+velocityRandomization.y = velocityInput.y + velocityInput.height + 5
+
+local voicesLabel = voicePanel:Label("VoicesLabel")
+voicesLabel.text = "Voices"
+voicesLabel.alpha = 0.75
+voicesLabel.fontSize = 15
+voicesLabel.width = 120
+
+local voicesInput = voicePanel:NumBox("Voices", voices, 1, 4, true)
+voicesInput.textColour = widgetTextColour
+voicesInput.backgroundColour = widgetBackgroundColour
+voicesInput.displayName = "Voices"
+voicesInput.tooltip = "Voices"
+voicesInput.size = gateRandomization.size
+voicesInput.x = 5
+--voicesInput.y = 5
+voicesInput.y = voicesLabel.y + voicesLabel.height + 5
+voicesInput.changed = function(self)
+  voices = self.value
+end
+
+local voiceToFragmentButton = voicePanel:OnOffButton("VoiceToFragmentButton", false)
+voiceToFragmentButton.displayName = "Voice to fragment"
+voiceToFragmentButton.tooltip = "On = each voice uses the corresponding fragment, Off = voices select random fragments"
+voiceToFragmentButton.backgroundColourOff = backgroundColourOff
+voiceToFragmentButton.backgroundColourOn = backgroundColourOn
+voiceToFragmentButton.textColourOff = textColourOff
+voiceToFragmentButton.textColourOn = textColourOn
+voiceToFragmentButton.size = voicesInput.size
+voiceToFragmentButton.x = voicesInput.x
+voiceToFragmentButton.y = voicesInput.y + voicesInput.height + 5
+
+local voiceToStrategySlotButton = voicePanel:OnOffButton("VoiceToStrategySlotButton", false)
+voiceToStrategySlotButton.displayName = "Voice to strategy slot"
+voiceToStrategySlotButton.tooltip = "Activate to let each voice use the corresponding slot. Voice 1 gets slot 1+5, voice 2 gets 2+6 etc..."
+voiceToStrategySlotButton.backgroundColourOff = backgroundColourOff
+voiceToStrategySlotButton.backgroundColourOn = backgroundColourOn
+voiceToStrategySlotButton.textColourOff = textColourOff
+voiceToStrategySlotButton.textColourOn = textColourOn
+voiceToStrategySlotButton.size = voiceToFragmentButton.size
+voiceToStrategySlotButton.x = voiceToFragmentButton.x
+voiceToStrategySlotButton.y = voiceToFragmentButton.y + voiceToFragmentButton.height + 5
 
 --------------------------------------------------------------------------------
 -- Strategy Panel
@@ -295,6 +325,33 @@ strategyRestart.textColour = widgetTextColour
 strategyRestart.arrowColour = menuArrowColour
 strategyRestart.outlineColour = menuOutlineColour
 
+local resLabel = strategyPanel:Label("ResolutionsLabel")
+resLabel.text = "Round"
+resLabel.alpha = 0.5
+resLabel.fontSize = 15
+resLabel.width = boxSize[1] / 2
+resLabel.height = boxSize[2]
+resLabel.x = strategyRestart.x
+resLabel.y = strategyRestart.y + strategyRestart.height + 5
+
+local baseResolution = strategyPanel:Menu("BaseResolution", getResolutionNames())
+baseResolution.displayName = resLabel.text
+baseResolution.tooltip = "Duration for strategy rounds"
+baseResolution.selected = 11
+baseResolution.showLabel = false
+baseResolution.width = boxSize[1] / 2
+baseResolution.height = boxSize[2]
+baseResolution.backgroundColour = widgetBackgroundColour
+baseResolution.textColour = widgetTextColour
+baseResolution.arrowColour = menuArrowColour
+baseResolution.outlineColour = menuOutlineColour
+baseResolution.x = resLabel.x + resLabel.width
+baseResolution.y = resLabel.y
+baseResolution.changed = function(self)
+  baseDuration = getResolution(self.value)
+end
+baseResolution:changed()
+
 local strategyInput = strategyPanel:Label("StrategyInput")
 strategyInput.text = getStrategyInputText(strategies[strategyIndex])
 strategyInput.tooltip = "Strategies are ways to play scales. Numbers represent steps up or down the scale that is currently playing. Feel free to type your own strategies here."
@@ -311,7 +368,7 @@ strategyInput.fontSize = 30
 
 local actions = {"Actions..."}
 local strategySlots = {}
-for j=1,9 do
+for j=1,8 do
   local strategySlot = strategyPanel:OnOffButton("StrategySlot" .. j)
   strategySlot.backgroundColourOff = backgroundColourOff
   strategySlot.backgroundColourOn = backgroundColourOn
@@ -319,10 +376,10 @@ for j=1,9 do
   strategySlot.textColourOn = textColourOn
   strategySlot.displayName = "" .. j
   strategySlot.enabled = false
-  strategySlot.tooltip = "Unused"
+  strategySlot.tooltip = unusedStrategySlotDefaultText
   strategySlot.height = 20
-  strategySlot.width = 27
-  strategySlot.x = strategyInput.x + ((j-1) * (strategySlot.width+2))
+  strategySlot.width = 30
+  strategySlot.x = strategyInput.x + ((j-1) * (strategySlot.width+3)) - 1
   strategySlot.y = strategyInput.y + strategyInput.height + 5
   strategySlot.changed = function(self)
     strategyInput.text = strategySlot.tooltip
@@ -337,53 +394,14 @@ for _,v in ipairs(strategies) do
   table.insert(actions, getStrategyInputText(v))
 end
 
-local strategyActions = strategyPanel:Menu("StrategyActions", actions)
-strategyActions.tooltip = "Choose when a strategy restarts"
-strategyActions.showLabel = false
-strategyActions.height = 20
-strategyActions.width = strategyRestart.width
-strategyActions.x = strategyRestart.x
-strategyActions.y = strategyRestart.y + strategyRestart.height + 5
-strategyActions.backgroundColour = menuBackgroundColour
-strategyActions.textColour = widgetTextColour
-strategyActions.arrowColour = menuArrowColour
-strategyActions.outlineColour = menuOutlineColour
-strategyActions.changed = function(self)
-  -- 1 is the menu label...
-  if self.value == 1 then
-    return
-  end
-
-  local actionIndex = self.value - 1
-
-  -- Save strategy
-  if actionIndex <= #strategySlots then
-    if string.len(strategyInput.text) > 0 then
-      strategySlots[actionIndex].tooltip = strategyInput.text
-      strategySlots[actionIndex].enabled = true
-    else
-      strategySlots[actionIndex].tooltip = "Unused"
-      strategySlots[actionIndex].enabled = false
-    end
-    print("Strategy saved to slot", strategyInput.text, actionIndex)
-  elseif actionIndex > #strategySlots + 1 then
-    strategyInput.text = self.selectedText
-    strategyIndex = actionIndex - #strategySlots - 1
-    print("Strategy index selected", strategyIndex)
-  end
-
-  -- Must be last
-  self.selected = 1
-end
-
 local autoStrategyButton = strategyPanel:OnOffButton("AutoStrategyButton", false)
 autoStrategyButton.displayName = "Auto"
-autoStrategyButton.tooltip = "Strategies are automatically created and randomly changed while playing."
+autoStrategyButton.tooltip = "Random strategies are automatically created and for every round."
 autoStrategyButton.backgroundColourOff = backgroundColourOff
 autoStrategyButton.backgroundColourOn = backgroundColourOn
 autoStrategyButton.textColourOff = textColourOff
 autoStrategyButton.textColourOn = textColourOn
-autoStrategyButton.width = boxSize[1] / 2 - 2
+autoStrategyButton.width = (boxSize[1] / 2) - 15
 autoStrategyButton.x = strategyRestart.x + strategyRestart.width + 10
 autoStrategyButton.y = strategyLabel.y
 
@@ -408,14 +426,14 @@ createStrategyButton.y = slotStrategyButton.y
 
 autoStrategyButton.changed = function(self)
   slotStrategyButton:setValue(false, false)
-  notePosition = 0 -- Reset note position
+  notePosition = {} -- Reset note position
   strategyInput.enabled = self.value == false
   createStrategyButton.enabled = self.value == false
 end
 
 slotStrategyButton.changed = function(self)
   autoStrategyButton:setValue(false, false)
-  notePosition = 0 -- Reset note position
+  notePosition = {} -- Reset note position
   strategyInput.enabled = true
   createStrategyButton.enabled = true
 end
@@ -423,6 +441,45 @@ end
 createStrategyButton.changed = function()
   local strategy = createStrategy()
   strategyInput.text = table.concat(strategy, ",")
+end
+
+local strategyActions = strategyPanel:Menu("StrategyActions", actions)
+strategyActions.tooltip = "Choose when a strategy restarts"
+strategyActions.showLabel = false
+strategyActions.height = 20
+strategyActions.width = 110
+strategyActions.x = createStrategyButton.x + createStrategyButton.width + 5
+strategyActions.y = createStrategyButton.y
+strategyActions.backgroundColour = menuBackgroundColour
+strategyActions.textColour = widgetTextColour
+strategyActions.arrowColour = menuArrowColour
+strategyActions.outlineColour = menuOutlineColour
+strategyActions.changed = function(self)
+  -- 1 is the menu label...
+  if self.value == 1 then
+    return
+  end
+
+  local actionIndex = self.value - 1
+
+  -- Save strategy
+  if actionIndex <= #strategySlots then
+    if string.len(strategyInput.text) > 0 then
+      strategySlots[actionIndex].tooltip = strategyInput.text
+      strategySlots[actionIndex].enabled = true
+    else
+      strategySlots[actionIndex].tooltip = unusedStrategySlotDefaultText
+      strategySlots[actionIndex].enabled = false
+    end
+    --print("Strategy saved to slot", strategyInput.text, actionIndex)
+  elseif actionIndex > #strategySlots + 1 then
+    strategyInput.text = self.selectedText
+    strategyIndex = actionIndex - #strategySlots - 1
+    --print("Strategy index selected", strategyIndex)
+  end
+
+  -- Must be last
+  self:setValue(1, false)
 end
 
 --------------------------------------------------------------------------------
@@ -481,107 +538,105 @@ end
 createNoteAndOctaveSelector(notePanel, colours, noteLabel)
 
 --------------------------------------------------------------------------------
--- Resolution Panel
+-- Rythm Panel
 --------------------------------------------------------------------------------
 
-local resLabel = resolutionPanel:Label("ResolutionsLabel")
-resLabel.text = "Resolutions"
-resLabel.tooltip = "Set probability for each resolution to be selected"
-resLabel.alpha = 0.75
-resLabel.fontSize = 15
-resLabel.width = 350
+local rythmLabel = rythmPanel:Label("RythmLabel")
+rythmLabel.text = "Rythmic fragments"
+rythmLabel.alpha = 0.75
+rythmLabel.fontSize = 15
+rythmLabel.width = 143
 
-local clearResolutions = resolutionPanel:Button("ClearResolutions")
-clearResolutions.displayName = "All off"
-clearResolutions.tooltip = "Deactivate all resolutions"
-clearResolutions.persistent = false
-clearResolutions.height = resLabel.height
-clearResolutions.width = 90
-clearResolutions.x = resolutionPanel.width - (clearResolutions.width * 3) - 30
-clearResolutions.y = 5
-clearResolutions.changed = function()
-  for i,v in ipairs(resolutionInputs) do
-    toggleResolutionInputs[i]:setValue(false)
-  end
+local evolveFragmentProbability = rythmPanel:NumBox("EvolveFragmentProbability", 0, 0, 100, true)
+evolveFragmentProbability.unit = Unit.Percent
+evolveFragmentProbability.textColour = widgetTextColour
+evolveFragmentProbability.backgroundColour = widgetBackgroundColour
+evolveFragmentProbability.displayName = "Evolve"
+evolveFragmentProbability.tooltip = "Set the probability that fragments will change over time, using the resolutions present in the fragments"
+evolveFragmentProbability.width = 120
+evolveFragmentProbability.height = 18
+evolveFragmentProbability.x = rythmLabel.x + rythmLabel.width + 10
+evolveFragmentProbability.y = rythmLabel.y
+
+local randomizeCurrentResolutionProbability = rythmPanel:NumBox("RandomizeCurrentResolutionProbability", 0, 0, 100, true)
+randomizeCurrentResolutionProbability.unit = Unit.Percent
+randomizeCurrentResolutionProbability.textColour = widgetTextColour
+randomizeCurrentResolutionProbability.backgroundColour = widgetBackgroundColour
+randomizeCurrentResolutionProbability.displayName = "Adjust"
+randomizeCurrentResolutionProbability.tooltip = "Set the probability that evolve will adjust resolutions (double, half, dot/tri), based on the resolutions present in the fragments"
+randomizeCurrentResolutionProbability.width = evolveFragmentProbability.width
+randomizeCurrentResolutionProbability.height = evolveFragmentProbability.height
+randomizeCurrentResolutionProbability.x = evolveFragmentProbability.x + evolveFragmentProbability.width + 10
+randomizeCurrentResolutionProbability.y = evolveFragmentProbability.y
+
+local biasLabel = rythmPanel:Label("BiasLabel")
+biasLabel.text = "Bias slow > fast"
+biasLabel.tooltip = "Adjust bias: <50=more slow resolutions, >50=more fast resolutions"
+biasLabel.alpha = 0.5
+biasLabel.fontSize = 15
+biasLabel.width = 90
+biasLabel.height = randomizeCurrentResolutionProbability.height
+biasLabel.x = randomizeCurrentResolutionProbability.x + randomizeCurrentResolutionProbability.width + 10
+biasLabel.y = randomizeCurrentResolutionProbability.y
+
+local adjustBias = rythmPanel:Knob("Bias", 50, 0, 100, true)
+adjustBias.showLabel = false
+adjustBias.showValue = false
+adjustBias.displayName = "Bias"
+adjustBias.tooltip = biasLabel.tooltip
+adjustBias.backgroundColour = widgetBackgroundColour
+adjustBias.fillColour = knobFillColour
+adjustBias.outlineColour = widgetTextColour
+adjustBias.width = 18
+adjustBias.height = biasLabel.height
+adjustBias.x = biasLabel.x + biasLabel.width
+adjustBias.y = biasLabel.y
+
+local minResLabel = rythmPanel:Label("MinResolutionsLabel")
+minResLabel.text = "Min resolution"
+minResLabel.alpha = 0.5
+minResLabel.fontSize = 15
+minResLabel.width = 90
+minResLabel.height = adjustBias.height
+minResLabel.x = adjustBias.x + adjustBias.width + 10
+minResLabel.y = adjustBias.y
+
+local minResolution = rythmPanel:Menu("MinResolution", getResolutionNames())
+minResolution.displayName = resLabel.text
+minResolution.tooltip = "The highest allowed resolution for evolve adjustments"
+minResolution.selected = 26
+minResolution.showLabel = false
+minResolution.width = 60
+minResolution.height = adjustBias.height
+minResolution.backgroundColour = widgetBackgroundColour
+minResolution.textColour = widgetTextColour
+minResolution.arrowColour = menuArrowColour
+minResolution.outlineColour = menuOutlineColour
+minResolution.x = minResLabel.x + minResLabel.width
+minResolution.y = minResLabel.y
+minResolution.changed = function(self)
+  setMaxResolutionIndex(self.value)
 end
+minResolution:changed()
 
-local addResolutions = resolutionPanel:Button("AddResolutions")
-addResolutions.displayName = "All on"
-addResolutions.tooltip = "Activate all resolutions"
-addResolutions.persistent = false
-addResolutions.height = clearResolutions.height
-addResolutions.width = 90
-addResolutions.x = clearResolutions.x + clearResolutions.width + 10
-addResolutions.y = 5
-addResolutions.changed = function()
-  for i,v in ipairs(resolutionInputs) do
-    toggleResolutionInputs[i]:setValue(true)
-  end
+evolveFragmentProbability.changed = function(self)
+  randomizeCurrentResolutionProbability.enabled = self.value > 0
 end
+evolveFragmentProbability:changed()
 
-local randomizeResolutions = resolutionPanel:Button("RandomizeResolutions")
-randomizeResolutions.displayName = "Randomize"
-randomizeResolutions.tooltip = "Randomize selected resolutions"
-randomizeResolutions.persistent = false
-randomizeResolutions.height = clearResolutions.height
-randomizeResolutions.width = 90
-randomizeResolutions.x = addResolutions.x + addResolutions.width + 10
-randomizeResolutions.y = 5
-randomizeResolutions.changed = function()
-  for i,v in ipairs(resolutionInputs) do
-    toggleResolutionInputs[i]:setValue(getRandomBoolean())
-  end
+randomizeCurrentResolutionProbability.changed = function(self)
+  adjustBias.enabled = self.value > 0
+  minResolution.enabled = self.value > 0
 end
+randomizeCurrentResolutionProbability:changed()
 
-rowCount = createResolutionSelector(resolutionPanel, colours)
-
-local resLabel = resolutionPanel:Label("ResolutionsLabel")
-resLabel.text = "Base Resolution"
-resLabel.alpha = 0.5
-resLabel.fontSize = 15
-resLabel.width = 106
-resLabel.x = 5
-resLabel.y = (25 * rowCount) + 10
-
-local baseResolution = resolutionPanel:Menu("BaseResolution", resolutionNames)
-baseResolution.displayName = resLabel.text
-baseResolution.tooltip = "The duration between resets"
-baseResolution.selected = 7
-baseResolution.showLabel = false
-baseResolution.height = 20
-baseResolution.width = 106
-baseResolution.backgroundColour = widgetBackgroundColour
-baseResolution.textColour = widgetTextColour
-baseResolution.arrowColour = menuArrowColour
-baseResolution.outlineColour = menuOutlineColour
-baseResolution.x = resLabel.x + resLabel.width + 10
-baseResolution.y = resLabel.y
-
-local durationRepeatProbabilityInput = resolutionPanel:NumBox("DurationRepeatProbability", 100, 0, 100, true)
-durationRepeatProbabilityInput.unit = Unit.Percent
-durationRepeatProbabilityInput.textColour = widgetTextColour
-durationRepeatProbabilityInput.backgroundColour = widgetBackgroundColour
-durationRepeatProbabilityInput.displayName = "Repeat Probability"
-durationRepeatProbabilityInput.tooltip = "The probability that a resolution will be repeated"
-durationRepeatProbabilityInput.size = {222,20}
-durationRepeatProbabilityInput.x = baseResolution.x + baseResolution.width + 10
-durationRepeatProbabilityInput.y = baseResolution.y
-
-local durationRepeatDecay = resolutionPanel:NumBox("DurationRepeatDecay", 1, 10., 100)
-durationRepeatDecay.unit = Unit.Percent
-durationRepeatDecay.textColour = widgetTextColour
-durationRepeatDecay.backgroundColour = widgetBackgroundColour
-durationRepeatDecay.displayName = "Probability Decay"
-durationRepeatDecay.tooltip = "The reduction in repeat probability for each iteration of the playing voice"
-durationRepeatDecay.size = durationRepeatProbabilityInput.size
-durationRepeatDecay.x = durationRepeatProbabilityInput.x + durationRepeatProbabilityInput.width + 10
-durationRepeatDecay.y = durationRepeatProbabilityInput.y
+local paramsPerFragment = getParamsPerFragment(rythmPanel, rythmLabel, colours)
 
 --------------------------------------------------------------------------------
 -- Note Functions
 --------------------------------------------------------------------------------
 
-local function generateNote()
+local function generateNote(voice)
   local note = nil
 
   local selectedNotes = getSelectedNotes()
@@ -595,11 +650,11 @@ local function generateNote()
   end
 
   if getRandomBoolean(strategyPropbability.value) then
-    note = getNoteFromStrategy(selectedNotes)
-    print("Get note from scale using strategy: note/strategyPos/strategyIndex", note, strategyPos, strategyIndex)
+    note = getNoteFromStrategy(selectedNotes, voice)
+    --print("Get note from scale using strategy: note/strategyPos/strategyIndex", note, strategyPos, strategyIndex)
   else
     note = selectedNotes[getRandom(#selectedNotes)]
-    print("Get random note from selectedNotes: note", note)
+    --print("Get random note from selectedNotes: note", note)
   end
   return note
 end
@@ -616,66 +671,101 @@ end
 -- Strategy Functions
 --------------------------------------------------------------------------------
 
-function getNoteFromStrategy(selectedNotes)
-  local strategy = {}
-  local input = strategyInput
-  if input.enabled == true and string.len(input.text) > 0 then
-    for w in string.gmatch(input.text, "-?%d+") do
-      table.insert(strategy, w)
-      print("Add to strategy", w)
+function getSlotForVoice(voice)
+  -- Select strategies from slot 1 and 5 for voice 1, 2 and 6 for voice 2 etc.
+  local slot1 = strategySlots[voice]
+  local slot2 = strategySlots[voice+voices]
+  if slot1.enabled and slot2.enabled then
+    if getRandomBoolean() then
+      return slot1.tooltip
+    else
+      return slot2.tooltip
     end
-    print("Get strategy from input", #strategy)
   end
+  if slot1.enabled then
+    return slot1.tooltip
+  end
+  if slot2.enabled then
+    return slot2.tooltip
+  end
+end
+
+function getNoteFromStrategy(selectedNotes, voice)
+  local strategy = {}
+  -- Get strategy from slot, if button active
+  if voiceToStrategySlotButton.value then
+    local slot = getSlotForVoice(voice)
+    if type(slot) == "string" then
+      for w in string.gmatch(slot, "-?%d+") do
+        table.insert(strategy, w)
+        --print("Add to strategy from slot for voice", w, voice)
+      end
+      --print("Get strategy from slot", #strategy)
+    end
+  end
+  -- Get strategy from input
+  if #strategy == 0 then
+    local input = strategyInput
+    --if input.enabled == true and string.len(input.text) > 0 then
+    if string.len(input.text) > 0 then
+      for w in string.gmatch(input.text, "-?%d+") do
+        table.insert(strategy, w)
+        --print("Add to strategy", w)
+      end
+      --print("Get strategy from input", #strategy)
+    end
+  end
+  -- Get strategy from index
   if #strategy == 0 then
     strategy = strategies[strategyIndex]
   end
   -- Reset strategy position
-  if strategyPos > #strategy then
-    strategyPos = 1
+  if type(strategyPos[voice]) == "nil" or strategyPos[voice] > #strategy then
+    strategyPos[voice] = 1
     if strategyRestart.value == 3 or strategyRestart.value == 4 then
-      notePosition = 0 -- Reset counter for note position
-      print("Reset counter for note position")
+      notePosition[voice] = nil -- Reset counter for note position
+      --print("Reset counter for note position")
     end
   end
-  print("Get strategy strategyIndex/strategyPos", strategyIndex, strategyPos)
-  if notePosition == 0 or #strategy == 0 then
+  --print("Get strategy strategyIndex/strategyPos", strategyIndex, strategyPos[voice])
+  if type(notePosition[voice]) == "nil" or #strategy == 0 then
     -- Start at a random notePosition
-    notePosition = getRandom(#selectedNotes)
-    print("Set random notePosition", notePosition)
+    notePosition[voice] = getRandom(#selectedNotes)
+    --print("Set random notePosition", notePosition[voice])
     if strategyRestart.value == 1 then
-      strategyPos = 1
+      strategyPos[voice] = 1
     end
   else
     -- Get next notePosition from strategy
-    notePosition = notePosition + strategy[strategyPos]
-    print("Set notePosition/strategyPos", notePosition, strategy[strategyPos])
+    --print("Set notePosition, strategyPos, voice", notePosition[voice], strategy[strategyPos[voice]], voice)
+    notePosition[voice] = notePosition[voice] + strategy[strategyPos[voice]]
     local randomReset = true -- TODO Param?
-    if randomReset and (notePosition > #selectedNotes or notePosition < 1) then
-      notePosition = getRandom(#selectedNotes)
+    if randomReset and (notePosition[voice] > #selectedNotes or notePosition[voice] < 1) then
+      notePosition[voice] = getRandom(#selectedNotes)
       if strategyRestart.value == 2 then
-        strategyPos = 1
+        strategyPos[voice] = 1
       end
-    elseif notePosition > #selectedNotes then
-      print("Reset notePosition >= #selectedNotes", notePosition, #selectedNotes)
-      notePosition = 1
+    elseif notePosition[voice] > #selectedNotes then
+      --print("Reset notePosition >= #selectedNotes", notePosition, #selectedNotes)
+      notePosition[voice] = 1
       if strategyRestart.value == 2 then
-        strategyPos = 1
+        strategyPos[voice] = 1
       end
-    elseif notePosition < 1 then
-      print("Reset notePosition <= 1", notePosition)
-      notePosition = #selectedNotes
+    elseif notePosition[voice] < 1 then
+      --print("Reset notePosition[voice] <= 1", notePosition[voice])
+      notePosition[voice] = #selectedNotes
       if strategyRestart.value == 2 then
-        strategyPos = 1
+        strategyPos[voice] = 1
       end
     else
       -- Increment strategy pos
       if #strategy > 1 then
-        strategyPos = strategyPos + 1
-        print("Increment strategy pos", strategyPos)
+        strategyPos[voice] = strategyPos[voice] + 1
+        --print("Increment strategy pos", strategyPos)
       end
     end
   end
-  local note = selectedNotes[notePosition]
+  local note = selectedNotes[notePosition[voice]]
   return note
 end
 
@@ -684,9 +774,10 @@ end
 --------------------------------------------------------------------------------
 
 function sequenceRunner()
-  strategyPos = 1 -- Reset strategy pos
+  strategyPos = {} -- Reset strategy pos
   local maxStrategies = 32
   local currentVoices = 0
+  local previous = nil
   repeat
     --print("sequenceRunner new round")
     if autoStrategyButton.value == true then
@@ -707,77 +798,88 @@ function sequenceRunner()
     end
 
     if strategyRestart.value == 1 or strategyRestart.value == 4 then
-      notePosition = 0 -- Reset counter for note position
+      notePosition = {} -- Reset counter for note position
       if strategyRestart.value == 4 then
-        strategyPos = 1 -- Reset strategy position
+        strategyPos = {} -- Reset strategy position
       end
     end
 
+    -- Check if the number if voices is changed
     if currentVoices ~= voices then
       --print("currentVoices ~= voices", currentVoices, voices)
       isPlaying = {}
       for i=1,voices do
         table.insert(isPlaying, i)
         if i > currentVoices then
-          spawn(arpeg, i)
+          spawn(play, i)
         end
       end
       currentVoices = #isPlaying
     end
 
-    local baseDuration = getResolution(baseResolution.value)
+    -- Restart voices if stopped
+    for i=1,voices do
+      if type(isPlaying[i]) == "nil" then
+        isPlaying[i] = i
+        spawn(play, i)
+      end
+    end
+
     waitBeat(baseDuration)
+    if getRandomBoolean(evolveFragmentProbability.value) then
+      previous = evolveFragments(previous, randomizeCurrentResolutionProbability.value, adjustBias.value)
+    end
   until #isPlaying == 0
 end
 
-function arpeg(voice)
-  local waitDuration = nil
+function play(voice)
   local noteToPlay = nil
-  local remainingDuration = 0
-  local durationRepeatProbability = durationRepeatProbabilityInput.value
-  local repeatCounter = 1
-  --print("Start playing voice", voice)
+  local activeFragment = nil -- The fragment currently playing
+  local fragmentPos = 0 -- Position in the active fragment
+  local fragmentRepeatCount = 0
+  local fragmentRepeatProbability = 0
+  local duration = nil
+  local rest = false
+  local reverseFragment = false
   while isPlaying[voice] == voice do
     local channel = nil
     if channelButton.value then
       channel = voice
     end
-    --print("arpeg gate", gate)
-    if remainingDuration == 0 then
-      remainingDuration = getResolution(baseResolution.value) -- Reset remaining duration to base duration
-      repeatCounter = 1 -- Reset repeat counter - should counter be reset here?
-      --print("New round for voice, remainingDuration", voice, remainingDuration)
+    local sources = nil
+    if voiceToFragmentButton.value then
+      sources = {voice}
     end
-    waitDuration, repeatCounter, durationRepeatProbability = getNoteDuration(waitDuration, repeatCounter, durationRepeatProbability, durationRepeatDecay.value)
-    if durationRepeatProbability == nil then
-      durationRepeatProbability = durationRepeatProbabilityInput.value
-    end
-    --print("remainingDuration, waitDuration, repeatCounter, durationRepeatProbability", remainingDuration, waitDuration, repeatCounter, durationRepeatProbability)
-    if remainingDuration < waitDuration then
-      waitDuration = remainingDuration
-      --print("waitDuration changed to remaining", waitDuration)
+    duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount, sources)
+    if type(duration) == "nil" then
+      isPlaying[voice] = nil
+      --print("No duration was found for voice", voice)
+      break
     end
     local gate = getGate()
-    if gate > 0 and waitDuration >= minResolution then
-      noteToPlay = generateNote()
+    if gate > 0 and rest == false then
+      noteToPlay = generateNote(voice)
     else
       noteToPlay = nil
     end
     if type(noteToPlay) == "number" then
       local velocity = getVelocity()
-      local playDuration = beat2ms(waitDuration) * gate
+      local playDuration = beat2ms(duration) * gate
       playNote(noteToPlay, velocity, playDuration, nil, channel)
       --print("playNote noteToPlay, velocity, playDuration, voice", noteToPlay, velocity, playDuration, voice)
       -- Register playing note
       table.insert(notesPlaying, noteToPlay)
+      for i,v in ipairs(paramsPerFragment) do
+        if activeFragment.i == i then
+          spawn(flashFragmentActive, v.fragmentActive, duration)
+        end
+      end
     end
-    --print("waitBeat(waitDuration)", waitDuration)
-    waitBeat(waitDuration)
+    waitBeat(duration)
     if type(noteToPlay) == "number" then
       -- Unregister note
       table.remove(notesPlaying, getIndexFromValue(noteToPlay, notesPlaying))
     end
-    remainingDuration = remainingDuration - waitDuration
   end
 end
 
@@ -814,22 +916,32 @@ end
 function onSave()
   local strategyInputData = {}
   local strategySlotsData = {}
+  local fragmentInputData = {}
 
   strategyInputData = strategyInput.text
   for _,v in ipairs(strategySlots) do
     table.insert(strategySlotsData, v.tooltip)
   end
 
-  return {strategyInputData, strategySlotsData}
+  for _,v in ipairs(paramsPerFragment) do
+    table.insert(fragmentInputData, v.fragmentInput.text)
+  end
+
+  return {strategyInputData, strategySlotsData, fragmentInputData}
 end
 
 function onLoad(data)
   local strategyInputData = data[1]
   local strategySlotsData = data[2]
+  local fragmentInputData = data[3]
 
   strategyInput.text = strategyInputData
   for i,v in ipairs(strategySlots) do
     v.tooltip = strategySlotsData[i]
-    v.enabled = v.tooltip ~= "Unused"
+    v.enabled = v.tooltip ~= unusedStrategySlotDefaultText
+  end
+
+  for i,v in ipairs(fragmentInputData) do
+    paramsPerFragment[i].fragmentInput.text = v
   end
 end

@@ -149,6 +149,9 @@ headerPanel.height = 30
 
 label = headerPanel:Label("Label")
 label.text = title
+if type(tooltip) == "string" then
+  label.tooltip = tooltip
+end
 label.backgroundColour = "808080"
 label.textColour = pageBackgoundColour
 label.fontSize = 22

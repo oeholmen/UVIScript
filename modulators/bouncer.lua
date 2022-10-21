@@ -30,6 +30,7 @@ panel.height = 60
 
 local label = panel:Label("Label")
 label.text = "Bouncer"
+label.tooltip = "A script modulator for a bouncing effect"
 label.alpha = 0.5
 label.backgroundColour = labelBackgoundColour
 label.textColour = labelTextColour

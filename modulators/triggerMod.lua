@@ -27,6 +27,7 @@ panel.height = 40
 
 local label = panel:Label("Label")
 label.text = "Switch"
+label.tooltip = "A script modulator that adjusts two connected sources probabilistically"
 label.alpha = 0.5
 label.backgroundColour = labelBackgoundColour
 label.textColour = labelTextColour

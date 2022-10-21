@@ -2,7 +2,8 @@
 -- Probability Sequencer
 --------------------------------------------------------------------------------
 
-require "../includes/generative"
+require "../includes/noteSelector"
+require "../includes/resolutionSelector"
 
 local backgroundColour = "303030" -- Light or Dark
 local widgetBackgroundColour = "01011F" -- Dark

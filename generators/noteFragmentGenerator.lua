@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Random note generator
+-- Random note selector using rythmic fragments
 -------------------------------------------------------------------------------
 
 require "../includes/rythmicFragments"
@@ -590,7 +590,6 @@ end
 
 function onInit()
   generateScale:setValue(2) -- Load minor scale by default
-  --setScale(generateScale.value, generateKey.value)
 end
 
 function onSave()

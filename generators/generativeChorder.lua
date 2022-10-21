@@ -2,7 +2,7 @@
 -- Generative chorder and sequencer
 --------------------------------------------------------------------------------
 
-require "../includes/generative"
+require "../includes/noteSelector"
 
 local backgroundColour = "6c6c6c" -- Light or Dark
 local menuBackgroundColour = "01011F"

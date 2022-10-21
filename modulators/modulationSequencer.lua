@@ -24,6 +24,10 @@ if type(title) == "nil" then
   title = "Modulation Sequencer"
 end
 
+if type(tooltip) == "nil" then
+  tooltip = "A sequencer sending script event modulation in broadcast mode"
+end
+
 setBackgroundColour(pageBackgoundColour)
 
 --------------------------------------------------------------------------------

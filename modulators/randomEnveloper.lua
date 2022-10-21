@@ -2,7 +2,7 @@
 -- A script modulator that creates random multi-envelopes over time.
 -----------------------------------------------------------------------
 
-require "../includes/generative"
+require "../includes/resolutionSelector"
 
 local heldNotes = {}
 local minResolution = 0.03125 -- The lowest possible resolution
@@ -37,6 +37,7 @@ panel.height = 66
 
 local label = panel:Label("Label")
 label.text = "Timed Enveloper"
+label.tooltip = "A script modulator that creates multi-envelopes over time"
 label.alpha = 0.5
 label.backgroundColour = labelBackgoundColour
 label.textColour = labelTextColour
@@ -186,7 +187,7 @@ randomizeResolutions.changed = function()
   end
 end
 
-local rowCount = setResolutions(resolutionPanel, colours, 9)
+local rowCount = createResolutionSelector(resolutionPanel, colours, 9)
 
 local resLabel = resolutionPanel:Label("ResolutionsLabel")
 resLabel.text = "Base Resolution"
@@ -342,7 +343,7 @@ function doModulation(waitDuration, durationRepeatProbability, repeatCounter, vo
   if durationRepeatProbability == nil then
     durationRepeatProbability = durationRepeatProbabilityInput.value
   end
-local val = 1 -- Spike level
+  local val = 1 -- Spike level
   if minLevel.value < 100 then
     val = getRandom(math.max(1, minLevel.value), 100) / 100
   end

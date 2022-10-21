@@ -26,9 +26,19 @@ local resolutionFragments = {
   {'1.75','1/16','-1/4','-1/8','1/8'}
 }
 
+local resolutions = getResolutions()
 local singleResolutions = {14,15,17,18,20,23} -- Resolution indexes
 local resolutionsForEvolve = {} -- Resolutions used when evolving
 local resolutionsByType = getResolutionsByType()
+local maxResolutionIndex = resolutionsByType[1][#resolutionsByType[1]] -- Set max resolution to the highest even resolution index
+
+function getMaxResolutionIndex()
+  return maxResolutionIndex
+end
+
+function setMaxResolutionIndex(i)
+  maxResolutionIndex = i
+end
 
 function getResolutionFragments()
   return resolutionFragments
@@ -36,7 +46,6 @@ end
 
 -- Turn all recognized fragment items into note names
 function fragmentDefinitionToResolutionNames(fragmentDefinition)
-  local resolutions = getResolutions()
   local parsed = {}
   for _,v in ipairs(fragmentDefinition) do
     local index = getIndexFromValue(v, resolutions)
@@ -298,7 +307,7 @@ function getSelectedResolutions()
   for i=1,3 do
     for _,resolutionIndex in ipairs(resolutionsByType[i]) do
       -- Limit dotted/tri resolutions above 1/8 dot and 1/16 tri
-      if (i == 2 and resolutionIndex > 18) or (i == 3 and resolutionIndex > 25) then
+      if resolutionIndex > maxResolutionIndex or (i == 2 and resolutionIndex > 18) or (i == 3 and resolutionIndex > 25) then
         break
       end
       table.insert(selectedResolutions, resolutionIndex)
@@ -309,8 +318,7 @@ end
 
 -- Tries to adjust the given resolution by adjusting
 -- length, and/or setting a even/dot/tri value variant
-function getResolutionFromCurrentIndex(currentResolution)
-  local resolutions = getResolutions()
+function getResolutionFromCurrentIndex(currentResolution, adjustBias)
   local currentIndex = getIndexFromValue(currentResolution, resolutions)
   if type(currentIndex) == "nil" then
     return
@@ -333,18 +341,23 @@ function getResolutionFromCurrentIndex(currentResolution)
     print("getEvenOrSlow", resolution)
   end
   if type(resolution) == "number" then
-    local option = getRandomFromTable({"double", "half", "unchanged"})
-    local doubleResIndex = getIndexFromValue((resolution * 2), resolutions)
+    local doubleOrHalf = getRandomBoolean() -- 50/50 chance for double or half duration
     -- Double or half duration
-    if option == "double" and type(doubleResIndex) == "number" and tableIncludes(selectedResolutions, doubleResIndex) then
-      resolution = resolutions[doubleResIndex]
-      print("Slower resolution", resolution)
-    elseif option == "half" then
-      resolution = resolution / 2
-      print("Faster resolution", resolution)
+    if doubleOrHalf then
+      if type(adjustBias) == "nil" then
+        adjustBias = 50
+      end
+      local doubleResIndex = getIndexFromValue((resolution * 2), resolutions)
+      if getRandomBoolean(adjustBias) == false and type(doubleResIndex) == "number" and tableIncludes(selectedResolutions, doubleResIndex) then
+        resolution = resolutions[doubleResIndex]
+        print("Slower resolution", resolution)
+      else
+        resolution = resolution / 2
+        print("Faster resolution", resolution)
+      end
     end
-    -- Dot or tri
-    if option == "unchanged" or getRandomBoolean() then
+    -- Set dotted (or tri) on duration if no change was done to the lenght, or probability hits
+    if doubleOrHalf == false or getRandomBoolean() then
       if tableIncludes(resolutionsByType[3], currentIndex) then
         resolution = getTriplet(resolution)
         print("getTriplet", resolution)
@@ -367,7 +380,7 @@ end
 
 -- Remove first resolution and append a (new) resolution last in the fragments
 -- Returns the removed resolution (or nil if no resolution was removed for some reason)
-function evolveFragment(fragmentIndex, previous, randomizeCurrentResolutionProbability)
+function evolveFragment(fragmentIndex, previous, randomizeCurrentResolutionProbability, adjustBias)
   local fragment = parseFragment(fragmentIndex)
   local removed = nil
   if type(fragment) == "table" then
@@ -381,7 +394,7 @@ function evolveFragment(fragmentIndex, previous, randomizeCurrentResolutionProba
 
     -- Strategy 1: Create a resolution based on the current index
     if type(randomizeCurrentResolutionProbability) == "number" and getRandomBoolean(randomizeCurrentResolutionProbability) then
-      resolution = getResolutionFromCurrentIndex(removed)
+      resolution = getResolutionFromCurrentIndex(removed, adjustBias)
     end
 
     -- Strategy 2: Use resolution from the previous fragment
@@ -454,11 +467,11 @@ end
 -- TODO Store evolved states?
 -- TODO Menu for selecting evolve?
 -- TODO Evolve other fragment settings?
-function evolveFragments(previous, randomizeCurrentResolutionProbability)
+function evolveFragments(previous, randomizeCurrentResolutionProbability, adjustBias)
   setResolutionsForEvolve()
   for i,v in ipairs(paramsPerFragment) do
     if string.len(v.fragmentInput.text) > 0 then
-      previous = evolveFragment(i, previous, randomizeCurrentResolutionProbability)
+      previous = evolveFragment(i, previous, randomizeCurrentResolutionProbability, adjustBias)
     end
   end
   return previous

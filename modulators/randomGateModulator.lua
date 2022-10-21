@@ -27,6 +27,7 @@ panel.height = 60
 
 local label = panel:Label("Label")
 label.text = "Timed Gate"
+label.tooltip = "A script modulator for gating with min/max durations for on and off state"
 label.alpha = 0.5
 label.backgroundColour = labelBackgoundColour
 label.textColour = labelTextColour
