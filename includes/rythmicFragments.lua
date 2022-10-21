@@ -333,20 +333,18 @@ function getResolutionFromCurrentIndex(currentResolution)
     print("getEvenOrSlow", resolution)
   end
   if type(resolution) == "number" then
-    local wasChanged = false
+    local option = getRandomFromTable({"double", "half", "unchanged"})
     local doubleResIndex = getIndexFromValue((resolution * 2), resolutions)
     -- Double or half duration
-    if type(doubleResIndex) == "number" and tableIncludes(selectedResolutions, doubleResIndex) and getRandomBoolean() then
+    if option == "double" and type(doubleResIndex) == "number" and tableIncludes(selectedResolutions, doubleResIndex) then
       resolution = resolutions[doubleResIndex]
-      wasChanged = true
       print("Slower resolution", resolution)
-    elseif getRandomBoolean() then
+    elseif option == "half" then
       resolution = resolution / 2
-      wasChanged = true
       print("Faster resolution", resolution)
     end
     -- Dot or tri
-    if wasChanged == false or getRandomBoolean() then
+    if option == "unchanged" or getRandomBoolean() then
       if tableIncludes(resolutionsByType[3], currentIndex) then
         resolution = getTriplet(resolution)
         print("getTriplet", resolution)
@@ -411,15 +409,32 @@ function clearResolutionsForEvolve()
   resolutionsForEvolve = {}
 end
 
+function removeDuplicates()
+  local removeAmount = 0
+  local resolutions = {}
+  for _,v in ipairs(resolutionsForEvolve) do
+    if tableIncludes(resolutions, v) == false then
+      table.insert(resolutions, v)
+    else
+      removeAmount = removeAmount + 1
+      print("Removing duplicate duration", v)
+    end
+  end
+  resolutionsForEvolve = resolutions
+  return removeAmount
+end
+
 function setResolutionsForEvolve()
   local numFragments = #paramsPerFragment
-  -- Remove the "oldest" resolutions if memory is full
+  -- Remove the duplicates resolutions if memory is full
   if #resolutionsForEvolve > math.ceil(numFragments ^ 2.5) then
-    local removeAmount = #resolutionsForEvolve / 2 -- Remove first half
+    local removeAmount = removeDuplicates()
+    print("Removed from resolutionsForEvolve", removeAmount)
+    --[[ local removeAmount = #resolutionsForEvolve / 2 -- Remove first half
     for i=1,removeAmount do
       table.remove(resolutionsForEvolve, 1)
     end
-    print("Removed from resolutionsForEvolve", removeAmount)
+    print("Removed from resolutionsForEvolve", removeAmount) ]]
   end
   -- Find all resolutions that are present in the current fragments, and add to evolve memory
   for i=1,numFragments do

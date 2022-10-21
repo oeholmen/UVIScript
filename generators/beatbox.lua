@@ -2,7 +2,6 @@
 -- Random note generator
 -------------------------------------------------------------------------------
 
-require "../includes/generative"
 require "../includes/rythmicFragments"
 
 local beatResolution = 1
@@ -214,7 +213,7 @@ randomizeCurrentResolutionProbability.unit = Unit.Percent
 randomizeCurrentResolutionProbability.textColour = widgetTextColour
 randomizeCurrentResolutionProbability.backgroundColour = widgetBackgroundColour
 randomizeCurrentResolutionProbability.displayName = "Adjust"
-randomizeCurrentResolutionProbability.tooltip = "Set the probability that evolve will add resolutions, based on the resolutions present in the fragments"
+randomizeCurrentResolutionProbability.tooltip = "Set the probability that evolve will adjust resolutions, based on the resolutions present in the fragments"
 randomizeCurrentResolutionProbability.height = widgetHeight
 randomizeCurrentResolutionProbability.width = 120
 randomizeCurrentResolutionProbability.x = evolveFragmentProbability.x + evolveFragmentProbability.width + 10
