@@ -38,20 +38,23 @@ function setScale(scaleIndex, keyIndex)
 end
 
 -- Get notes that are activated in selected octaves, filtered by probability
-function getSelectedNotes()
+-- If getAllNotes is true, the filter for playing notes is disabled
+function getSelectedNotes(getAllNotes)
   local selectedNotes = {} -- Holds note numbers that are available
   for octaveIndex,octave in ipairs(octaveInputs) do
     local octaveProbability = octaveProbabilityInputs[octaveIndex].value
+    --print("octaveProbability octaveOnOff", octaveProbability, octave.value)
     if octave.value and octaveProbability > 0 then
       for i,v in ipairs(noteInputs) do
         -- Check if note should be added for this octave
         local noteProbability = noteProbabilityInputs[i].value
+        --print("noteProbability, octaveProbability, noteOnOff", noteProbability, octaveProbability, v.value)
         if v.value and getRandomBoolean(noteProbability) and getRandomBoolean(octaveProbability) then
           local noteNumber = i - 1 -- Base note
           noteNumber = noteNumber + (12 * octaveIndex) -- Set octave
-          if tableIncludes(notesPlaying, noteNumber) == false then
+          if getAllNotes == true or tableIncludes(notesPlaying, noteNumber) == false then
             table.insert(selectedNotes, noteNumber)
-            --print("Note added: noteNumber/name", noteNumber, noteNumberToNoteName[noteNumber+1])
+            --print("Note added: noteNumber", noteNumber)
           end
         end
       end

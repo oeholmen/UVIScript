@@ -66,7 +66,6 @@ local strategies = {
 
 local strategyPos = {} -- Holds the position in the selected strategy
 local notePosition = {} -- Holds the current note position
-local strategyIndex = getRandom(#strategies) -- Holds the selected strategy - start with a random strategy
 local unusedStrategySlotDefaultText = "Unused"
 
 function getStrategyInputText(strategy)
@@ -250,11 +249,11 @@ velocityRandomization.size = velocityInput.size
 velocityRandomization.x = velocityInput.x
 velocityRandomization.y = velocityInput.y + velocityInput.height + 5
 
-local voicesLabel = voicePanel:Label("VoicesLabel")
+--[[ local voicesLabel = voicePanel:Label("VoicesLabel")
 voicesLabel.text = "Voices"
 voicesLabel.alpha = 0.75
 voicesLabel.fontSize = 15
-voicesLabel.width = 120
+voicesLabel.width = 120 ]]
 
 local voicesInput = voicePanel:NumBox("Voices", voices, 1, 4, true)
 voicesInput.textColour = widgetTextColour
@@ -263,11 +262,21 @@ voicesInput.displayName = "Voices"
 voicesInput.tooltip = "Voices"
 voicesInput.size = gateRandomization.size
 voicesInput.x = 5
---voicesInput.y = 5
-voicesInput.y = voicesLabel.y + voicesLabel.height + 5
+voicesInput.y = 5
+--voicesInput.y = voicesLabel.y + voicesLabel.height + 5
 voicesInput.changed = function(self)
   voices = self.value
 end
+
+local rangeOverlap = voicePanel:NumBox("RangeOverlap", 50, 0, 100, true)
+rangeOverlap.unit = Unit.Percent
+rangeOverlap.textColour = widgetTextColour
+rangeOverlap.backgroundColour = widgetBackgroundColour
+rangeOverlap.displayName = "Range Overlap"
+rangeOverlap.tooltip = "Set the overlap range for the voices. 100 = all voices use the full range, 0 = separate ranges. Requires at least 7 notes per voice."
+rangeOverlap.size = voicesInput.size
+rangeOverlap.x = voicesInput.x
+rangeOverlap.y = voicesInput.y + voicesInput.height + 5
 
 local voiceToFragmentButton = voicePanel:OnOffButton("VoiceToFragmentButton", false)
 voiceToFragmentButton.displayName = "Voice to fragment"
@@ -276,9 +285,9 @@ voiceToFragmentButton.backgroundColourOff = backgroundColourOff
 voiceToFragmentButton.backgroundColourOn = backgroundColourOn
 voiceToFragmentButton.textColourOff = textColourOff
 voiceToFragmentButton.textColourOn = textColourOn
-voiceToFragmentButton.size = voicesInput.size
-voiceToFragmentButton.x = voicesInput.x
-voiceToFragmentButton.y = voicesInput.y + voicesInput.height + 5
+voiceToFragmentButton.size = rangeOverlap.size
+voiceToFragmentButton.x = rangeOverlap.x
+voiceToFragmentButton.y = rangeOverlap.y + rangeOverlap.height + 5
 
 local voiceToStrategySlotButton = voicePanel:OnOffButton("VoiceToStrategySlotButton", false)
 voiceToStrategySlotButton.displayName = "Voice to strategy slot"
@@ -353,7 +362,7 @@ end
 baseResolution:changed()
 
 local strategyInput = strategyPanel:Label("StrategyInput")
-strategyInput.text = getStrategyInputText(strategies[strategyIndex])
+strategyInput.text = getStrategyInputText(getRandomFromTable(strategies))
 strategyInput.tooltip = "Strategies are ways to play scales. Numbers represent steps up or down the scale that is currently playing. Feel free to type your own strategies here."
 strategyInput.editable = true
 strategyInput.backgroundColour = "black"
@@ -474,8 +483,6 @@ strategyActions.changed = function(self)
     --print("Strategy saved to slot", strategyInput.text, actionIndex)
   elseif actionIndex > #strategySlots + 1 then
     strategyInput.text = self.selectedText
-    strategyIndex = actionIndex - #strategySlots - 1
-    --print("Strategy index selected", strategyIndex)
   end
 
   -- Must be last
@@ -636,10 +643,41 @@ local paramsPerFragment = getParamsPerFragment(rythmPanel, rythmLabel, colours)
 -- Note Functions
 --------------------------------------------------------------------------------
 
+-- Returns the selected notes filtered by overlap range
+local function getFilteredNotes(voice)
+  local selectedNotes = getSelectedNotes(true)
+  --print("BEFORE selectedNotes, voices, voice", #selectedNotes, voices, voice)
+
+  -- Implement voice range overlap filter if we have enough available notes
+  if #selectedNotes >= (voices * 5) then
+    local rangeOverlapAmount = rangeOverlap.value
+    local range = #selectedNotes / voices
+    --print("range, voices, voice", range, voices, voice)
+    local overlapValue = math.ceil(range * (rangeOverlapAmount / 100))
+    --print("overlapValue, voice", overlapValue, voice)
+    local max = math.min(#selectedNotes, ((range * voice) + overlapValue))
+    local min = math.max(1, (max - range - overlapValue))
+    --print("min, max, voice", min, max, voice)
+
+    local tmp = {}
+    for i,v in ipairs(selectedNotes) do
+      if i >= min and i <= max then
+        if tableIncludes(notesPlaying, v) == false then
+          table.insert(tmp, v)
+        end
+      end
+    end
+    selectedNotes = tmp
+  end
+
+  --print("AFTER selectedNotes, voice", #selectedNotes, voice)
+  return selectedNotes
+end
+
 local function generateNote(voice)
   local note = nil
 
-  local selectedNotes = getSelectedNotes()
+  local selectedNotes = getFilteredNotes(voice)
 
   if #selectedNotes == 0 then
     return nil
@@ -651,10 +689,10 @@ local function generateNote(voice)
 
   if getRandomBoolean(strategyPropbability.value) then
     note = getNoteFromStrategy(selectedNotes, voice)
-    --print("Get note from scale using strategy: note/strategyPos/strategyIndex", note, strategyPos, strategyIndex)
+    --print("Get note from scale using strategy: note, strategyPos, voice", note, strategyPos, voice)
   else
-    note = selectedNotes[getRandom(#selectedNotes)]
-    --print("Get random note from selectedNotes: note", note)
+    note = getRandomFromTable(selectedNotes)
+    --print("Get random note from selectedNotes: note, voice", note, voice)
   end
   return note
 end
@@ -717,21 +755,20 @@ function getNoteFromStrategy(selectedNotes, voice)
   end
   -- Get strategy from index
   if #strategy == 0 then
-    strategy = strategies[strategyIndex]
+    strategy = getRandomFromTable(strategies)
   end
   -- Reset strategy position
   if type(strategyPos[voice]) == "nil" or strategyPos[voice] > #strategy then
     strategyPos[voice] = 1
     if strategyRestart.value == 3 or strategyRestart.value == 4 then
       notePosition[voice] = nil -- Reset counter for note position
-      --print("Reset counter for note position")
+      --print("Reset note position for voice", voice)
     end
   end
-  --print("Get strategy strategyIndex/strategyPos", strategyIndex, strategyPos[voice])
   if type(notePosition[voice]) == "nil" or #strategy == 0 then
     -- Start at a random notePosition
     notePosition[voice] = getRandom(#selectedNotes)
-    --print("Set random notePosition", notePosition[voice])
+    --print("Set random notePosition, voice", notePosition[voice], voice)
     if strategyRestart.value == 1 then
       strategyPos[voice] = 1
     end
