@@ -67,6 +67,7 @@ local strategies = {
 local strategyPos = {} -- Holds the position in the selected strategy
 local notePosition = {} -- Holds the current note position
 local unusedStrategySlotDefaultText = "Unused"
+local selectedNotes = {}
 
 function getStrategyInputText(strategy)
   if type(strategy) == nil or #strategy == 0 then
@@ -152,7 +153,7 @@ rythmPanel.backgroundColour = "003865"
 rythmPanel.x = notePanel.x
 rythmPanel.y = notePanel.y + notePanel.height + 5
 rythmPanel.width = 700
-rythmPanel.height = 220
+rythmPanel.height = 420
 
 --------------------------------------------------------------------------------
 -- Sequencer Panel
@@ -280,7 +281,7 @@ rangeOverlap.y = voicesInput.y + voicesInput.height + 5
 
 local voiceToFragmentButton = voicePanel:OnOffButton("VoiceToFragmentButton", false)
 voiceToFragmentButton.displayName = "Voice to fragment"
-voiceToFragmentButton.tooltip = "On = each voice uses the corresponding fragment, Off = voices select random fragments"
+voiceToFragmentButton.tooltip = "Activate to let each voice use the corresponding fragment. Voice 1 gets fragment 1+5, voice 2 gets 2+6 etc..."
 voiceToFragmentButton.backgroundColourOff = backgroundColourOff
 voiceToFragmentButton.backgroundColourOn = backgroundColourOn
 voiceToFragmentButton.textColourOff = textColourOff
@@ -377,7 +378,7 @@ strategyInput.fontSize = 30
 
 local actions = {"Actions..."}
 local strategySlots = {}
-for j=1,8 do
+for j=1,(voicesInput.max*2) do
   local strategySlot = strategyPanel:OnOffButton("StrategySlot" .. j)
   strategySlot.backgroundColourOff = backgroundColourOff
   strategySlot.backgroundColourOn = backgroundColourOn
@@ -637,15 +638,16 @@ randomizeCurrentResolutionProbability.changed = function(self)
 end
 randomizeCurrentResolutionProbability:changed()
 
-local paramsPerFragment = getParamsPerFragment(rythmPanel, rythmLabel, colours)
+local paramsPerFragment = getParamsPerFragment(rythmPanel, rythmLabel, colours, (voicesInput.max * 2))
 
 --------------------------------------------------------------------------------
 -- Note Functions
 --------------------------------------------------------------------------------
 
--- Returns the selected notes filtered by overlap range
+-- Returns the selected notes filtered by overlap range and playing notes
 local function getFilteredNotes(voice)
-  local selectedNotes = getSelectedNotes(true)
+  local notes = {}
+  --local selectedNotes = getSelectedNotes(true)
   --print("BEFORE selectedNotes, voices, voice", #selectedNotes, voices, voice)
 
   -- Implement voice range overlap filter if we have enough available notes
@@ -659,19 +661,24 @@ local function getFilteredNotes(voice)
     local min = math.max(1, (max - range - overlapValue))
     --print("min, max, voice", min, max, voice)
 
-    local tmp = {}
     for i,v in ipairs(selectedNotes) do
       if i >= min and i <= max then
         if tableIncludes(notesPlaying, v) == false then
-          table.insert(tmp, v)
+          table.insert(notes, v)
         end
       end
     end
-    selectedNotes = tmp
+  else
+    -- Only filter for playing notes, if to few notes for setting range
+    for i,v in ipairs(selectedNotes) do
+      if tableIncludes(notesPlaying, v) == false then
+        table.insert(notes, v)
+      end
+    end
   end
 
-  --print("AFTER selectedNotes, voice", #selectedNotes, voice)
-  return selectedNotes
+  --print("AFTER notes, voice", #notes, voice)
+  return notes
 end
 
 local function generateNote(voice)
@@ -712,7 +719,7 @@ end
 function getSlotForVoice(voice)
   -- Select strategies from slot 1 and 5 for voice 1, 2 and 6 for voice 2 etc.
   local slot1 = strategySlots[voice]
-  local slot2 = strategySlots[voice+voices]
+  local slot2 = strategySlots[voice+voicesInput.max]
   if slot1.enabled and slot2.enabled then
     if getRandomBoolean() then
       return slot1.tooltip
@@ -817,6 +824,7 @@ function sequenceRunner()
   local previous = nil
   repeat
     --print("sequenceRunner new round")
+    selectedNotes = getSelectedNotes(true) -- Refresh selected notes
     if autoStrategyButton.value == true then
       local strategy = createStrategy()
       strategyInput.text = getStrategyInputText(strategy)
@@ -885,7 +893,7 @@ function play(voice)
     end
     local sources = nil
     if voiceToFragmentButton.value then
-      sources = {voice}
+      sources = {voice,voice+voicesInput.max}
     end
     duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount, sources)
     if type(duration) == "nil" then
