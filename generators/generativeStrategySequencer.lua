@@ -316,7 +316,7 @@ local boxSize = {120,20}
 -- TODO Add param for strategy probability decay?
 local strategyPropbability = strategyPanel:NumBox("StrategyPropbability", 100, 0, 100, true)
 strategyPropbability.displayName = "Probability"
-strategyPropbability.tooltip = "Set the probability that a playing strategy will be used to select the next note. Otherwise notes will be selected by random from the current scale."
+strategyPropbability.tooltip = "Probability that a playing strategy will be used to select the next note. Otherwise notes are selected by random."
 strategyPropbability.unit = Unit.Percent
 strategyPropbability.size = boxSize
 strategyPropbability.x = strategyLabel.x
@@ -337,6 +337,7 @@ strategyRestart.outlineColour = menuOutlineColour
 
 local resLabel = strategyPanel:Label("ResolutionsLabel")
 resLabel.text = "Round"
+resLabel.tooltip = "Round duration affects strategy, selected notes and fragment evolve."
 resLabel.alpha = 0.5
 resLabel.fontSize = 15
 resLabel.width = boxSize[1] / 2
@@ -346,7 +347,7 @@ resLabel.y = strategyRestart.y + strategyRestart.height + 5
 
 local baseResolution = strategyPanel:Menu("BaseResolution", getResolutionNames())
 baseResolution.displayName = resLabel.text
-baseResolution.tooltip = "Duration for strategy rounds"
+baseResolution.tooltip = resLabel.tooltip
 baseResolution.selected = 11
 baseResolution.showLabel = false
 baseResolution.width = boxSize[1] / 2
@@ -610,7 +611,7 @@ minResLabel.x = adjustBias.x + adjustBias.width + 10
 minResLabel.y = adjustBias.y
 
 local minResolution = rythmPanel:Menu("MinResolution", getResolutionNames())
-minResolution.displayName = resLabel.text
+minResolution.displayName = minResLabel.text
 minResolution.tooltip = "The highest allowed resolution for evolve adjustments"
 minResolution.selected = 26
 minResolution.showLabel = false
@@ -646,62 +647,52 @@ local paramsPerFragment = getParamsPerFragment(rythmPanel, rythmLabel, colours, 
 
 -- Returns the selected notes filtered by overlap range and playing notes
 local function getFilteredNotes(voice)
-  local notes = {}
-  --local selectedNotes = getSelectedNotes(true)
-  --print("BEFORE selectedNotes, voices, voice", #selectedNotes, voices, voice)
+  print("BEFORE selectedNotes, voices, voice", #selectedNotes, voices, voice)
+  local noteRangeMin = 1
+  local noteRangeMax = #selectedNotes
+  local notesPerVoice = 5
+  local notesRequiredForRange = voices * notesPerVoice
 
-  -- Implement voice range overlap filter if we have enough available notes
-  if #selectedNotes >= (voices * 5) then
+  -- Adjust note range min/max for voice overlap, if we have enough available notes
+  if #selectedNotes >= notesRequiredForRange then
     local rangeOverlapAmount = rangeOverlap.value
     local range = #selectedNotes / voices
     --print("range, voices, voice", range, voices, voice)
     local overlapValue = math.ceil(range * (rangeOverlapAmount / 100))
     --print("overlapValue, voice", overlapValue, voice)
-    local max = math.min(#selectedNotes, ((range * voice) + overlapValue))
-    local min = math.max(1, (max - range - overlapValue))
-    --print("min, max, voice", min, max, voice)
+    noteRangeMax = math.min(noteRangeMax, ((range * voice) + overlapValue))
+    noteRangeMin = math.max(1, (noteRangeMax - range - overlapValue))
+    print("noteRangeMin, noteRangeMax, voice", noteRangeMin, noteRangeMax, voice)
+  end
 
-    for i,v in ipairs(selectedNotes) do
-      if i >= min and i <= max then
-        if tableIncludes(notesPlaying, v) == false then
-          table.insert(notes, v)
-        end
-      end
-    end
-  else
-    -- Only filter for playing notes, if to few notes for setting range
-    for i,v in ipairs(selectedNotes) do
-      if tableIncludes(notesPlaying, v) == false then
-        table.insert(notes, v)
-      end
+  -- Find the notes, filter for min/max and notes that are already playing
+  local notes = {}
+  for i,v in ipairs(selectedNotes) do
+    if i >= noteRangeMin and i <= noteRangeMax and tableIncludes(notesPlaying, v) == false then
+      table.insert(notes, v)
     end
   end
 
-  --print("AFTER notes, voice", #notes, voice)
+  print("AFTER notes, voice", #notes, voice)
   return notes
 end
 
 local function generateNote(voice)
-  local note = nil
+  local notes = getFilteredNotes(voice)
 
-  local selectedNotes = getFilteredNotes(voice)
-
-  if #selectedNotes == 0 then
+  if #notes == 0 then
     return nil
   end
 
-  if #selectedNotes == 1 then
-    return selectedNotes[1]
+  if #notes == 1 then
+    return notes[1]
   end
 
   if getRandomBoolean(strategyPropbability.value) then
-    note = getNoteFromStrategy(selectedNotes, voice)
-    --print("Get note from scale using strategy: note, strategyPos, voice", note, strategyPos, voice)
-  else
-    note = getRandomFromTable(selectedNotes)
-    --print("Get random note from selectedNotes: note, voice", note, voice)
+    return getNoteFromStrategy(notes, voice)
   end
-  return note
+
+  return getRandomFromTable(notes)
 end
 
 function getGate()
@@ -735,7 +726,7 @@ function getSlotForVoice(voice)
   end
 end
 
-function getNoteFromStrategy(selectedNotes, voice)
+function getNoteFromStrategy(notes, voice)
   local strategy = {}
   -- Get strategy from slot, if button active
   if voiceToStrategySlotButton.value then
@@ -774,7 +765,7 @@ function getNoteFromStrategy(selectedNotes, voice)
   end
   if type(notePosition[voice]) == "nil" or #strategy == 0 then
     -- Start at a random notePosition
-    notePosition[voice] = getRandom(#selectedNotes)
+    notePosition[voice] = getRandom(#notes)
     --print("Set random notePosition, voice", notePosition[voice], voice)
     if strategyRestart.value == 1 then
       strategyPos[voice] = 1
@@ -784,20 +775,20 @@ function getNoteFromStrategy(selectedNotes, voice)
     --print("Set notePosition, strategyPos, voice", notePosition[voice], strategy[strategyPos[voice]], voice)
     notePosition[voice] = notePosition[voice] + strategy[strategyPos[voice]]
     local randomReset = true -- TODO Param?
-    if randomReset and (notePosition[voice] > #selectedNotes or notePosition[voice] < 1) then
-      notePosition[voice] = getRandom(#selectedNotes)
+    if randomReset and (notePosition[voice] > #notes or notePosition[voice] < 1) then
+      notePosition[voice] = getRandom(#notes)
       if strategyRestart.value == 2 then
         strategyPos[voice] = 1
       end
-    elseif notePosition[voice] > #selectedNotes then
-      --print("Reset notePosition >= #selectedNotes", notePosition, #selectedNotes)
+    elseif notePosition[voice] > #notes then
+      --print("Reset notePosition >= #notes", notePosition, #notes)
       notePosition[voice] = 1
       if strategyRestart.value == 2 then
         strategyPos[voice] = 1
       end
     elseif notePosition[voice] < 1 then
       --print("Reset notePosition[voice] <= 1", notePosition[voice])
-      notePosition[voice] = #selectedNotes
+      notePosition[voice] = #notes
       if strategyRestart.value == 2 then
         strategyPos[voice] = 1
       end
@@ -809,8 +800,7 @@ function getNoteFromStrategy(selectedNotes, voice)
       end
     end
   end
-  local note = selectedNotes[notePosition[voice]]
-  return note
+  return notes[notePosition[voice]]
 end
 
 --------------------------------------------------------------------------------
