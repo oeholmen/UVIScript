@@ -628,7 +628,7 @@ minResolution.changed = function(self)
 end
 minResolution:changed()
 
-evolveFragmentProbability.changed = function(self)
+--[[ evolveFragmentProbability.changed = function(self)
   randomizeCurrentResolutionProbability.enabled = self.value > 0
 end
 evolveFragmentProbability:changed()
@@ -637,7 +637,7 @@ randomizeCurrentResolutionProbability.changed = function(self)
   adjustBias.enabled = self.value > 0
   minResolution.enabled = self.value > 0
 end
-randomizeCurrentResolutionProbability:changed()
+randomizeCurrentResolutionProbability:changed() ]]
 
 local paramsPerFragment = getParamsPerFragment(rythmPanel, rythmLabel, colours, (voicesInput.max * 2))
 

@@ -900,7 +900,7 @@ local storedFragments = {}
 local storeButton = rythmPanel:Button("StoreButton")
 storeButton.displayName = "Store"
 storeButton.tooltip = "Store the current state of all fragment inputs"
-storeButton.width = 60
+storeButton.width = 45
 storeButton.height = 18
 storeButton.x = rythmLabel.x
 storeButton.y = 415
@@ -909,7 +909,7 @@ local recallButton = rythmPanel:Button("RecallButton")
 recallButton.displayName = "Recall"
 recallButton.enabled = false
 recallButton.tooltip = "Recall the last stored state of all fragment inputs"
-recallButton.width = 60
+recallButton.width = storeButton.width
 recallButton.height = 18
 recallButton.x = storeButton.x + storeButton.width + 10
 recallButton.y = storeButton.y
@@ -921,21 +921,20 @@ evolveButton.textColourOff = textColourOff
 evolveButton.textColourOn = textColourOn
 evolveButton.displayName = "Evolve"
 evolveButton.tooltip = "Activate evolve"
-evolveButton.width = 80
+evolveButton.width = recallButton.width
 evolveButton.height = 18
 evolveButton.x = recallButton.x + recallButton.width + 10
 evolveButton.y = recallButton.y
 
 local evolveFragmentProbability = rythmPanel:NumBox("EvolveFragmentProbability", 50, 0, 100, true)
 evolveFragmentProbability.unit = Unit.Percent
-evolveFragmentProbability.showLabel = false
 evolveFragmentProbability.textColour = widgetTextColour
 evolveFragmentProbability.backgroundColour = widgetBackgroundColour
-evolveFragmentProbability.displayName = "Evolve"
+evolveFragmentProbability.displayName = "Amount"
 evolveFragmentProbability.tooltip = "Set the probability that fragments will change over time, using the resolutions present in the fragments"
-evolveFragmentProbability.width = 40
+evolveFragmentProbability.width = 105
 evolveFragmentProbability.height = 18
-evolveFragmentProbability.x = evolveButton.x + evolveButton.width
+evolveFragmentProbability.x = evolveButton.x + evolveButton.width + 10
 evolveFragmentProbability.y = evolveButton.y
 
 local randomizeCurrentResolutionProbability = rythmPanel:NumBox("RandomizeCurrentResolutionProbability", 0, 0, 100, true)
@@ -944,7 +943,7 @@ randomizeCurrentResolutionProbability.textColour = widgetTextColour
 randomizeCurrentResolutionProbability.backgroundColour = widgetBackgroundColour
 randomizeCurrentResolutionProbability.displayName = "Adjust"
 randomizeCurrentResolutionProbability.tooltip = "Set the probability that evolve will adjust resolutions (double, half, dot/tri), based on the resolutions present in the fragments"
-randomizeCurrentResolutionProbability.width = 120
+randomizeCurrentResolutionProbability.width = evolveFragmentProbability.width
 randomizeCurrentResolutionProbability.height = evolveFragmentProbability.height
 randomizeCurrentResolutionProbability.x = evolveFragmentProbability.x + evolveFragmentProbability.width + 10
 randomizeCurrentResolutionProbability.y = evolveFragmentProbability.y
@@ -954,7 +953,7 @@ biasLabel.text = "Bias slow > fast"
 biasLabel.tooltip = "Adjust bias: <50=more slow resolutions, >50=more fast resolutions"
 biasLabel.alpha = 0.5
 biasLabel.fontSize = 15
-biasLabel.width = 90
+biasLabel.width = 95
 biasLabel.height = randomizeCurrentResolutionProbability.height
 biasLabel.x = randomizeCurrentResolutionProbability.x + randomizeCurrentResolutionProbability.width + 10
 biasLabel.y = randomizeCurrentResolutionProbability.y
@@ -967,7 +966,7 @@ adjustBias.tooltip = biasLabel.tooltip
 adjustBias.backgroundColour = widgetBackgroundColour
 adjustBias.fillColour = knobFillColour
 adjustBias.outlineColour = widgetTextColour
-adjustBias.width = 30
+adjustBias.width = 20
 adjustBias.height = biasLabel.height
 adjustBias.x = biasLabel.x + biasLabel.width
 adjustBias.y = biasLabel.y
@@ -986,7 +985,7 @@ minResolution.displayName = minResLabel.text
 minResolution.tooltip = "The highest allowed resolution for evolve adjustments"
 minResolution.selected = 26
 minResolution.showLabel = false
-minResolution.width = 63
+minResolution.width = 69
 minResolution.height = adjustBias.height
 minResolution.backgroundColour = widgetBackgroundColour
 minResolution.textColour = widgetTextColour
@@ -1012,7 +1011,7 @@ recallButton.changed = function(self)
   recallStoredState = true
 end
 
-evolveFragmentProbability.changed = function(self)
+--[[ evolveFragmentProbability.changed = function(self)
   randomizeCurrentResolutionProbability.enabled = self.value > 0
 end
 evolveFragmentProbability:changed()
@@ -1029,7 +1028,7 @@ evolveButton.changed = function(self)
   adjustBias.enabled = self.value and randomizeCurrentResolutionProbability.value > 0
   minResolution.enabled = self.value and randomizeCurrentResolutionProbability.value > 0
 end
-evolveButton:changed()
+evolveButton:changed() ]]
 
 --------------------------------------------------------------------------------
 -- Functions
@@ -1295,7 +1294,7 @@ function sequenceRunner()
     beatCounter = beatCounter + 1
     if beatCounter > beatBase then
       beatCounter = 1 -- Reset counter
-      if evolveFragmentProbability.enabled and getRandomBoolean(evolveFragmentProbability.value) then
+      if evolveButton.value and getRandomBoolean(evolveFragmentProbability.value) then
         previous = evolveFragments(previous, randomizeCurrentResolutionProbability.value, adjustBias.value)
       end
     end
@@ -1376,7 +1375,7 @@ function play(voice)
 
     -- Check if loop should be broken at the start of next round
     local remainingInBeat = math.ceil(playDuration) - playDuration
-    print("NEXT: recallStoredState, duration, waitDuration, remainingInBeat, beatCounter, isFragmentStart, isRepeat", recallStoredState, duration, waitDuration, remainingInBeat, beatCounter, isFragmentStart, isRepeat, "voice " .. voice)
+    --print("NEXT: recallStoredState, duration, waitDuration, remainingInBeat, beatCounter, isFragmentStart, isRepeat", recallStoredState, duration, waitDuration, remainingInBeat, beatCounter, isFragmentStart, isRepeat, "voice " .. voice)
     if type(duration) == "nil" or (recallStoredState and beatCounter == 4 and remainingInBeat <= duration) or (activeFragment.i > 0 and paramsPerFragment[activeFragment.i].fragmentInputDirty) or (waitDuration <= beatResolution and roundCounterPerVoice[voice] > 1 and isFragmentStart == true and isRepeat == false) then
       local fragmentInputDirty = false
       if activeFragment.i > 0 then
@@ -1384,7 +1383,7 @@ function play(voice)
         paramsPerFragment[activeFragment.i].fragmentInputDirty = false
       end
       setSourceActive(voice, activeFragment)
-      print("NEXT: Breaking loop for voice, remainingInBeat, beatCounter, fragmentInputDirty, duration", remainingInBeat, beatCounter, fragmentInputDirty, duration, "voice " .. voice)
+      --print("NEXT: Breaking loop for voice, remainingInBeat, beatCounter, fragmentInputDirty, duration", remainingInBeat, beatCounter, fragmentInputDirty, duration, "voice " .. voice)
       playingVoices[voice] = false
     else
       --print("waitBeat(waitDuration)", waitDuration, "voice " .. voice)
