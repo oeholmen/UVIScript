@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Random note selector using rythmic fragments
+-- Random note selector using rythmic fragments (Fragmented Notes)
 -------------------------------------------------------------------------------
 
 require "../includes/rythmicFragments"
@@ -21,6 +21,7 @@ local backgroundColourOff = "ff084486"
 local backgroundColourOn = "ff02ACFE"
 local textColourOff = "ff22FFFF"
 local textColourOn = "efFFFFFF"
+local knobFillColour = "E6D5B8" -- Light
 
 local colours = {
   backgroundColour = backgroundColour,
@@ -75,12 +76,12 @@ rythmPanel.height = 215
 --------------------------------------------------------------------------------
 
 local sequencerLabel = sequencerPanel:Label("SequencerLabel")
-sequencerLabel.text = "Note Fragment Generator"
+sequencerLabel.text = "Fragmented Notes"
 sequencerLabel.alpha = 0.5
 sequencerLabel.backgroundColour = labelBackgoundColour
 sequencerLabel.textColour = labelTextColour
 sequencerLabel.fontSize = 22
-sequencerLabel.width = 220
+sequencerLabel.width = 160
 
 local channelButton = sequencerPanel:OnOffButton("ChannelButton", false)
 channelButton.backgroundColourOff = backgroundColourOff
@@ -187,16 +188,17 @@ local scaleNames = getScaleNames()
 local noteListen = nil
 local paramsPerNote = {}
 local rowSpacing = 3
-local numNotes = 15
+local numNotes = 8
 
 local noteLabel = notePanel:Label("NotesLabel")
 noteLabel.text = "Notes"
 noteLabel.tooltip = "Set the probability that notes will be included when generating new notes"
 noteLabel.alpha = 0.75
 noteLabel.fontSize = 15
-noteLabel.width = 305
+noteLabel.width = 300
 
 local generateKey = notePanel:Menu("GenerateKey", noteNames)
+generateKey.persistent = false
 generateKey.tooltip = "Set selected notes from key"
 generateKey.showLabel = false
 generateKey.backgroundColour = colours.menuBackgroundColour
@@ -209,6 +211,7 @@ generateKey.x = noteLabel.x + noteLabel.width + 10
 generateKey.y = noteLabel.y
 
 local generateScale = notePanel:Menu("GenerateScale", scaleNames)
+generateScale.persistent = false
 generateScale.tooltip = "Set selected notes from scale"
 generateScale.showLabel = false
 generateScale.backgroundColour = colours.menuBackgroundColour
@@ -221,6 +224,7 @@ generateScale.x = generateKey.x + generateKey.width + 10
 generateScale.y = generateKey.y
 
 local octaveOffset = notePanel:NumBox("OctaveOffset", 2, -2, 6, true)
+octaveOffset.persistent = false
 octaveOffset.displayName = "Octave"
 octaveOffset.tooltip = "Set the octave to start from"
 octaveOffset.backgroundColour = menuBackgroundColour
@@ -235,9 +239,6 @@ local templates = {
   "Mute all",
   "Unmute all",
   "Toggle mute",
-  "Mute 1-7",
-  "Mute 8-15",
-  "Mute 13-15",
   "Set all note probabilities to 100%",
   "Set all note probabilities to 0%",
   "Randomize note probabilities",
@@ -265,12 +266,6 @@ templateMenu.changed = function(self)
       v.mute:setValue(false)
     elseif self.selectedText == "Toggle mute" then
       v.mute:setValue(v.mute.value == false)
-    elseif self.selectedText == "Mute 1-7" then
-      v.mute:setValue(part < 8)
-    elseif self.selectedText == "Mute 8-15" then
-      v.mute:setValue(part > 7)
-    elseif self.selectedText == "Mute 13-15" then
-      v.mute:setValue(part > 12)
     elseif self.selectedText == "Set all note probabilities to 100%" then
       v.noteProbability:setValue(100)
     elseif self.selectedText == "Set all note probabilities to 0%" then
@@ -298,8 +293,9 @@ octaveOffset.changed = function(self)
   --transposeOctave(self.value)
 end
 
+local inputWidth = 654 / numNotes
 for i=1,numNotes do
-  local noteInput = notePanel:NumBox("TriggerNote" .. i, 0, 0, 127, true)
+  local noteInput = notePanel:NumBox("TriggerNote" .. i, (47+i), 0, 127, true)
   noteInput.displayName = "Note"
   noteInput.tooltip = "The note to trigger"
   noteInput.unit = Unit.MidiKey
@@ -307,8 +303,8 @@ for i=1,numNotes do
   noteInput.backgroundColour = menuBackgroundColour
   noteInput.textColour = menuTextColour
   noteInput.height = 22
-  noteInput.width = 42
-  noteInput.x = ((noteInput.width + 4) * (i - 1)) + 10
+  noteInput.width = inputWidth
+  noteInput.x = ((noteInput.width + 5) * (i - 1)) + 10
   noteInput.y = noteLabel.height + 10
 
   local noteProbability = notePanel:NumBox("NoteProbability" .. i, 100, 0, 100, true)
@@ -323,7 +319,7 @@ for i=1,numNotes do
   noteProbability.y = noteInput.y + noteInput.height + rowSpacing
 
   local listen = notePanel:OnOffButton("Listen" .. i)
-  listen.displayName = "L"
+  listen.displayName = "Learn"
   listen.tooltip = "Note learn"
   listen.persistent = false
   listen.textColourOff = "white"
@@ -343,7 +339,7 @@ for i=1,numNotes do
   end
 
   local mute = notePanel:OnOffButton("Mute" .. i)
-  mute.displayName = "M"
+  mute.displayName = "Mute"
   mute.tooltip = "Mute note"
   mute.textColourOff = "white"
   mute.backgroundColourOn = "red"
@@ -365,7 +361,7 @@ local rythmLabel = rythmPanel:Label("RythmLabel")
 rythmLabel.text = "Rythmic fragments"
 rythmLabel.alpha = 0.75
 rythmLabel.fontSize = 15
-rythmLabel.width = 410
+rythmLabel.width = 153
 
 local evolveFragmentProbability = rythmPanel:NumBox("EvolveFragmentProbability", 0, 0, 100, true)
 evolveFragmentProbability.unit = Unit.Percent
@@ -373,7 +369,7 @@ evolveFragmentProbability.textColour = widgetTextColour
 evolveFragmentProbability.backgroundColour = widgetBackgroundColour
 evolveFragmentProbability.displayName = "Evolve"
 evolveFragmentProbability.tooltip = "Set the probability that fragments will change over time, using the resolutions present in the fragments"
-evolveFragmentProbability.width = widgetWidth
+evolveFragmentProbability.width = 120
 evolveFragmentProbability.height = 18
 evolveFragmentProbability.x = rythmLabel.x + rythmLabel.width
 evolveFragmentProbability.y = rythmLabel.y
@@ -384,15 +380,60 @@ randomizeCurrentResolutionProbability.textColour = widgetTextColour
 randomizeCurrentResolutionProbability.backgroundColour = widgetBackgroundColour
 randomizeCurrentResolutionProbability.displayName = "Adjust"
 randomizeCurrentResolutionProbability.tooltip = "Set the probability that evolve will adjust resolutions, based on the resolutions present in the fragments"
-randomizeCurrentResolutionProbability.width = widgetWidth
+randomizeCurrentResolutionProbability.width = evolveFragmentProbability.width
 randomizeCurrentResolutionProbability.height = evolveFragmentProbability.height
 randomizeCurrentResolutionProbability.x = evolveFragmentProbability.x + evolveFragmentProbability.width + 10
 randomizeCurrentResolutionProbability.y = evolveFragmentProbability.y
 
-evolveFragmentProbability.changed = function(self)
-  randomizeCurrentResolutionProbability.enabled = self.value > 0
+local biasLabel = rythmPanel:Label("BiasLabel")
+biasLabel.text = "Bias slow > fast"
+biasLabel.tooltip = "Adjust bias: <50=more slow resolutions, >50=more fast resolutions"
+biasLabel.alpha = 0.5
+biasLabel.fontSize = 15
+biasLabel.width = 90
+biasLabel.height = randomizeCurrentResolutionProbability.height
+biasLabel.x = randomizeCurrentResolutionProbability.x + randomizeCurrentResolutionProbability.width + 10
+biasLabel.y = randomizeCurrentResolutionProbability.y
+
+local adjustBias = rythmPanel:Knob("Bias", 50, 0, 100, true)
+adjustBias.showLabel = false
+adjustBias.showValue = false
+adjustBias.displayName = "Bias"
+adjustBias.tooltip = biasLabel.tooltip
+adjustBias.backgroundColour = widgetBackgroundColour
+adjustBias.fillColour = knobFillColour
+adjustBias.outlineColour = widgetTextColour
+adjustBias.width = 18
+adjustBias.height = biasLabel.height
+adjustBias.x = biasLabel.x + biasLabel.width
+adjustBias.y = biasLabel.y
+
+local minResLabel = rythmPanel:Label("MinResolutionsLabel")
+minResLabel.text = "Min resolution"
+minResLabel.alpha = 0.5
+minResLabel.fontSize = 15
+minResLabel.width = 90
+minResLabel.height = adjustBias.height
+minResLabel.x = adjustBias.x + adjustBias.width + 10
+minResLabel.y = adjustBias.y
+
+local minResolution = rythmPanel:Menu("MinResolution", getResolutionNames())
+minResolution.displayName = minResLabel.text
+minResolution.tooltip = "The highest allowed resolution for evolve adjustments"
+minResolution.selected = 26
+minResolution.showLabel = false
+minResolution.width = 60
+minResolution.height = adjustBias.height
+minResolution.backgroundColour = widgetBackgroundColour
+minResolution.textColour = widgetTextColour
+minResolution.arrowColour = menuArrowColour
+minResolution.outlineColour = menuOutlineColour
+minResolution.x = minResLabel.x + minResLabel.width
+minResolution.y = minResLabel.y
+minResolution.changed = function(self)
+  setMaxResolutionIndex(self.value)
 end
-evolveFragmentProbability:changed()
+minResolution:changed()
 
 local paramsPerFragment = getParamsPerFragment(rythmPanel, rythmLabel, colours)
 
@@ -426,14 +467,12 @@ function setScale(scaleIndex, keyIndex)
       break
     end
     v.noteInput:setValue(scale[i])
-    print("setScale: scale[i]", scale[i])
   end
 end
 
 function flashNoteLabel(voice, duration)
   local flashDuration = 150
   if type(duration) == "number" then
-    --flashDuration = math.min(flashDuration, beat2ms(duration))
     flashDuration = beat2ms(duration)
   end
   paramsPerNote[voice].noteInput.textColour = "efefef"
@@ -441,14 +480,14 @@ function flashNoteLabel(voice, duration)
   paramsPerNote[voice].noteInput.textColour = menuTextColour
 end
 
-function isNoteActive(voice)
-  return paramsPerNote[voice].noteProbability.value > 0 and paramsPerNote[voice].mute.value == false
+function doSelectNote(voice)
+  return paramsPerNote[voice].mute.value == false and getRandomBoolean(paramsPerNote[i].noteProbability.value)
 end
 
 function generateNote()
   local selectedNotes = {}
   for i=1,numNotes do
-    if isNoteActive(i) and getRandomBoolean(paramsPerNote[i].noteProbability.value) then
+    if doSelectNote(i) then
       table.insert(selectedNotes, i)
     end
   end
@@ -507,7 +546,7 @@ function sequenceRunner()
     local baseDuration = 4
     waitBeat(baseDuration)
     if getRandomBoolean(evolveFragmentProbability.value) then
-      previous = evolveFragments(previous, randomizeCurrentResolutionProbability.value)
+      previous = evolveFragments(previous, randomizeCurrentResolutionProbability.value, adjustBias.value)
     end
   until #isPlaying == 0
 end
@@ -587,10 +626,6 @@ end
 --------------------------------------------------------------------------------
 -- Save / Load
 --------------------------------------------------------------------------------
-
-function onInit()
-  generateScale:setValue(2) -- Load minor scale by default
-end
 
 function onSave()
   local fragmentInputData = {}

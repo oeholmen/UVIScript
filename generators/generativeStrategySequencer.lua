@@ -250,12 +250,6 @@ velocityRandomization.size = velocityInput.size
 velocityRandomization.x = velocityInput.x
 velocityRandomization.y = velocityInput.y + velocityInput.height + 5
 
---[[ local voicesLabel = voicePanel:Label("VoicesLabel")
-voicesLabel.text = "Voices"
-voicesLabel.alpha = 0.75
-voicesLabel.fontSize = 15
-voicesLabel.width = 120 ]]
-
 local voicesInput = voicePanel:NumBox("Voices", voices, 1, 4, true)
 voicesInput.textColour = widgetTextColour
 voicesInput.backgroundColour = widgetBackgroundColour
@@ -264,7 +258,6 @@ voicesInput.tooltip = "Voices"
 voicesInput.size = gateRandomization.size
 voicesInput.x = 5
 voicesInput.y = 5
---voicesInput.y = voicesLabel.y + voicesLabel.height + 5
 voicesInput.changed = function(self)
   voices = self.value
 end
@@ -455,7 +448,7 @@ createStrategyButton.changed = function()
 end
 
 local strategyActions = strategyPanel:Menu("StrategyActions", actions)
-strategyActions.tooltip = "Choose when a strategy restarts"
+strategyActions.tooltip = "Available actions for strategies"
 strategyActions.showLabel = false
 strategyActions.height = 20
 strategyActions.width = 110
@@ -627,17 +620,6 @@ minResolution.changed = function(self)
   setMaxResolutionIndex(self.value)
 end
 minResolution:changed()
-
---[[ evolveFragmentProbability.changed = function(self)
-  randomizeCurrentResolutionProbability.enabled = self.value > 0
-end
-evolveFragmentProbability:changed()
-
-randomizeCurrentResolutionProbability.changed = function(self)
-  adjustBias.enabled = self.value > 0
-  minResolution.enabled = self.value > 0
-end
-randomizeCurrentResolutionProbability:changed() ]]
 
 local paramsPerFragment = getParamsPerFragment(rythmPanel, rythmLabel, colours, (voicesInput.max * 2))
 
