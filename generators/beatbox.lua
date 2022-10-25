@@ -9,8 +9,8 @@ local beatResolution = 1
 local beatBase = 4
 local beatCounter = 1
 local noteListen = nil
-local voices = 8 -- Voices can be 8 or 1 - 8 is used primarily for drums, 1 is used primarily for tonal - this is changed by randomNoteMode button
-local numNotes = 8 -- There are eight parts/notes
+local numNotes = 8
+local voices = 8
 local isPlaying = false
 local playingVoices = {}
 local playingIndex = {}
@@ -164,7 +164,7 @@ end
 --------------------------------------------------------------------------------
 
 local widgetHeight = 20
-local widgetWidth = 659 / 5
+local widgetWidth = 659 / 4
 
 local timeSignatures = {"4/4", "3/4", "5/4", "6/8"}
 local timeSignature = settingsPanel:Menu("TimeSignature", timeSignatures)
@@ -175,7 +175,7 @@ timeSignature.textColour = colours.widgetTextColour
 timeSignature.arrowColour = colours.menuArrowColour
 timeSignature.outlineColour = colours.menuOutlineColour
 timeSignature.height = widgetHeight
-timeSignature.width = 120
+timeSignature.width = widgetWidth
 timeSignature.x = 5
 timeSignature.y = 0
 timeSignature.changed = function(self)
@@ -206,26 +206,6 @@ velocityAccent.height = widgetHeight
 velocityAccent.width = velocityInput.width
 velocityAccent.x = velocityInput.x + velocityInput.width + 10
 velocityAccent.y = velocityInput.y
-
-local randomNoteMode = settingsPanel:OnOffButton("RandomNoteMode", false)
-randomNoteMode.displayName = "Single note"
-randomNoteMode.tooltip = "When this is activated only one note is played at once, and notes are selected by random from the configured parts"
-randomNoteMode.backgroundColourOff = backgroundColourOff
-randomNoteMode.backgroundColourOn = backgroundColourOn
-randomNoteMode.textColourOff = textColourOff
-randomNoteMode.textColourOn = textColourOn
-randomNoteMode.height = widgetHeight
-randomNoteMode.width = velocityAccent.width
-randomNoteMode.x = velocityAccent.x + velocityAccent.width + 10
-randomNoteMode.y = velocityAccent.y
-randomNoteMode.changed = function(self)
-  if self.value then
-    voices = 1
-  else
-    voices = numNotes
-  end
-  --print("randomNoteMode, voices", self.value, voices)
-end
 
 local templates = {
   "Tools...",
@@ -279,9 +259,9 @@ local templateMenu = settingsPanel:Menu("Templates", templates)
 templateMenu.tooltip = "Select a tool - NOTE: Will change current settings!"
 templateMenu.showLabel = false
 templateMenu.height = widgetHeight
-templateMenu.width = 174
-templateMenu.x = randomNoteMode.x + randomNoteMode.width + 10
-templateMenu.y = randomNoteMode.y
+templateMenu.width = widgetWidth
+templateMenu.x = velocityAccent.x + velocityAccent.width + 10
+templateMenu.y = velocityAccent.y
 templateMenu.backgroundColour = colours.menuBackgroundColour
 templateMenu.textColour = colours.widgetTextColour
 templateMenu.arrowColour = colours.menuArrowColour
@@ -1197,25 +1177,9 @@ function getRandomFragment(definitionNumber)
 end
 
 function getNote(voice)
-  if randomNoteMode.value then
-    -- When random note mode is selected, we select a random note after filtering for probability
-    local selected = {}
-    for i=1,numNotes do
-      if isNoteActive(i) and getRandomBoolean(paramsPerNote[i].noteProbability.value) then
-        --print("Note is selected", i)
-        table.insert(selected, i)
-      end
-    end
-    local note = getRandomFromTable(selected)
-    if type(note) == "number" then
-      return paramsPerNote[note].noteInput.value
-    end
-  else
-    -- When random note mode is not selected, we get the note number for the given voice, if probability hits
-    local noteProbability = paramsPerNote[voice].noteProbability.value
-    if getRandomBoolean(noteProbability) then
-      return paramsPerNote[voice].noteInput.value
-    end
+  local noteProbability = paramsPerNote[voice].noteProbability.value
+  if getRandomBoolean(noteProbability) then
+    return paramsPerNote[voice].noteInput.value
   end
 end
 
@@ -1293,46 +1257,6 @@ function initNotes()
   end
 end
 
-function selectVoice(voice)
-  --print("selectVoice", voice)
-  local activeNotes = {}
-  local selectedNotes = {}
-  for i=1,numNotes do
-    --print("numNotes, voice", numNotes, i)
-    if isNoteActive(i) then
-      --print("Note is active")
-      table.insert(activeNotes, i)
-      if getRandomBoolean(paramsPerNote[i].noteProbability.value) then
-        --print("Note is selected")
-        table.insert(selectedNotes, i)
-      end
-    end
-  end
-  --print("#selectedNotes, #activeNotes", #selectedNotes, #activeNotes)
-  local newNote = getRandomFromTable(selectedNotes)
-  if type(newNote) == "nil" then
-    newNote = getRandomFromTable(activeNotes)
-  end
-  --print("#selectedNotes, new, old", #selectedNotes, newNote, voice)
-  if type(newNote) == "number" and newNote ~= voice then
-    if type(voice) == "number" then
-      playingVoices[voice] = false
-    end
-    voice = newNote
-    playingVoices[voice] = true
-  end
-  return voice
-end
-
-function hasPlayingVoice()
-  for _,v in ipairs(playingVoices) do
-    if v == true then
-      return true
-    end
-  end
-  return false
-end
-
 function useAccent(voice, activeFragment, isStartOfBeat, isFragmentStart, mustRepeat)
   if paramsPerNote[voice].accentDownBeat.value and isStartOfBeat and isDownBeat() then
     print("ACCENT isStartOfBeat, isUpBeat()", isStartOfBeat, isDownBeat())
@@ -1382,21 +1306,6 @@ function setSourceActive(voice, activeFragment)
     else
       v.textColour = menuTextColour
     end
-  end
-end
-
-function playRandomVoice()
-  -- Check if a voice is already playing
-  if hasPlayingVoice() then
-    return
-  end
-  --print("No playing voices - continue")
-  -- If no playing voice, select a new voice
-  local voice = selectVoice()
-  --print("Found voice", voice)
-  if type(voice) == "number" then
-    --print("Play selected voice", voice)
-    spawn(play, voice)
   end
 end
 
@@ -1455,81 +1364,49 @@ function sequenceRunner()
   local remainingDuration = 0
   local partDuration = nil -- When using part order, this is the duration of the parts with repeats
   local partInfo = nil
+  playIndex = 1 -- Reset play index
   isPlaying = true
   beatCounter = 1 -- Reset when starting sequencer
   initNotes()
 
-  -- Set start part if a part order is defined
-  print("#partOrder", #partOrder)
-  --[[ if #partOrder > 0 then
-
-    partInfo = partOrder[partOrderPos]
-    slotIndex = partInfo.part
-    partOrderRepeatCounter = partInfo.repeats
-    partDuration = partOrderRepeatCounter * beatBase * beatResolution
-    print("Set part", slotIndex)
-    fragmentSlots[slotIndex]:setValue(true)
-    partOrderPos = partOrderPos + 1
-    if partOrderPos > #partOrder then
-      partOrderPos = 1
-    end
-  end ]]
+  --print("#partOrder", #partOrder)
 
   while isPlaying do
     print("sequenceRunner, beatCounter, isDownBeat", beatCounter, isDownBeat())
 
-    if beatCounter == 1 and #partOrder > 0 then
-
-      if partOrderRepeatCounter == 0 then
-        -- Start new part
-        partInfo = partOrder[partOrderPos]
-        -- TODO Check for part change?
-        --local partIsChanged = slotIndex ~= partInfo.part
-        slotIndex = partInfo.part
-        partOrderRepeatCounter = partInfo.repeats
-        partDuration = partOrderRepeatCounter * beatBase * beatResolution
-        remainingDuration = partDuration
-        print("Set part", slotIndex)
-        fragmentSlots[slotIndex]:setValue(true)
-        -- Increment order pos
-        partOrderPos = partOrderPos + 1
-        if partOrderPos > #partOrder then
-          partOrderPos = 1
+    if beatCounter == 1 then
+      if #partOrder > 0 then
+        if partOrderRepeatCounter == 0 then
+          -- Start new part
+          partInfo = partOrder[partOrderPos]
+          -- TODO Check for part change?
+          --local partIsChanged = slotIndex ~= partInfo.part
+          slotIndex = partInfo.part
+          partOrderRepeatCounter = partInfo.repeats
+          partDuration = partOrderRepeatCounter * beatBase * beatResolution
+          remainingDuration = partDuration
+          print("Set part", slotIndex)
+          fragmentSlots[slotIndex]:setValue(true)
+          -- Increment order pos
+          partOrderPos = partOrderPos + 1
+          if partOrderPos > #partOrder then
+            partOrderPos = 1
+          end
         end
+
+        partOrderRepeatCounter = partOrderRepeatCounter - 1 -- Decrement repeat counter
+        print("Decrementing partOrderRepeatCounter", partOrderRepeatCounter)
       end
 
-      partOrderRepeatCounter = partOrderRepeatCounter - 1 -- Decrement repeat counter
-      print("Decrementing partOrderRepeatCounter", partOrderRepeatCounter)
+      if type(recallStoredState) == "number" then
+        initNotes()
+        recall()
+      end
 
-    end
-
-    if beatCounter == 1 and type(recallStoredState) == "number" then
-      recall()
-    end
-
-    if randomNoteMode.value then
-      playRandomVoice(partDuration)
-    else
-      if beatCounter == 1 then
-        if type(partDuration) == "nil" or remainingDuration == partDuration then
-          playVoices(partDuration)
-        end
+      if type(partDuration) == "nil" or remainingDuration == partDuration then
+        playVoices(partDuration)
       end
     end
-
-    -- Prepare next part
-    --[[ if beatCounter == beatBase and #partOrder > 0 then
-      -- Check for repeat of same part
-      if slotIndex ~= partOrder[partOrderPos] then
-        slotIndex = partOrder[partOrderPos]
-        print("Prepare next part", slotIndex)
-        fragmentSlots[slotIndex]:setValue(true)
-      end
-      partOrderPos = partOrderPos + 1
-      if partOrderPos > #partOrder then
-        partOrderPos = 1
-      end
-    end ]]
 
     waitBeat(beatResolution)
 
@@ -1549,21 +1426,23 @@ function sequenceRunner()
 end
 
 function play(voice, uniqueId, partDuration)
-  --local remainingDuration = 0
-  local playDuration = 0 -- Keep track of the played duration
   print("voice, uniqueId, partDuration", voice, uniqueId, partDuration)
-  -- First
-  local duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = getDuration(nil, 0, 0, false, 0, getSources(voice))
+  local playDuration = 0 -- Keep track of the played duration
+  local duration = nil
+  local isFragmentStart = false
+  local isRepeat = false
+  local mustRepeat = false
+  local rest = false
+  local activeFragment = nil
+  local fragmentPos = 0
+  local fragmentRepeatProbability = 0
+  local reverseFragment = false
+  local fragmentRepeatCount = 0
   -- Start loop
-  -- TODO Use a unique index to identify spawn, and assure loop is stopped?
-  --while playingVoices[voice] do
   while playingIndex[voice] == uniqueId do
     roundCounterPerVoice[voice] = roundCounterPerVoice[voice] + 1
 
-    --[[ if remainingDuration == 0 and type(partDuration) == "number" then
-      remainingDuration = partDuration -- Reset remaining duration to part duration
-      print("remainingDuration for voice", remainingDuration, voice)
-    end ]]
+    duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount, getSources(voice))
 
     if type(duration) == "nil" or activeFragment.i == 0 or isNoteActive(voice) == false then
       -- Return voice to sequence runner
@@ -1593,19 +1472,13 @@ function play(voice, uniqueId, partDuration)
       rest = true
     end
 
-    --[[ if type(partDuration) == "number" and remainingDuration < duration then
-      duration = remainingDuration
-      print("duration changed to remaining", waitDuration)
-    end ]]
-
     if type(partDuration) == "number" and (playDuration + duration) > partDuration then
-      print("(playDuration + duration) > partDuration", "voice " .. voice)
-      print("playDuration", playDuration, "voice " .. voice)
-      print("duration", duration, "voice " .. voice)
-      print("partDuration", partDuration, "voice " .. voice)
       duration = partDuration - playDuration -- Remaining
       print("duration changed to remaining", duration, "voice " .. voice)
     end
+
+    -- Update total play duration
+    playDuration = playDuration + duration
 
     local note = getNote(voice)
     local doPlayNote = rest == false and type(note) == "number"
@@ -1629,58 +1502,23 @@ function play(voice, uniqueId, partDuration)
       spawn(flashNoteLabel, voice, duration)
     end
 
-    -- Update total play duration
-    playDuration = playDuration + duration
     if type(partDuration) == "number" and playDuration == partDuration then
       print("YES playDuration == partDuration", playDuration, "voice " .. voice)
       playingVoices[voice] = false -- Break loop
       break
     end
 
-    -- Store the current duration for waiting
-    local waitDuration = duration
-
-    -- Select a new note (voice) if in random note mode
-    if randomNoteMode.value then
-      voice = selectVoice(voice)
+    if activeFragment.i > 0 and paramsPerFragment[activeFragment.i].fragmentInputDirty then
+      paramsPerFragment[activeFragment.i].fragmentInputDirty = false
+      playingVoices[voice] = false -- Restart voice next bar to reload fragment input
     end
 
-    -- Get next
-    duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount, getSources(voice))
+    --if duration <= beatResolution and roundCounterPerVoice[voice] > 1 and isFragmentStart == true and isRepeat == false then
+    --end
 
-    -- Check if loop should be broken at the start of next round
-    local remainingInBeat = math.ceil(playDuration) - playDuration
-    local remainingInBar = (beatBase - beatCounter) + remainingInBeat
-    print("beatCounter, remainingInBeat, remainingInBar, waitDuration, recallStoredState", beatCounter, remainingInBeat, remainingInBar, waitDuration, recallStoredState)
-    --print("NEXT: recallStoredState, duration, waitDuration, remainingInBeat, beatCounter, isFragmentStart, isRepeat", recallStoredState, duration, waitDuration, remainingInBeat, beatCounter, isFragmentStart, isRepeat, "voice " .. voice)
-    --if type(duration) == "nil" or (type(recallStoredState) == "number" and (waitDuration >= remainingInBar or remainingInBar == 0)) or (activeFragment.i > 0 and paramsPerFragment[activeFragment.i].fragmentInputDirty) or (waitDuration <= beatResolution and roundCounterPerVoice[voice] > 1 and isFragmentStart == true and isRepeat == false) then
-    --if type(duration) == "nil" or (type(recallStoredState) == "number" and beatCounter == 4 and waitDuration >= remainingInBeat) or (activeFragment.i > 0 and paramsPerFragment[activeFragment.i].fragmentInputDirty) or (waitDuration <= beatResolution and roundCounterPerVoice[voice] > 1 and isFragmentStart == true and isRepeat == false) then
-    --if type(duration) == "nil" or (type(recallStoredState) == "number" and (waitDuration > remainingInBar or (beatCounter == 4 and waitDuration > remainingInBeat))) or (activeFragment.i > 0 and paramsPerFragment[activeFragment.i].fragmentInputDirty) or (waitDuration <= beatResolution and roundCounterPerVoice[voice] > 1 and isFragmentStart == true and isRepeat == false) then
-    if type(duration) == "nil" or type(recallStoredState) == "number" then
-      --local fragmentInputDirty = false
-      if activeFragment.i > 0 then
-        --fragmentInputDirty = paramsPerFragment[activeFragment.i].fragmentInputDirty
-        paramsPerFragment[activeFragment.i].fragmentInputDirty = false
-      end
-      setSourceActive(voice, activeFragment) -- TODO This is maybe to early...
-      print("NEXT: Breaking loop for voice, remainingInBeat, remainingInBar, beatCounter, isFragmentStart, isRepeat, duration", remainingInBeat, remainingInBar, beatCounter, isFragmentStart, isRepeat, duration, "voice " .. voice)
-      playingVoices[voice] = false -- Break loop
-      --break
-      --[[ if type(recallStoredState) == "number" then
-        if waitDuration > remainingInBar then
-          waitDuration = remainingInBar
-        elseif beatCounter == 4 and waitDuration > remainingInBeat then
-          waitDuration = remainingInBeat
-        end
-      end ]]
+    if duration > 0 then
+      waitBeat(duration)
     end
-
-    if waitDuration > 0 then
-      print("waitBeat(waitDuration)", waitDuration, "voice " .. voice)
-      waitBeat(waitDuration)
-      --remainingDuration = remainingDuration - waitDuration
-    end
-
   end
 end
 
