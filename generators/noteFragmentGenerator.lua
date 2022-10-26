@@ -481,7 +481,7 @@ function flashNoteLabel(voice, duration)
 end
 
 function doSelectNote(voice)
-  return paramsPerNote[voice].mute.value == false and getRandomBoolean(paramsPerNote[i].noteProbability.value)
+  return paramsPerNote[voice].mute.value == false and getRandomBoolean(paramsPerNote[voice].noteProbability.value)
 end
 
 function generateNote()

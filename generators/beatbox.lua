@@ -88,14 +88,7 @@ rythmPanel.backgroundColour = "505050"
 rythmPanel.x = notePanel.x
 rythmPanel.y = notePanel.y + notePanel.height + 5
 rythmPanel.width = 700
-rythmPanel.height = 440
-
-local structurePanel = Panel("Structure")
-structurePanel.backgroundColour = "303030"
-structurePanel.x = rythmPanel.x
-structurePanel.y = rythmPanel.y + rythmPanel.height + 5
-structurePanel.width = 700
-structurePanel.height = 60
+rythmPanel.height = 470
 
 --------------------------------------------------------------------------------
 -- Sequencer Panel
@@ -215,9 +208,9 @@ local templates = {
   "Drum Designer",
   "Drumulation",
   "Prime 8",
+  "Program 24",
   "Soul Drums",
-  "Minor scale",
-  "Major scale",
+  "Super 7",
   --- Templates ---
   "--- Templates ---",
   "Kick on down, snare on up",
@@ -306,19 +299,19 @@ templateMenu.changed = function(self)
       noteLabels = {"Kick", "Snare", "Hihat", "Clap", "Low Tom", "Cymbal", "Rimshot", "Cowbell"}
       v.noteInput.value = noteMap[part]
       v.noteInputLabel.text = noteLabels[part]
+    elseif self.selectedText == "Program 24" then
+      noteMap = {36,38,42,39,41,49,37,48}
+      noteLabels = {"Kick", "Snare", "Hihat", "Clap", "Low Tom", "Cymbal", "Snare 2", "Bongo"}
+      v.noteInput.value = noteMap[part]
+      v.noteInputLabel.text = noteLabels[part]
     elseif self.selectedText == "Soul Drums" then
       noteMap = {36,38,42,39,41,49,37,54}
       noteLabels = {"Kick", "Snare", "Hihat", "Clap", "Low Tom", "Cymbal", "Rimshot", "Tambourine"}
       v.noteInput.value = noteMap[part]
       v.noteInputLabel.text = noteLabels[part]
-    elseif self.selectedText == "Minor scale" then
-      noteMap = {36,38,39,41,43,44,46,48}
-      noteLabels = {"C", "D", "Eb", "F", "G", "Ab", "Bb", "C"}
-      v.noteInput.value = noteMap[part]
-      v.noteInputLabel.text = noteLabels[part]
-    elseif self.selectedText == "Major scale" then
-      noteMap = {36,38,40,41,43,45,47,48}
-      noteLabels = {"C", "D", "E", "F", "G", "A", "B", "C"}
+    elseif self.selectedText == "Super 7" then
+      noteMap = {36,38,42,39,41,49,37,50}
+      noteLabels = {"Kick", "Snare", "Hihat", "Clap", "Low Tom", "Cymbal", "Rimshot", "Perc"}
       v.noteInput.value = noteMap[part]
       v.noteInputLabel.text = noteLabels[part]
     elseif self.selectedText == "Mute all" then
@@ -891,17 +884,161 @@ randomizeSelection.changed = function()
   end
 end
 
+--- Structure - Store/recall parts, set playing order etc. ---
+
+local loadFragmentMenu = rythmPanel:Menu("LoadFragmentMenu", {"Load..."})
+loadFragmentMenu.enabled = false
+
+local storeButton = rythmPanel:Button("StoreButton")
+storeButton.displayName = "Store"
+storeButton.tooltip = "Store the current state of the fragments"
+storeButton.width = 75
+storeButton.height = 20
+storeButton.x = rythmLabel.x
+storeButton.y = 417
+
+local slotSpacing = 3
+local unusedSlotDefaultText = "Unused"
+local actions = {"Save..."}
+local slotToStoredIndex = {} -- Holds the index of the stored fragment for each slot
+local fragmentSlots = {}
+for i=1,8 do
+  local fragmentSlot = rythmPanel:OnOffButton("StoreFragmentSlot" .. i)
+  fragmentSlot.backgroundColourOff = backgroundColourOff
+  fragmentSlot.backgroundColourOn = backgroundColourOn
+  fragmentSlot.textColourOff = textColourOff
+  fragmentSlot.textColourOn = textColourOn
+  fragmentSlot.displayName = "" .. i
+  fragmentSlot.enabled = false
+  fragmentSlot.tooltip = unusedSlotDefaultText
+  fragmentSlot.width = 20
+  fragmentSlot.height = storeButton.height
+  fragmentSlot.x = storeButton.x + storeButton.width + ((i-1) * (fragmentSlot.width + slotSpacing)) + 10
+  fragmentSlot.y = storeButton.y
+  fragmentSlot.changed = function(self)
+    if self.value then
+      local storedIndex = slotToStoredIndex[i]
+      if type(storedFragments[storedIndex]) == "table" then
+        recallStoredState = storedIndex
+        --print("Set part/recallStoredState", i, recallStoredState)
+        -- If sequencer is not playing, we can recall right now
+        if isPlaying == false then
+          recall()
+        end
+      end
+    end
+    for j,v in ipairs(fragmentSlots) do
+      if j ~= i then
+        v:setValue(false, false)
+      end
+    end
+  end
+  table.insert(fragmentSlots, fragmentSlot)
+  table.insert(slotToStoredIndex, nil)
+  table.insert(actions, "Save to " .. i)
+end
+
+local slotActions = rythmPanel:Menu("SlotActions", actions)
+slotActions.tooltip = "Save current fragment state to the selected slot"
+slotActions.showLabel = false
+slotActions.height = storeButton.height
+slotActions.width = 90
+slotActions.x = storeButton.x + storeButton.width + ((fragmentSlots[1].width + slotSpacing) * #fragmentSlots) + 15
+slotActions.y = storeButton.y
+slotActions.backgroundColour = menuBackgroundColour
+slotActions.textColour = widgetTextColour
+slotActions.arrowColour = menuArrowColour
+slotActions.outlineColour = menuOutlineColour
+slotActions.changed = function(self)
+  -- 1 is the menu label...
+  if self.value == 1 then
+    return
+  end
+
+  local index = self.value - 1
+
+  -- Save current fragment state
+  -- TODO Add options to remove?
+  if index <= #fragmentSlots then
+    storeButton:changed() -- Store the current state
+    slotToStoredIndex[index] = #storedFragments -- Set the most recent stored fragment to this slot
+    fragmentSlots[index].tooltip = "Part " .. index .. " - Stored state " .. slotToStoredIndex[index]
+    fragmentSlots[index].enabled = true
+  end
+
+  -- Must be last
+  self:setValue(1, false)
+end
+
+loadFragmentMenu.tooltip = "Load a stored fragment state"
+loadFragmentMenu.showLabel = false
+loadFragmentMenu.height = storeButton.height
+loadFragmentMenu.width = slotActions.width
+loadFragmentMenu.x = slotActions.x + slotActions.width + 10
+loadFragmentMenu.y = slotActions.y
+loadFragmentMenu.backgroundColour = menuBackgroundColour
+loadFragmentMenu.textColour = widgetTextColour
+loadFragmentMenu.arrowColour = menuArrowColour
+loadFragmentMenu.outlineColour = menuOutlineColour
+loadFragmentMenu.changed = function(self)
+  -- 1 is the menu label...
+  if self.value == 1 then
+    return
+  end
+
+  local index = self.value - 1
+
+  if type(storedFragments[index]) == "table" then
+    recallStoredState = index
+    -- If sequencer is not playing, we can recall right now
+    if isPlaying == false then
+      recall()
+    end  
+  end
+
+  -- Must be last
+  self:setValue(1, false)
+end
+
+local partOrderButton = rythmPanel:OnOffButton("PartOrderLabel")
+partOrderButton.displayName = "Part Order"
+partOrderButton.tooltip = "Activate part order"
+partOrderButton.width = 60
+partOrderButton.height = 20
+partOrderButton.backgroundColourOff = backgroundColourOff
+partOrderButton.backgroundColourOn = backgroundColourOn
+partOrderButton.textColourOff = textColourOff
+partOrderButton.textColourOn = textColourOn
+partOrderButton.x = loadFragmentMenu.x + loadFragmentMenu.width + 10
+partOrderButton.y = loadFragmentMenu.y
+
+local partOrderInput = rythmPanel:Label("PartOrderInput")
+partOrderInput.text = ""
+partOrderInput.tooltip = "Set the playing order of the parts (1-8 as stored in the slots). Format <PART><x|e><REPEATS> separated by comma (use e instead of x to activate evolve). Example: 1x16,2e8,3"
+partOrderInput.editable = true
+partOrderInput.backgroundColour = "black"
+partOrderInput.backgroundColourWhenEditing = "white"
+partOrderInput.textColour = "white"
+partOrderInput.textColourWhenEditing = "black"
+partOrderInput.x = partOrderButton.x + partOrderButton.width
+partOrderInput.y = partOrderButton.y
+partOrderInput.width = 156
+partOrderInput.height = 20
+partOrderInput.fontSize = 15
+partOrderInput.changed = function(self)
+  setPartOrder(self.text)
+end
+
 --- Evolve ---
+
 local recallButton = rythmPanel:Button("RecallButton")
 recallButton.displayName = "Recall"
 recallButton.enabled = false
 recallButton.tooltip = "Recall the last stored fragment state"
-recallButton.width = 75
-recallButton.height = 18
---recallButton.x = storeButton.x + storeButton.width + 10
---recallButton.y = storeButton.y
-recallButton.x = rythmLabel.x
-recallButton.y = 415
+recallButton.width = storeButton.width
+recallButton.height = storeButton.height
+recallButton.x = storeButton.x
+recallButton.y = storeButton.y + storeButton.height + 10
 
 local evolveButton = rythmPanel:OnOffButton("EvolveActive", false)
 evolveButton.backgroundColourOff = backgroundColourOff
@@ -911,7 +1048,7 @@ evolveButton.textColourOn = textColourOn
 evolveButton.displayName = "Evolve"
 evolveButton.tooltip = "Activate evolve"
 evolveButton.width = recallButton.width
-evolveButton.height = 18
+evolveButton.height = recallButton.height
 evolveButton.x = recallButton.x + recallButton.width + 10
 evolveButton.y = recallButton.y
 
@@ -922,7 +1059,7 @@ evolveFragmentProbability.backgroundColour = widgetBackgroundColour
 evolveFragmentProbability.displayName = "Amount"
 evolveFragmentProbability.tooltip = "Set the probability that fragments will change over time, using the resolutions present in the fragments"
 evolveFragmentProbability.width = 105
-evolveFragmentProbability.height = 18
+evolveFragmentProbability.height = recallButton.height
 evolveFragmentProbability.x = evolveButton.x + evolveButton.width + 10
 evolveFragmentProbability.y = evolveButton.y
 
@@ -987,39 +1124,21 @@ minResolution.changed = function(self)
 end
 minResolution:changed()
 
-recallButton.changed = function(self)
-  recallStoredState = #storedFragments
-  -- If sequencer is not playing, we can recall right now
-  if isPlaying == false then
-    recall()
-  end
-end
-
---------------------------------------------------------------------------------
--- Structure Panel - store/recall parts, set playing order etc.
---------------------------------------------------------------------------------
-
-local structureLabel = structurePanel:Label("StructureLabel")
-structureLabel.text = "Structure"
-structureLabel.alpha = 0.75
-structureLabel.fontSize = 15
-structureLabel.width = 120
-
-local loadFragmentMenu = structurePanel:Menu("LoadFragmentMenu", {"Load..."})
-loadFragmentMenu.enabled = false
-
-local storeButton = structurePanel:Button("StoreButton")
-storeButton.displayName = "Store"
-storeButton.tooltip = "Store the current state of all fragment inputs"
-storeButton.width = 60
-storeButton.height = 20
-storeButton.x = structureLabel.x + 10
-storeButton.y = structureLabel.y + structureLabel.height + 5
 storeButton.changed = function(self)
   local fragments = {}
   for i,v in ipairs(paramsPerFragment) do
-    -- TODO Store other parameters as well - probability, random, repeat...
-    table.insert(fragments, v.fragmentInput.text)
+    -- Store fragment parameters
+    table.insert(fragments, {
+      fragmentActive = v.fragmentActive.value,
+      fragmentInput = v.fragmentInput.text,
+      playProbability = v.fragmentPlayProbability.value,
+      repeatProbability = v.fragmentRepeatProbability.value,
+      repeatProbabilityDecay = v.fragmentRepeatProbabilityDecay.value,
+      minRepeats = v.fragmentMinRepeats.value,
+      reverseProbability = v.reverseFragmentProbability.value,
+      randomizeProbability = v.randomizeFragmentProbability.value,
+      restProbability = v.restProbability.value,
+    })
   end
   table.insert(storedFragments, fragments)
   recallButton.enabled = true
@@ -1027,136 +1146,12 @@ storeButton.changed = function(self)
   loadFragmentMenu:addItem("State " .. #storedFragments)
 end
 
-local slotSpacing = 3
-local unusedSlotDefaultText = "Unused"
-local actions = {"Save..."}
-local slotToStoredIndex = {} -- Holds the index of the stored fragment for each slot
-local fragmentSlots = {}
-for i=1,8 do
-  local fragmentSlot = structurePanel:OnOffButton("StoreFragmentSlot" .. i)
-  fragmentSlot.backgroundColourOff = backgroundColourOff
-  fragmentSlot.backgroundColourOn = backgroundColourOn
-  fragmentSlot.textColourOff = textColourOff
-  fragmentSlot.textColourOn = textColourOn
-  fragmentSlot.displayName = "" .. i
-  fragmentSlot.enabled = false
-  fragmentSlot.tooltip = unusedSlotDefaultText
-  fragmentSlot.width = 20
-  fragmentSlot.height = storeButton.height
-  fragmentSlot.x = storeButton.x + storeButton.width + ((i-1) * (fragmentSlot.width + slotSpacing)) + 10
-  fragmentSlot.y = storeButton.y
-  fragmentSlot.changed = function(self)
-    if self.value then
-      local storedIndex = slotToStoredIndex[i]
-      if type(storedFragments[storedIndex]) == "table" then
-        recallStoredState = storedIndex
-        print("Set part/recallStoredState", i, recallStoredState)
-        -- If sequencer is not playing, we can recall right now
-        if isPlaying == false then
-          recall()
-        end
-      end
-    end
-    for j,v in ipairs(fragmentSlots) do
-      if j ~= i then
-        v:setValue(false, false)
-      end
-    end
+recallButton.changed = function(self)
+  recallStoredState = #storedFragments
+  -- If sequencer is not playing, we can recall right now
+  if isPlaying == false then
+    recall()
   end
-  table.insert(fragmentSlots, fragmentSlot)
-  table.insert(slotToStoredIndex, nil)
-  table.insert(actions, "Save to " .. i)
-end
-
-local slotActions = structurePanel:Menu("SlotActions", actions)
-slotActions.tooltip = "Save current fragment state to the selected slot"
-slotActions.showLabel = false
-slotActions.height = storeButton.height
-slotActions.width = 90
-slotActions.x = storeButton.x + storeButton.width + ((fragmentSlots[1].width + slotSpacing) * #fragmentSlots) + 15
-slotActions.y = storeButton.y
-slotActions.backgroundColour = menuBackgroundColour
-slotActions.textColour = widgetTextColour
-slotActions.arrowColour = menuArrowColour
-slotActions.outlineColour = menuOutlineColour
-slotActions.changed = function(self)
-  -- 1 is the menu label...
-  if self.value == 1 then
-    return
-  end
-
-  local index = self.value - 1
-
-  -- Save current fragment state
-  -- TODO Add options to remove?
-  if index <= #fragmentSlots then
-    storeButton:changed() -- Store the current state
-    slotToStoredIndex[index] = #storedFragments -- Set the most recent stored fragment to this slot
-    fragmentSlots[index].tooltip = "Part " .. index .. " - Stored state " .. slotToStoredIndex[index]
-    fragmentSlots[index].enabled = true
-  end
-
-  -- Must be last
-  self:setValue(1, false)
-end
-
-loadFragmentMenu.tooltip = "Load a stored fragment state"
-loadFragmentMenu.showLabel = false
-loadFragmentMenu.height = storeButton.height
-loadFragmentMenu.width = slotActions.width
-loadFragmentMenu.x = slotActions.x + slotActions.width + 10
-loadFragmentMenu.y = slotActions.y
-loadFragmentMenu.backgroundColour = menuBackgroundColour
-loadFragmentMenu.textColour = widgetTextColour
-loadFragmentMenu.arrowColour = menuArrowColour
-loadFragmentMenu.outlineColour = menuOutlineColour
-loadFragmentMenu.changed = function(self)
-  -- 1 is the menu label...
-  if self.value == 1 then
-    return
-  end
-
-  local index = self.value - 1
-
-  if type(storedFragments[index]) == "table" then
-    recallStoredState = index
-    -- If sequencer is not playing, we can recall right now
-    if isPlaying == false then
-      recall()
-    end  
-  end
-
-  -- Must be last
-  self:setValue(1, false)
-end
-
-local partOrderButton = structurePanel:OnOffButton("PartOrderLabel")
-partOrderButton.displayName = "Part Order"
-partOrderButton.tooltip = "Activate part order"
-partOrderButton.width = 60
-partOrderButton.height = 20
-partOrderButton.backgroundColourOff = backgroundColourOff
-partOrderButton.backgroundColourOn = backgroundColourOn
-partOrderButton.textColourOff = textColourOff
-partOrderButton.textColourOn = textColourOn
-partOrderButton.x = loadFragmentMenu.x + loadFragmentMenu.width + 10
-partOrderButton.y = loadFragmentMenu.y
-
-local partOrderInput = structurePanel:Label("PartOrderInput")
-partOrderInput.text = ""
-partOrderInput.tooltip = "Set the playing order of the parts (1-8 as stored in the slots). Format <PART>x<REPEATS> separated by comma. Example: 1x16,2x8,3x1,1x16"
-partOrderInput.editable = true
-partOrderInput.backgroundColour = "black"
-partOrderInput.backgroundColourWhenEditing = "white"
-partOrderInput.textColour = "white"
-partOrderInput.textColourWhenEditing = "black"
-partOrderInput.x = partOrderButton.x + partOrderButton.width
-partOrderInput.y = partOrderButton.y
-partOrderInput.width = 150
-partOrderInput.height = 20
-partOrderInput.fontSize = 15
-partOrderInput.changed = function(self)
-  setPartOrder(self.text)
 end
 
 --------------------------------------------------------------------------------
@@ -1327,35 +1322,38 @@ function playVoices(partDuration)
 end
 
 function recall()
-  -- Disable evolve if playing
-  if isPlaying then
-    evolveButton:setValue(false)
-  end
-  -- Recall the state we are to recall
+  -- Find the state we are to recall
   local fragments = storedFragments[recallStoredState]
   for i,v in ipairs(paramsPerFragment) do
-    v.fragmentInput.text = fragments[i]
+    v.fragmentActive.value = fragments[i].fragmentActive
+    v.fragmentInput.text = fragments[i].fragmentInput
+    v.fragmentPlayProbability.value = fragments[i].playProbability
+    v.fragmentRepeatProbability.value = fragments[i].repeatProbability
+    v.fragmentRepeatProbabilityDecay.value = fragments[i].repeatProbabilityDecay
+    v.fragmentMinRepeats.value = fragments[i].minRepeats
+    v.reverseFragmentProbability.value = fragments[i].reverseProbability
+    v.randomizeFragmentProbability.value = fragments[i].randomizeProbability
+    v.restProbability.value = fragments[i].restProbability
   end
-  print("Recalled fragments from stored state", recallStoredState)
+  --print("Recalled fragments from stored state", recallStoredState)
   recallStoredState = nil
 end
 
+-- Parse the part order input
+-- Format: <PART><x|e><REPEATS> separated by comma (use e instead of x to activate evolve). Example: 1x16,2e8,3
 function setPartOrder(partOrderText)
   partOrder = {} -- Reset
-  for w in string.gmatch(partOrderText, "[^,]+") do
-    local part = tonumber(string.sub(w, 1, 1)) -- Parts are 1-8, so we get the first pos in the string
-    local repeats = tonumber(string.sub(w, 3)) -- Get repeats from the third pos to the end - if any is set
+  for s in string.gmatch(partOrderText, "[^,]+") do
+    local evolve = type(string.find(s, "e", 1, true)) == "number" -- Check if "e" is given for evolve
+    local part = tonumber(string.sub(s, 1, 1)) -- Parts are 1-8, so we get the first pos in the string
+    local repeats = tonumber(string.sub(s, 3)) -- Get repeats from the third pos to the end - if any is set
     if type(repeats) == "nil" then
       repeats = 1
     end
-    print("repeats", repeats)
-    -- Insert part for as many times as it is repeated
-    --for i=1,repeats do
-      table.insert(partOrder, {part=part,repeats=repeats})
-    --end
-    print("Added part/repeats", part, repeats)
+    --print("setPartOrder part, repeats, evolve", part,repeats, evolve)
+    table.insert(partOrder, {part=part,repeats=repeats,evolve=evolve})
   end
-  print("#partOrder", #partOrder)
+  --print("#partOrder", #partOrder)
   return partOrder
 end
 
@@ -1367,30 +1365,30 @@ function sequenceRunner()
   local remainingDuration = 0
   local partDuration = nil -- When using part order, this is the duration of the parts with repeats
   local partInfo = nil
+  local startEvolve = false -- Can be set by part order
   playIndex = 1 -- Reset play index
   isPlaying = true
   beatCounter = 1 -- Reset when starting sequencer
   initNotes()
-
-  --print("#partOrder", #partOrder)
-
   while isPlaying do
-    print("sequenceRunner, beatCounter, isDownBeat", beatCounter, isDownBeat())
-
+    --print("sequenceRunner, beatCounter, isDownBeat", beatCounter, isDownBeat())
     if beatCounter == 1 then
       if partOrderButton.value and #partOrder > 0 then
         if partOrderRepeatCounter == 0 then
           -- Start new part
           partInfo = partOrder[partOrderPos]
-          -- TODO Check for part change?
-          --local partIsChanged = slotIndex ~= partInfo.part
           slotIndex = partInfo.part
           partOrderRepeatCounter = partInfo.repeats
+          startEvolve = partInfo.evolve
+          --print("startEvolve, slotIndex, partOrderPos", startEvolve, slotIndex, partOrderPos)
           partDuration = partOrderRepeatCounter * beatBase * beatResolution
           remainingDuration = partDuration
-          print("Set part", slotIndex)
+          -- If slot is already selected, deactivate so we can select it again
+          if fragmentSlots[slotIndex] then
+            fragmentSlots[slotIndex]:setValue(false)
+          end
           fragmentSlots[slotIndex]:setValue(true)
-          -- Increment order pos
+          -- Increment part order position
           partOrderPos = partOrderPos + 1
           if partOrderPos > #partOrder then
             partOrderPos = 1
@@ -1398,12 +1396,13 @@ function sequenceRunner()
         end
 
         partOrderRepeatCounter = partOrderRepeatCounter - 1 -- Decrement repeat counter
-        print("Decrementing partOrderRepeatCounter", partOrderRepeatCounter)
+        --print("Decrementing partOrderRepeatCounter", partOrderRepeatCounter)
       end
 
       if type(recallStoredState) == "number" then
         initNotes()
         recall()
+        evolveButton:setValue(startEvolve)
       end
 
       if type(partDuration) == "nil" or remainingDuration == partDuration then
@@ -1415,7 +1414,7 @@ function sequenceRunner()
 
     if type(partDuration) == "number" then
       remainingDuration = remainingDuration - beatResolution
-      print("Sequence runner remainingDuration", remainingDuration)
+      --print("Sequence runner remainingDuration", remainingDuration)
     end
 
     beatCounter = beatCounter + 1 -- Increment counter
@@ -1429,7 +1428,7 @@ function sequenceRunner()
 end
 
 function play(voice, uniqueId, partDuration)
-  print("voice, uniqueId, partDuration", voice, uniqueId, partDuration)
+  --print("voice, uniqueId, partDuration", voice, uniqueId, partDuration)
   local playDuration = 0 -- Keep track of the played duration
   local duration = nil
   local isFragmentStart = false
@@ -1477,7 +1476,7 @@ function play(voice, uniqueId, partDuration)
 
     if type(partDuration) == "number" and (playDuration + duration) > partDuration then
       duration = partDuration - playDuration -- Remaining
-      print("duration changed to remaining", duration, "voice " .. voice)
+      --print("duration changed to remaining", duration, "voice " .. voice)
     end
 
     -- Update total play duration
@@ -1506,7 +1505,7 @@ function play(voice, uniqueId, partDuration)
     end
 
     if type(partDuration) == "number" and playDuration == partDuration then
-      print("YES playDuration == partDuration", playDuration, "voice " .. voice)
+      --print("playDuration == partDuration", playDuration, "voice " .. voice)
       playingVoices[voice] = false -- Break loop
       break
     end
@@ -1515,9 +1514,6 @@ function play(voice, uniqueId, partDuration)
       paramsPerFragment[activeFragment.i].fragmentInputDirty = false
       playingVoices[voice] = false -- Restart voice next bar to reload fragment input
     end
-
-    --if duration <= beatResolution and roundCounterPerVoice[voice] > 1 and isFragmentStart == true and isRepeat == false then
-    --end
 
     if duration > 0 then
       waitBeat(duration)
