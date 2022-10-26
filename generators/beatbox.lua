@@ -1018,6 +1018,7 @@ storeButton.y = structureLabel.y + structureLabel.height + 5
 storeButton.changed = function(self)
   local fragments = {}
   for i,v in ipairs(paramsPerFragment) do
+    -- TODO Store other parameters as well - probability, random, repeat...
     table.insert(fragments, v.fragmentInput.text)
   end
   table.insert(storedFragments, fragments)
@@ -1129,26 +1130,28 @@ loadFragmentMenu.changed = function(self)
   self:setValue(1, false)
 end
 
-local partOrderLabel = structurePanel:Label("PartOrderLabel")
-partOrderLabel.text = "Part order"
-partOrderLabel.tooltip = "Set the playing order of the parts (1-8 as stored in the slots). Format <PART>x<REPEATS> separated by comma. Example: 1x16,2x8,3x1,1x16"
-partOrderLabel.alpha = 0.75
-partOrderLabel.fontSize = 15
-partOrderLabel.width = 60
-partOrderLabel.height = 20
-partOrderLabel.x = loadFragmentMenu.x + loadFragmentMenu.width + 10
-partOrderLabel.y = loadFragmentMenu.y
+local partOrderButton = structurePanel:OnOffButton("PartOrderLabel")
+partOrderButton.displayName = "Part Order"
+partOrderButton.tooltip = "Activate part order"
+partOrderButton.width = 60
+partOrderButton.height = 20
+partOrderButton.backgroundColourOff = backgroundColourOff
+partOrderButton.backgroundColourOn = backgroundColourOn
+partOrderButton.textColourOff = textColourOff
+partOrderButton.textColourOn = textColourOn
+partOrderButton.x = loadFragmentMenu.x + loadFragmentMenu.width + 10
+partOrderButton.y = loadFragmentMenu.y
 
 local partOrderInput = structurePanel:Label("PartOrderInput")
 partOrderInput.text = ""
-partOrderInput.tooltip = partOrderLabel.tooltip
+partOrderInput.tooltip = "Set the playing order of the parts (1-8 as stored in the slots). Format <PART>x<REPEATS> separated by comma. Example: 1x16,2x8,3x1,1x16"
 partOrderInput.editable = true
 partOrderInput.backgroundColour = "black"
 partOrderInput.backgroundColourWhenEditing = "white"
 partOrderInput.textColour = "white"
 partOrderInput.textColourWhenEditing = "black"
-partOrderInput.x = partOrderLabel.x + partOrderLabel.width
-partOrderInput.y = partOrderLabel.y
+partOrderInput.x = partOrderButton.x + partOrderButton.width
+partOrderInput.y = partOrderButton.y
 partOrderInput.width = 150
 partOrderInput.height = 20
 partOrderInput.fontSize = 15
@@ -1375,7 +1378,7 @@ function sequenceRunner()
     print("sequenceRunner, beatCounter, isDownBeat", beatCounter, isDownBeat())
 
     if beatCounter == 1 then
-      if #partOrder > 0 then
+      if partOrderButton.value and #partOrder > 0 then
         if partOrderRepeatCounter == 0 then
           -- Start new part
           partInfo = partOrder[partOrderPos]
