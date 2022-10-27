@@ -301,6 +301,43 @@ function flashFragmentActive(fragmentActive, duration)
   fragmentActive.textColourOn = "black"
 end
 
+-- Get fragment state for storage
+function getFragmentState()
+  local fragments = {}
+  for i,v in ipairs(paramsPerFragment) do
+    table.insert(fragments, {
+      fragmentActive = v.fragmentActive.value,
+      lockedForEvolve = v.lockedForEvolve.value,
+      fragmentInput = v.fragmentInput.text,
+      playProbability = v.fragmentPlayProbability.value,
+      repeatProbability = v.fragmentRepeatProbability.value,
+      repeatProbabilityDecay = v.fragmentRepeatProbabilityDecay.value,
+      minRepeats = v.fragmentMinRepeats.value,
+      reverseProbability = v.reverseFragmentProbability.value,
+      randomizeProbability = v.randomizeFragmentProbability.value,
+      restProbability = v.restProbability.value,
+    })
+  end
+  return fragments
+end
+
+-- Set the fragment state based on the given state
+function setFragmentState(state)
+  local fragments = state
+  for i,v in ipairs(paramsPerFragment) do
+    v.fragmentActive.value = fragments[i].fragmentActive
+    v.lockedForEvolve.value = fragments[i].lockedForEvolve
+    v.fragmentInput.text = fragments[i].fragmentInput
+    v.fragmentPlayProbability.value = fragments[i].playProbability
+    v.fragmentRepeatProbability.value = fragments[i].repeatProbability
+    v.fragmentRepeatProbabilityDecay.value = fragments[i].repeatProbabilityDecay
+    v.fragmentMinRepeats.value = fragments[i].minRepeats
+    v.reverseFragmentProbability.value = fragments[i].reverseProbability
+    v.randomizeFragmentProbability.value = fragments[i].randomizeProbability
+    v.restProbability.value = fragments[i].restProbability
+  end
+end
+
 -- Returns a table of resolutions indexes that are "approved" to use
 function getSelectedResolutions()
   local selectedResolutions = getSlowResolutions()
@@ -443,11 +480,6 @@ function setResolutionsForEvolve()
   if #resolutionsForEvolve > math.ceil(numFragments ^ 2.5) then
     local removeAmount = removeDuplicates()
     --print("Removed from resolutionsForEvolve", removeAmount)
-    --[[ local removeAmount = #resolutionsForEvolve / 2 -- Remove first half
-    for i=1,removeAmount do
-      table.remove(resolutionsForEvolve, 1)
-    end
-    print("Removed from resolutionsForEvolve", removeAmount) ]]
   end
   -- Find all resolutions that are present in the current fragments, and add to evolve memory
   for i=1,numFragments do
@@ -463,14 +495,10 @@ function setResolutionsForEvolve()
   --print("Total resolutionsForEvolve", #resolutionsForEvolve)
 end
 
--- TODO Establish settings for evolve? Frequency of evolve?
--- TODO Store evolved states?
--- TODO Menu for selecting evolve?
--- TODO Evolve other fragment settings?
 function evolveFragments(previous, randomizeCurrentResolutionProbability, adjustBias)
   setResolutionsForEvolve()
   for i,v in ipairs(paramsPerFragment) do
-    if string.len(v.fragmentInput.text) > 0 then
+    if v.lockedForEvolve.value == false and string.len(v.fragmentInput.text) > 0 then
       previous = evolveFragment(i, previous, randomizeCurrentResolutionProbability, adjustBias)
     end
   end
@@ -614,7 +642,21 @@ function getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelectors)
     fragmentActive.size = {24,24}
     fragmentActive.x = rythmLabel.x + offsetX
     fragmentActive.y = rythmLabel.y + rythmLabel.height + offsetY
-    
+
+    local lockedForEvolve = rythmPanel:OnOffButton("LockedForEvolve" .. i, false)
+    lockedForEvolve.backgroundColourOff = colours.backgroundColourOff
+    lockedForEvolve.backgroundColourOn = colours.backgroundColourOn
+    lockedForEvolve.textColourOff = "black"
+    lockedForEvolve.textColourOn = "black"
+    --lockedForEvolve.normalImage = "../resources/icons/lock_open.png"
+    --lockedForEvolve.pressedImage = "../resources/icons/lock_closed.png"
+    lockedForEvolve.fontSize = 14
+    lockedForEvolve.displayName = "L"
+    lockedForEvolve.tooltip = "Set fragment locked for evolve"
+    lockedForEvolve.size = {24,20}
+    lockedForEvolve.x = fragmentActive.x
+    lockedForEvolve.y = fragmentActive.y + fragmentActive.height + 3
+
     -- Fragment Input
     local fragmentInput = rythmPanel:Label("FragmentInput" .. i)
     fragmentInput.text = defaultResolution
@@ -863,7 +905,7 @@ function getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelectors)
     restProbability.x = restProbabilityLabel.x + restProbabilityLabel.width - 1
     restProbability.y = restProbabilityLabel.y
 
-    table.insert(paramsPerFragment, {fragmentInput=fragmentInput, fragmentInputDirty=false, fragmentActive=fragmentActive, fragmentPlayProbability=fragmentPlayProbability, randomizeFragmentProbability=randomizeFragmentProbability, reverseFragmentProbability=reverseFragmentProbability, restProbability=restProbability, fragmentRepeatProbability=fragmentRepeatProbability, fragmentRepeatProbabilityDecay=fragmentRepeatProbabilityDecay, fragmentMinRepeats=fragmentMinRepeats})
+    table.insert(paramsPerFragment, {fragmentInput=fragmentInput, fragmentInputDirty=false, fragmentActive=fragmentActive, lockedForEvolve=lockedForEvolve, fragmentPlayProbability=fragmentPlayProbability, randomizeFragmentProbability=randomizeFragmentProbability, reverseFragmentProbability=reverseFragmentProbability, restProbability=restProbability, fragmentRepeatProbability=fragmentRepeatProbability, fragmentRepeatProbabilityDecay=fragmentRepeatProbabilityDecay, fragmentMinRepeats=fragmentMinRepeats})
   end
   return paramsPerFragment
 end

@@ -1125,22 +1125,7 @@ end
 minResolution:changed()
 
 storeButton.changed = function(self)
-  local fragments = {}
-  for i,v in ipairs(paramsPerFragment) do
-    -- Store fragment parameters
-    table.insert(fragments, {
-      fragmentActive = v.fragmentActive.value,
-      fragmentInput = v.fragmentInput.text,
-      playProbability = v.fragmentPlayProbability.value,
-      repeatProbability = v.fragmentRepeatProbability.value,
-      repeatProbabilityDecay = v.fragmentRepeatProbabilityDecay.value,
-      minRepeats = v.fragmentMinRepeats.value,
-      reverseProbability = v.reverseFragmentProbability.value,
-      randomizeProbability = v.randomizeFragmentProbability.value,
-      restProbability = v.restProbability.value,
-    })
-  end
-  table.insert(storedFragments, fragments)
+  table.insert(storedFragments, getFragmentState())
   recallButton.enabled = true
   loadFragmentMenu.enabled = true
   loadFragmentMenu:addItem("State " .. #storedFragments)
@@ -1323,35 +1308,27 @@ end
 
 function recall()
   -- Find the state we are to recall
-  local fragments = storedFragments[recallStoredState]
-  for i,v in ipairs(paramsPerFragment) do
-    v.fragmentActive.value = fragments[i].fragmentActive
-    v.fragmentInput.text = fragments[i].fragmentInput
-    v.fragmentPlayProbability.value = fragments[i].playProbability
-    v.fragmentRepeatProbability.value = fragments[i].repeatProbability
-    v.fragmentRepeatProbabilityDecay.value = fragments[i].repeatProbabilityDecay
-    v.fragmentMinRepeats.value = fragments[i].minRepeats
-    v.reverseFragmentProbability.value = fragments[i].reverseProbability
-    v.randomizeFragmentProbability.value = fragments[i].randomizeProbability
-    v.restProbability.value = fragments[i].restProbability
-  end
+  setFragmentState(storedFragments[recallStoredState])
   --print("Recalled fragments from stored state", recallStoredState)
   recallStoredState = nil
 end
 
 -- Parse the part order input
 -- Format: <PART><x|e><REPEATS> separated by comma (use e instead of x to activate evolve). Example: 1x16,2e8,3
+-- Set the part to zero "0" to use the current state instead of loading a part
 function setPartOrder(partOrderText)
   partOrder = {} -- Reset
   for s in string.gmatch(partOrderText, "[^,]+") do
     local evolve = type(string.find(s, "e", 1, true)) == "number" -- Check if "e" is given for evolve
     local part = tonumber(string.sub(s, 1, 1)) -- Parts are 1-8, so we get the first pos in the string
     local repeats = tonumber(string.sub(s, 3)) -- Get repeats from the third pos to the end - if any is set
-    if type(repeats) == "nil" then
+    if type(repeats) ~= "number" then
       repeats = 1
     end
-    --print("setPartOrder part, repeats, evolve", part,repeats, evolve)
-    table.insert(partOrder, {part=part,repeats=repeats,evolve=evolve})
+    if type(part) == "number" then
+      print("setPartOrder part, repeats, evolve", part, repeats, evolve)
+      table.insert(partOrder, {part=part,repeats=repeats,evolve=evolve})
+    end
   end
   --print("#partOrder", #partOrder)
   return partOrder
@@ -1384,10 +1361,12 @@ function sequenceRunner()
           partDuration = partOrderRepeatCounter * beatBase * beatResolution
           remainingDuration = partDuration
           -- If slot is already selected, deactivate so we can select it again
-          if fragmentSlots[slotIndex] then
-            fragmentSlots[slotIndex]:setValue(false)
+          if slotIndex > 0 then
+            if fragmentSlots[slotIndex].value == true then
+              fragmentSlots[slotIndex]:setValue(false)
+            end
+            fragmentSlots[slotIndex]:setValue(true)
           end
-          fragmentSlots[slotIndex]:setValue(true)
           -- Increment part order position
           partOrderPos = partOrderPos + 1
           if partOrderPos > #partOrder then
@@ -1405,16 +1384,17 @@ function sequenceRunner()
         evolveButton:setValue(startEvolve)
       end
 
-      if type(partDuration) == "nil" or remainingDuration == partDuration then
+      --print("beatCounter, remainingDuration, partDuration", beatCounter, remainingDuration, partDuration)
+      if type(partDuration) == "nil" or remainingDuration == partDuration or remainingDuration == 0 then
         playVoices(partDuration)
       end
     end
 
     waitBeat(beatResolution)
 
-    if type(partDuration) == "number" then
+    if remainingDuration > 0 then
       remainingDuration = remainingDuration - beatResolution
-      --print("Sequence runner remainingDuration", remainingDuration)
+      --print("SequenceRunner remainingDuration", remainingDuration)
     end
 
     beatCounter = beatCounter + 1 -- Increment counter
