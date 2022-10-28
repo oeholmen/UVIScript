@@ -1,9 +1,9 @@
 --------------------------------------------------------------------------------
--- Probability Sequencer
+-- Drunken Sequencer
 --------------------------------------------------------------------------------
 
 require "../includes/noteSelector"
-require "../includes/resolutionSelector"
+require "../includes/rythmicFragments"
 
 local backgroundColour = "303030" -- Light or Dark
 local widgetBackgroundColour = "01011F" -- Dark
@@ -13,6 +13,10 @@ local labelBackgoundColour = "white"
 local menuBackgroundColour = "01011F"
 local menuArrowColour = "66" .. labelTextColour
 local menuOutlineColour = "5f" .. widgetTextColour
+local backgroundColourOff = "ff084486"
+local backgroundColourOn = "ff02ACFE"
+local textColourOff = "ff22FFFF"
+local textColourOn = "efFFFFFF"
 
 local colours = {
   backgroundColour = backgroundColour,
@@ -21,33 +25,16 @@ local colours = {
   labelTextColour = labelTextColour,
   menuBackgroundColour = menuBackgroundColour,
   menuArrowColour = menuArrowColour,
-  menuOutlineColour = menuOutlineColour
+  menuOutlineColour = menuOutlineColour,
+  backgroundColourOff = backgroundColourOff,
+  backgroundColourOn = backgroundColourOn,
+  textColourOff = textColourOff,
+  textColourOn = textColourOn,
 }
 
 local voices = 1
 local notesPlaying = {}
 local isPlaying = {}
-local noteNames = getNoteNames()
-local minResolution = resolutions[#resolutions] -- The lowest allowed resolution
-
---------------------------------------------------------------------------------
--- Sequencer Functions
---------------------------------------------------------------------------------
-
-function startPlaying()
-  if #isPlaying > 1 then
-    return
-  end
-  run(sequenceRunner)
-end
-
-function stopPlaying()
-  if #isPlaying == 0 then
-    return
-  end
-  isPlaying = {}
-  notesPlaying = {}
-end
 
 --------------------------------------------------------------------------------
 -- Panel Definitions
@@ -76,25 +63,35 @@ notePanel.y = settingsPanel.y + settingsPanel.height + 5
 notePanel.width = 700
 notePanel.height = 150
 
-local resolutionPanel = Panel("Resolutions")
-resolutionPanel.backgroundColour = "404040"
-resolutionPanel.x = notePanel.x
-resolutionPanel.y = notePanel.y + notePanel.height + 5
-resolutionPanel.width = 700
-resolutionPanel.height = 162
+local rythmPanel = Panel("Rythm")
+rythmPanel.backgroundColour = "404040"
+rythmPanel.x = notePanel.x
+rythmPanel.y = notePanel.y + notePanel.height + 5
+rythmPanel.width = 700
+rythmPanel.height = 215
 
 --------------------------------------------------------------------------------
 -- Sequencer Panel
 --------------------------------------------------------------------------------
 
-local label = sequencerPanel:Label("Label")
-label.text = "Drunken Sequencer"
-label.alpha = 0.5
-label.backgroundColour = labelBackgoundColour
-label.textColour = labelTextColour
-label.fontSize = 22
-label.width = 170
-label.x = 0
+local sequencerLabel = sequencerPanel:Label("Label")
+sequencerLabel.text = "Drunken Sequencer"
+sequencerLabel.alpha = 0.5
+sequencerLabel.backgroundColour = labelBackgoundColour
+sequencerLabel.textColour = labelTextColour
+sequencerLabel.fontSize = 22
+sequencerLabel.width = 170
+sequencerLabel.x = 0
+
+meter = sequencerPanel:AudioMeter("OutputLevel", Part, false, 0, true)
+meter.height = sequencerLabel.height
+meter.width = sequencerLabel.width
+meter.x = sequencerLabel.x + sequencerLabel.width + 15
+meter.y = sequencerLabel.y
+meter["0dBColour"] = "red"
+meter["3dBColour"] = "orange"
+meter["6dBColour"] = "yellow"
+meter["10dBColour"] = "green"
 
 local channelButton = sequencerPanel:OnOffButton("ChannelButton", false)
 channelButton.backgroundColourOff = "#ff084486"
@@ -225,15 +222,14 @@ velocityInput.size = gateRandomization.size
 velocityInput.x = gateRandomization.x + gateRandomization.width + 10
 velocityInput.y = gateInput.y
 
-local velocityRandomization = settingsPanel:NumBox("VelocityRandomization", 25, 0, 100, true)
-velocityRandomization.unit = Unit.Percent
-velocityRandomization.textColour = widgetTextColour
-velocityRandomization.backgroundColour = widgetBackgroundColour
-velocityRandomization.displayName = "Velocity Rand"
-velocityRandomization.tooltip = "Velocity randomization amount"
-velocityRandomization.size = velocityInput.size
-velocityRandomization.x = velocityInput.x + velocityInput.width + 10
-velocityRandomization.y = gateInput.y
+local velocityAccent = settingsPanel:NumBox("VelocityAccent", 64, 1, 127, true)
+velocityAccent.textColour = widgetTextColour
+velocityAccent.backgroundColour = widgetBackgroundColour
+velocityAccent.displayName = "Accent"
+velocityAccent.tooltip = "Velocity accent amount triggered at the start of a fragment"
+velocityAccent.size = velocityInput.size
+velocityAccent.x = velocityInput.x + velocityInput.width + 10
+velocityAccent.y = velocityInput.y
 
 --------------------------------------------------------------------------------
 -- Notes Panel
@@ -291,120 +287,19 @@ end
 createNoteAndOctaveSelector(notePanel, colours, noteLabel)
 
 --------------------------------------------------------------------------------
--- Resolution Panel
+-- Rythm Panel
 --------------------------------------------------------------------------------
 
-local resLabel = resolutionPanel:Label("ResolutionsLabel")
-resLabel.text = "Resolutions"
-resLabel.tooltip = "Set probability for each resolution to be selected"
-resLabel.alpha = 0.75
-resLabel.fontSize = 15
-resLabel.width = 350
+local rythmLabel = rythmPanel:Label("RythmLabel")
+rythmLabel.text = "Rythmic fragments"
+rythmLabel.alpha = 0.75
+rythmLabel.fontSize = 15
+rythmLabel.width = 153
 
-local clearResolutions = resolutionPanel:Button("ClearResolutions")
-clearResolutions.displayName = "All off"
-clearResolutions.tooltip = "Deactivate all resolutions"
-clearResolutions.persistent = false
-clearResolutions.height = resLabel.height
-clearResolutions.width = 90
-clearResolutions.x = resolutionPanel.width - (clearResolutions.width * 3) - 30
-clearResolutions.y = 5
-clearResolutions.changed = function()
-  for i,v in ipairs(resolutionInputs) do
-    toggleResolutionInputs[i]:setValue(false)
-  end
-end
-
-local addResolutions = resolutionPanel:Button("AddResolutions")
-addResolutions.displayName = "All on"
-addResolutions.tooltip = "Activate all resolutions"
-addResolutions.persistent = false
-addResolutions.height = clearResolutions.height
-addResolutions.width = 90
-addResolutions.x = clearResolutions.x + clearResolutions.width + 10
-addResolutions.y = 5
-addResolutions.changed = function()
-  for i,v in ipairs(resolutionInputs) do
-    toggleResolutionInputs[i]:setValue(true)
-  end
-end
-
-local randomizeResolutions = resolutionPanel:Button("RandomizeResolutions")
-randomizeResolutions.displayName = "Randomize"
-randomizeResolutions.tooltip = "Randomize selected resolutions"
-randomizeResolutions.persistent = false
-randomizeResolutions.height = clearResolutions.height
-randomizeResolutions.width = 90
-randomizeResolutions.x = addResolutions.x + addResolutions.width + 10
-randomizeResolutions.y = 5
-randomizeResolutions.changed = function()
-  for i,v in ipairs(resolutionInputs) do
-    toggleResolutionInputs[i]:setValue(getRandomBoolean())
-  end
-end
-
-rowCount = createResolutionSelector(resolutionPanel, colours)
-
-local resLabel = resolutionPanel:Label("ResolutionsLabel")
-resLabel.text = "Base Resolution"
-resLabel.alpha = 0.5
-resLabel.fontSize = 15
-resLabel.width = 106
-resLabel.x = 5
-resLabel.y = (25 * rowCount) + 10
-
-local baseResolution = resolutionPanel:Menu("BaseResolution", resolutionNames)
-baseResolution.displayName = resLabel.text
-baseResolution.tooltip = "The duration between resets"
-baseResolution.selected = 7
-baseResolution.showLabel = false
-baseResolution.height = 20
-baseResolution.width = 106
-baseResolution.backgroundColour = widgetBackgroundColour
-baseResolution.textColour = widgetTextColour
-baseResolution.arrowColour = menuArrowColour
-baseResolution.outlineColour = menuOutlineColour
-baseResolution.x = resLabel.x + resLabel.width + 10
-baseResolution.y = resLabel.y
-
-local durationRepeatProbabilityInput = resolutionPanel:NumBox("DurationRepeatProbability", 100, 0, 100, true)
-durationRepeatProbabilityInput.unit = Unit.Percent
-durationRepeatProbabilityInput.textColour = widgetTextColour
-durationRepeatProbabilityInput.backgroundColour = widgetBackgroundColour
-durationRepeatProbabilityInput.displayName = "Repeat Probability"
-durationRepeatProbabilityInput.tooltip = "The probability that a resolution will be repeated"
-durationRepeatProbabilityInput.size = {106*1.5+5,20}
-durationRepeatProbabilityInput.x = baseResolution.x + baseResolution.width + 10
-durationRepeatProbabilityInput.y = baseResolution.y
-
-local durationRepeatDecay = resolutionPanel:NumBox("DurationRepeatDecay", 1, 0.01, 100)
-durationRepeatDecay.unit = Unit.Percent
-durationRepeatDecay.textColour = widgetTextColour
-durationRepeatDecay.backgroundColour = widgetBackgroundColour
-durationRepeatDecay.displayName = "Probability Decay"
-durationRepeatDecay.tooltip = "The reduction in repeat probability for each iteration of the playing voice"
-durationRepeatDecay.size = durationRepeatProbabilityInput.size
-durationRepeatDecay.x = durationRepeatProbabilityInput.x + durationRepeatProbabilityInput.width + 10
-durationRepeatDecay.y = durationRepeatProbabilityInput.y
-
-local useGlobalProbabilityInput = resolutionPanel:NumBox("UseGlobalProbabilityInput", 50, 0, 100, true)
-useGlobalProbabilityInput.enabled = false
-useGlobalProbabilityInput.unit = Unit.Percent
-useGlobalProbabilityInput.textColour = widgetTextColour
-useGlobalProbabilityInput.backgroundColour = widgetBackgroundColour
-useGlobalProbabilityInput.displayName = "Link Voices"
-useGlobalProbabilityInput.tooltip = "Set the probability that same resolution will be selected for all voices"
-useGlobalProbabilityInput.size = {106,20}
-useGlobalProbabilityInput.x = durationRepeatDecay.x + durationRepeatDecay.width + 10
-useGlobalProbabilityInput.y = durationRepeatDecay.y
-
-voicesInput.changed = function(self)
-  voices = self.value
-  useGlobalProbabilityInput.enabled = voices > 1
-end
+local paramsPerFragment = getParamsPerFragment(rythmPanel, rythmLabel, colours)
 
 --------------------------------------------------------------------------------
--- Note Functions
+-- Functions
 --------------------------------------------------------------------------------
 
 function generateNote(currentNote)
@@ -459,8 +354,22 @@ function getGate()
   return randomizeValue(gateInput.value, 0, 101, gateRandomization.value) / 100
 end
 
-function getVelocity()
-  return randomizeValue(velocityInput.value, 1, 127, velocityRandomization.value)
+function startPlaying()
+  if #isPlaying > 1 then
+    return
+  end
+  run(sequenceRunner)
+end
+
+function stopPlaying()
+  if #isPlaying == 0 then
+    return
+  end
+  isPlaying = {}
+  notesPlaying = {}
+  for _,v in ipairs(paramsPerFragment) do
+    v.fragmentActive.textColourOn = "black"
+  end
 end
 
 --------------------------------------------------------------------------------
@@ -482,63 +391,50 @@ function sequenceRunner()
       end
       currentVoices = #isPlaying
     end
-    local baseDuration = getResolution(baseResolution.value)
+    local baseDuration = 4
     waitBeat(baseDuration)
   until #isPlaying == 0
 end
 
 function arpeg(voice)
-  local waitDuration = nil
-  local noteToPlay = nil
-  local remainingDuration = 0
-  local durationRepeatProbability = durationRepeatProbabilityInput.value
-  local repeatCounter = 1
-  --print("Start playing voice", voice)
+  local note = nil
+  local activeFragment = nil -- The fragment currently playing
+  local fragmentPos = 0 -- Position in the active fragment
+  local fragmentRepeatCount = 0
+  local fragmentRepeatProbability = 0
+  local duration = nil
+  local rest = false
+  local reverseFragment = false
   while isPlaying[voice] == voice do
     local channel = nil
     if channelButton.value then
       channel = voice
     end
-    --print("arpeg gate", gate)
-    if remainingDuration == 0 then
-      remainingDuration = getResolution(baseResolution.value) -- Reset remaining duration to base duration
-      repeatCounter = 1 -- Reset repeat counter - should counter be reset here?
-      --print("New round for voice, remainingDuration", voice, remainingDuration)
+    note = generateNote(note)
+    duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
+    local doPlayNote = rest == false and type(note) == "number" and type(duration) == "number"
+    if doPlayNote then
+      local gate = getGate()
+      local velocity = velocityInput.value
+      -- Use accent value in fragment start, if there is more than one resolution defined in the fragment
+      if isFragmentStart and #activeFragment.f > 1 then
+        velocity = velocityAccent.value
+      end
+      playNote(note, velocity, beat2ms(getPlayDuration(duration, gate)), nil, channel)
+      table.insert(notesPlaying, note) -- Register
+      for i,v in ipairs(paramsPerFragment) do
+        if activeFragment.i == i then
+          spawn(flashFragmentActive, v.fragmentActive, duration)
+        end
+      end
     end
-    local useGlobalProbability = useGlobalProbabilityInput.value
-    if useGlobalProbabilityInput.enabled == false then
-      useGlobalProbability = 0
+    if type(duration) == "nil" then
+      duration = 1 -- Failsafe
     end
-    waitDuration, repeatCounter, durationRepeatProbability = getNoteDuration(waitDuration, repeatCounter, durationRepeatProbability, durationRepeatDecay.value, useGlobalProbability)
-    if durationRepeatProbability == nil then
-      durationRepeatProbability = durationRepeatProbabilityInput.value
+    waitBeat(duration)
+    if doPlayNote then
+      table.remove(notesPlaying, getIndexFromValue(note, notesPlaying)) -- Remove
     end
-    --print("remainingDuration, waitDuration, repeatCounter, durationRepeatProbability", remainingDuration, waitDuration, repeatCounter, durationRepeatProbability)
-    if remainingDuration < waitDuration then
-      waitDuration = remainingDuration
-      --print("waitDuration changed to remaining", waitDuration)
-    end
-    local gate = getGate()
-    if gate > 0 and waitDuration >= minResolution then
-      noteToPlay = generateNote(noteToPlay)
-    else
-      noteToPlay = nil
-    end
-    if type(noteToPlay) == "number" then
-      local velocity = getVelocity()
-      local playDuration = beat2ms(waitDuration) * gate
-        playNote(noteToPlay, velocity, playDuration, nil, channel)
-      --print("playNote noteToPlay, velocity, playDuration, voice", noteToPlay, velocity, playDuration, voice)
-      -- Register playing note
-      table.insert(notesPlaying, noteToPlay)
-    end
-    --print("waitBeat(waitDuration)", waitDuration)
-    waitBeat(waitDuration)
-    if type(noteToPlay) == "number" then
-      -- Unregister note
-      table.remove(notesPlaying, getIndexFromValue(noteToPlay, notesPlaying))
-    end
-    remainingDuration = remainingDuration - waitDuration
   end
 end
 
@@ -565,5 +461,27 @@ end
 function onTransport(start)
   if autoplayButton.value == true then
     playButton:setValue(start)
+  end
+end
+
+--------------------------------------------------------------------------------
+-- Save / Load
+--------------------------------------------------------------------------------
+
+function onSave()
+  local fragmentInputData = {}
+
+  for _,v in ipairs(paramsPerFragment) do
+    table.insert(fragmentInputData, v.fragmentInput.text)
+  end
+
+  return {fragmentInputData}
+end
+
+function onLoad(data)
+  local fragmentInputData = data[1]
+
+  for i,v in ipairs(fragmentInputData) do
+    paramsPerFragment[i].fragmentInput.text = v
   end
 end
