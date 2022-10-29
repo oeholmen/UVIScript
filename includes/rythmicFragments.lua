@@ -18,6 +18,7 @@ local resolutionFragments = {
   {'1/16','1/8 dot'},
   {'1/8 dot','1/16'},
   {'1/2 dot','1/4'},
+  {'1/8 dot','1/4','1/4','1/16'},
   {'1/16','1/16','1/16','1/16','1/16','1/16','1/16','1/32','1/32'},
   {'1/8','1/8','1/16','1/4','1/8','1/16','1/8','1/16','1/16'},
   {'-1/1 dot','1/4 dot','1/8'},
@@ -326,7 +327,7 @@ function setFragmentState(state)
   local fragments = state
   for i,v in ipairs(paramsPerFragment) do
     v.fragmentActive.value = fragments[i].fragmentActive
-    v.lockedForEvolve.value = fragments[i].lockedForEvolve
+    v.lockedForEvolve.value = fragments[i].lockedForEvolve or false
     v.fragmentInput.text = fragments[i].fragmentInput
     v.fragmentPlayProbability.value = fragments[i].playProbability
     v.fragmentRepeatProbability.value = fragments[i].repeatProbability
@@ -783,7 +784,7 @@ function getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelectors)
     -- Add r = repeat probability
     local fragmentRepeatProbabilityLabel = rythmPanel:Label("FragmentRepeatProbabilityLabel" .. i)
     fragmentRepeatProbabilityLabel.text = "r"
-    fragmentRepeatProbabilityLabel.tooltip = "Probability that this rythmic fragment will be repeated"
+    fragmentRepeatProbabilityLabel.tooltip = "Probability that this fragment will be repeated"
     fragmentRepeatProbabilityLabel.textColour = colours.labelTextColour
     fragmentRepeatProbabilityLabel.alpha = 0.5
     fragmentRepeatProbabilityLabel.fontSize = 20

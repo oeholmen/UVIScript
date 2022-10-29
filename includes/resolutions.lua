@@ -49,7 +49,9 @@ local resolutions = {
   getDotted(0.0625), -- "1/64 dot", -- 27
   getTriplet(0.25), -- "1/32 tri", -- 28
   0.0625, -- "1/64", -- 29
-  getTriplet(0.125) -- "1/64 tri" -- 30
+  getDotted(0.03125), -- "1/128 dot" -- 30
+  getTriplet(0.125), -- "1/64 tri" -- 31
+  0.03125 -- "1/128" -- 32
 }
 
 local resolutionNames = {
@@ -82,7 +84,9 @@ local resolutionNames = {
   "1/64 dot", -- 27
   "1/32 tri", -- 28
   "1/64", -- 29
-  "1/64 tri" -- 30
+  "1/128 dot", -- 30
+  "1/64 tri", -- 31
+  "1/128" -- 32
 }
 
 function getResolution(i)
@@ -123,7 +127,7 @@ end
 
 function getResolutionsByType(maxResolutionIndex)
   if type(maxResolutionIndex) == "nil" then
-    maxResolutionIndex = #resolutions - 1
+    maxResolutionIndex = #resolutions
   end
   local startPosIndex = 11
   local resOptions = {}
