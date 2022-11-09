@@ -22,12 +22,17 @@ The drunken sequencer is inspired in part by the "Drunk" modulator in Falcon. Th
 
 Note selection can be controlled by on/off for each note in the cromatic scale, and probability for each. Octave selection are done in the same manner (on/off+probability for each octave).
 
-Up to twelve slots can be activated for selecting resolutions to go with the notes. Each resolution can be set with a probability and a few other parameters to control behavour or selection.
+This generator uses the rythmic fragments from the beatbox.
 
 ### generativeChorder.lua (Generative Chorder)
 The generative chorder is used for generating chords with up to 16 voices. Scales are created by selecting the notes to include (same note selector as the drunken sequencer). Chord definitions are then loaded from presets, or edited directly in the input. The generator can make "standard" chords, or you can define any chord you want, including clusters, fourths, seconds or any other intervals. Chord definitions can be saved to eight different slots for random selection.
 
 The chorder also has a multichannel option, so each voice in the chord can be sent to separate channels.
 
+### generativeStrategySeqencer.lua (Generative Strategy Sequencer)
+This generator lets you define tonal "strategies", short sequences, that are played at different pitches.
+
 ### noteFragmentGenerator.lua (Note Fragment Generator)
-This generator uses the note selector from the drunken sequencer, and the resolution selector from the beatbox.
+This generator lets you pick the exact notes that you want to include. The notes are selected by random when playing.
+
+This generator uses the rythmic fragments from the beatbox.

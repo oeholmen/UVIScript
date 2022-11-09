@@ -149,7 +149,6 @@ local noteRandomization = settingsPanel:NumBox("NoteRandomization", 25, 0, 100, 
 noteRandomization.unit = Unit.Percent
 noteRandomization.textColour = widgetTextColour
 noteRandomization.backgroundColour = widgetBackgroundColour
---noteRandomization.displayName = "Drunk Level"
 noteRandomization.displayName = "Note Movement"
 noteRandomization.tooltip = "Random note movement amount - a small amount gives small steps between notes"
 noteRandomization.size = {163,20}
@@ -178,7 +177,7 @@ randomReset.size = noteDirection.size
 randomReset.x = noteDirection.x + noteDirection.width + 10
 randomReset.y = noteDirection.y
 
-local voicesInput = settingsPanel:NumBox("Voices", voices, 1, 16, true)
+local voicesInput = settingsPanel:NumBox("Voices", voices, 1, 4, true)
 voicesInput.textColour = widgetTextColour
 voicesInput.backgroundColour = widgetBackgroundColour
 voicesInput.displayName = "Voices"
@@ -186,6 +185,9 @@ voicesInput.tooltip = "Number of voices playing"
 voicesInput.size = noteDirection.size
 voicesInput.x = randomReset.x + randomReset.width + 10
 voicesInput.y = randomReset.y
+voicesInput.changed = function(self)
+  voices = self.value
+end
 
 noteDirection.changed = function(self)
   randomReset.enabled = self.value ~= 50
@@ -351,7 +353,7 @@ function generateNote(currentNote)
 end
 
 function getGate()
-  return randomizeValue(gateInput.value, 0, 101, gateRandomization.value) / 100
+  return randomizeValue(gateInput.value, gateInput.min, gateInput.max, gateRandomization.value)
 end
 
 function startPlaying()
@@ -377,26 +379,28 @@ end
 --------------------------------------------------------------------------------
 
 function sequenceRunner()
+  --local previous = nil
   local currentVoices = 0
   repeat
-    --print("sequenceRunner new round")
     if currentVoices ~= voices then
-      --print("currentVoices ~= voices", currentVoices, voices)
       isPlaying = {}
       for i=1,voices do
         table.insert(isPlaying, i)
         if i > currentVoices then
-          spawn(arpeg, i)
+          spawn(play, i)
         end
       end
       currentVoices = #isPlaying
     end
     local baseDuration = 4
     waitBeat(baseDuration)
+    --[[ if getRandomBoolean(evolveFragmentProbability.value) then
+      previous = evolveFragments(previous, randomizeCurrentResolutionProbability.value, adjustBias.value)
+    end ]]
   until #isPlaying == 0
 end
 
-function arpeg(voice)
+function play(voice)
   local note = nil
   local activeFragment = nil -- The fragment currently playing
   local fragmentPos = 0 -- Position in the active fragment
