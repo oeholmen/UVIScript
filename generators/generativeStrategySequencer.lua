@@ -547,7 +547,19 @@ local rythmLabel = rythmPanel:Label("RythmLabel")
 rythmLabel.text = "Rythmic fragments"
 rythmLabel.alpha = 0.75
 rythmLabel.fontSize = 15
-rythmLabel.width = 143
+rythmLabel.width = 120
+
+local evolveButton = rythmPanel:OnOffButton("EvolveActive", false)
+evolveButton.backgroundColourOff = backgroundColourOff
+evolveButton.backgroundColourOn = backgroundColourOn
+evolveButton.textColourOff = textColourOff
+evolveButton.textColourOn = textColourOn
+evolveButton.displayName = "Evolve"
+evolveButton.tooltip = "Activate evolve"
+evolveButton.width = 54
+evolveButton.height = 18
+evolveButton.x = rythmLabel.x + rythmLabel.width + 10
+evolveButton.y = rythmLabel.y
 
 local evolveFragmentProbability = rythmPanel:NumBox("EvolveFragmentProbability", 0, 0, 100, true)
 evolveFragmentProbability.unit = Unit.Percent
@@ -555,10 +567,10 @@ evolveFragmentProbability.textColour = widgetTextColour
 evolveFragmentProbability.backgroundColour = widgetBackgroundColour
 evolveFragmentProbability.displayName = "Evolve"
 evolveFragmentProbability.tooltip = "Set the probability that fragments will change over time, using the resolutions present in the fragments"
-evolveFragmentProbability.width = 120
-evolveFragmentProbability.height = 18
-evolveFragmentProbability.x = rythmLabel.x + rythmLabel.width + 10
-evolveFragmentProbability.y = rythmLabel.y
+evolveFragmentProbability.width = 100
+evolveFragmentProbability.height = evolveButton.height
+evolveFragmentProbability.x = evolveButton.x + evolveButton.width + 10
+evolveFragmentProbability.y = evolveButton.y
 
 local randomizeCurrentResolutionProbability = rythmPanel:NumBox("RandomizeCurrentResolutionProbability", 0, 0, 100, true)
 randomizeCurrentResolutionProbability.unit = Unit.Percent
@@ -843,7 +855,7 @@ function sequenceRunner()
     end
 
     waitBeat(baseDuration)
-    if getRandomBoolean(evolveFragmentProbability.value) then
+    if evolveButton.value and getRandomBoolean(evolveFragmentProbability.value) then
       previous = evolveFragments(previous, randomizeCurrentResolutionProbability.value, adjustBias.value)
     end
   until #isPlaying == 0
