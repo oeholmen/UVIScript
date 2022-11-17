@@ -231,7 +231,6 @@ local templates = {
   --- Rythmic fragments ---
   "--- Rythmic fragments ---",
   "Clear fragments",
-  --"Clear evolve memory",
   "Randomize fragments",
   "Randomize fragments (single)",
   "Randomize fragments (slow)",
@@ -419,8 +418,6 @@ templateMenu.changed = function(self)
   end
   if self.selectedText == "Four on the floor" or self.selectedText == "Kick on down, snare on up" then
     paramsPerFragment[1].fragmentInput.text = "1/4"
-  elseif self.selectedText == "Clear evolve memory" then
-    clearResolutionsForEvolve()
   end
   -- Must be last
   self:setValue(1, false)
