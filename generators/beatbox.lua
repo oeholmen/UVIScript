@@ -1323,7 +1323,7 @@ function setPartOrder(partOrderText)
       repeats = 1
     end
     if type(part) == "number" then
-      print("setPartOrder part, repeats, evolve", part, repeats, evolve)
+      --print("setPartOrder part, repeats, evolve", part, repeats, evolve)
       table.insert(partOrder, {part=part,repeats=repeats,evolve=evolve})
     end
   end
@@ -1564,6 +1564,8 @@ function onLoad(data)
   storedFragments = data[4]
   partOrderInput.text = tostring(data[5])
   slotToStoredIndex = data[6]
+
+  setPartOrder(partOrderInput.text)
 
   if type(storedFragments) == "nil" then
     storedFragments = {}

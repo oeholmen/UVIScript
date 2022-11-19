@@ -582,8 +582,10 @@ local paramsPerFragment = getParamsPerFragment(rythmPanel, rythmLabel, colours, 
 
 local templates = {
   "Action...",
-  "Clear fragments",
-  "Randomize fragments",
+  "Clear all fragment settings",
+  "Clear fragment inputs",
+  "Randomize all fragment settings",
+  "Randomize fragment inputs",
   "Randomize fragments (single)",
   "Randomize fragments (slow)",
   "Randomize fragments (extended)",
@@ -604,15 +606,35 @@ templateMenu.changed = function(self)
     return
   end
   for _,v in ipairs(paramsPerFragment) do
-    if self.selectedText == "Clear fragments" then
+    if self.selectedText == "Clear fragment inputs" then
       v.fragmentInput.text = ""
-    elseif self.selectedText == "Randomize fragments" then
+    elseif self.selectedText == "Clear all fragment settings" then
+      v.fragmentInput.text = ""
+      v.fragmentPlayProbability.value = v.fragmentPlayProbability.default
+      v.fragmentActive.value = v.fragmentActive.default
+      v.fragmentRepeatProbability.value = v.fragmentRepeatProbability.default
+      v.fragmentRepeatProbabilityDecay.value = v.fragmentRepeatProbabilityDecay.default
+      v.fragmentMinRepeats.value = v.fragmentMinRepeats.default
+      v.reverseFragmentProbability.value = v.reverseFragmentProbability.default
+      v.randomizeFragmentProbability.value = v.randomizeFragmentProbability.default
+      v.restProbability.value = v.restProbability.default
+    elseif self.selectedText == "Randomize all fragment settings" then
       v.fragmentInput.text = getRandomFragment(1)
-    elseif self.selectedText == "Randomize fragments (single)" then
+      v.fragmentPlayProbability.value = getRandom(100)
+      v.fragmentActive.value = true
+      v.fragmentRepeatProbability.value = getRandom(100)
+      v.fragmentRepeatProbabilityDecay.value = getRandom(100)
+      v.fragmentMinRepeats.value = getRandom(100)
+      v.reverseFragmentProbability.value = getRandom(100)
+      v.randomizeFragmentProbability.value = getRandom(100)
+      v.restProbability.value = getRandom(100)
+    elseif self.selectedText == "Randomize fragment inputs" then
+      v.fragmentInput.text = getRandomFragment(1)
+    elseif self.selectedText == "Randomize fragment inputs (single)" then
       v.fragmentInput.text = getRandomFragment(2)
-    elseif self.selectedText == "Randomize fragments (extended)" then
+    elseif self.selectedText == "Randomize fragment inputs (extended)" then
       v.fragmentInput.text = getRandomFragment(3)
-    elseif self.selectedText == "Randomize fragments (slow)" then
+    elseif self.selectedText == "Randomize fragment inputs (slow)" then
       v.fragmentInput.text = getRandomFragment(4)
     end
   end
@@ -1086,7 +1108,7 @@ function setPartOrder(partOrderText)
       repeats = 1
     end
     if type(part) == "number" then
-      print("setPartOrder part, repeats, evolve", part, repeats, evolve)
+      --print("setPartOrder part, repeats, evolve", part, repeats, evolve)
       table.insert(partOrder, {part=part,repeats=repeats,evolve=evolve})
     end
   end
@@ -1110,7 +1132,7 @@ function sequenceRunner()
   isPlaying = true
   initNotes()
   while isPlaying do
-    --print("sequenceRunner new round")
+    --print("sequenceRunner new round: #partOrder", #partOrder)
 
     if partOrderButton.value and #partOrder > 0 then
       if partOrderRepeatCounter == 0 then
@@ -1309,6 +1331,8 @@ function onLoad(data)
   storedFragments = data[5]
   partOrderInput.text = tostring(data[6])
   slotToStoredIndex = data[7]
+
+  setPartOrder(partOrderInput.text)
 
   strategyInput.text = strategyInputData
   for i,v in ipairs(strategySlots) do
