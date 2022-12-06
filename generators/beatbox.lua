@@ -776,7 +776,11 @@ for i=1,numNotes do
   local rowCounter = 1
   local columnCounter = 0
   for j=1,numNotes do
-    local sourceSelector = notePanel:NumBox("SourceSelector" .. i .. "_" .. j, 100, 0, 100, true)
+    local defaultValue = 0
+    if j == i then
+      defaultValue = 100
+    end
+    local sourceSelector = notePanel:NumBox("SourceSelector" .. i .. "_" .. j, defaultValue, 0, 100, true)
     sourceSelector.unit = Unit.Percent
     sourceSelector.visible = false
     sourceSelector.displayName = "Rythm " .. j
