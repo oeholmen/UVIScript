@@ -4,7 +4,7 @@
 -- Set the probability that incomming notes will pass through the sieve
 --------------------------------------------------------------------------------
 
-require "../includes/common"
+require "includes.common"
 
 local backgroundColour = "202020" -- Light or Dark
 local widgetBackgroundColour = "black" -- Dark

@@ -2,7 +2,7 @@
 -- Common functions for working with rythmic fragments
 --------------------------------------------------------------------------------
 
-require "../includes/common"
+require "includes.common"
 
 local paramsPerFragment = {}
 
@@ -133,7 +133,7 @@ function createFragmentDefinition(durationType)
     durationType = 1
   end
   local currentDuration = 0
-  local fragmentDurations = {1,2,3,4}
+  local fragmentDurations = {1,2,3,4,8}
   local fragmentDuration = getRandomFromTable(fragmentDurations) -- TODO Param?
   --print("Selected fragmentDuration", fragmentDuration)
   local durations = {}

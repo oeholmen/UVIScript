@@ -2,7 +2,7 @@
 -- TweakSynth
 --------------------------------------------------------------------------------
 
-require "../includes/common"
+require "includes.common"
 
 local tweakables = {}
 local storedPatches = {}

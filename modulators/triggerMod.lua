@@ -2,7 +2,7 @@
 -- A script modulator that adjusts two connected sources probabilistically
 -----------------------------------------------------------------------------
 
-require "../includes/common"
+require "includes.common"
 
 local isRunning = false
 

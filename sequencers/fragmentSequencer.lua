@@ -2,7 +2,7 @@
 -- Sequencer using rythmic fragments
 -------------------------------------------------------------------------------
 
-require "../includes/rythmicFragments"
+require "includes.rythmicFragments"
 
 local isPlaying = false
 local heldNotes = {}
@@ -19,6 +19,7 @@ local backgroundColourOff = "ff084486"
 local backgroundColourOn = "ff02ACFE"
 local textColourOff = "ff22FFFF"
 local textColourOn = "efFFFFFF"
+local knobFillColour = "E6D5B8" -- Light
 
 local colours = {
   backgroundColour = backgroundColour,
@@ -32,6 +33,7 @@ local colours = {
   backgroundColourOn = backgroundColourOn,
   textColourOff = textColourOff,
   textColourOn = textColourOn,
+  knobFillColour = knobFillColour,
 }
 
 setBackgroundColour(backgroundColour)
@@ -73,6 +75,17 @@ sequencerLabel.textColour = labelTextColour
 sequencerLabel.fontSize = 22
 sequencerLabel.width = 180
 
+local activeButton = sequencerPanel:OnOffButton("MuteOnOff", true)
+activeButton.backgroundColourOff = "#ff084486"
+activeButton.backgroundColourOn = "#ff02ACFE"
+activeButton.textColourOff = "#ff22FFFF"
+activeButton.textColourOn = "#efFFFFFF"
+activeButton.displayName = "Active"
+activeButton.fillColour = "#dd000061"
+activeButton.size = {102,22}
+activeButton.x = sequencerPanel.width - (activeButton.width * 2) - 5
+activeButton.y = 5
+
 local holdButton = sequencerPanel:OnOffButton("HoldOnOff", false)
 holdButton.backgroundColourOff = "#ff084486"
 holdButton.backgroundColourOn = "#ff02ACFE"
@@ -81,8 +94,8 @@ holdButton.textColourOn = "#efFFFFFF"
 holdButton.displayName = "Hold"
 holdButton.fillColour = "#dd000061"
 holdButton.size = {102,22}
-holdButton.x = sequencerPanel.width - holdButton.width
-holdButton.y = 5
+holdButton.x = activeButton.x + activeButton.width + 5
+holdButton.y = activeButton.y
 holdButton.changed = function(self)
   if self.value == false then
     heldNotes = {}
@@ -153,7 +166,79 @@ local rythmLabel = rythmPanel:Label("RythmLabel")
 rythmLabel.text = "Rythm"
 rythmLabel.alpha = 0.75
 rythmLabel.fontSize = 15
-rythmLabel.width = 50
+rythmLabel.width = 156
+
+local evolveFragmentProbability = rythmPanel:NumBox("EvolveFragmentProbability", 0, 0, 100, true)
+evolveFragmentProbability.unit = Unit.Percent
+evolveFragmentProbability.textColour = widgetTextColour
+evolveFragmentProbability.backgroundColour = widgetBackgroundColour
+evolveFragmentProbability.displayName = "Evolve"
+evolveFragmentProbability.tooltip = "Set the probability that fragments will change over time, using the resolutions present in the fragments"
+evolveFragmentProbability.width = 120
+evolveFragmentProbability.height = 18
+evolveFragmentProbability.x = rythmLabel.x + rythmLabel.width
+evolveFragmentProbability.y = rythmLabel.y
+
+local randomizeCurrentResolutionProbability = rythmPanel:NumBox("RandomizeCurrentResolutionProbability", 0, 0, 100, true)
+randomizeCurrentResolutionProbability.unit = Unit.Percent
+randomizeCurrentResolutionProbability.textColour = widgetTextColour
+randomizeCurrentResolutionProbability.backgroundColour = widgetBackgroundColour
+randomizeCurrentResolutionProbability.displayName = "Adjust"
+randomizeCurrentResolutionProbability.tooltip = "Set the probability that evolve will adjust resolutions, based on the resolutions present in the fragments"
+randomizeCurrentResolutionProbability.width = evolveFragmentProbability.width
+randomizeCurrentResolutionProbability.height = evolveFragmentProbability.height
+randomizeCurrentResolutionProbability.x = evolveFragmentProbability.x + evolveFragmentProbability.width + 10
+randomizeCurrentResolutionProbability.y = evolveFragmentProbability.y
+
+local biasLabel = rythmPanel:Label("BiasLabel")
+biasLabel.text = "Bias slow > fast"
+biasLabel.tooltip = "Adjust bias: <50=more slow resolutions, >50=more fast resolutions"
+biasLabel.alpha = 0.5
+biasLabel.fontSize = 15
+biasLabel.width = 90
+biasLabel.height = randomizeCurrentResolutionProbability.height
+biasLabel.x = randomizeCurrentResolutionProbability.x + randomizeCurrentResolutionProbability.width + 10
+biasLabel.y = randomizeCurrentResolutionProbability.y
+
+local adjustBias = rythmPanel:Knob("Bias", 50, 0, 100, true)
+adjustBias.showLabel = false
+adjustBias.showValue = false
+adjustBias.displayName = "Bias"
+adjustBias.tooltip = biasLabel.tooltip
+adjustBias.backgroundColour = widgetBackgroundColour
+adjustBias.fillColour = knobFillColour
+adjustBias.outlineColour = widgetTextColour
+adjustBias.width = 18
+adjustBias.height = biasLabel.height
+adjustBias.x = biasLabel.x + biasLabel.width
+adjustBias.y = biasLabel.y
+
+local minResLabel = rythmPanel:Label("MinResolutionsLabel")
+minResLabel.text = "Min resolution"
+minResLabel.alpha = 0.5
+minResLabel.fontSize = 15
+minResLabel.width = 90
+minResLabel.height = adjustBias.height
+minResLabel.x = adjustBias.x + adjustBias.width + 10
+minResLabel.y = adjustBias.y
+
+local minResolution = rythmPanel:Menu("MinResolution", getResolutionNames())
+minResolution.displayName = minResLabel.text
+minResolution.tooltip = "The highest allowed resolution for evolve adjustments"
+minResolution.selected = 26
+minResolution.showLabel = false
+minResolution.width = 60
+minResolution.height = adjustBias.height
+minResolution.backgroundColour = widgetBackgroundColour
+minResolution.textColour = widgetTextColour
+minResolution.arrowColour = menuArrowColour
+minResolution.outlineColour = menuOutlineColour
+minResolution.x = minResLabel.x + minResLabel.width
+minResolution.y = minResLabel.y
+minResolution.changed = function(self)
+  setMaxResolutionIndex(self.value)
+end
+minResolution:changed()
 
 local paramsPerFragment = getParamsPerFragment(rythmPanel, rythmLabel, colours)
 
@@ -222,6 +307,7 @@ function stopPlaying()
 end
 
 function play()
+  local previous = nil
   local notes = {}
   local heldNoteIndex = 0
   local activeFragment = nil -- The fragment currently playing
@@ -231,6 +317,7 @@ function play()
   local duration = nil
   local rest = false
   local reverseFragment = false
+  local durationCounter = 0
   while isPlaying do
     local offset = 0
     if #heldNotes == 0 then
@@ -247,7 +334,7 @@ function play()
     notes, heldNoteIndex = getNotes(heldNoteIndex)
     duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
     local gate = randomizeValue(gateInput.value, gateInput.min, gateInput.max, gateRandomization.value)
-    local doPlayNote = gate > 0 and rest == false and #notes > 0 and type(duration) == "number"
+    local doPlayNote = gate > 0 and rest == false and #notes > 0 and type(duration) == "number" and activeButton.value == true
     if doPlayNote then
       -- TODO Add option to accent every n-th beat?
       local velocity = velocityInput.value
@@ -264,6 +351,13 @@ function play()
       duration = 1 -- Failsafe
     end
     waitBeat(duration)
+    durationCounter = durationCounter + duration
+    if durationCounter >= 4 then
+      durationCounter = 0 -- Reset counter
+      if getRandomBoolean(evolveFragmentProbability.value) then
+        previous = evolveFragments(previous, randomizeCurrentResolutionProbability.value, adjustBias.value)
+      end
+    end
   end
 end
 
@@ -289,6 +383,9 @@ function onNote(e)
   if #heldNotes == 1 and isPlaying == false then
     isPlaying = true
     spawn(play)
+  end
+  if activeButton.value == false then
+    postEvent(e)
   end
 end
 

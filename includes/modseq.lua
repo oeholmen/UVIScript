@@ -2,7 +2,7 @@
 -- Common functions and widgets that are shared for the modulation sequencers
 --------------------------------------------------------------------------------
 
-require "../includes/common"
+require "includes.common"
 
 defaultActions = {"Actions...", "Randomize", "Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Reduce 50%"}
 numPages = 1

@@ -2,8 +2,8 @@
 -- Drunken Sequencer
 --------------------------------------------------------------------------------
 
-require "../includes/noteSelector"
-require "../includes/rythmicFragments"
+require "includes.noteSelector"
+require "includes.rythmicFragments"
 
 local backgroundColour = "303030" -- Light or Dark
 local widgetBackgroundColour = "01011F" -- Dark
@@ -93,6 +93,17 @@ meter["3dBColour"] = "orange"
 meter["6dBColour"] = "yellow"
 meter["10dBColour"] = "green"
 
+local channelOffset = sequencerPanel:NumBox("ChannelOffset", 1, 1, 16, true)
+channelOffset.textColour = widgetTextColour
+channelOffset.backgroundColour = widgetBackgroundColour
+channelOffset.enabled = false
+channelOffset.showLabel = false
+channelOffset.displayName = "Offset"
+channelOffset.tooltip = "When multichannel is enabled, each voice is assigned to separate channels starting from this channel"
+channelOffset.size = {22,22}
+channelOffset.x = sequencerPanel.width - 337
+channelOffset.y = 5
+
 local channelButton = sequencerPanel:OnOffButton("ChannelButton", false)
 channelButton.backgroundColourOff = "#ff084486"
 channelButton.backgroundColourOn = "#ff02ACFE"
@@ -101,8 +112,11 @@ channelButton.textColourOn = "#efFFFFFF"
 channelButton.displayName = "Multichannel"
 channelButton.tooltip = "When multichannel mode is enabled, each voice is sent to a separate channel"
 channelButton.size = {100,22}
-channelButton.x = sequencerPanel.width - (channelButton.width * 3) - 10
-channelButton.y = 5
+channelButton.x = channelOffset.x + channelOffset.width + 5
+channelButton.y = channelOffset.y
+channelButton.changed = function(self)
+  channelOffset.enabled = self.value
+end
 
 local autoplayButton = sequencerPanel:OnOffButton("AutoPlay", true)
 autoplayButton.backgroundColourOff = "#ff084486"
@@ -412,7 +426,7 @@ function play(voice)
   while isPlaying[voice] == voice do
     local channel = nil
     if channelButton.value then
-      channel = voice
+      channel = voice + channelOffset.value - 1
     end
     note = generateNote(note)
     duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)

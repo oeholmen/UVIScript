@@ -2,7 +2,7 @@
 -- Strategy Sequencer
 --------------------------------------------------------------------------------
 
-require "../includes/subdivision"
+require "includes.subdivision"
 
 local backgroundColour = "4c4c4c" -- Light or Dark
 local widgetBackgroundColour = "2E0249" -- Dark

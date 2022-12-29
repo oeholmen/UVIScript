@@ -2,7 +2,7 @@
 -- Transpose incoming notes to octave
 -------------------------------------------------------------------------------
 
-require "../includes/common"
+require "includes.common"
 
 local backgroundColour = "595959" -- Light or Dark
 local widgetBackgroundColour = "01011F" -- Dark

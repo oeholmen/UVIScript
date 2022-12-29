@@ -2,8 +2,8 @@
 -- Generative Strategy Sequencer
 --------------------------------------------------------------------------------
 
-require "../includes/noteSelector"
-require "../includes/rythmicFragments"
+require "includes.noteSelector"
+require "includes.rythmicFragments"
 
 local widgetBackgroundColour = "01011F" -- Dark
 local widgetTextColour = "9f02ACFE" -- Light
@@ -188,6 +188,17 @@ label.fontSize = 22
 label.width = 260
 label.x = 0
 
+local channelOffset = sequencerPanel:NumBox("ChannelOffset", 1, 1, 16, true)
+channelOffset.textColour = widgetTextColour
+channelOffset.backgroundColour = widgetBackgroundColour
+channelOffset.enabled = false
+channelOffset.showLabel = false
+channelOffset.displayName = "Offset"
+channelOffset.tooltip = "When multichannel is enabled, each voice is assigned to separate channels starting from this channel"
+channelOffset.size = {22,22}
+channelOffset.x = sequencerPanel.width - 342
+channelOffset.y = 5
+
 local channelButton = sequencerPanel:OnOffButton("ChannelButton", false)
 channelButton.backgroundColourOff = "#ff084486"
 channelButton.backgroundColourOn = "#ff02ACFE"
@@ -196,8 +207,11 @@ channelButton.textColourOn = "#efFFFFFF"
 channelButton.displayName = "Multichannel"
 channelButton.tooltip = "When multichannel mode is enabled, each voice is sent to a separate channel"
 channelButton.size = {100,22}
-channelButton.x = sequencerPanel.width - (channelButton.width * 3) - 15
-channelButton.y = 5
+channelButton.x = channelOffset.x + channelOffset.width + 5
+channelButton.y = channelOffset.y
+channelButton.changed = function(self)
+  channelOffset.enabled = self.value
+end
 
 local autoplayButton = sequencerPanel:OnOffButton("AutoPlay", true)
 autoplayButton.backgroundColourOff = "#ff084486"
@@ -630,11 +644,11 @@ templateMenu.changed = function(self)
       v.restProbability.value = getRandom(100)
     elseif self.selectedText == "Randomize fragment inputs" then
       v.fragmentInput.text = getRandomFragment(1)
-    elseif self.selectedText == "Randomize fragment inputs (single)" then
+    elseif self.selectedText == "Randomize fragments (single)" then
       v.fragmentInput.text = getRandomFragment(2)
-    elseif self.selectedText == "Randomize fragment inputs (extended)" then
+    elseif self.selectedText == "Randomize fragments (extended)" then
       v.fragmentInput.text = getRandomFragment(3)
-    elseif self.selectedText == "Randomize fragment inputs (slow)" then
+    elseif self.selectedText == "Randomize fragments (slow)" then
       v.fragmentInput.text = getRandomFragment(4)
     end
   end
@@ -1217,7 +1231,7 @@ function play(voice, uniqueId, partDuration)
   while playingIndex[voice] == uniqueId do
     local channel = nil
     if channelButton.value then
-      channel = voice
+      channel = voice + channelOffset.value - 1
     end
     local sources = nil
     if voiceToFragmentButton.value then

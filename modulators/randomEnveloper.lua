@@ -2,7 +2,7 @@
 -- A script modulator that creates random multi-envelopes over time.
 -----------------------------------------------------------------------
 
-require "../includes/resolutionSelector"
+require "includes.resolutionSelector"
 
 local heldNotes = {}
 local minResolution = 0.03125 -- The lowest possible resolution

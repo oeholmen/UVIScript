@@ -2,7 +2,7 @@
 -- Beatbox using rythmic fragments (Fragmented Beats)
 -------------------------------------------------------------------------------
 
-require "../includes/rythmicFragments"
+require "includes.rythmicFragments"
 
 local playIndex = 1
 local beatResolution = 1
@@ -1205,7 +1205,7 @@ end
 function getChannel(voice)
   local channel = nil
   if channelButton.value then
-    channel = voice
+    channel = voice -- TODO Add offset: + channelOffset.value - 1
   end
   return channel
 end

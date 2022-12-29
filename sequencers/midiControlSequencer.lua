@@ -27,7 +27,7 @@ setBackgroundColour(pageBackgoundColour)
 -- Include common functions and widgets
 --------------------------------------------------------------------------------
 
-require "../includes/modseq"
+require "includes.modseq"
 
 --------------------------------------------------------------------------------
 -- Sequencer

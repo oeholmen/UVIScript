@@ -2,7 +2,7 @@
 -- A script modulator that sends a random value at the given time, if probability hits.
 -----------------------------------------------------------------------------------------
 
-require "../includes/common"
+require "includes.common"
 
 local isRunning = false
 local heldNotes = {}

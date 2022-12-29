@@ -2,7 +2,7 @@
 -- Set velocity on incoming notes
 --------------------------------------------------------------------------------
 
-require "../includes/common"
+require "includes.common"
 
 local backgroundColour = "595959" -- Light or Dark
 local widgetBackgroundColour = "15133C" -- Dark

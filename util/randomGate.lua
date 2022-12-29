@@ -2,7 +2,7 @@
 -- A random gate for incoming note events
 ----------------------------------------------
 
-require "../includes/common"
+require "includes.common"
 
 local isRunning = false
 

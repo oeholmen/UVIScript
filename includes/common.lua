@@ -2,9 +2,9 @@
 -- Common methods
 --------------------------------------------------------------------------------
 
-require "../includes/notes"
-require "../includes/scales"
-require "../includes/resolutions"
+require "includes.notes"
+require "includes.scales"
+require "includes.resolutions"
 
 function randomizeValue(value, limitMin, limitMax, randomizationAmount)
   if randomizationAmount > 0 then

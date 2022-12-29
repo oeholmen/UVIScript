@@ -2,7 +2,7 @@
 -- Humanizer
 --------------------------------------------------------------------------------
 
-require "../includes/common"
+require "includes.common"
 
 local backgroundColour = "#1B1A17" -- Light or Dark
 local widgetBackgroundColour = "#E45826" -- Dark

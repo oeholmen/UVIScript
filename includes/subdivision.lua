@@ -2,7 +2,7 @@
 -- Methods for subdivisions
 --------------------------------------------------------------------------------
 
-require "../includes/common"
+require "includes.common"
 
 local function createSubdivisions(subdivisionButtons, mainBeatDuration, minResolution, steps)
   local subdivisions = {}

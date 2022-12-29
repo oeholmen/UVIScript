@@ -2,7 +2,7 @@
 -- Common Generative Functions
 --------------------------------------------------------------------------------
 
-require "../includes/common"
+require "includes.common"
 
 --------------------------------------------------------------------------------
 -- Resolution Parameters

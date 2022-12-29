@@ -2,7 +2,7 @@
 -- A script modulator for gating with min/max durations for on and off state --
 -------------------------------------------------------------------------------
 
-require "../includes/subdivision"
+require "includes.subdivision"
 
 local isRunning = false
 

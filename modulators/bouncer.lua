@@ -2,7 +2,7 @@
 -- A script modulator for a bouncing effect
 -------------------------------------------------------------------------------
 
-require "../includes/common"
+require "includes.common"
 
 local isRunning = false
 local heldNotes = {}

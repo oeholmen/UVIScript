@@ -5635,8 +5635,8 @@ function createTwequencerPanel()
     -- If generate is active, hide the pitch table
     local showPassthrough = self.value == 1
     local showGenerate = self.value == 8
-    seqPitchTable.visible = showPassthrough == false
-    tieStepTable.visible = showPassthrough == false
+    seqPitchTable.visible = showPassthrough == false and showGenerate == false
+    tieStepTable.visible = showPassthrough == false and showGenerate == false
     seqVelTable.visible = showPassthrough == false
     seqGateTable.visible = showPassthrough == false
     playButton.visible = showPassthrough
@@ -6055,11 +6055,6 @@ function createTwequencerPanel()
             -- Do the tweaking
             for _,v in ipairs(tweakablesForTwequencer) do
               spawn(tweakWidget, v, tweakDuration, (useDuration == true and type(v.useDuration) == "boolean" and v.useDuration == true))
-              --[[ if useDuration == true and type(v.useDuration) == "boolean" and v.useDuration == true then
-                spawn(tweakWidget, v, tweakDuration, useDuration)
-              else
-                tweakWidget(v)
-              end ]]
             end
           end
         elseif tweakModeMenu.value == 4 and #storedPatches > 1 then
@@ -6344,7 +6339,6 @@ function createTwequencerPanel()
             table.remove(heldNotes, i)
           end
           break
-          --return
         end
       end
     end
@@ -6377,7 +6371,7 @@ function createTwequencerPanel()
   end
 
   function onTransport(start)
-    if sequencerPlayMenu.value == 1 and autoplayButton.value == true then
+    if (sequencerPlayMenu.value == 1 or sequencerPlayMenu.value == 8) and autoplayButton.value == true then
       playButton:setValue(start)
     end
   end
@@ -7694,6 +7688,6 @@ meter["10dBColour"] = "green" ]]
 
 setSize(720, 480)
 
-setBackground("./resources/bluesquares.png")
+setBackground("../resources/bluesquares.png")
 
 makePerformanceView()

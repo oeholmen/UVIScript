@@ -2,7 +2,7 @@
 -- GENEREATIVE SEQUENCER - Deprecated - use generativeSequencer.lua instead
 --------------------------------------------------------------------------------
 
-require "../includes/common"
+require "includes.common"
 
 local outlineColour = "#FFB5FF"
 local menuBackgroundColour = "#bf01011F"

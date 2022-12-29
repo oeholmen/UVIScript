@@ -6,7 +6,7 @@
 -- Duplicate notes are removed
 --------------------------------------------------------------------------------
 
-require "../includes/common"
+require "includes.common"
 
 local backgroundColour = "1a4245" -- Light or Dark
 local widgetBackgroundColour = "072227" -- Dark
