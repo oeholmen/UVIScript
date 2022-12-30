@@ -143,7 +143,7 @@ for page=1,maxPages do
     stepButton.x = 0
     stepButton.y = inputWidgetY
     stepButton.changed = function(self)
-      setPageDuration(page)
+      modseq.setPageDuration(page)
     end
 
     local stepResolution = sequencerPanel:Menu("StepResolution" .. i, resolutions.getResolutionNames())
@@ -159,7 +159,7 @@ for page=1,maxPages do
     stepResolution.arrowColour = menuArrowColour
     stepResolution.outlineColour = menuOutlineColour
     stepResolution.changed = function(self)
-      setPageDuration(page)
+      modseq.setPageDuration(page)
     end
 
     local numStepsBox = sequencerPanel:NumBox("Steps" .. i, defaultSteps, 1, 128, true)
@@ -392,6 +392,6 @@ function onLoad(data)
     end
   end
   for page=1,numPages do
-    setPageDuration(page)
+    modseq.setPageDuration(page)
   end
 end

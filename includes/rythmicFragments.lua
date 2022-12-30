@@ -370,10 +370,10 @@ function m.getResolutionFromCurrentIndex(currentResolution, adjustBias)
   local resolutionIndex = currentIndex
   local availableChanges = {}
   if gem.tableIncludes(resolutionsByType[2], currentIndex) then
-    resolution = getEvenFromDotted(m.resolutions.getResolution(currentIndex))
+    resolution = m.resolutions.getEvenFromDotted(m.resolutions.getResolution(currentIndex))
     --print("getEvenFromDotted", resolution)
   elseif gem.tableIncludes(resolutionsByType[3], currentIndex) then
-    resolution = getEvenFromTriplet(m.resolutions.getResolution(currentIndex))
+    resolution = m.resolutions.getEvenFromTriplet(m.resolutions.getResolution(currentIndex))
     --print("getEvenFromTriplet", resolution)
   elseif gem.tableIncludes(resolutionsByType[1], currentIndex) or gem.tableIncludes(resolutionsByType[4], currentIndex) then
     resolution = m.resolutions.getResolution(currentIndex)
@@ -398,10 +398,10 @@ function m.getResolutionFromCurrentIndex(currentResolution, adjustBias)
     -- Set dotted (or tri) on duration if no change was done to the lenght, or probability hits
     if doubleOrHalf == false or gem.getRandomBoolean() then
       if gem.tableIncludes(resolutionsByType[3], currentIndex) then
-        resolution = getTriplet(resolution)
+        resolution = m.resolutions.getTriplet(resolution)
         --print("getTriplet", resolution)
       else
-        local dottedResIndex = gem.getIndexFromValue(getDotted(resolution), m.resolutions.getResolutions())
+        local dottedResIndex = gem.getIndexFromValue(m.resolutions.getDotted(resolution), m.resolutions.getResolutions())
         if type(dottedResIndex) == "number" and gem.tableIncludes(selectedResolutions, dottedResIndex) then
           resolution = m.resolutions[dottedResIndex]
           --print("getDotted", resolution)
@@ -501,7 +501,7 @@ function m.evolveFragments(previous, randomizeCurrentResolutionProbability, adju
   m.setResolutionsForEvolve()
   for i,v in ipairs(paramsPerFragment) do
     if v.lockedForEvolve.value == false and string.len(v.fragmentInput.text) > 0 then
-      previous = evolveFragment(i, previous, randomizeCurrentResolutionProbability, adjustBias)
+      previous = m.evolveFragment(i, previous, randomizeCurrentResolutionProbability, adjustBias)
     end
   end
   return previous

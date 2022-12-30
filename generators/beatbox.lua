@@ -1127,7 +1127,7 @@ end
 minResolution:changed()
 
 storeButton.changed = function(self)
-  table.insert(storedFragments, getFragmentState())
+  table.insert(storedFragments, rythmicFragments.getFragmentState())
   recallButton.enabled = true
   loadFragmentMenu.enabled = true
   loadFragmentMenu:addItem("State " .. #storedFragments)
@@ -1310,7 +1310,7 @@ end
 
 function recall()
   -- Find the state we are to recall
-  setFragmentState(storedFragments[recallStoredState])
+  rythmicFragments.setFragmentState(storedFragments[recallStoredState])
   --print("Recalled fragments from stored state", recallStoredState)
   recallStoredState = nil
 end
@@ -1403,7 +1403,7 @@ function sequenceRunner()
     if beatCounter > beatBase then
       beatCounter = 1 -- Reset counter
       if evolveButton.value and gem.getRandomBoolean(evolveFragmentProbability.value) then
-        previous = evolveFragments(previous, randomizeCurrentResolutionProbability.value, adjustBias.value)
+        previous = rythmicFragments.evolveFragments(previous, randomizeCurrentResolutionProbability.value, adjustBias.value)
       end
     end
   end
