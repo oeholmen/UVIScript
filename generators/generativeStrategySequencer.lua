@@ -2,8 +2,9 @@
 -- Generative Strategy Sequencer
 --------------------------------------------------------------------------------
 
-require "includes.noteSelector"
-require "includes.rythmicFragments"
+local gem = require "includes.common"
+local noteSelector = require "includes.noteSelector"
+local rythmicFragments = require "includes.rythmicFragments"
 
 local widgetBackgroundColour = "01011F" -- Dark
 local widgetTextColour = "9f02ACFE" -- Light
@@ -84,9 +85,9 @@ end
 function createStrategy()
   local maxLength = 8
   local strategy = {} -- Table to hold strategy
-  local ln = getRandom(maxLength) -- Length
+  local ln = gem.getRandom(maxLength) -- Length
   for i=1, ln do
-    local value = getRandom(-7,7)
+    local value = gem.getRandom(-7,7)
     table.insert(strategy, value)
     --print("Add value to strategy", value)
   end
@@ -102,11 +103,11 @@ end
 function getRandomFragment(definitionNumber)
   local fragmentDefinition = {}
   if definitionNumber == 2 then
-    fragmentDefinition = {getResolution(getRandomFromTable(getSelectedResolutions()))} -- Single
+    fragmentDefinition = {rythmicFragments.resolutions.getResolution(gem.getRandomFromTable(getSelectedResolutions()))} -- Single
   else
-    fragmentDefinition = createFragmentDefinition(definitionNumber)
+    fragmentDefinition = rythmicFragments.createFragmentDefinition(definitionNumber)
   end
-  return getFragmentInputText(fragmentDefinitionToResolutionNames(fragmentDefinition))
+  return rythmicFragments.getFragmentInputText(rythmicFragments.fragmentDefinitionToResolutionNames(fragmentDefinition))
 end
 
 --------------------------------------------------------------------------------
@@ -381,7 +382,7 @@ resLabel.height = boxSize[2]
 resLabel.x = strategyRestart.x
 resLabel.y = strategyRestart.y + strategyRestart.height + 5
 
-local baseResolution = strategyPanel:Menu("BaseResolution", getResolutionNames())
+local baseResolution = strategyPanel:Menu("BaseResolution", rythmicFragments.resolutions.getResolutionNames())
 baseResolution.displayName = resLabel.text
 baseResolution.tooltip = resLabel.tooltip
 baseResolution.selected = 11
@@ -395,12 +396,12 @@ baseResolution.outlineColour = menuOutlineColour
 baseResolution.x = resLabel.x + resLabel.width
 baseResolution.y = resLabel.y
 baseResolution.changed = function(self)
-  baseDuration = getResolution(self.value)
+  baseDuration = rythmicFragments.resolutions.getResolution(self.value)
 end
 baseResolution:changed()
 
 local strategyInput = strategyPanel:Label("StrategyInput")
-strategyInput.text = getStrategyInputText(getRandomFromTable(strategies))
+strategyInput.text = getStrategyInputText(gem.getRandomFromTable(strategies))
 strategyInput.tooltip = "Strategies are ways to play scales. Numbers represent steps up or down the scale that is currently playing. Feel free to type your own strategies here."
 strategyInput.editable = true
 strategyInput.backgroundColour = "black"
@@ -576,11 +577,11 @@ randomizeNotes.x = addNotes.x + addNotes.width + 10
 randomizeNotes.y = 5
 randomizeNotes.changed = function()
   for _,v in ipairs(noteInputs) do
-    v:setValue(getRandomBoolean())
+    v:setValue(gem.getRandomBoolean())
   end
 end
 
-createNoteAndOctaveSelector(notePanel, colours, noteLabel)
+noteSelector.createNoteAndOctaveSelector(notePanel, colours, noteLabel)
 
 --------------------------------------------------------------------------------
 -- Rythm Panel
@@ -592,7 +593,7 @@ rythmLabel.alpha = 0.75
 rythmLabel.fontSize = 15
 rythmLabel.width = 120
 
-local paramsPerFragment = getParamsPerFragment(rythmPanel, rythmLabel, colours, voicesInput.max)
+local paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, rythmLabel, colours, voicesInput.max)
 
 local templates = {
   "Action...",
@@ -634,14 +635,14 @@ templateMenu.changed = function(self)
       v.restProbability.value = v.restProbability.default
     elseif self.selectedText == "Randomize all fragment settings" then
       v.fragmentInput.text = getRandomFragment(1)
-      v.fragmentPlayProbability.value = getRandom(100)
+      v.fragmentPlayProbability.value = gem.getRandom(100)
       v.fragmentActive.value = true
-      v.fragmentRepeatProbability.value = getRandom(100)
-      v.fragmentRepeatProbabilityDecay.value = getRandom(100)
-      v.fragmentMinRepeats.value = getRandom(100)
-      v.reverseFragmentProbability.value = getRandom(100)
-      v.randomizeFragmentProbability.value = getRandom(100)
-      v.restProbability.value = getRandom(100)
+      v.fragmentRepeatProbability.value = gem.getRandom(100)
+      v.fragmentRepeatProbabilityDecay.value = gem.getRandom(100)
+      v.fragmentMinRepeats.value = gem.getRandom(100)
+      v.reverseFragmentProbability.value = gem.getRandom(100)
+      v.randomizeFragmentProbability.value = gem.getRandom(100)
+      v.restProbability.value = gem.getRandom(100)
     elseif self.selectedText == "Randomize fragment inputs" then
       v.fragmentInput.text = getRandomFragment(1)
     elseif self.selectedText == "Randomize fragments (single)" then
@@ -878,7 +879,7 @@ minResLabel.height = adjustBias.height
 minResLabel.x = adjustBias.x + adjustBias.width + 10
 minResLabel.y = adjustBias.y
 
-local minResolution = rythmPanel:Menu("MinResolution", getResolutionNames())
+local minResolution = rythmPanel:Menu("MinResolution", rythmicFragments.resolutions.getResolutionNames())
 minResolution.displayName = minResLabel.text
 minResolution.tooltip = "The highest allowed resolution for evolve adjustments"
 minResolution.selected = 26
@@ -892,7 +893,7 @@ minResolution.outlineColour = menuOutlineColour
 minResolution.x = minResLabel.x + minResLabel.width
 minResolution.y = minResLabel.y
 minResolution.changed = function(self)
-  setMaxResolutionIndex(self.value)
+  rythmicFragments.setMaxResolutionIndex(self.value)
 end
 minResolution:changed()
 
@@ -938,7 +939,7 @@ local function getFilteredNotes(voice)
   -- Find the notes, filter for min/max and notes that are already playing
   local notes = {}
   for i,v in ipairs(selectedNotes) do
-    if i >= noteRangeMin and i <= noteRangeMax and tableIncludes(notesPlaying, v) == false then
+    if i >= noteRangeMin and i <= noteRangeMax and gem.tableIncludes(notesPlaying, v) == false then
       table.insert(notes, v)
     end
   end
@@ -958,19 +959,19 @@ local function generateNote(voice)
     return notes[1]
   end
 
-  if getRandomBoolean(strategyPropbability.value) then
+  if gem.getRandomBoolean(strategyPropbability.value) then
     return getNoteFromStrategy(notes, voice)
   end
 
-  return getRandomFromTable(notes)
+  return gem.getRandomFromTable(notes)
 end
 
 function getGate()
-  return randomizeValue(gateInput.value, 0, 101, gateRandomization.value) / 100
+  return gem.randomizeValue(gateInput.value, 0, 101, gateRandomization.value) / 100
 end
 
 function getVelocity()
-  return randomizeValue(velocityInput.value, 1, 127, velocityRandomization.value)
+  return gem.randomizeValue(velocityInput.value, 1, 127, velocityRandomization.value)
 end
 
 --------------------------------------------------------------------------------
@@ -982,7 +983,7 @@ function getSlotForVoice(voice)
   local slot1 = strategySlots[voice]
   local slot2 = strategySlots[voice+voicesInput.max]
   if slot1.enabled and slot2.enabled then
-    if getRandomBoolean() then
+    if gem.getRandomBoolean() then
       return slot1.tooltip
     else
       return slot2.tooltip
@@ -1022,7 +1023,7 @@ function getNoteFromStrategy(notes, voice)
   end
   -- Get strategy from index
   if #strategy == 0 then
-    strategy = getRandomFromTable(strategies)
+    strategy = gem.getRandomFromTable(strategies)
   end
   -- Reset strategy position
   if type(strategyPos[voice]) == "nil" or strategyPos[voice] > #strategy then
@@ -1034,7 +1035,7 @@ function getNoteFromStrategy(notes, voice)
   end
   if type(notePosition[voice]) == "nil" or #strategy == 0 then
     -- Start at a random notePosition
-    notePosition[voice] = getRandom(#notes)
+    notePosition[voice] = gem.getRandom(#notes)
     --print("Set random notePosition, voice", notePosition[voice], voice)
     if strategyRestart.value == 1 then
       strategyPos[voice] = 1
@@ -1045,7 +1046,7 @@ function getNoteFromStrategy(notes, voice)
     notePosition[voice] = notePosition[voice] + strategy[strategyPos[voice]]
     local randomReset = true -- TODO Param?
     if randomReset and (notePosition[voice] > #notes or notePosition[voice] < 1) then
-      notePosition[voice] = getRandom(#notes)
+      notePosition[voice] = gem.getRandom(#notes)
       if strategyRestart.value == 2 then
         strategyPos[voice] = 1
       end
@@ -1079,7 +1080,7 @@ end
 function initNotes()
   notesPlaying = {}
   playingIndex = {}
-  clearResolutionsForEvolve()
+  rythmicFragments.clearResolutionsForEvolve()
   for voice=1,voices do
     table.insert(playingIndex, nil) -- Init index
   end
@@ -1182,7 +1183,7 @@ function sequenceRunner()
       evolveButton:setValue(startEvolve)
     end
 
-    selectedNotes = getSelectedNotes(true) -- Refresh selected notes
+    selectedNotes = noteSelector.getSelectedNotes(true) -- Refresh selected notes
     if autoStrategyButton.value == true then
       local strategy = createStrategy()
       strategyInput.text = getStrategyInputText(strategy)
@@ -1196,7 +1197,7 @@ function sequenceRunner()
         end
       end
       if #slots > 0 then
-        slots[getRandom(#slots)]:setValue(true)
+        slots[gem.getRandom(#slots)]:setValue(true)
       end
     end
 
@@ -1212,7 +1213,7 @@ function sequenceRunner()
     end
 
     waitBeat(baseDuration)
-    if evolveButton.value and getRandomBoolean(evolveFragmentProbability.value) then
+    if evolveButton.value and gem.getRandomBoolean(evolveFragmentProbability.value) then
       previous = evolveFragments(previous, randomizeCurrentResolutionProbability.value, adjustBias.value)
     end
   end
@@ -1237,7 +1238,7 @@ function play(voice, uniqueId, partDuration)
     if voiceToFragmentButton.value then
       sources = {voice}
     end
-    duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount, sources)
+    duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = rythmicFragments.getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount, sources)
     if type(duration) == "nil" then
       playingIndex[voice] = nil
       --print("No duration was found for voice", voice)
@@ -1267,10 +1268,11 @@ function play(voice, uniqueId, partDuration)
       table.insert(notesPlaying, noteToPlay)
       for i,v in ipairs(paramsPerFragment) do
         if activeFragment.i == i then
-          spawn(flashFragmentActive, v.fragmentActive, duration)
+          spawn(rythmicFragments.flashFragmentActive, v.fragmentActive, duration)
         end
       end
     end
+
 
     if type(partDuration) == "number" and playDuration == partDuration then
       playingIndex[voice] = nil
@@ -1280,7 +1282,7 @@ function play(voice, uniqueId, partDuration)
 
     if type(noteToPlay) == "number" then
       -- Unregister note
-      table.remove(notesPlaying, getIndexFromValue(noteToPlay, notesPlaying))
+      table.remove(notesPlaying, gem.getIndexFromValue(noteToPlay, notesPlaying))
     end
   end
 end

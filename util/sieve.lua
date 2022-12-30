@@ -4,7 +4,7 @@
 -- Set the probability that incomming notes will pass through the sieve
 --------------------------------------------------------------------------------
 
-require "includes.common"
+local gem = require "includes.common"
 
 local backgroundColour = "202020" -- Light or Dark
 local widgetBackgroundColour = "black" -- Dark
@@ -67,7 +67,7 @@ sieveButton.x = panel.width - 40
 --------------------------------------------------------------------------------
 
 function onNote(e)
-  if e.note <= noteMin.value or e.note >= noteMax.value or getRandomBoolean(sieveProbability.value) then
+  if e.note <= noteMin.value or e.note >= noteMax.value or gem.getRandomBoolean(sieveProbability.value) then
     print("Passing through", e.note)
     sieveButton.backgroundColourOff = "green"
     postEvent(e)

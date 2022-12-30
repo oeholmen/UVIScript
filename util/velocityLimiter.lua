@@ -2,7 +2,7 @@
 -- Velocity Limiter
 --------------------------------------------------------------------------------
 
-require "includes.common"
+local gem = require "includes.common"
 
 local backgroundColour = "595959" -- Light or Dark
 local widgetBackgroundColour = "15133C" -- Dark
@@ -77,7 +77,7 @@ function adjust(velocity)
   -- This is done to avoid a "hard" velocity limit
   local velRandomization = velRandomization.value
   if velocityWasAdjusted and velRandomization > 0 then
-    local changeMax = getChangeMax(velMax.value, velRandomization)
+    local changeMax = gem.getChangeMax(velMax.value, velRandomization)
     local min = velocity - changeMax
     local max = velocity + changeMax
     if min < velMin.value then
@@ -87,7 +87,7 @@ function adjust(velocity)
       max = velMax.value
     end
     print("Before randomize velocity", velocity)
-    velocity = getRandom(min, max)
+    velocity = gem.getRandom(min, max)
     print("After randomize velocity/changeMax/min/max", velocity, changeMax, min, max)
   end
 

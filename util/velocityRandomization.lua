@@ -2,7 +2,7 @@
 -- Velocity Randomization
 --------------------------------------------------------------------------------
 
-require "includes.common"
+local gem = require "includes.common"
 
 local backgroundColour = "595959" -- Light or Dark
 local widgetBackgroundColour = "15133C" -- Dark
@@ -44,6 +44,6 @@ velRandomization.width = 150
 --------------------------------------------------------------------------------
 
 function onNote(e)
-  e.velocity = randomizeValue(e.velocity, 1, 127, velRandomization.value)
+  e.velocity = gem.randomizeValue(e.velocity, 1, 127, velRandomization.value)
   postEvent(e)
 end

@@ -2,6 +2,9 @@
 -- A sequencer sending script event modulation in broadcast mode
 --------------------------------------------------------------------------------
 
+local gem = require "includes.common"
+local resolutions = require "includes.resolutions"
+
 local isAutoPlayActive = false
 local heldNotes = {}
 
@@ -34,19 +37,19 @@ setBackgroundColour(pageBackgoundColour)
 -- Include common functions and widgets
 --------------------------------------------------------------------------------
 
-require "includes.modseq"
+local modseq = require "includes.modseq"
 
 --------------------------------------------------------------------------------
 -- Sequencer
 --------------------------------------------------------------------------------
 
-local sourceIndex = headerPanel:NumBox("SourceIndex", 0, 0, 127, true)
+local sourceIndex = modseq.headerPanel:NumBox("SourceIndex", 0, 0, 127, true)
 sourceIndex.displayName = "Event Id"
 sourceIndex.backgroundColour = menuBackgroundColour
 sourceIndex.textColour = menuTextColour
 sourceIndex.size = {102,22}
-sourceIndex.x = autoplayButton.x - autoplayButton.width - 5
-sourceIndex.y = autoplayButton.y
+sourceIndex.x = modseq.autoplayButton.x - modseq.autoplayButton.width - 5
+sourceIndex.y = modseq.autoplayButton.y
 
 -- Add params that are to be editable per page / part
 for page=1,maxPages do
@@ -67,13 +70,13 @@ for page=1,maxPages do
   sequencerPanel.visible = page == 1
   sequencerPanel.backgroundColour = menuOutlineColour
   sequencerPanel.x = 10
-  sequencerPanel.y = headerPanel.height + 15
+  sequencerPanel.y = modseq.headerPanel.height + 15
   sequencerPanel.width = 700
   sequencerPanel.height = numParts * (tableHeight + 30 + buttonRowHeight)
 
   for part=1,numParts do
     local isVisible = true
-    local i = getPartIndex(part, page)
+    local i = modseq.getPartIndex(part, page)
     print("Set paramsPerPart, page/part", page, i)
 
     -- Tables
@@ -143,7 +146,7 @@ for page=1,maxPages do
       setPageDuration(page)
     end
 
-    local stepResolution = sequencerPanel:Menu("StepResolution" .. i, getResolutionNames())
+    local stepResolution = sequencerPanel:Menu("StepResolution" .. i, resolutions.getResolutionNames())
     stepResolution.tooltip = "Set the round (or step) resolution"
     stepResolution.showLabel = false
     stepResolution.visible = isVisible
@@ -237,7 +240,7 @@ for page=1,maxPages do
     tableY = tableY + tableHeight + buttonRowHeight
   end
 
-  local minRepeats = footerPanel:NumBox("MinRepeats" .. page, 1, 1, 128, true)
+  local minRepeats = modseq.footerPanel:NumBox("MinRepeats" .. page, 1, 1, 128, true)
   minRepeats.displayName = "Repeats"
   minRepeats.tooltip = "The minimum number of repeats before page will be changed (only relevant when multiple pages are activated)"
   minRepeats.visible = page == 1
@@ -247,14 +250,14 @@ for page=1,maxPages do
   minRepeats.arrowColour = menuArrowColour
   minRepeats.outlineColour = menuOutlineColour
   minRepeats.size = {100,20}
-  minRepeats.x = actionMenu.x + actionMenu.width + 9
-  minRepeats.y = actionMenu.y
+  minRepeats.x = modseq.actionMenu.x + modseq.actionMenu.width + 9
+  minRepeats.y = modseq.actionMenu.y
 
   table.insert(paramsPerPage, {sequencerPanel=sequencerPanel,minRepeats=minRepeats,pageDuration=nil,active=(page==1)})
-  setPageDuration(page)
+  modseq.setPageDuration(page)
 end
 
-footerPanel.y = paramsPerPage[1].sequencerPanel.y + paramsPerPage[1].sequencerPanel.height
+modseq.footerPanel.y = paramsPerPage[1].sequencerPanel.y + paramsPerPage[1].sequencerPanel.height
 
 --------------------------------------------------------------------------------
 -- Sequencer
@@ -263,12 +266,12 @@ footerPanel.y = paramsPerPage[1].sequencerPanel.y + paramsPerPage[1].sequencerPa
 function arpeg(part)
   local index = 0
   while isPlaying do
-    local partIndex = getPartIndex(part)
+    local partIndex = modseq.getPartIndex(part)
     local numStepsInPart = paramsPerPart[partIndex].numStepsBox.value
     local currentPosition = (index % numStepsInPart) + 1
     local smooth = paramsPerPart[partIndex].smoothInput.value
     local step = paramsPerPart[partIndex].stepButton.value
-    local duration = getResolution(paramsPerPart[partIndex].stepResolution.value)
+    local duration = resolutions.getResolution(paramsPerPart[partIndex].stepResolution.value)
     local seqValueTable = paramsPerPart[partIndex].seqValueTable
     local smoothStepTable = paramsPerPart[partIndex].smoothStepTable
     local valueRandomizationAmount = paramsPerPart[partIndex].valueRandomization.value
@@ -293,13 +296,13 @@ function arpeg(part)
     if smoothStepValue > 0 then
       smooth = smoothStepValue
     end
-    smooth = randomizeValue(smooth, smoothStepTable.min, smoothStepTable.max, smoothRandomizationAmount)
+    smooth = gem.randomizeValue(smooth, smoothStepTable.min, smoothStepTable.max, smoothRandomizationAmount)
     local rampTime = 20
     if smooth > 0 then
       rampTime = beat2ms(duration) * (smooth / 100)
     end
     local value = seqValueTable:getValue(currentPosition)
-    value = randomizeValue(value, seqValueTable.min, seqValueTable.max, valueRandomizationAmount)
+    value = gem.randomizeValue(value, seqValueTable.min, seqValueTable.max, valueRandomizationAmount)
     sendScriptModulation(sourceIndex.value, (value/100), rampTime)
 
     -- Increment position
@@ -326,7 +329,7 @@ function onNote(e)
   local voiceId = postEvent(e)
   table.insert(heldNotes, voiceId)
   if #heldNotes == 1 then
-    playButton:setValue(true)
+    modseq.playButton:setValue(true)
   end
 end
 
@@ -335,14 +338,14 @@ function onRelease(e)
   remove(voiceId)
   -- Make sure we do not stop the modulation sequencer when transport is playing
   if #heldNotes == 0 and isAutoPlayActive == false then
-    playButton:setValue(false)
+    modseq.playButton:setValue(false)
   end
 end
 
 function onTransport(start)
-  if autoplayButton.value == true then
+  if modseq.autoplayButton.value == true then
     isAutoPlayActive = start
-    playButton:setValue(start)
+    modseq.playButton:setValue(start)
   end
 end
 
@@ -367,8 +370,7 @@ function onSave()
   table.insert(data, numStepsData)
   table.insert(data, seqValueTableData)
   table.insert(data, smoothStepTableData)
-  table.insert(data, labelInput.text)
-
+  table.insert(data, modseq.labelInput.text)
   return data
 end
 
@@ -376,7 +378,7 @@ function onLoad(data)
   local numStepsData = data[1]
   local seqValueTableData = data[2]
   local smoothStepTableData = data[3]
-  labelInput.text = data[4]
+  modseq.labelInput.text = data[4]
 
   local dataCounter = 1
   for i,v in ipairs(numStepsData) do

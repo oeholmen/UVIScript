@@ -2,7 +2,8 @@
 -- Polyphonic Sequencer
 --------------------------------------------------------------------------------
 
-require "includes.common"
+local gem = require "includes.common"
+local r = require "includes.resolutions"
 
 local outlineColour = "#FFB5FF"
 local menuBackgroundColour = "#bf01011F"
@@ -266,7 +267,7 @@ for i=1,numParts do
 
   local leftButtonSpacing = 5
 
-  local stepResolution = sequencerPanel:Menu("StepResolution" .. i, getResolutionNames())
+  local stepResolution = sequencerPanel:Menu("StepResolution" .. i, r.getResolutionNames())
   stepResolution.tooltip = "Set the step resolution"
   stepResolution.showLabel = false
   stepResolution.selected = 20
@@ -373,7 +374,7 @@ function arpeg(partIndex)
     if currentPosition == 1 then
       -- Set direction for this part
       local directionProbability = paramsPerPart[partIndex].directionProbability.value
-      partDirectionBackward = getRandomBoolean(directionProbability)
+      partDirectionBackward = gem.getRandomBoolean(directionProbability)
       print("directionProbability/partIndex/partDirectionBackward", directionProbability, partIndex, partDirectionBackward)
     end
 
@@ -408,10 +409,10 @@ function arpeg(partIndex)
     local ratchetRandomizationAmount = paramsPerPart[partIndex].ratchetRand.value
 
     -- Randomize ratchet
-    if getRandomBoolean(ratchetRandomizationAmount) then
+    if gem.getRandomBoolean(ratchetRandomizationAmount) then
       local min = seqRatchetTable.min
       local max = seqRatchetTable.max
-      ratchet = getRandom(min, max)
+      ratchet = gem.getRandom(min, max)
       print("Randomize ratchet, min/max/ratchet", min, max, ratchet)
     end
 
@@ -426,12 +427,12 @@ function arpeg(partIndex)
     local noteSteps = 1
 
     -- Randomize ties
-    if currentPosition < numStepsInPart and getRandomBoolean(tieRandomizationAmount) then
+    if currentPosition < numStepsInPart and gem.getRandomBoolean(tieRandomizationAmount) then
       print("Before randomized tieNext", tieNext)
       -- Get length of tie
       local min = 2
       local max = math.ceil((numStepsInPart-currentPosition) * (tieRandomizationAmount/100))
-      noteSteps = getRandom(min, math.max(2, max))
+      noteSteps = gem.getRandom(min, math.max(2, max))
       tieNext = 1
       print("After randomize tieNext", tieNext)
     elseif tieNext == 1 then
@@ -462,32 +463,32 @@ function arpeg(partIndex)
 
     -- Randomize gate
     if gateRandomizationAmount > 0 then
-      gate = randomizeValue(gate, seqGateTable.min, seqGateTable.max, gateRandomizationAmount)
+      gate = gem.randomizeValue(gate, seqGateTable.min, seqGateTable.max, gateRandomizationAmount)
     end
 
     -- Check if step should trigger
     local shouldTrigger = gate > 0
 
     -- Get step duration
-    local stepDuration = (getResolution(paramsPerPart[partIndex].stepResolution.value) * noteSteps) / ratchet
+    local stepDuration = (r.getResolution(paramsPerPart[partIndex].stepResolution.value) * noteSteps) / ratchet
 
     -- Play subdivision
     for ratchetIndex=1, ratchet do
       -- Randomize velocity
       if velocityRandomizationAmount > 0 then
-        vel = randomizeValue(vel, seqVelTable.min, seqVelTable.max, velocityRandomizationAmount)
+        vel = gem.randomizeValue(vel, seqVelTable.min, seqVelTable.max, velocityRandomizationAmount)
       end
 
       -- Check for pitch change randomization
-      if getRandomBoolean(pitchChangeProbability) then
+      if gem.getRandomBoolean(pitchChangeProbability) then
         -- Get pitch adjustment from random index in pitch table for current part
-        local pitchPos = getRandom(numStepsInPart)
+        local pitchPos = gem.getRandom(numStepsInPart)
         pitchAdjustment = seqPitchTable:getValue(pitchPos)
         print("Playing pitch from other pos - currentPosition/pitchPos", currentPosition, pitchPos)
       end
 
       if isPartActive and shouldTrigger then
-        local duration = beat2ms(getPlayDuration(stepDuration, gate)) - 1 -- Make sure note is not played into the next
+        local duration = beat2ms(r.getPlayDuration(stepDuration, gate)) - 1 -- Make sure note is not played into the next
         playNote((note + pitchAdjustment), vel, duration, nil, channel)
         print("Playing note/vel/gate/ratchet/stepDuration/partIndex", note, vel, gate, ratchet, stepDuration, partIndex)
       end

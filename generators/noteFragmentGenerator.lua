@@ -2,7 +2,10 @@
 -- Random note selector using rythmic fragments (Fragmented Notes)
 -------------------------------------------------------------------------------
 
-require "includes.rythmicFragments"
+local gem = require "includes.common"
+local notes = require "includes.notes"
+local scales = require "includes.scales"
+local rythmicFragments = require "includes.rythmicFragments"
 
 local voices = 1
 local isPlaying = {}
@@ -197,8 +200,8 @@ velocityAccent.y = velocityInput.y
 -- Notes Panel
 --------------------------------------------------------------------------------
 
-local noteNames = getNoteNames()
-local scaleNames = getScaleNames()
+local noteNames = notes.getNoteNames()
+local scaleNames = scales.getScaleNames()
 local noteListen = nil
 local paramsPerNote = {}
 local rowSpacing = 3
@@ -285,9 +288,9 @@ templateMenu.changed = function(self)
     elseif self.selectedText == "Set all note probabilities to 0%" then
       v.noteProbability:setValue(0)
     elseif self.selectedText == "Randomize note probabilities" then
-      v.noteProbability:setValue(getRandom(100))
+      v.noteProbability:setValue(gem.getRandom(100))
     elseif self.selectedText == "Randomize notes" then
-      v.noteInput:setValue(getRandom(21, 108))
+      v.noteInput:setValue(gem.getRandom(21, 108))
     end
   end
   -- Must be last
@@ -431,7 +434,7 @@ minResLabel.height = adjustBias.height
 minResLabel.x = adjustBias.x + adjustBias.width + 10
 minResLabel.y = adjustBias.y
 
-local minResolution = rythmPanel:Menu("MinResolution", getResolutionNames())
+local minResolution = rythmPanel:Menu("MinResolution", rythmicFragments.resolutions.getResolutionNames())
 minResolution.displayName = minResLabel.text
 minResolution.tooltip = "The highest allowed resolution for evolve adjustments"
 minResolution.selected = 26
@@ -445,11 +448,11 @@ minResolution.outlineColour = menuOutlineColour
 minResolution.x = minResLabel.x + minResLabel.width
 minResolution.y = minResLabel.y
 minResolution.changed = function(self)
-  setMaxResolutionIndex(self.value)
+  rythmicFragments.setMaxResolutionIndex(self.value)
 end
 minResolution:changed()
 
-local paramsPerFragment = getParamsPerFragment(rythmPanel, rythmLabel, colours)
+local paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, rythmLabel, colours)
 
 --------------------------------------------------------------------------------
 -- Functions
@@ -495,7 +498,7 @@ function flashNoteLabel(voice, duration)
 end
 
 function doSelectNote(voice)
-  return paramsPerNote[voice].mute.value == false and getRandomBoolean(paramsPerNote[voice].noteProbability.value)
+  return paramsPerNote[voice].mute.value == false and gem.getRandomBoolean(paramsPerNote[voice].noteProbability.value)
 end
 
 function generateNote()
@@ -514,10 +517,10 @@ function generateNote()
   local noteIndex = nil
   local maxRounds = 100
   repeat
-    noteIndex = getRandomFromTable(selectedNotes)
+    noteIndex = gem.getRandomFromTable(selectedNotes)
     note = paramsPerNote[noteIndex].noteInput.value
     maxRounds = maxRounds - 1
-  until tableIncludes(notesPlaying, selectedNotes[noteIndex]) == false or maxRounds < 1
+  until gem.tableIncludes(notesPlaying, selectedNotes[noteIndex]) == false or maxRounds < 1
   return noteIndex, note
 end
 
@@ -559,7 +562,7 @@ function sequenceRunner()
     end
     local baseDuration = 4
     waitBeat(baseDuration)
-    if getRandomBoolean(evolveFragmentProbability.value) then
+    if gem.getRandomBoolean(evolveFragmentProbability.value) then
       previous = evolveFragments(previous, randomizeCurrentResolutionProbability.value, adjustBias.value)
     end
   until #isPlaying == 0
@@ -579,20 +582,20 @@ function play(voice)
       channel = voice + channelOffset.value - 1
     end
     local noteIndex, note = generateNote()
-    duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
+    duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = rythmicFragments.getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
     local doPlayNote = rest == false and type(note) == "number" and type(duration) == "number"
     if doPlayNote then
-      local gate = randomizeValue(gateInput.value, gateInput.min, gateInput.max, gateRandomization.value)
+      local gate = gem.randomizeValue(gateInput.value, gateInput.min, gateInput.max, gateRandomization.value)
       local velocity = velocityInput.value
       -- Use accent value in fragment start, if there is more than one resolution defined in the fragment
       if isFragmentStart and #activeFragment.f > 1 then
         velocity = velocityAccent.value
       end
-      playNote(note, velocity, beat2ms(getPlayDuration(duration, gate)), nil, channel)
+      playNote(note, velocity, beat2ms(rythmicFragments.resolutions.getPlayDuration(duration, gate)), nil, channel)
       table.insert(notesPlaying, note) -- Register
       for i,v in ipairs(paramsPerFragment) do
         if activeFragment.i == i then
-          spawn(flashFragmentActive, v.fragmentActive, duration)
+          spawn(rythmicFragments.flashFragmentActive, v.fragmentActive, duration)
         end
       end
       spawn(flashNoteLabel, noteIndex, duration)
@@ -602,7 +605,7 @@ function play(voice)
     end
     waitBeat(duration)
     if doPlayNote then
-      table.remove(notesPlaying, getIndexFromValue(note, notesPlaying)) -- Remove
+      table.remove(notesPlaying, gem.getIndexFromValue(note, notesPlaying)) -- Remove
     end
   end
 end

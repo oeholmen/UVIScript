@@ -91,7 +91,7 @@ function arpeg()
   while isRunning do
     round = round + 1 -- Increment round
     local waitTime = beat2ms(getResolution(waitResolution.value))
-    if round > 1 and getRandomBoolean(probability.value) then
+    if round > 1 and gem.getRandomBoolean(probability.value) then
       stateButton:setValue(state == 0)
     end
     if round == 1 then

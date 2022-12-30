@@ -2,7 +2,8 @@
 -- Common Generative Functions
 --------------------------------------------------------------------------------
 
-require "includes.common"
+local gem = require "includes.common"
+local resolutionModule = require "includes.resolutions"
 
 --------------------------------------------------------------------------------
 -- Resolution Parameters
@@ -14,8 +15,8 @@ for i=1,128 do
 end
 
 globalResolution = nil -- Holds the global resolution for all voices
-resolutions = getResolutions()
-resolutionNames = getResolutionNames()
+resolutions = resolutionModule.getResolutions()
+resolutionNames = resolutionModule.getResolutionNames()
 resolutionInputs = {}
 toggleResolutionInputs = {}
 resolutionProbabilityInputs = {}
@@ -32,9 +33,9 @@ function adjustForDuration(decay, currentDuration)
   local middleIndex = 17 -- 1/4 (1 beat) -- TODO Param?
   local middleResolution = resolutions[middleIndex]
   local increase = 0
-  if currentDuration > middleResolution and tableIncludes(resolutions, currentDuration) then
+  if currentDuration > middleResolution and gem.tableIncludes(resolutions, currentDuration) then
     -- Note is longer than 1/4 - increase decay
-    local resolutionIndex = getIndexFromValue(currentDuration, resolutions)
+    local resolutionIndex = gem.getIndexFromValue(currentDuration, resolutions)
     local percentIncrease = (middleIndex * resolutionIndex) / 100
     local factor = decay / percentIncrease
     increase = decay * (factor / 100)
@@ -57,7 +58,7 @@ function getNoteDuration(currentDuration, repeatCounter, durationRepeatProbabili
   local selectedDivisionsAndRepeats = {}
   for i,v in ipairs(resolutionInputs) do
     local resolutionActive = toggleResolutionInputs[i].value
-    if resolutionActive and getRandomBoolean(resolutionProbabilityInputs[i].value) then
+    if resolutionActive and gem.getRandomBoolean(resolutionProbabilityInputs[i].value) then
       table.insert(availableResolutions, v.value)
       table.insert(selectedDivisionsAndRepeats, {division=divisions[i].value,repeats=minRepeats[i].value})
     end
@@ -66,7 +67,7 @@ function getNoteDuration(currentDuration, repeatCounter, durationRepeatProbabili
   --print("#availableResolutions", #availableResolutions)
 
   -- Check if we should use the global resolution
-  if type(globalResolution) == "number" and type(useGlobalProbability) == "number" and getRandomBoolean(useGlobalProbability) then
+  if type(globalResolution) == "number" and type(useGlobalProbability) == "number" and gem.getRandomBoolean(useGlobalProbability) then
     currentDuration = globalResolution
     --print("Set currentDuration from globalResolution", currentDuration)
   end
@@ -76,13 +77,13 @@ function getNoteDuration(currentDuration, repeatCounter, durationRepeatProbabili
     if type(globalResolution) == "number" then
       return globalResolution, 1, durationRepeatProbability
     else
-      return getResolution(17), 1, durationRepeatProbability
+      return resolutionModule.getResolution(17), 1, durationRepeatProbability
     end
   end
 
   local resolutionIndex = nil
-  if tableIncludes(resolutions, currentDuration) then
-    resolutionIndex = getIndexFromValue(currentDuration, resolutions)
+  if gem.tableIncludes(resolutions, currentDuration) then
+    resolutionIndex = gem.getIndexFromValue(currentDuration, resolutions)
   end
 
   -- Check resolution repeat by probability
@@ -90,7 +91,7 @@ function getNoteDuration(currentDuration, repeatCounter, durationRepeatProbabili
     local durationRepeatProbabilityDecay = durationRepeatProbability * adjustForDuration(durationRepeatDecay, currentDuration)
     durationRepeatProbability = durationRepeatProbability - durationRepeatProbabilityDecay
     -- Repeat only if current resolution is still available
-    if tableIncludes(availableResolutions, resolutionIndex) and getRandomBoolean(durationRepeatProbability) then
+    if gem.tableIncludes(availableResolutions, resolutionIndex) and gem.getRandomBoolean(durationRepeatProbability) then
       --print("Repeating current duration", currentDuration)
       return currentDuration, 1, durationRepeatProbability
     end
@@ -98,7 +99,7 @@ function getNoteDuration(currentDuration, repeatCounter, durationRepeatProbabili
 
   -- Remove last known resolution if repeat was not selected
   if type(resolutionIndex) == "number" and type(currentDuration) == "number" and #availableResolutions > 1 then
-    local removeIndex = getIndexFromValue(resolutionIndex, availableResolutions)
+    local removeIndex = gem.getIndexFromValue(resolutionIndex, availableResolutions)
     table.remove(availableResolutions, removeIndex)
     table.remove(selectedDivisionsAndRepeats, removeIndex)
     --print("Remove current duration to avoid repeat", removeIndex)
@@ -106,12 +107,12 @@ function getNoteDuration(currentDuration, repeatCounter, durationRepeatProbabili
 
   local index = 1
   if #availableResolutions > 1 then
-    index = getRandom(#availableResolutions)
+    index = gem.getRandom(#availableResolutions)
     --print("Index selected by random", index)
   end
 
   -- Get resolution and divide by the selected division - not lower than system min res (1/128)
-  globalResolution = getPlayDuration(getResolution(availableResolutions[index]) / selectedDivisionsAndRepeats[index].division)
+  globalResolution = getPlayDuration(resolutionModule.getResolution(availableResolutions[index]) / selectedDivisionsAndRepeats[index].division)
 
   return globalResolution, selectedDivisionsAndRepeats[index].repeats, nil
 end
@@ -209,3 +210,5 @@ function createResolutionSelector(resolutionPanel, colours, numResolutions)
   end
   return rowCount
 end
+
+return gem

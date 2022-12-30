@@ -2,6 +2,11 @@
 -- Strategy Sequencer
 --------------------------------------------------------------------------------
 
+local gem = require "includes.common"
+local noteModule = require "includes.notes"
+local resolutions = require "includes.resolutions"
+local scales = require "includes.scales"
+
 require "includes.subdivision"
 
 local backgroundColour = "4c4c4c" -- Light or Dark
@@ -28,8 +33,9 @@ local paramsPerPart = {}
 local partSelect = {}
 local numParts = 1
 
-local scaleDefinitions = getScaleDefinitions()
-local scaleNames = getScaleNames()
+local scaleDefinitions = scales.getScaleDefinitions()
+local scaleNames = scales.getScaleNames()
+local noteNames = noteModule.getNoteNames()
 
 -- Strategies are ways to play chords and scales
 local strategies = {
@@ -55,10 +61,10 @@ local strategies = {
   {3,-2},
 }
 
-local strategyIndex = getRandom(#strategies) -- Holds the selected strategy - start with a random strategy
+local strategyIndex = gem.getRandom(#strategies) -- Holds the selected strategy - start with a random strategy
 local structureMemory = {} -- Holds the most recent structure memory
 local maxStoredStructures = 100 -- Max stored structures
-local noteNumberToNoteName = getNoteMapping()
+local noteNumberToNoteName = noteModule.getNoteMapping()
 
 setBackgroundColour(backgroundColour)
 
@@ -69,16 +75,16 @@ setBackgroundColour(backgroundColour)
 function getNotePositionFromHeldNotes(partPos, scale)
   local minNote = paramsPerPart[partPos].minNote.value
   local maxNote = paramsPerPart[partPos].maxNote.value
-  local noteInput = transpose(getNoteAccordingToScale(scale, heldNotes[#heldNotes].note), minNote, maxNote)
-  local index = getIndexFromValue(noteInput, scale)
+  local noteInput = noteModule.transpose(noteModule.getNoteAccordingToScale(scale, heldNotes[#heldNotes].note), minNote, maxNote)
+  local index = gem.getIndexFromValue(noteInput, scale)
   print("Resetting to noteInput/notePosition", noteInput, index)
   return index
 end
 
 function getNoteFromStrategy(notePosition, strategyIndex, strategyPos, partPos)
   local scale = paramsPerPart[partPos].fullScale
-  local minNote = getNoteAccordingToScale(scale, paramsPerPart[partPos].minNote.value)
-  local maxNote = getNoteAccordingToScale(scale, paramsPerPart[partPos].maxNote.value)
+  local minNote = noteModule.getNoteAccordingToScale(scale, paramsPerPart[partPos].minNote.value)
+  local maxNote = noteModule.getNoteAccordingToScale(scale, paramsPerPart[partPos].maxNote.value)
   local strategy = {}
   local input = paramsPerPart[partPos].strategyInput
   if input.enabled == true and string.len(input.text) > 0 then
@@ -109,11 +115,11 @@ function getNoteFromStrategy(notePosition, strategyIndex, strategyPos, partPos)
   else
     -- Get next notePosition from strategy
     if #strategy == 0 then -- Strategy random
-      local offset = getRandom(-12,12) -- 1 oct +/-
+      local offset = gem.getRandom(-12,12) -- 1 oct +/-
       local note = scale[notePosition] -- Get the current note from scale
       note = note + offset -- Change within the offset
       note = transpose(getNoteAccordingToScale(scale, note), minNote, maxNote) -- Endure within scale and limits
-      notePosition = getIndexFromValue(note, scale)
+      notePosition = gem.getIndexFromValue(note, scale)
       print("Set increment by random notePosition/note/offset(in semitones)/#scale", notePosition, note, offset, #scale)
     else
       notePosition = notePosition + strategy[strategyPos]
@@ -129,7 +135,7 @@ function getNoteFromStrategy(notePosition, strategyIndex, strategyPos, partPos)
       -- TODO Param for options
       -- Option 1: Transpose to lowest octave in range
       --local transposedNote = transpose(scale[notePosition], minNote, (minNote+12))
-      --notePosition = getIndexFromValue(transposedNote, scale)
+      --notePosition = gem.getIndexFromValue(transposedNote, scale)
       -- Option 2: Reset to the input note from heldnotes
       notePosition = getNotePositionFromHeldNotes(partPos, scale)
       if paramsPerPart[partPos].strategyRestart.value == 2 then
@@ -140,7 +146,7 @@ function getNoteFromStrategy(notePosition, strategyIndex, strategyPos, partPos)
       -- TODO Param for options
       -- Option 1: Transpose to top octave
       local transposedNote = transpose(scale[notePosition], (maxNote-12), maxNote)
-      notePosition = getIndexFromValue(transposedNote, scale)
+      notePosition = gem.getIndexFromValue(transposedNote, scale)
       -- Option 2: Reset to the input note from heldnotes
       --notePosition = getNotePositionFromHeldNotes(partPos, scale)
       if paramsPerPart[partPos].strategyRestart.value == 2 then
@@ -184,7 +190,7 @@ function createFullScale(part)
   -- Find root note
   local root = paramsPerPart[part].key.value - 1
   -- Create scale
-  paramsPerPart[part].fullScale = createScale(definition, root)
+  paramsPerPart[part].fullScale = scales.createScale(definition, root)
 end
 
 function getVelocity(part, step, skipRandomize)
@@ -197,7 +203,7 @@ function getVelocity(part, step, skipRandomize)
   end
 
   -- Randomize velocity
-  return randomizeValue(velocity, seqVelTable.min, seqVelTable.max, paramsPerPart[part].velRandomization.value)
+  return gem.randomizeValue(velocity, seqVelTable.min, seqVelTable.max, paramsPerPart[part].velRandomization.value)
 end
 
 function getGate(part, step, skipRandomize)
@@ -210,16 +216,16 @@ function getGate(part, step, skipRandomize)
   end
 
   -- Randomize gate
-  return randomizeValue(gate, seqGateTable.min, seqGateTable.max, paramsPerPart[part].gateRandomization.value)
+  return gem.randomizeValue(gate, seqGateTable.min, seqGateTable.max, paramsPerPart[part].gateRandomization.value)
 end
 
 function createStrategy(part)
   local numSteps = paramsPerPart[part].numStepsBox.value
   local maxLength = math.min(math.ceil(numSteps * 0.75), 9) -- TODO Param
   local strategy = {} -- Table to hold strategy
-  local ln = getRandom(maxLength) -- Length
+  local ln = gem.getRandom(maxLength) -- Length
   for i=1, ln do
-    local value = getRandom(-7,7)
+    local value = gem.getRandom(-7,7)
     table.insert(strategy, value)
     print("Add value to strategy", value)
   end
@@ -603,7 +609,7 @@ for i=1,numPartsBox.max do
     generateMinNoteStepsPart.enabled = self.value > 1
   end
 
-  local stepResolution = sequencerPanel:Menu("StepResolution" .. i, getResolutionNames())
+  local stepResolution = sequencerPanel:Menu("StepResolution" .. i, resolutions.getResolutionNames())
   stepResolution.displayName = "Step Duration"
   stepResolution.tooltip = "The duration of each step in the part"
   stepResolution.selected = 20
@@ -666,7 +672,7 @@ for i=1,numPartsBox.max do
     generateMinPart:setRange(0, self.value)
   end
 
-  local generateKeyPart = sequencerPanel:Menu("GenerateKey" .. i, getNoteNames())
+  local generateKeyPart = sequencerPanel:Menu("GenerateKey" .. i, noteNames)
   generateKeyPart.tooltip = "Key"
   generateKeyPart.showLabel = false
   generateKeyPart.height = 20
@@ -762,7 +768,7 @@ for i=1,numPartsBox.max do
   subdivisionRepeatProbability.backgroundColour = menuBackgroundColour
   subdivisionRepeatProbability.textColour = widgetTextColour
 
-  local subdivisionMinResolution = sequencerPanel:Menu("SubdivisionMinResolution" .. i, getResolutionNames())
+  local subdivisionMinResolution = sequencerPanel:Menu("SubdivisionMinResolution" .. i, resolutions.getResolutionNames())
   subdivisionMinResolution.displayName = "Min Resolution"
   subdivisionMinResolution.showLabel = false
   subdivisionMinResolution.height = 20
@@ -1005,7 +1011,7 @@ function playSubdivision(structure, partPos)
   for i,node in ipairs(structure.notes) do
     local gate = getGate(partPos, structure.step)
     local waitDuration = node.duration
-    local playDuration = getPlayDuration(node.duration, gate)
+    local playDuration = resolutions.getPlayDuration(node.duration, gate)
     local noteToPlay = node.note
     print("PlaySubdivision partPos/i/noteToPlay/noteName/waitDuration/playDuration/gate", partPos, i, noteToPlay, noteNumberToNoteName[noteToPlay+1], waitDuration, playDuration, gate)
     playNote(noteToPlay, getVelocity(partPos, structure.step), beat2ms(playDuration)-1)
@@ -1069,12 +1075,12 @@ function arpeg()
       if focusButton.value == true then
         partWasChanged = currentPartPosition ~= editPartMenu.value
         currentPartPosition = editPartMenu.value
-      elseif (isStarting == false or partRandBox.value > 50) and getRandomBoolean(partRandBox.value) then
+      elseif (isStarting == false or partRandBox.value > 50) and gem.getRandomBoolean(partRandBox.value) then
         -- Randomize parts within the set limit
         print("currentPartPosition before", currentPartPosition)
         print("currentPosition before", currentPosition)
         --print("index before", index)
-        local randomPartPosition = getRandom(numParts)
+        local randomPartPosition = gem.getRandom(numParts)
         partWasChanged = currentPartPosition ~= randomPartPosition
         currentPartPosition = randomPartPosition
       end
@@ -1083,8 +1089,8 @@ function arpeg()
       index = currentPosition - 1
     end
 
-    local mainBeatDuration = getResolution(paramsPerPart[currentPartPosition].stepResolution.value)
-    local minResolution = getResolution(paramsPerPart[currentPartPosition].subdivisionMinResolution.value)
+    local mainBeatDuration = resolutions.getResolution(paramsPerPart[currentPartPosition].stepResolution.value)
+    local minResolution = resolutions.getResolution(paramsPerPart[currentPartPosition].subdivisionMinResolution.value)
     local minNoteSteps = paramsPerPart[currentPartPosition].minNoteSteps.value
     local maxNoteSteps = paramsPerPart[currentPartPosition].maxNoteSteps.value
     local stepRepeatProbability = paramsPerPart[currentPartPosition].stepRepeatProbability.value
@@ -1123,7 +1129,7 @@ function arpeg()
         print("Created #strategy/#strategies", #strategy, #strategies)
       end
       if autoStrategy == true then
-        strategyIndex = getRandom(#strategies)
+        strategyIndex = gem.getRandom(#strategies)
         paramsPerPart[currentPartPosition].strategyInput.text = getStrategyInputText(strategies[strategyIndex])
       end
       if slotStrategy == true then
@@ -1137,7 +1143,7 @@ function arpeg()
           strategySlots[slotIndex]:setValue(true)
         else ]]
           if #strategySlots > 0 then
-            strategySlots[getRandom(#strategySlots)]:setValue(true)
+            strategySlots[gem.getRandom(#strategySlots)]:setValue(true)
           end
         --end
         --[[ slotIndex = slotIndex + 1
@@ -1166,12 +1172,12 @@ function arpeg()
       local function generateNote(nodePos)
         local note = nil
         local strategyPropbability = paramsPerPart[currentPartPosition].strategyPropbability.value
-        if getRandomBoolean(strategyPropbability) == true then
+        if gem.getRandomBoolean(strategyPropbability) == true then
           note, notePosition, strategyPos = getNoteFromStrategy(notePosition, strategyIndex, strategyPos, currentPartPosition)
           print("Get note from scale using strategy: note/strategyPos/strategyIndex", note, strategyPos, strategyIndex)
         else
           local scale = getFilteredScale(currentPartPosition)
-          note = scale[getRandom(#scale)]
+          note = scale[gem.getRandom(#scale)]
           print("Get random note from scale: note/minNote/maxNote", note, minNote, maxNote)
         end
         return note
@@ -1221,7 +1227,7 @@ function arpeg()
       end
 
       -- Get the number of steps this structure will last
-      local steps = getRandom(minNoteSteps, maxNoteSteps)
+      local steps = gem.getRandom(minNoteSteps, maxNoteSteps)
 
       -- Adjust steps so note does not last beyond the part length
       local maxSteps = (paramsPerPart[currentPartPosition].numStepsBox.value - tablePos) + 1
@@ -1232,7 +1238,7 @@ function arpeg()
 
       local nodes = {}
 
-      if getRandomBoolean(stepRepeatProbability) and #structureMemory > 0 then
+      if gem.getRandomBoolean(stepRepeatProbability) and #structureMemory > 0 then
         nodes = structureMemory -- Load structure from memory
         print("Load structure from memory")
       else

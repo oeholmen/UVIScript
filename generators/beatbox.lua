@@ -2,7 +2,8 @@
 -- Beatbox using rythmic fragments (Fragmented Beats)
 -------------------------------------------------------------------------------
 
-require "includes.rythmicFragments"
+local gem = require "includes.common"
+local rythmicFragments = require "includes.rythmicFragments"
 
 local playIndex = 1
 local beatResolution = 1
@@ -177,7 +178,7 @@ timeSignature.changed = function(self)
     table.insert(signature, w)
   end
   beatBase = tonumber(signature[1])
-  beatResolution = getResolution(getIndexFromValue("1/" .. signature[2], getResolutionNames()))
+  beatResolution = getResolution(gem.getIndexFromValue("1/" .. signature[2], getResolutionNames()))
 end
 
 local velocityInput = settingsPanel:NumBox("Velocity", 90, 1, 127, true)
@@ -271,7 +272,7 @@ templateMenu.changed = function(self)
           w:setValue(0)
         end
       elseif self.selectedText == "Randomize" or self.selectedText == "Randomize source probability" then
-        w:setValue(getRandom(100))
+        w:setValue(gem.getRandom(100))
       elseif self.selectedText == "All sources on" or self.selectedText == "Set to default" then
         w:setValue(100)
       elseif self.selectedText == "All sources off" or self.selectedText == "Set to zero" then
@@ -338,24 +339,24 @@ templateMenu.changed = function(self)
     elseif self.selectedText == "Randomize fragments (slow)" then
       paramsPerFragment[part].fragmentInput.text = getRandomFragment(4)
     elseif self.selectedText == "Randomize note probabilities" then
-      v.noteProbability:setValue(getRandom(100))
+      v.noteProbability:setValue(gem.getRandom(100))
     elseif self.selectedText == "Randomize note triggers" then
-      v.noteInput:setValue(getRandom(21, 108))
+      v.noteInput:setValue(gem.getRandom(21, 108))
     elseif self.selectedText == "Randomize rests" then
-      v.restDownBeatProbability:setValue(getRandom(100))
-      v.restUpBeatProbability:setValue(getRandom(100))
-      v.restFirstInFragmentProbability:setValue(getRandom(100))
+      v.restDownBeatProbability:setValue(gem.getRandom(100))
+      v.restUpBeatProbability:setValue(gem.getRandom(100))
+      v.restFirstInFragmentProbability:setValue(gem.getRandom(100))
     elseif self.selectedText == "Randomize" then
       paramsPerFragment[part].fragmentInput.text = getRandomFragment(1)
       v.mute:setValue(false)
-      v.accentFragmentStart:setValue(getRandomBoolean(25))
-      v.accentDownBeat:setValue(getRandomBoolean(25))
-      v.accentUpBeat:setValue(getRandomBoolean(25))
-      v.accent:setValue(getRandom(v.accent.max))
-      v.restDownBeatProbability:setValue(getRandom(25))
-      v.restUpBeatProbability:setValue(getRandom(25))
-      v.restFirstInFragmentProbability:setValue(getRandom(25))
-      v.noteProbability:setValue(getRandom(100))
+      v.accentFragmentStart:setValue(gem.getRandomBoolean(25))
+      v.accentDownBeat:setValue(gem.getRandomBoolean(25))
+      v.accentUpBeat:setValue(gem.getRandomBoolean(25))
+      v.accent:setValue(gem.getRandom(v.accent.max))
+      v.restDownBeatProbability:setValue(gem.getRandom(25))
+      v.restUpBeatProbability:setValue(gem.getRandom(25))
+      v.restFirstInFragmentProbability:setValue(gem.getRandom(25))
+      v.noteProbability:setValue(gem.getRandom(100))
     elseif self.selectedText == "Set to default" then
       if part == 1 then
         paramsPerFragment[part].fragmentInput.text = "1/8"
@@ -484,7 +485,7 @@ setRandomPercent.y = rowSpacing
 setRandomPercent.changed = function()
   if type(partInEditMode) == "number" then
     for _,v in ipairs(paramsPerNote[partInEditMode].sourceSelectors) do
-      v:setValue(getRandom(100))
+      v:setValue(gem.getRandom(100))
     end
   end
 end
@@ -827,7 +828,7 @@ rythmLabel.alpha = 0.75
 rythmLabel.fontSize = 15
 rythmLabel.width = 120
 
-paramsPerFragment = getParamsPerFragment(rythmPanel, rythmLabel, colours, numNotes)
+paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, rythmLabel, colours, numNotes)
 
 local selectNone = rythmPanel:Button("SelectNone")
 selectNone.displayName = "Select none"
@@ -881,7 +882,7 @@ randomizeSelection.x = invertSelection.x + invertSelection.width + 10
 randomizeSelection.y = 5
 randomizeSelection.changed = function()
   for _,v in ipairs(paramsPerFragment) do
-    v.fragmentActive:setValue(string.len(v.fragmentInput.text) > 0 and getRandomBoolean())
+    v.fragmentActive:setValue(string.len(v.fragmentInput.text) > 0 and gem.getRandomBoolean())
   end
 end
 
@@ -1107,7 +1108,7 @@ minResLabel.height = adjustBias.height
 minResLabel.x = adjustBias.x + adjustBias.width + 10
 minResLabel.y = adjustBias.y
 
-local minResolution = rythmPanel:Menu("MinResolution", getResolutionNames())
+local minResolution = rythmPanel:Menu("MinResolution", rythmicFragments.resolutions.getResolutionNames())
 minResolution.displayName = minResLabel.text
 minResolution.tooltip = "The highest allowed resolution for evolve adjustments"
 minResolution.selected = 26
@@ -1121,7 +1122,7 @@ minResolution.outlineColour = menuOutlineColour
 minResolution.x = minResLabel.x + minResLabel.width
 minResolution.y = minResLabel.y
 minResolution.changed = function(self)
-  setMaxResolutionIndex(self.value)
+  rythmicFragments.setMaxResolutionIndex(self.value)
 end
 minResolution:changed()
 
@@ -1153,16 +1154,16 @@ end
 function getRandomFragment(definitionNumber)
   local fragmentDefinition = {}
   if definitionNumber == 2 then
-    fragmentDefinition = {getResolution(getRandomFromTable(getSelectedResolutions()))} -- Single
+    fragmentDefinition = {getResolution(gem.getRandomFromTable(getSelectedResolutions()))} -- Single
   else
-    fragmentDefinition = createFragmentDefinition(definitionNumber)
+    fragmentDefinition = rythmicFragments.createFragmentDefinition(definitionNumber)
   end
-  return getFragmentInputText(fragmentDefinitionToResolutionNames(fragmentDefinition))
+  return rythmicFragments.getFragmentInputText(rythmicFragments.fragmentDefinitionToResolutionNames(fragmentDefinition))
 end
 
 function getNote(voice)
   local noteProbability = paramsPerNote[voice].noteProbability.value
-  if getRandomBoolean(noteProbability) then
+  if gem.getRandomBoolean(noteProbability) then
     return paramsPerNote[voice].noteInput.value
   end
 end
@@ -1185,7 +1186,7 @@ end
 function getSources(voice)
   local sources = {}
   for i,v in ipairs(paramsPerNote[voice].sourceSelectors) do
-    if getRandomBoolean(v.value) then
+    if gem.getRandomBoolean(v.value) then
       table.insert(sources, i)
     end
   end
@@ -1226,7 +1227,7 @@ function initNotes()
   playingVoices = {}
   playingIndex = {}
   roundCounterPerVoice = {}
-  clearResolutionsForEvolve()
+  rythmicFragments.clearResolutionsForEvolve()
   for voice=1,numNotes do
     table.insert(playingVoices, false) -- Init voices
     table.insert(playingIndex, nil) -- Init index
@@ -1401,7 +1402,7 @@ function sequenceRunner()
     beatCounter = beatCounter + 1 -- Increment counter
     if beatCounter > beatBase then
       beatCounter = 1 -- Reset counter
-      if evolveButton.value and getRandomBoolean(evolveFragmentProbability.value) then
+      if evolveButton.value and gem.getRandomBoolean(evolveFragmentProbability.value) then
         previous = evolveFragments(previous, randomizeCurrentResolutionProbability.value, adjustBias.value)
       end
     end
@@ -1425,7 +1426,7 @@ function play(voice, uniqueId, partDuration)
   while playingIndex[voice] == uniqueId do
     roundCounterPerVoice[voice] = roundCounterPerVoice[voice] + 1
 
-    duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount, getSources(voice))
+    duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = rythmicFragments.getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount, getSources(voice))
 
     if type(duration) == "nil" or activeFragment.i == 0 or isNoteActive(voice) == false then
       -- Return voice to sequence runner
@@ -1438,19 +1439,19 @@ function play(voice, uniqueId, partDuration)
     local isStartOfBeat = math.floor(playDuration) == playDuration
 
     -- Check rest at start of downbeat
-    if isStartOfBeat and rest == false and isDownBeat() and getRandomBoolean(paramsPerNote[voice].restDownBeatProbability.value) then
+    if isStartOfBeat and rest == false and isDownBeat() and gem.getRandomBoolean(paramsPerNote[voice].restDownBeatProbability.value) then
       --print("REST isStartOfBeat, isDownBeat, voice", isStartOfBeat, isDownBeat(), voice)
       rest = true
     end
 
     -- Check rest at start of upbeat
-    if isStartOfBeat and rest == false and isUpBeat() and getRandomBoolean(paramsPerNote[voice].restUpBeatProbability.value) then
+    if isStartOfBeat and rest == false and isUpBeat() and gem.getRandomBoolean(paramsPerNote[voice].restUpBeatProbability.value) then
       --print("REST isStartOfBeat, isUpBeat, voice", isStartOfBeat, isUpBeat(), voice)
       rest = true
     end
 
     -- Check rest at start of fragment - only if fragment has more than one item
-    if isFragmentStart and rest == false and (#activeFragment.f > 1 or (activeFragment.m > 1 and mustRepeat == false)) and getRandomBoolean(paramsPerNote[voice].restFirstInFragmentProbability.value) then
+    if isFragmentStart and rest == false and (#activeFragment.f > 1 or (activeFragment.m > 1 and mustRepeat == false)) and gem.getRandomBoolean(paramsPerNote[voice].restFirstInFragmentProbability.value) then
       --print("REST isFragmentStart, voice", isFragmentStart, voice)
       rest = true
     end
@@ -1471,7 +1472,7 @@ function play(voice, uniqueId, partDuration)
         velocity = velocityAccent.value
       end
       --print("play: note, velocity, duration, isDownBeat", note, velocity, duration, isDownBeat(), "voice " .. voice)
-      playNote(note, velocity, beat2ms(getPlayDuration(duration)), nil, getChannel())
+      playNote(note, velocity, beat2ms(rythmicFragments.resolutions.getPlayDuration(duration)), nil, getChannel())
 
       if isFragmentStart then
         setSourceActive(voice, activeFragment)
@@ -1479,7 +1480,7 @@ function play(voice, uniqueId, partDuration)
 
       for i,v in ipairs(paramsPerFragment) do
         if activeFragment.i == i then
-          spawn(flashFragmentActive, v.fragmentActive, duration)
+          spawn(rythmicFragments.flashFragmentActive, v.fragmentActive, duration)
         end
       end
       spawn(flashNoteLabel, voice, duration)

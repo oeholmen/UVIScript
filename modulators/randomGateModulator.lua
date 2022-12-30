@@ -3,6 +3,7 @@
 -------------------------------------------------------------------------------
 
 require "includes.subdivision"
+local resolutions = require "includes.resolutions"
 
 local isRunning = false
 
@@ -44,7 +45,7 @@ probability.outlineColour = labelBackgoundColour
 probability.x = label.x + label.width + 30
 probability.width = 120
 
-local waitResolution = panel:Menu("WaitResolution", getResolutionNames())
+local waitResolution = panel:Menu("WaitResolution", resolutions.getResolutionNames())
 waitResolution.displayName = "Max Duration"
 waitResolution.tooltip = "The maximum duration of the gate"
 waitResolution.selected = 11
@@ -55,7 +56,7 @@ waitResolution.textColour = widgetTextColour
 waitResolution.arrowColour = menuArrowColour
 waitResolution.outlineColour = menuOutlineColour
 
-local waitResolutionMin = panel:Menu("WaitResolutionMin", getResolutionNames())
+local waitResolutionMin = panel:Menu("WaitResolutionMin", resolutions.getResolutionNames())
 waitResolutionMin.displayName = "Min Duration"
 waitResolutionMin.tooltip = "The minimum duration of the gate"
 waitResolutionMin.selected = 17
@@ -94,8 +95,8 @@ gateButton.changed = function(self)
 end
 
 function getDuration()
-  local minResolution = getResolution(waitResolutionMin.value)
-  local resolution = getResolution(waitResolution.value)
+  local minResolution = resolutions.getResolution(waitResolutionMin.value)
+  local resolution = resolutions.getResolution(waitResolution.value)
   local subdivisions = {{value=true}}
   local subDivProbability = 100
   local subdivision, subDivDuration, remainderDuration, stop = getSubdivision(resolution, 1, minResolution, subDivProbability, subdivisions, false, 0)
@@ -107,7 +108,7 @@ function arpeg()
   while isRunning do
     local waitTime = beat2ms(getDuration()) -- Set round duration
     round = round + 1 -- Increment round
-    if getRandomBoolean(probability.value) then
+    if gem.getRandomBoolean(probability.value) then
       gateButton:setValue(gateButton.value == false) -- Toggle gate
     end
     if round == 1 then

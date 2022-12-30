@@ -93,7 +93,7 @@ function arpeg()
   while isRunning do
     local rampTime = beat2ms(getResolution(rampResolution.value))
     local waitTime = getResolution(waitResolution.value)
-    local probability = getRandomBoolean(probability.value)
+    local probability = gem.getRandomBoolean(probability.value)
     if probability == true then
       sendScriptModulation(sourceIndex1.value, 0, rampTime)
       sendScriptModulation(sourceIndex2.value, 1, rampTime)

@@ -2,7 +2,7 @@
 -- A random gate for incoming note events
 ----------------------------------------------
 
-require "includes.common"
+local gem = require "includes.common"
 
 local isRunning = false
 
@@ -90,7 +90,7 @@ function arpeg()
   local waitTime = 0
   while isRunning do
     round = round + 1 -- Increment round
-    if getRandomBoolean(probability.value) then
+    if gem.getRandomBoolean(probability.value) then
       gateButton:setValue(gateButton.value == false)
     end
     if gateButton.value == true then

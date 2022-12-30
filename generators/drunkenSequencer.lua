@@ -2,8 +2,9 @@
 -- Drunken Sequencer
 --------------------------------------------------------------------------------
 
-require "includes.noteSelector"
-require "includes.rythmicFragments"
+local gem = require "includes.common"
+local noteSelector = require "includes.noteSelector"
+local rythmicFragments = require "includes.rythmicFragments"
 
 local backgroundColour = "303030" -- Light or Dark
 local widgetBackgroundColour = "01011F" -- Dark
@@ -296,11 +297,11 @@ randomizeNotes.x = addNotes.x + addNotes.width + 10
 randomizeNotes.y = 5
 randomizeNotes.changed = function()
   for _,v in ipairs(noteInputs) do
-    v:setValue(getRandomBoolean())
+    v:setValue(gem.getRandomBoolean())
   end
 end
 
-createNoteAndOctaveSelector(notePanel, colours, noteLabel)
+noteSelector.createNoteAndOctaveSelector(notePanel, colours, noteLabel)
 
 --------------------------------------------------------------------------------
 -- Rythm Panel
@@ -312,14 +313,14 @@ rythmLabel.alpha = 0.75
 rythmLabel.fontSize = 15
 rythmLabel.width = 153
 
-local paramsPerFragment = getParamsPerFragment(rythmPanel, rythmLabel, colours)
+local paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, rythmLabel, colours)
 
 --------------------------------------------------------------------------------
 -- Functions
 --------------------------------------------------------------------------------
 
 function generateNote(currentNote)
-  local selectedNotes = getSelectedNotes() -- Holds note numbers that are available
+  local selectedNotes = noteSelector.getSelectedNotes() -- Holds note numbers that are available
 
   if #selectedNotes == 0 then
     return nil
@@ -330,35 +331,35 @@ function generateNote(currentNote)
   end
 
   local noteIndex = 1
-  local currentIndex = getIndexFromValue(currentNote, selectedNotes)
+  local currentIndex = gem.getIndexFromValue(currentNote, selectedNotes)
 
   if type(currentNote) == "nil" or type(currentIndex) == "nil" then
-    noteIndex = getRandom(#selectedNotes)
+    noteIndex = gem.getRandom(#selectedNotes)
     --print("Get random note index", noteIndex)
   else
     local noteDirectionProbability = noteDirection.value
-    local goUp = getRandomBoolean(noteDirectionProbability)
+    local goUp = gem.getRandomBoolean(noteDirectionProbability)
     local resetFull = randomReset.value == false
     if noteDirectionProbability == 50 then
       -- Equal up/down
-      noteIndex = randomizeValue(currentIndex, 1, #selectedNotes, noteRandomization.value)
+      noteIndex = gem.randomizeValue(currentIndex, 1, #selectedNotes, noteRandomization.value)
       --print("Equal up/down noteIndex/currentIndex", noteIndex, currentIndex)
     elseif goUp and (currentIndex < #selectedNotes or resetFull) then
       if currentIndex == #selectedNotes then
         noteIndex = 1 -- Reset to lowest index
       else
-        noteIndex = randomizeValue(currentIndex, currentIndex, #selectedNotes, noteRandomization.value)
+        noteIndex = gem.randomizeValue(currentIndex, currentIndex, #selectedNotes, noteRandomization.value)
       end
       print("Up noteIndex/currentIndex", noteIndex, currentIndex)
     elseif currentIndex > 1 or resetFull then
       if currentIndex == 1 then
         noteIndex = #selectedNotes -- Reset to max index
       else
-        noteIndex = randomizeValue(currentIndex, 1, currentIndex, noteRandomization.value)
+        noteIndex = gem.randomizeValue(currentIndex, 1, currentIndex, noteRandomization.value)
       end
       print("Down noteIndex/currentIndex", noteIndex, currentIndex)
     else
-      noteIndex = getRandom(#selectedNotes)
+      noteIndex = gem.getRandom(#selectedNotes)
       print("Random note index", noteIndex)
     end
   end
@@ -367,7 +368,7 @@ function generateNote(currentNote)
 end
 
 function getGate()
-  return randomizeValue(gateInput.value, gateInput.min, gateInput.max, gateRandomization.value)
+  return gem.randomizeValue(gateInput.value, gateInput.min, gateInput.max, gateRandomization.value)
 end
 
 function startPlaying()
@@ -408,7 +409,7 @@ function sequenceRunner()
     end
     local baseDuration = 4
     waitBeat(baseDuration)
-    --[[ if getRandomBoolean(evolveFragmentProbability.value) then
+    --[[ if gem.getRandomBoolean(evolveFragmentProbability.value) then
       previous = evolveFragments(previous, randomizeCurrentResolutionProbability.value, adjustBias.value)
     end ]]
   until #isPlaying == 0
@@ -429,7 +430,7 @@ function play(voice)
       channel = voice + channelOffset.value - 1
     end
     note = generateNote(note)
-    duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
+    duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = rythmicFragments.getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
     local doPlayNote = rest == false and type(note) == "number" and type(duration) == "number"
     if doPlayNote then
       local gate = getGate()
@@ -438,11 +439,11 @@ function play(voice)
       if isFragmentStart and #activeFragment.f > 1 then
         velocity = velocityAccent.value
       end
-      playNote(note, velocity, beat2ms(getPlayDuration(duration, gate)), nil, channel)
+      playNote(note, velocity, beat2ms(rythmicFragments.resolutions.getPlayDuration(duration, gate)), nil, channel)
       table.insert(notesPlaying, note) -- Register
       for i,v in ipairs(paramsPerFragment) do
         if activeFragment.i == i then
-          spawn(flashFragmentActive, v.fragmentActive, duration)
+          spawn(rythmicFragments.flashFragmentActive, v.fragmentActive, duration)
         end
       end
     end
@@ -451,7 +452,7 @@ function play(voice)
     end
     waitBeat(duration)
     if doPlayNote then
-      table.remove(notesPlaying, getIndexFromValue(note, notesPlaying)) -- Remove
+      table.remove(notesPlaying, gem.getIndexFromValue(note, notesPlaying)) -- Remove
     end
   end
 end

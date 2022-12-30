@@ -2,7 +2,8 @@
 -- Common functions and widgets that are shared for the modulation sequencers
 --------------------------------------------------------------------------------
 
-require "includes.common"
+local gem = require "includes.common"
+local r = require "includes.resolutions"
 
 defaultActions = {"Actions...", "Randomize", "Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Reduce 50%"}
 numPages = 1
@@ -14,11 +15,22 @@ paramsPerPage = {}
 isPlaying = false
 
 --------------------------------------------------------------------------------
+-- Define widgets
+--------------------------------------------------------------------------------
+
+local headerPanel = Panel("Header")
+local footerPanel = Panel("Footer")
+
+local actionMenu = footerPanel:Menu("ActionMenu", defaultActions)
+local cyclePagesButton = footerPanel:OnOffButton("CyclePagesButton")
+local changePageProbability = footerPanel:NumBox("ChangePageProbability", 0, 0, 100, true)
+
+--------------------------------------------------------------------------------
 -- Common Functions
 --------------------------------------------------------------------------------
 
 -- Get the index for this part in paramsPerPart, given page and part number
-function getPartIndex(part, page)
+local function getPartIndex(part, page)
   if type(page) == "nil" then
     page = activePage -- Default is the active page
   end
@@ -27,12 +39,12 @@ function getPartIndex(part, page)
 end
 
 -- Get page from part index
-function getPageFromPartIndex(partIndex)
+local function getPageFromPartIndex(partIndex)
   --print("getPageFromPartIndex partIndex", partIndex)
   return math.ceil(partIndex / maxPages)
 end
 
-function advancePage()
+local function advancePage()
   local next = activePage + 1
   if next > numPages then
     next = 1
@@ -40,7 +52,7 @@ function advancePage()
   pageButtons[next]:setValue(true)
 end
 
-function gotoNextPage()
+local function gotoNextPage()
   -- Check that there is actually a a change
   if activePage == nextUp then
     return
@@ -54,7 +66,7 @@ function gotoNextPage()
   end
 end
 
-function clearPosition()
+local function clearPosition()
   for _,v in ipairs(paramsPerPart) do
     for i=1,v.numStepsBox.value do
       v.positionTable:setValue(i, 0)
@@ -62,7 +74,7 @@ function clearPosition()
   end
 end
 
-function setNumSteps(partIndex, numSteps)
+local function setNumSteps(partIndex, numSteps)
   print("setNumSteps for partIndex/numSteps", partIndex, numSteps)
   paramsPerPart[partIndex].positionTable.length = numSteps
   paramsPerPart[partIndex].seqValueTable.length = numSteps
@@ -73,13 +85,13 @@ function setNumSteps(partIndex, numSteps)
   setPageDuration(page)
 end
 
-function setPageDuration(page)
+local function setPageDuration(page)
   print("setPageDuration for page", page)
   local pageResolutions = {}
   for part=1,numParts do
     local partIndex = getPartIndex(part, page)
     print("getResolution for partIndex", partIndex)
-    local partResolution = getResolution(paramsPerPart[partIndex].stepResolution.value)
+    local partResolution = r.getResolution(paramsPerPart[partIndex].stepResolution.value)
     if paramsPerPart[partIndex].stepButton.value then
       partResolution = partResolution * paramsPerPart[partIndex].numStepsBox.value
     end
@@ -90,37 +102,15 @@ function setPageDuration(page)
   paramsPerPage[page].pageDuration = pageResolutions[#pageResolutions]
 end
 
-function startPlaying()
-  if isPlaying == true then
-    return
-  end
-  spawn(pageRunner)
-  for i=1,numParts do
-    print("Start playing", i)
-    spawn(arpeg, i)
-  end
-  isPlaying = true
-end
-
-function stopPlaying()
-  if isPlaying == false then
-    return
-  end
-  print("Stop playing")
-  isPlaying = false
-  clearPosition()
-  gotoNextPage()
-end
-
-function pageRunner()
+local function pageRunner()
   local repeatCounter = -1
   while isPlaying do
     repeatCounter = repeatCounter + 1
     local repeats = paramsPerPage[activePage].minRepeats.value
     print("New round on page/duration/repeats/repeatCounter", activePage, paramsPerPage[activePage].pageDuration, repeats, repeatCounter)
     if repeatCounter >= repeats and nextUp == activePage then
-      if getRandomBoolean(changePageProbability.value) then
-        nextUp = getRandom(numPages)
+      if gem.getRandomBoolean(changePageProbability.value) then
+        nextUp = gem.getRandom(numPages)
       elseif cyclePagesButton.value == true then
         nextUp = activePage + 1
         if nextUp > numPages then
@@ -136,18 +126,39 @@ function pageRunner()
   end
 end
 
+local function startPlaying()
+  if isPlaying == true then
+    return
+  end
+  spawn(pageRunner)
+  for i=1,numParts do
+    print("Start playing", i)
+    spawn(arpeg, i)
+  end
+  isPlaying = true
+end
+
+local function stopPlaying()
+  if isPlaying == false then
+    return
+  end
+  print("Stop playing")
+  isPlaying = false
+  clearPosition()
+  gotoNextPage()
+end
+
 --------------------------------------------------------------------------------
 -- Common Widgets
 --------------------------------------------------------------------------------
 
-headerPanel = Panel("Header")
 headerPanel.backgroundColour = menuOutlineColour
 headerPanel.x = 10
 headerPanel.y = 10
 headerPanel.width = 700
 headerPanel.height = 30
 
-label = headerPanel:Label("Label")
+local label = headerPanel:Label("Label")
 label.text = title
 if type(tooltip) == "string" then
   label.tooltip = tooltip
@@ -158,7 +169,7 @@ label.fontSize = 22
 label.position = {0,0}
 label.size = {190,25}
 
-labelInput = headerPanel:Label("Label")
+local labelInput = headerPanel:Label("Label")
 labelInput.text = ""
 labelInput.editable = true
 labelInput.backgroundColour = pageBackgoundColour
@@ -170,7 +181,7 @@ labelInput.width = 180
 labelInput.x = label.x + label.width + 10
 labelInput.y = 3
 
-playButton = headerPanel:OnOffButton("Play", false)
+local playButton = headerPanel:OnOffButton("Play", false)
 playButton.persistent = false
 playButton.backgroundColourOff = "#ff084486"
 playButton.backgroundColourOn = "#ff02ACFE"
@@ -188,7 +199,7 @@ playButton.changed = function(self)
   end
 end
 
-autoplayButton = headerPanel:OnOffButton("AutoPlay", true)
+local autoplayButton = headerPanel:OnOffButton("AutoPlay", true)
 autoplayButton.backgroundColourOff = "#ff084486"
 autoplayButton.backgroundColourOn = "#ff02ACFE"
 autoplayButton.textColourOff = "#ff22FFFF"
@@ -199,7 +210,6 @@ autoplayButton.size = {102,22}
 autoplayButton.x = playButton.x - playButton.width - 5
 autoplayButton.y = playButton.y
 
-footerPanel = Panel("Footer")
 footerPanel.backgroundColour = menuOutlineColour
 footerPanel.x = 10
 footerPanel.width = 700
@@ -211,7 +221,6 @@ else
   footerPanel.height = 30
 end
 
-changePageProbability = footerPanel:NumBox("ChangePageProbability", 0, 0, 100, true)
 changePageProbability.displayName = "Random"
 changePageProbability.tooltip = "Probability of random page change"
 changePageProbability.enabled = false
@@ -221,7 +230,7 @@ changePageProbability.x = (33 * maxPages) + 102
 
 local pageButtonSize = {25,22}
 
-nextPageButton = footerPanel:Button("NextPageButton")
+local nextPageButton = footerPanel:Button("NextPageButton")
 nextPageButton.persistent = false
 nextPageButton.enabled = numPages > 1
 nextPageButton.displayName = ">"
@@ -231,7 +240,6 @@ nextPageButton.changed = function(self)
   advancePage()
 end
 
-cyclePagesButton = footerPanel:OnOffButton("CyclePagesButton")
 cyclePagesButton.enabled = numPages > 1
 cyclePagesButton.displayName = ">>"
 cyclePagesButton.tooltip = "Play pages in cycle"
@@ -241,7 +249,7 @@ cyclePagesButton.textColourOff = "#cc22FFFF"
 cyclePagesButton.textColourOn = "#ccFFFFFF"
 cyclePagesButton.size = pageButtonSize
 
-numPagesBox = footerPanel:NumBox("Pages", numPages, 1, maxPages, true)
+local numPagesBox = footerPanel:NumBox("Pages", numPages, 1, maxPages, true)
 numPagesBox.tooltip = "Number of active pages"
 numPagesBox.backgroundColour = menuBackgroundColour
 numPagesBox.textColour = menuTextColour
@@ -298,7 +306,6 @@ end
 cyclePagesButton.x = pageButtons[#pageButtons].x + pageButtons[#pageButtons].width + xPadding
 nextPageButton.x = cyclePagesButton.x + cyclePagesButton.width + xPadding
 
-actionMenu = footerPanel:Menu("ActionMenu", defaultActions)
 actionMenu.persistent = false
 actionMenu.tooltip = "Select an action. NOTE: This changes data in the affected tables"
 actionMenu.backgroundColour = menuBackgroundColour
@@ -318,7 +325,7 @@ actionMenu.changed = function(self)
     for part=1,numParts do
       local partIndex = getPartIndex(part)
       for i=1,paramsPerPart[partIndex].numStepsBox.value do
-        paramsPerPart[partIndex].seqValueTable:setValue(i, getRandom(paramsPerPart[partIndex].seqValueTable.min, paramsPerPart[partIndex].seqValueTable.max))
+        paramsPerPart[partIndex].seqValueTable:setValue(i, gem.getRandom(paramsPerPart[partIndex].seqValueTable.min, paramsPerPart[partIndex].seqValueTable.max))
       end
     end
   elseif self.value == 3 then
@@ -359,7 +366,7 @@ actionMenu.changed = function(self)
       local minValue = paramsPerPart[partIndex].seqValueTable.min
       local maxValue = paramsPerPart[partIndex].seqValueTable.max
       local numSteps = paramsPerPart[partIndex].numStepsBox.value
-      local numStepsUpDown = round(numSteps / 2)
+      local numStepsUpDown = gem.round(numSteps / 2)
       local valueRange = maxValue - minValue
       local changePerStep = valueRange / numStepsUpDown
       local startValue = minValue
@@ -446,3 +453,18 @@ actionMenu.changed = function(self)
   end
   self.selected = 1
 end
+
+--------------------------------------------------------------------------------
+-- Return Module
+--------------------------------------------------------------------------------
+
+return {
+  headerPanel = headerPanel,
+  footerPanel = footerPanel,
+  actionMenu = actionMenu,
+  labelInput = labelInput,
+  playButton = playButton,
+  autoplayButton = autoplayButton,
+  getPartIndex = getPartIndex,
+  setPageDuration = setPageDuration,
+}

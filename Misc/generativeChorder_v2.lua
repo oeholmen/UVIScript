@@ -97,7 +97,7 @@ end
 
 -- Use the selected chord definition to find the index for the next note in the chord
 function getNextScaleIndex(note, scale, chordDefinition, inversionIndex)
-  local index = getIndexFromValue(note, scale)
+  local index = gem.getIndexFromValue(note, scale)
   print("getNextScaleIndex #chordDefinition/inversionIndex", #chordDefinition, inversionIndex)
   local increment = chordDefinition[inversionIndex]
   return index + increment
@@ -133,7 +133,7 @@ function getVelocity(part, step, skipRandomize)
   end
 
   -- Randomize velocity
-  return randomizeValue(velocity, seqVelTable.min, seqVelTable.max, paramsPerPart[part].velRandomization.value)
+  return gem.randomizeValue(velocity, seqVelTable.min, seqVelTable.max, paramsPerPart[part].velRandomization.value)
 end
 
 function getGate(part, step, skipRandomize)
@@ -144,7 +144,7 @@ function getGate(part, step, skipRandomize)
     return gate
   end
 
-  return randomizeValue(gate, seqGateTable.min, seqGateTable.max, paramsPerPart[part].gateRandomization.value)
+  return gem.randomizeValue(gate, seqGateTable.min, seqGateTable.max, paramsPerPart[part].gateRandomization.value)
 end
 
 --------------------------------------------------------------------------------
@@ -440,12 +440,12 @@ end
 
 function createChordDefinition(part)
   local numSteps = paramsPerPart[part].numStepsBox.value
-  local maxValue = round(#paramsPerPart[part].fullScale / (128 / 12)) -- Max value depends on numbers of notes in each octave
+  local maxValue = gem.round(#paramsPerPart[part].fullScale / (128 / 12)) -- Max value depends on numbers of notes in each octave
   local maxLength = paramsPerPart[part].polyphony.value -- Max length depends on polyphony
   local definition = {} -- Table to hold definition
-  local ln = getRandom(maxLength) -- Set a random length for the definition
+  local ln = gem.getRandom(maxLength) -- Set a random length for the definition
   for i=1, ln do
-    local value = getRandom(maxValue)
+    local value = gem.getRandom(maxValue)
     table.insert(definition, value)
     print("Add value to definition", value)
   end
@@ -1068,12 +1068,12 @@ function arpeg()
       if focusButton.value == true then
         partWasChanged = currentPartPosition ~= editPartMenu.value
         currentPartPosition = editPartMenu.value
-      elseif (isStarting == false or partRandBox.value > 50) and getRandomBoolean(partRandBox.value) then
+      elseif (isStarting == false or partRandBox.value > 50) and gem.getRandomBoolean(partRandBox.value) then
         -- Randomize parts within the set limit
         print("currentPartPosition before", currentPartPosition)
         print("currentPosition before", currentPosition)
         --print("index before", index)
-        local randomPartPosition = getRandom(numParts)
+        local randomPartPosition = gem.getRandom(numParts)
         partWasChanged = currentPartPosition ~= randomPartPosition
         currentPartPosition = randomPartPosition
       end
@@ -1098,7 +1098,7 @@ function arpeg()
     local randomChord = paramsPerPart[currentPartPosition].randomChordButton.value
     local slotChord = paramsPerPart[currentPartPosition].slotChordButton.value
     if autoChord == true then
-      local index = getRandom(#chordDefinitions)
+      local index = gem.getRandom(#chordDefinitions)
       paramsPerPart[currentPartPosition].chordDefinitionInput.text = getChordInputText(chordDefinitions[index])
     end
     if randomChord == true then
@@ -1112,7 +1112,7 @@ function arpeg()
         end
       end
       if #chordDefinitionSlots > 0 then
-        chordDefinitionSlots[math.ceil(getRandom(#chordDefinitionSlots))]:setValue(true)
+        chordDefinitionSlots[math.ceil(gem.getRandom(#chordDefinitionSlots))]:setValue(true)
       end
     end
 
@@ -1122,14 +1122,14 @@ function arpeg()
       local inversions = paramsPerPart[currentPartPosition].inversions
       local activeInversions = {}
       for i,v in ipairs(inversions) do
-        if getRandomBoolean(v.value) == true then
+        if gem.getRandomBoolean(v.value) == true then
           table.insert(activeInversions, i)
         end
       end
 
       if #activeInversions > 0 then
         -- Get a chord def index from the active definitions
-        inversionIndex = activeInversions[getRandom(#activeInversions)] - 1
+        inversionIndex = activeInversions[gem.getRandom(#activeInversions)] - 1
         print("Chord inversion selected by random/#activeInversions", inversionIndex, #activeInversions)
       end
     end
@@ -1139,7 +1139,7 @@ function arpeg()
     local spreads = paramsPerPart[currentPartPosition].spreads
     local activeSpreads = {}
     for i,v in ipairs(spreads) do
-      if getRandomBoolean(v.value) == true then
+      if gem.getRandomBoolean(v.value) == true then
         table.insert(activeSpreads, i)
       end
     end
@@ -1147,7 +1147,7 @@ function arpeg()
     if #activeSpreads > 0 then
       -- Get a chord def index from the active definitions
       if #activeSpreads > 1 then
-        selectedSpread = activeSpreads[getRandom(#activeSpreads)]
+        selectedSpread = activeSpreads[gem.getRandom(#activeSpreads)]
       else
         selectedSpread = activeSpreads[1]
       end
@@ -1187,7 +1187,7 @@ function arpeg()
         local function getBaseNote()
           local baseNote = minNote -- Start from the lowest note
           local useBaseNote = currentStep == 1
-          if useBaseNote and getRandomBoolean(baseNoteRandomization) then
+          if useBaseNote and gem.getRandomBoolean(baseNoteRandomization) then
             while isRootNote(baseNote, currentPartPosition) == false and baseNote <= baseMax do
               baseNote = baseNote + 1 -- increment note until we hit the base note
             end
@@ -1199,7 +1199,7 @@ function arpeg()
               noteRange = math.max(12, math.ceil(noteRange / polyphony))
               print("Calculate range for base note baseMin/baseMax/noteRange", baseMin, baseMax, noteRange)
             end
-            baseNote = baseNote + getRandom(noteRange) - 1
+            baseNote = baseNote + gem.getRandom(noteRange) - 1
           end
 
           return getNoteAccordingToScale(scale, baseNote)
@@ -1211,7 +1211,7 @@ function arpeg()
         end
 
         local harmonizationPropbability = paramsPerPart[currentPartPosition].harmonizationPropbability.value
-        if type(note) == "nil" and getRandomBoolean(harmonizationPropbability) == true then
+        if type(note) == "nil" and gem.getRandomBoolean(harmonizationPropbability) == true then
           local startingNotes = {}
           for _,v in ipairs(notes) do
             if v.stepCounter == 0 then
@@ -1251,10 +1251,10 @@ function arpeg()
               octaveProbability = 75
               negOctProbability = 15
             end
-            if getRandomBoolean(octaveProbability) then
+            if gem.getRandomBoolean(octaveProbability) then
               octave = math.floor(octaveRange / notesLeft)
             end
-            if octave > 0 and octave < 3 and note > baseMax / 2 and getRandomBoolean(negOctProbability) then
+            if octave > 0 and octave < 3 and note > baseMax / 2 and gem.getRandomBoolean(negOctProbability) then
               octave = -octave
               print("Negative octave", octave)
             end
@@ -1270,14 +1270,14 @@ function arpeg()
 
         -- Get random note from scale
         if type(note) == "nil" then
-          note = getNoteAccordingToScale(scale, getRandom(baseMin, baseMax))
+          note = getNoteAccordingToScale(scale, gem.getRandom(baseMin, baseMax))
         end
 
         return note
       end
 
       -- Get the number of steps this structure will last
-      local steps = getRandom(minNoteSteps, maxNoteSteps)
+      local steps = gem.getRandom(minNoteSteps, maxNoteSteps)
       
       -- Adjust steps so note does not last beyond the part length
       local maxSteps = (paramsPerPart[currentPartPosition].numStepsBox.value - tablePos) + 1

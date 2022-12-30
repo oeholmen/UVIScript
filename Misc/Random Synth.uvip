@@ -290,7 +290,7 @@ local waveSpread = Program.modulations["Macro 57"]
 -- Colours and margins
 --------------------------------------------------------------------------------
 
-function getRandom(min, max, factor)
+function gem.getRandom(min, max, factor)
   if type(min) == "number" and type(max) == "number" then
     return math.random(min, max)
   elseif type(min) == "number" then
@@ -306,28 +306,28 @@ function getRandom(min, max, factor)
 end
 
 function getRandomBipolar(probability)
-  local value = getRandom()
+  local value = gem.getRandom()
   -- Default probability of neg value is 1/4
   if type(probability) == "nil" then
     probability = 26
   end
-  if (getRandom(100) < probability) then
+  if (gem.getRandom(100) < probability) then
     value = -value
   end
   return value
 end
 
-function getRandomBoolean(probability)
+function gem.getRandomBoolean(probability)
   -- Default probability of getting true is 50%
   if type(probability) == "nil" then
     probability = 50
   end
-  return getRandom(100) <= probability
+  return gem.getRandom(100) <= probability
 end
 
 function getRandomMixLevel()
   -- Ensure mix level is not to high or low
-  local level = getRandom()
+  local level = gem.getRandom()
   if level < 0.2 then
     level = 0
   elseif level < 0.4 then
@@ -339,16 +339,16 @@ function getRandomMixLevel()
 end
 
 local colours = {"orange", "yellow", "magenta", "green", "pink", "red", "teal", "blue", "lightblue"}
-local knobColour = "#3333" .. getRandom(11,99)
-local osc1Colour = colours[getRandom(#colours)]
-local osc2Colour = colours[getRandom(#colours)]
-local unisonColour = colours[getRandom(#colours)]
-local filterColour = colours[getRandom(#colours)]
-local lfoColour = colours[getRandom(#colours)]
-local filterEnvColour = colours[getRandom(#colours)]
-local ampEnvColour = colours[getRandom(#colours)]
-local filterEffectsColour = colours[getRandom(#colours)]
-local vibratoColour = colours[getRandom(#colours)]
+local knobColour = "#3333" .. gem.getRandom(11,99)
+local osc1Colour = colours[gem.getRandom(#colours)]
+local osc2Colour = colours[gem.getRandom(#colours)]
+local unisonColour = colours[gem.getRandom(#colours)]
+local filterColour = colours[gem.getRandom(#colours)]
+local lfoColour = colours[gem.getRandom(#colours)]
+local filterEnvColour = colours[gem.getRandom(#colours)]
+local ampEnvColour = colours[gem.getRandom(#colours)]
+local filterEffectsColour = colours[gem.getRandom(#colours)]
+local vibratoColour = colours[gem.getRandom(#colours)]
 
 local marginX = 3 -- left/right
 local marginY = 2 -- top/bottom
@@ -1913,37 +1913,37 @@ arpeggiatorButton:changed()
 -- Page A
 --------------------------------------------------------------------------------
 
-osc1Panel.backgroundColour = "#33AAAA" .. getRandom(11,99)
+osc1Panel.backgroundColour = "#33AAAA" .. gem.getRandom(11,99)
 osc1Panel.x = marginX
 osc1Panel.y = mixerPanel.y + height + marginY
 osc1Panel.width = width
 osc1Panel.height = height
 
-osc2Panel.backgroundColour = "#44AAAA" .. getRandom(11,99)
+osc2Panel.backgroundColour = "#44AAAA" .. gem.getRandom(11,99)
 osc2Panel.x = marginX
 osc2Panel.y = osc1Panel.y + height + marginY
 osc2Panel.width = width
 osc2Panel.height = height
 
-unisonPanel.backgroundColour = "#55AAAA" .. getRandom(11,99)
+unisonPanel.backgroundColour = "#55AAAA" .. gem.getRandom(11,99)
 unisonPanel.x = marginX
 unisonPanel.y = osc2Panel.y + height + marginY
 unisonPanel.width = width
 unisonPanel.height = height
 
-vibratoPanel.backgroundColour = "#66AAAA" .. getRandom(11,99)
+vibratoPanel.backgroundColour = "#66AAAA" .. gem.getRandom(11,99)
 vibratoPanel.x = marginX
 vibratoPanel.y = unisonPanel.y + height + marginY
 vibratoPanel.width = width
 vibratoPanel.height = height
 
-ampEnvPanel.backgroundColour = "#77AAAA" .. getRandom(11,99)
+ampEnvPanel.backgroundColour = "#77AAAA" .. gem.getRandom(11,99)
 ampEnvPanel.x = marginX
 ampEnvPanel.y = vibratoPanel.y + height + marginY
 ampEnvPanel.width = width
 ampEnvPanel.height = height
 
-effectsPanel.backgroundColour = "#88AAAA" .. getRandom(11,99)
+effectsPanel.backgroundColour = "#88AAAA" .. gem.getRandom(11,99)
 effectsPanel.x = marginX
 effectsPanel.y = ampEnvPanel.y + height + marginY
 effectsPanel.width = width
@@ -1953,37 +1953,37 @@ effectsPanel.height = height
 -- Page B
 --------------------------------------------------------------------------------
 
-filterPanel.backgroundColour = "#33AA00" .. getRandom(11,99)
+filterPanel.backgroundColour = "#33AA00" .. gem.getRandom(11,99)
 filterPanel.x = marginX
 filterPanel.y = mixerPanel.y + height + marginY
 filterPanel.width = width
 filterPanel.height = height
 
-hpFilterPanel.backgroundColour = "#44AA00" .. getRandom(11,99)
+hpFilterPanel.backgroundColour = "#44AA00" .. gem.getRandom(11,99)
 hpFilterPanel.x = marginX
 hpFilterPanel.y = filterPanel.y + height + marginY
 hpFilterPanel.width = width
 hpFilterPanel.height = height
 
-filterEnvPanel.backgroundColour = "#55AA00" .. getRandom(11,99)
+filterEnvPanel.backgroundColour = "#55AA00" .. gem.getRandom(11,99)
 filterEnvPanel.x = marginX
 filterEnvPanel.y = hpFilterPanel.y + height + marginY
 filterEnvPanel.width = width
 filterEnvPanel.height = height
 
-filterEnvTargetsPanel.backgroundColour = "#66AA00" .. getRandom(11,99)
+filterEnvTargetsPanel.backgroundColour = "#66AA00" .. gem.getRandom(11,99)
 filterEnvTargetsPanel.x = marginX
 filterEnvTargetsPanel.y = filterEnvPanel.y + height + marginY
 filterEnvTargetsPanel.width = width
 filterEnvTargetsPanel.height = height
 
-filterEnvTargets1Panel.backgroundColour = "#66AA00" .. getRandom(11,99)
+filterEnvTargets1Panel.backgroundColour = "#66AA00" .. gem.getRandom(11,99)
 filterEnvTargets1Panel.x = marginX
 filterEnvTargets1Panel.y = filterEnvTargetsPanel.y + height
 filterEnvTargets1Panel.width = width
 filterEnvTargets1Panel.height = height
 
-filterEnvTargets2Panel.backgroundColour = "#66AA00" .. getRandom(11,99)
+filterEnvTargets2Panel.backgroundColour = "#66AA00" .. gem.getRandom(11,99)
 filterEnvTargets2Panel.x = marginX
 filterEnvTargets2Panel.y = filterEnvTargets1Panel.y + height
 filterEnvTargets2Panel.width = width
@@ -1993,31 +1993,31 @@ filterEnvTargets2Panel.height = height
 -- Page C
 --------------------------------------------------------------------------------
 
-lfoPanel.backgroundColour = "#330000" .. getRandom(11,99)
+lfoPanel.backgroundColour = "#330000" .. gem.getRandom(11,99)
 lfoPanel.x = marginX
 lfoPanel.y = mixerPanel.y + height + marginY
 lfoPanel.width = width
 lfoPanel.height = height * 2
 
-lfoTargetPanel.backgroundColour = "#440000" .. getRandom(11,99)
+lfoTargetPanel.backgroundColour = "#440000" .. gem.getRandom(11,99)
 lfoTargetPanel.x = marginX
 lfoTargetPanel.y = lfoPanel.y + lfoPanel.height + marginY
 lfoTargetPanel.width = width
 lfoTargetPanel.height = height
 
-lfoTargetPanel1.backgroundColour = "#440000" .. getRandom(11,99)
+lfoTargetPanel1.backgroundColour = "#440000" .. gem.getRandom(11,99)
 lfoTargetPanel1.x = marginX
 lfoTargetPanel1.y = lfoTargetPanel.y + height
 lfoTargetPanel1.width = width
 lfoTargetPanel1.height = height
 
-lfoTargetPanel2.backgroundColour = "#440000" .. getRandom(11,99)
+lfoTargetPanel2.backgroundColour = "#440000" .. gem.getRandom(11,99)
 lfoTargetPanel2.x = marginX
 lfoTargetPanel2.y = lfoTargetPanel1.y + height
 lfoTargetPanel2.width = width
 lfoTargetPanel2.height = height
 
-lfoTargetPanel3.backgroundColour = "#440000" .. getRandom(11,99)
+lfoTargetPanel3.backgroundColour = "#440000" .. gem.getRandom(11,99)
 lfoTargetPanel3.x = marginX
 lfoTargetPanel3.y = lfoTargetPanel2.y + height
 lfoTargetPanel3.width = width
@@ -2029,7 +2029,7 @@ lfoTargetPanel3.height = height
 
 function createSequencerPanel()
   local seqPanel = Panel("Sequencer")
-  seqPanel.backgroundColour = "#330000" .. getRandom(11,99)
+  seqPanel.backgroundColour = "#330000" .. gem.getRandom(11,99)
   seqPanel.x = marginX
   seqPanel.y = mixerPanel.y + height + marginY
   seqPanel.width = width
@@ -2169,7 +2169,7 @@ local seqPanel = createSequencerPanel()
 
 function createTweakPanel()
   local tweakPanel = Panel("Tweaks")
-  tweakPanel.backgroundColour = "#33AA33" .. getRandom(11,99)
+  tweakPanel.backgroundColour = "#33AA33" .. gem.getRandom(11,99)
   tweakPanel.x = marginX
   tweakPanel.y = mixerPanel.y + height + marginY
   tweakPanel.width = width
@@ -2177,14 +2177,14 @@ function createTweakPanel()
 
   local tweakButton = tweakPanel:Button("Tweak")
   tweakButton.bounds = {10,height,width-20,height*3}
-  tweakButton.textColourOff = "#AAAA" .. getRandom(11,99)
+  tweakButton.textColourOff = "#AAAA" .. gem.getRandom(11,99)
   tweakButton.changed = function(self)
     print("Start tweaking!")
     for i,v in ipairs(tweakables) do
       if type(v.func) == "function" then
         v.widget.value = v.func(v.probability)
       else
-        v.widget.value = getRandom(v.min, v.max, v.factor)
+        v.widget.value = gem.getRandom(v.min, v.max, v.factor)
       end
     end
     print("Tweaking complete!")

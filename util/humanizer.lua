@@ -2,7 +2,7 @@
 -- Humanizer
 --------------------------------------------------------------------------------
 
-require "includes.common"
+local gem = require "includes.common"
 
 local backgroundColour = "#1B1A17" -- Light or Dark
 local widgetBackgroundColour = "#E45826" -- Dark
@@ -45,7 +45,7 @@ end
 
 function humanize(e)
   if amount.value > 0 then
-    local a = getRandom(1, (amount.value/4))
+    local a = gem.getRandom(1, (amount.value/4))
     print("Humanize", a)
     wait(a)
   end

@@ -6,7 +6,7 @@
 -- Duplicate notes are removed
 --------------------------------------------------------------------------------
 
-require "includes.common"
+local gem = require "includes.common"
 
 local backgroundColour = "1a4245" -- Light or Dark
 local widgetBackgroundColour = "072227" -- Dark
@@ -168,9 +168,9 @@ function onNote(e)
       local event = noteBuffer[i].event
       -- Pick random notes from the incoming notes
       if priority.value == 4 then
-        event = noteBuffer[getRandom(#noteBuffer)].event
+        event = noteBuffer[gem.getRandom(#noteBuffer)].event
         while eventsIncludeNote(keep, event.note) == true do
-          event = noteBuffer[getRandom(#noteBuffer)].event
+          event = noteBuffer[gem.getRandom(#noteBuffer)].event
         end
       end
       print("postEvent", event.note)

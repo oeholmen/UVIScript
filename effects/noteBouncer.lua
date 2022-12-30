@@ -2,7 +2,8 @@
 -- Play note with a bouncing effect
 -------------------------------------------------------------------------------
 
-require "includes.common"
+local gem = require "includes.common"
+local resolutions = require "includes.resolutions"
 
 local backgroundColour = "595959" -- Light or Dark
 local widgetBackgroundColour = "01011F" -- Dark
@@ -33,7 +34,7 @@ label.textColour = labelTextColour
 label.fontSize = 22
 label.width = 120
 
-local waitResolution = panel:Menu("WaitResolution", getResolutionNames())
+local waitResolution = panel:Menu("WaitResolution", resolutions.getResolutionNames())
 waitResolution.displayName = "Start Duration"
 waitResolution.tooltip = "Start duration"
 waitResolution.selected = 17
@@ -44,7 +45,7 @@ waitResolution.textColour = widgetTextColour
 waitResolution.arrowColour = menuArrowColour
 waitResolution.outlineColour = menuOutlineColour
 
-local waitResolutionMin = panel:Menu("WaitResolutionMin", getResolutionNames())
+local waitResolutionMin = panel:Menu("WaitResolutionMin", resolutions.getResolutionNames())
 waitResolutionMin.displayName = "Stop Duration"
 waitResolutionMin.tooltip = "End duration"
 waitResolutionMin.selected = 26
@@ -128,20 +129,20 @@ function generateNote(e)
   local range = octaveRange.value * 12
   local min = math.max(0, (note-range))
   local max = math.min(127, (note+range))
-  return randomizeValue(note, min, max, noteRandomization.value)
+  return gem.randomizeValue(note, min, max, noteRandomization.value)
 end
 
 function bounce(e)
   local isRising = waitResolution.value < waitResolutionMin.value
   local currentResolutionIndex = getStartResolutionIndex()
-  local duration = getResolution(currentResolutionIndex)
+  local duration = resolutions.getResolution(currentResolutionIndex)
   local note = e.note
   local round = 1
   while isKeyDown(e.note) do
     if round > 1 then
       note = generateNote(e)
     end
-    local velocity = randomizeValue(e.velocity, 1, 127, 9)
+    local velocity = gem.randomizeValue(e.velocity, 1, 127, 9)
     playNote(note, velocity, beat2ms(duration))
     print("round, note, duration", round, note, duration)
     waitBeat(duration)
@@ -151,13 +152,13 @@ function bounce(e)
       print("Bounce complete")
       break
     end
-    duration = getResolution(currentResolutionIndex)
+    duration = resolutions.getResolution(currentResolutionIndex)
     round = round + 1
   end
 end
 
 function onNote(e)
-  if getRandomBoolean(probability.value) then
+  if gem.getRandomBoolean(probability.value) then
     print("Start bounce")
     spawn(bounce, e)
   else

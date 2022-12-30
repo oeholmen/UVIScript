@@ -2,7 +2,8 @@
 -- Stochastic Drum Sequencer
 --------------------------------------------------------------------------------
 
-require "includes.common"
+local gem = require "includes.common"
+local resolutions = require "includes.resolutions"
 
 local outlineColour = "#FFB5FF"
 local menuBackgroundColour = "#bf01011F"
@@ -97,7 +98,7 @@ function setPageDuration(page)
   for part=1,numParts do
     local partIndex = getPartIndex(part, page)
     print("getResolution for partIndex", partIndex)
-    local partResolution = getResolution(paramsPerPart[partIndex].stepResolution.value) * paramsPerPart[partIndex].numStepsBox.value
+    local partResolution = resolutions.getResolution(paramsPerPart[partIndex].stepResolution.value) * paramsPerPart[partIndex].numStepsBox.value
     table.insert(pageResolutions, partResolution)
     print("Added resolution/part/page", partResolution, part, page)
   end
@@ -231,8 +232,8 @@ actionMenu.changed = function(self)
     for part=1,numParts do
       local partIndex = getPartIndex(part)
       for i=1,paramsPerPart[partIndex].numStepsBox.value do
-        if getRandomBoolean() then
-          paramsPerPart[partIndex].seqTriggerProbabilityTable:setValue(i, getRandom(paramsPerPart[partIndex].seqTriggerProbabilityTable.min, paramsPerPart[partIndex].seqTriggerProbabilityTable.max))
+        if gem.getRandomBoolean() then
+          paramsPerPart[partIndex].seqTriggerProbabilityTable:setValue(i, gem.getRandom(paramsPerPart[partIndex].seqTriggerProbabilityTable.min, paramsPerPart[partIndex].seqTriggerProbabilityTable.max))
         end
       end
     end
@@ -619,7 +620,7 @@ for page=1,maxPages do
       triggerNote.y = muteButton.y + muteButton.height + leftButtonSpacing
     end
 
-    local stepResolution = sequencerPanel:Menu("StepResolution" .. i, getResolutionNames())
+    local stepResolution = sequencerPanel:Menu("StepResolution" .. i, resolutions.getResolutionNames())
     stepResolution.tooltip = "Set the step resolution"
     stepResolution.showLabel = false
     stepResolution.visible = isVisible
@@ -710,8 +711,8 @@ function pageRunner()
   while isPlaying do
     rounds = rounds + 1
     if rounds > 1 and nextUp == activePage then
-      if getRandomBoolean(changePageProbability.value) then
-        nextUp = getRandom(numPages)
+      if gem.getRandomBoolean(changePageProbability.value) then
+        nextUp = gem.getRandom(numPages)
       elseif cyclePagesButton.value == true then
         nextUp = activePage + 1
         if nextUp > numPages then
@@ -744,7 +745,7 @@ function arpeg(part)
     if currentPosition == 1 then
       -- Set direction for this part
       local directionProbability = paramsPerPart[partIndex].directionProbability.value
-      partDirectionBackward = getRandomBoolean(directionProbability)
+      partDirectionBackward = gem.getRandomBoolean(directionProbability)
       --print("directionProbability/partIndex/partDirectionBackward", directionProbability, partIndex, partDirectionBackward)
     end
 
@@ -782,11 +783,11 @@ function arpeg(part)
     local ratchetRandomizationAmount = paramsPerPart[partIndex].ratchetRand.value
 
     -- Randomize ratchet
-    if getRandomBoolean(ratchetRandomizationAmount) then
+    if gem.getRandomBoolean(ratchetRandomizationAmount) then
       local min = seqRatchetTable.min
       local max = seqRatchetTable.max
       --local max = math.min(seqRatchetTable.max, (math.ceil(seqRatchetTable.max * (ratchetRandomizationAmount/100)) + 1))
-      ratchet = getRandom(min, max)
+      ratchet = gem.getRandom(min, max)
       --print("Randomize ratchet, min/max/ratchet", min, max, ratchet)
       if evolve == true then
         seqRatchetTable:setValue(currentPosition, ratchet)
@@ -804,12 +805,12 @@ function arpeg(part)
     local noteSteps = 1
 
     -- Randomize ties
-    if currentPosition < numStepsInPart and getRandomBoolean(tieRandomizationAmount) then
+    if currentPosition < numStepsInPart and gem.getRandomBoolean(tieRandomizationAmount) then
       --print("Before randomized tieNext", tieNext)
       -- Get length of tie
       local min = 2
       local max = math.ceil((numStepsInPart-currentPosition) * (tieRandomizationAmount/100))
-      noteSteps = getRandom(min, math.max(2, max))
+      noteSteps = gem.getRandom(min, math.max(2, max))
       tieNext = 1
       if evolve == true then
         tieStepTable:setValue(currentPosition, tieNext)
@@ -842,8 +843,8 @@ function arpeg(part)
     end
 
     -- Randomize trigger probability
-    if getRandomBoolean(triggerRandomizationAmount) then
-      local changeMax = getChangeMax(seqTriggerProbabilityTable.max, triggerRandomizationAmount)
+    if gem.getRandomBoolean(triggerRandomizationAmount) then
+      local changeMax = gem.getChangeMax(seqTriggerProbabilityTable.max, triggerRandomizationAmount)
       local min = triggerProbability - changeMax
       local max = triggerProbability + changeMax
       if min < seqTriggerProbabilityTable.min then
@@ -852,22 +853,22 @@ function arpeg(part)
       if max > seqTriggerProbabilityTable.max then
         max = seqTriggerProbabilityTable.max
       end
-      triggerProbability = getRandom(min, max)
+      triggerProbability = gem.getRandom(min, max)
       if evolve == true then
         seqTriggerProbabilityTable:setValue(currentPosition, triggerProbability)
       end
     end
 
     -- Check if step should trigger
-    local shouldTrigger = getRandomBoolean(triggerProbability)
+    local shouldTrigger = gem.getRandomBoolean(triggerProbability)
 
     -- Get step duration
-    local stepDuration = (getResolution(paramsPerPart[partIndex].stepResolution.value) * noteSteps) / ratchet
+    local stepDuration = (resolutions.getResolution(paramsPerPart[partIndex].stepResolution.value) * noteSteps) / ratchet
 
     -- Play subdivision
     for ratchetIndex=1, ratchet do
       -- Randomize trigger probability
-      --[[ if getRandomBoolean(triggerRandomizationAmount) then
+      --[[ if gem.getRandomBoolean(triggerRandomizationAmount) then
         local changeMax = math.ceil(seqTriggerProbabilityTable.max * (triggerRandomizationAmount/100))
         local min = triggerProbability - changeMax
         local max = triggerProbability + changeMax
@@ -877,18 +878,18 @@ function arpeg(part)
         if max > seqTriggerProbabilityTable.max then
           max = seqTriggerProbabilityTable.max
         end
-        triggerProbability = getRandom(min, max)
+        triggerProbability = gem.getRandom(min, max)
         if evolve == true then
           seqTriggerProbabilityTable:setValue(currentPosition, triggerProbability)
         end
       end
 
       -- Check if step should trigger
-      local shouldTrigger = getRandomBoolean(triggerProbability) ]]
+      local shouldTrigger = gem.getRandomBoolean(triggerProbability) ]]
 
       -- Randomize velocity
       if velocityRandomizationAmount > 0 then
-        local changeMax = getChangeMax(seqVelTable.max, velocityRandomizationAmount)
+        local changeMax = gem.getChangeMax(seqVelTable.max, velocityRandomizationAmount)
         local min = vel - changeMax
         local max = vel + changeMax
         if min < seqVelTable.min then
@@ -897,16 +898,16 @@ function arpeg(part)
         if max > seqVelTable.max then
           max = seqVelTable.max
         end
-        vel = getRandom(min, max)
+        vel = gem.getRandom(min, max)
         if evolve == true then
           seqVelTable:setValue(currentPosition, vel)
         end
       end
 
       -- Check for pitch change randomization
-      if getRandomBoolean(pitchChangeProbability) then
+      if gem.getRandomBoolean(pitchChangeProbability) then
         -- Get pitch adjustment from random index in pitch table for current part
-        local pitchPos = getRandom(numStepsInPart)
+        local pitchPos = gem.getRandom(numStepsInPart)
         pitchAdjustment = seqPitchTable:getValue(pitchPos)
         --print("Playing pitch from other pos - currentPosition/pitchPos", currentPosition, pitchPos)
       end

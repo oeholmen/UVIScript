@@ -356,7 +356,7 @@ function populatePatchesMenu()
   end
 end
 
-function getRandom(min, max, factor)
+function gem.getRandom(min, max, factor)
   if type(min) == "number" and type(max) == "number" then
     local value = math.random(min, max)
     print("Random - value, min, max:", value, min, max)
@@ -375,12 +375,12 @@ function getRandom(min, max, factor)
   return value
 end
 
-function getRandomBoolean(probability)
+function gem.getRandomBoolean(probability)
   -- Default probability of getting true is 50%
   if type(probability) ~= "number" then
     probability = 50
   end
-  local value = getRandom(100) <= probability
+  local value = gem.getRandom(100) <= probability
   print("RandomBoolean:", value, probability)
   return value
 end
@@ -420,7 +420,7 @@ function tweakValue(options, value, tweakLevel)
   end
   print("Value range:", range)
   -- Determine change factor - a low tweaklevel gives a small change - high tweaklevel gives bigger change
-  local factor = (0.5 * getRandom()) * ((tweakLevel * 1.5) / 100)
+  local factor = (0.5 * gem.getRandom()) * ((tweakLevel * 1.5) / 100)
   print("Tweak factor:", factor)
   -- Set the range allowed for value adjustment
   local tweakRange = range * factor
@@ -434,7 +434,7 @@ function tweakValue(options, value, tweakLevel)
   elseif decrement then
     print("Decrementing to avoid out of range")
     value = value - tweakRange
-  elseif getRandomBoolean() == true then
+  elseif gem.getRandomBoolean() == true then
     value = value + tweakRange
   else
     value = value - tweakRange
@@ -444,7 +444,7 @@ end
 
 function getValueForTweaking(options, tweakLevel, tweakSource)
   -- Tweak the value from the stored patch (the patch that was stored the last time user saved the program)
-  if tweakSource == 2 or (tweakSource == 1 and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, 50)) == true) then
+  if tweakSource == 2 or (tweakSource == 1 and gem.getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, 50)) == true) then
     for i,v in ipairs(storedPatch) do
       if v.widget == options.widget.name then
         print("Tweaking value from the last stored patch:", v.widget, v.value)
@@ -453,7 +453,7 @@ function getValueForTweaking(options, tweakLevel, tweakSource)
     end
   end
   -- Or tweak the value from one of the stored patches
-  if #storedPatches > 0 and (tweakSource == 3 or (tweakSource == 1 and getRandomBoolean(25) == true)) then
+  if #storedPatches > 0 and (tweakSource == 3 or (tweakSource == 1 and gem.getRandomBoolean(25) == true)) then
     local index = math.random(#storedPatches)
     for i,v in ipairs(storedPatches[index]) do
       if v.widget == options.widget.name then
@@ -463,7 +463,7 @@ function getValueForTweaking(options, tweakLevel, tweakSource)
     end
   end
   -- Or tweak the current value
-  if tweakSource == 4 or (tweakSource == 1 and getRandomBoolean(15) == true) then
+  if tweakSource == 4 or (tweakSource == 1 and gem.getRandomBoolean(15) == true) then
     print("Tweaking the current value:", options.widget.value)
     return tweakValue(options, options.widget.value, tweakLevel)
   end
@@ -472,7 +472,7 @@ function getValueForTweaking(options, tweakLevel, tweakSource)
   if options.widget.name == "NoiseTypeMenu" then
     value = 7
   end
-  if tweakSource == 5 or (tweakSource == 1 and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, 25))) == true then
+  if tweakSource == 5 or (tweakSource == 1 and gem.getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, 25))) == true then
     print("Tweaking the default value:", value)
     return tweakValue(options, value, tweakLevel)
   end
@@ -491,7 +491,7 @@ function getEnvelopeTimeForDuration(options, duration)
 
   print("Env value min/max:", min/10000, max/10000)
 
-  return getRandom(min, max) / 10000
+  return gem.getRandom(min, max) / 10000
 end
 
 function getEnvelopeTimeByStyle(options, style)
@@ -508,7 +508,7 @@ function getEnvelopeTimeByStyle(options, style)
   
   print("getEnvelopeTimeByStyle min/max:", min, max)
   
-  return getRandom(min*100000, max*100000)/100000
+  return gem.getRandom(min*100000, max*100000)/100000
 end
 
 function getValueBetween(floor, ceiling, originalValue, options, maxRounds)
@@ -530,7 +530,7 @@ function getValueBetween(floor, ceiling, originalValue, options, maxRounds)
 
   print("getValueBetween floor, ceiling, startvalue, maxrounds:", floor, ceiling, originalValue, maxRounds)
   while rounds < maxRounds and (value < floor or value > ceiling) do
-    value = getRandom(options.min, options.max, options.factor)
+    value = gem.getRandom(options.min, options.max, options.factor)
     rounds = rounds + 1 -- Increment rounds
   end
   
@@ -588,7 +588,7 @@ function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle, 
   if type(options.func) == "function" then
     endValue = options.func(options.probability)
     print("From func:", endValue, options.probability)
-  elseif type(options.zero) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.zero)) == true then
+  elseif type(options.zero) == "number" and gem.getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.zero)) == true then
     -- Set to zero if probability hits
     endValue = 0
     print("Zero:", options.zero)
@@ -603,15 +603,15 @@ function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle, 
       endValue = getEnvelopeTimeForDuration(options, duration)
       print("getEnvelopeTimeForDuration:", endValue)
     end
-  elseif getRandomBoolean(tweakLevel) == false or (type(options.default) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.default)) == true) then
+  elseif gem.getRandomBoolean(tweakLevel) == false or (type(options.default) == "number" and gem.getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.default)) == true) then
     -- Get value from tweaksource or default
     endValue = getValueForTweaking(options, tweakLevel, tweakSource)
     print("getValueForTweaking:", endValue)
   else
     -- Get a random value within min/max limit
-    endValue = getRandom(options.min, options.max, options.factor)
+    endValue = gem.getRandom(options.min, options.max, options.factor)
     -- Adjust value to within range if probability hits
-    if type(options.probability) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.probability)) == true then
+    if type(options.probability) == "number" and gem.getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.probability)) == true then
       local floor = options.widget.min -- Default floor is min
       local ceiling = options.widget.max -- Default ceiling is max
       if type(options.floor) == "number" then
@@ -623,8 +623,8 @@ function tweakWidget(options, tweakLevel, duration, tweakSource, envelopeStyle, 
       print("Probability/floor/ceiling:", options.probability, floor, ceiling)
       endValue = getValueBetween(floor, ceiling, endValue, options)
     end
-    if type(options.bipolar) == "number" and getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.bipolar)) == true then
-      if getRandom(100) <= options.bipolar then
+    if type(options.bipolar) == "number" and gem.getRandomBoolean(getProbabilityByTweakLevel(tweakLevel, options.bipolar)) == true then
+      if gem.getRandom(100) <= options.bipolar then
         endValue = -endValue
         print("Value converted to negative", options.bipolar)
       end
@@ -1814,8 +1814,8 @@ function createMixerPanel()
     randomPhaseStartKnob.changed = function(self)
       if isAnalogStack then
         for i=1,8 do
-          osc1:setParameter("StartPhase"..i, (getRandom()*self.value))
-          osc2:setParameter("StartPhase"..i, (getRandom()*self.value))
+          osc1:setParameter("StartPhase"..i, (gem.getRandom()*self.value))
+          osc2:setParameter("StartPhase"..i, (gem.getRandom()*self.value))
         end
       else
         analogMacros["randomPhaseStart"]:setParameter("Value", self.value)

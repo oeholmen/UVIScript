@@ -100,7 +100,7 @@ local strategies = {
   {3,-2},
 }
 
-local strategyIndex = getRandom(#strategies) -- Holds the selected strategy - start with a random strategy
+local strategyIndex = gem.getRandom(#strategies) -- Holds the selected strategy - start with a random strategy
 local structureMemoryIndex = 0 -- Holds the selected structure memory index
 --local maxStoredStructures = 100 -- Max stored structures
 local notes = {} -- Holds the playing notes - notes are removed when they are finished playing
@@ -139,9 +139,9 @@ function getNoteFromStrategy(notePosition, strategyIndex, strategyPos, partPos)
   print("Get strategy strategyIndex/strategyPos", strategyIndex, strategyPos)
   if notePosition == 0 or #strategy == 0 then
     -- Start at a random notePosition
-    local minPos = getIndexFromValue(minNote, scale)
-    local maxPos = getIndexFromValue(maxNote, scale)
-    notePosition = getRandom(minPos, maxPos)
+    local minPos = gem.getIndexFromValue(minNote, scale)
+    local maxPos = gem.getIndexFromValue(maxNote, scale)
+    notePosition = gem.getRandom(minPos, maxPos)
     print("Set random notePosition", notePosition)
     if paramsPerPart[partPos].strategyRestart.value == 1 then
       strategyPos = 1
@@ -157,14 +157,14 @@ function getNoteFromStrategy(notePosition, strategyIndex, strategyPos, partPos)
     end
     if scale[notePosition] > maxNote then
       print("Reset scale[notePosition] > maxNote", scale[notePosition], maxNote)
-      notePosition = getIndexFromValue(minNote, scale)
+      notePosition = gem.getIndexFromValue(minNote, scale)
       if paramsPerPart[partPos].strategyRestart.value == 2 then
         strategyPos = 1
       end
     elseif scale[notePosition] < minNote then
       print("Reset scale[notePosition] < minNote", scale[notePosition], minNote)
       local transposedNote = transpose(scale[notePosition], (maxNote-12), maxNote)
-      notePosition = getIndexFromValue(transposedNote, scale)
+      notePosition = gem.getIndexFromValue(transposedNote, scale)
       if paramsPerPart[partPos].strategyRestart.value == 2 then
         strategyPos = 1
       end
@@ -219,7 +219,7 @@ function getVelocity(part, step, skipRandomize)
   end
 
   -- Randomize velocity
-  return randomizeValue(velocity, seqVelTable.min, seqVelTable.max, paramsPerPart[part].velRandomization.value)
+  return gem.randomizeValue(velocity, seqVelTable.min, seqVelTable.max, paramsPerPart[part].velRandomization.value)
 end
 
 function getGate(part, step, skipRandomize)
@@ -232,16 +232,16 @@ function getGate(part, step, skipRandomize)
   end
 
   -- Randomize gate
-  return randomizeValue(gate, seqGateTable.min, seqGateTable.max, paramsPerPart[part].gateRandomization.value)
+  return gem.randomizeValue(gate, seqGateTable.min, seqGateTable.max, paramsPerPart[part].gateRandomization.value)
 end
 
 function createStrategy(part)
   local numSteps = paramsPerPart[part].numStepsBox.value
   local maxLength = math.min(math.ceil(numSteps * 0.75), 9) -- TODO Param
   local strategy = {} -- Table to hold strategy
-  local ln = getRandom(maxLength) -- Length
+  local ln = gem.getRandom(maxLength) -- Length
   for i=1, ln do
-    local value = getRandom(-7,7)
+    local value = gem.getRandom(-7,7)
     table.insert(strategy, value)
     print("Add value to strategy", value)
   end
@@ -1184,12 +1184,12 @@ function arpeg()
       if focusButton.value == true then
         partWasChanged = currentPartPosition ~= editPartMenu.value
         currentPartPosition = editPartMenu.value
-      elseif (isStarting == false or partRandBox.value > 50) and getRandomBoolean(partRandBox.value) then
+      elseif (isStarting == false or partRandBox.value > 50) and gem.getRandomBoolean(partRandBox.value) then
         -- Randomize parts within the set limit
         print("currentPartPosition before", currentPartPosition)
         print("currentPosition before", currentPosition)
         --print("index before", index)
-        local randomPartPosition = getRandom(numParts)
+        local randomPartPosition = gem.getRandom(numParts)
         partWasChanged = currentPartPosition ~= randomPartPosition
         currentPartPosition = randomPartPosition
       end
@@ -1241,7 +1241,7 @@ function arpeg()
     if startOfPart and isStarting == false and sequenceRepeatProbability > 0 and maxSequences > 0 then
       -- Calculate decay
       local sequenceRepeatProbabilityThreshold = paramsPerPart[currentPartPosition].sequenceRepeatProbabilityThreshold.value
-      local changeMax = getChangeMax(sequenceRepeatProbability, sequenceRepeatProbabilityDecay)
+      local changeMax = gem.getChangeMax(sequenceRepeatProbability, sequenceRepeatProbabilityDecay)
       local decay = math.ceil(changeMax / maxSequences)
       print("Before decay/changeMax/sequenceRepeatProbability/sequenceRepeatProbabilityDecay", decay, changeMax, sequenceRepeatProbability, sequenceRepeatProbabilityDecay)
       sequenceRepeatProbability = sequenceRepeatProbability - decay -- Decay
@@ -1281,7 +1281,7 @@ function arpeg()
         print("Created #strategy/#strategies", #strategy, #strategies)
       end
       if autoStrategy == true then
-        strategyIndex = getRandom(#strategies)
+        strategyIndex = gem.getRandom(#strategies)
         paramsPerPart[currentPartPosition].strategyInput.text = getStrategyInputText(strategies[strategyIndex])
       end
       if slotStrategy == true then
@@ -1295,7 +1295,7 @@ function arpeg()
           strategySlots[slotIndex]:setValue(true)
         else ]]
           if #strategySlots > 0 then
-            strategySlots[getRandom(#strategySlots)]:setValue(true)
+            strategySlots[gem.getRandom(#strategySlots)]:setValue(true)
           end
         --end
         --[[ slotIndex = slotIndex + 1
@@ -1323,13 +1323,13 @@ function arpeg()
     local function getNoteToPlay()
       -- Recall memory from stored sequence
       --local partSequences = paramsPerPart[currentPartPosition].storedStructures
-      --if structureMemoryIndex > 0 and getRandomBoolean(sequenceRepeatProbability) then
+      --if structureMemoryIndex > 0 and gem.getRandomBoolean(sequenceRepeatProbability) then
         --local sequence = partSequences[structureMemoryIndex]
         --[[ if structureMemoryIndex > 0 then
           -- Get the sequence from the selected index
           sequence = partSequences[structureMemoryIndex]
           print("Getting sequence from selected structureMemoryIndex", structureMemoryIndex)
-        elseif #partSequences > 0 and getRandomBoolean(sequenceRepeatProbability) then
+        elseif #partSequences > 0 and gem.getRandomBoolean(sequenceRepeatProbability) then
           -- Select sequence by counter - check counter is valid!
           if paramsPerPart[currentPartPosition].storedStructuresPos > #partSequences then
             paramsPerPart[currentPartPosition].storedStructuresPos = #partSequences
@@ -1339,7 +1339,7 @@ function arpeg()
           sequence = partSequences[paramsPerPart[currentPartPosition].storedStructuresPos]
           print("Getting sequence from sequenceCounter/#partSequences", paramsPerPart[currentPartPosition].storedStructuresPos, #partSequences)
         else
-          local sequenceIndex = getRandom(#partSequences)
+          local sequenceIndex = gem.getRandom(#partSequences)
           sequence = partSequences[sequenceIndex]
           print("Getting sequence from random sequenceIndex/#sequences@currentPartPosition", sequenceIndex, #partSequences)
         end ]]
@@ -1362,12 +1362,12 @@ function arpeg()
       local function generateNote(nodePos)
         local note = nil
         local strategyPropbability = paramsPerPart[currentPartPosition].strategyPropbability.value
-        if getRandomBoolean(strategyPropbability) == true then
+        if gem.getRandomBoolean(strategyPropbability) == true then
           note, notePosition, strategyPos = getNoteFromStrategy(notePosition, strategyIndex, strategyPos, currentPartPosition)
           print("Get note from scale using strategy: note/strategyPos/strategyIndex", note, strategyPos, strategyIndex)
         else
           local scale = getFilteredScale(currentPartPosition)
-          note = scale[getRandom(#scale)]
+          note = scale[gem.getRandom(#scale)]
           print("Get random note from scale: note/minNote/maxNote", note, minNote, maxNote)
         end
         return note
@@ -1417,7 +1417,7 @@ function arpeg()
       end
 
       -- Get the number of steps this structure will last
-      local steps = getRandom(minNoteSteps, maxNoteSteps)
+      local steps = gem.getRandom(minNoteSteps, maxNoteSteps)
 
       -- Adjust steps so note does not last beyond the part length
       local maxSteps = (paramsPerPart[currentPartPosition].numStepsBox.value - tablePos) + 1
@@ -1428,7 +1428,7 @@ function arpeg()
 
       local nodes = {}
 
-      --[[ if getRandomBoolean(stepRepeatProbability) and #structureMemory > 0 then
+      --[[ if gem.getRandomBoolean(stepRepeatProbability) and #structureMemory > 0 then
         nodes = structureMemory -- Load structure from memory
         print("Load structure from memory")
       else ]]

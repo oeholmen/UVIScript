@@ -2,20 +2,12 @@
 -- Common Resolutions
 --------------------------------------------------------------------------------
 
-function getDotted(value)
+local function getDotted(value)
   return value * 1.5
 end
 
-function getTriplet(value)
+local function getTriplet(value)
   return value / 3
-end
-
-function getEvenFromDotted(value)
-  return value / 1.5
-end
-
-function getEvenFromTriplet(value)
-  return value * 3
 end
 
 -- NOTE: Make sure resolutions and resolutionNames are in sync
@@ -89,78 +81,92 @@ local resolutionNames = {
   "1/128" -- 32
 }
 
-function getResolution(i)
-  return resolutions[i]
-end
-
-function getResolutions()
-  return resolutions
-end
-
-function getResolutionName(i)
-  return resolutionNames[i]
-end
-
-function getResolutionNames(options, max)
-  if type(max) ~= "number" then
-    max = #resolutionNames
-  end
-
-  local res = {}
-
-  for _,r in ipairs(resolutionNames) do
-    table.insert(res, r)
-    if i == max then
-      break
+return {
+  getDotted = getDotted,
+  
+  getTriplet = getTriplet,
+  
+  getEvenFromDotted = function(value)
+    return value / 1.5
+  end,
+  
+  getEvenFromTriplet = function(value)
+    return value * 3
+  end,
+  
+  getResolution = function(i)
+    return resolutions[i]
+  end,
+  
+  getResolutions = function()
+    return resolutions
+  end,
+  
+  getResolutionName = function(i)
+    return resolutionNames[i]
+  end,
+  
+  getResolutionNames = function(options, max)
+    if type(max) ~= "number" then
+      max = #resolutionNames
     end
-  end
-
-  -- Add any options
-  if type(options) == "table" then
-    for _,o in ipairs(options) do
-      table.insert(res, o)
+  
+    local res = {}
+  
+    for _,r in ipairs(resolutionNames) do
+      table.insert(res, r)
+      if i == max then
+        break
+      end
     end
-  end
-
-  return res
-end
-
-function getResolutionsByType(maxResolutionIndex)
-  if type(maxResolutionIndex) == "nil" then
-    maxResolutionIndex = #resolutions
-  end
-  local startPosIndex = 11
-  local resOptions = {}
-  -- Create table of resolution indexes by type (1=even,2=dot,3=tri)
-  for i=startPosIndex,startPosIndex+2 do
-    local resolutionIndex = i
-    local resolutionsOfType = {}
-    while resolutionIndex <= maxResolutionIndex do
-      table.insert(resolutionsOfType, resolutionIndex) -- insert current index in resolution options table
-      --print("Insert resolutionIndex", resolutionIndex)
-      resolutionIndex = resolutionIndex + 3 -- increment index
+  
+    -- Add any options
+    if type(options) == "table" then
+      for _,o in ipairs(options) do
+        table.insert(res, o)
+      end
     end
-    --print("#resolutionsOfType, i", #resolutionsOfType, i)
-    table.insert(resOptions, resolutionsOfType)
-  end
-  -- Add the resolutions that are whole numbers (1,2,3,4...)
-  local slowResolutions = {}
-  for i,resolution in ipairs(resolutions) do
-    if resolution % 1 == 0 then
-      table.insert(slowResolutions, i)
-      --print("getResolutionsByType - included slow resolution", resolution)
+  
+    return res
+  end,
+  
+  getResolutionsByType = function(maxResolutionIndex)
+    if type(maxResolutionIndex) == "nil" then
+      maxResolutionIndex = #resolutions
     end
-  end
-  --print("#slowResolutions", #slowResolutions)
-  table.insert(resOptions, slowResolutions) -- Add the "slow" x resolutions
-  --print("resOptions", #resOptions)
-  return resOptions
-end
-
-function getPlayDuration(duration, gate)
-  if type(gate) == "nil" then
-    gate = 100
-  end
-  local maxResolution = resolutions[#resolutions]
-  return math.max(maxResolution, duration * (gate / 100)) -- Never shorter than the system max resolution (1/64 tri)
-end
+    local startPosIndex = 11
+    local resOptions = {}
+    -- Create table of resolution indexes by type (1=even,2=dot,3=tri)
+    for i=startPosIndex,startPosIndex+2 do
+      local resolutionIndex = i
+      local resolutionsOfType = {}
+      while resolutionIndex <= maxResolutionIndex do
+        table.insert(resolutionsOfType, resolutionIndex) -- insert current index in resolution options table
+        --print("Insert resolutionIndex", resolutionIndex)
+        resolutionIndex = resolutionIndex + 3 -- increment index
+      end
+      --print("#resolutionsOfType, i", #resolutionsOfType, i)
+      table.insert(resOptions, resolutionsOfType)
+    end
+    -- Add the resolutions that are whole numbers (1,2,3,4...)
+    local slowResolutions = {}
+    for i,resolution in ipairs(resolutions) do
+      if resolution % 1 == 0 then
+        table.insert(slowResolutions, i)
+        --print("getResolutionsByType - included slow resolution", resolution)
+      end
+    end
+    --print("#slowResolutions", #slowResolutions)
+    table.insert(resOptions, slowResolutions) -- Add the "slow" x resolutions
+    --print("resOptions", #resOptions)
+    return resOptions
+  end,
+  
+  getPlayDuration = function(duration, gate)
+    if type(gate) == "nil" then
+      gate = 100
+    end
+    local maxResolution = resolutions[#resolutions]
+    return math.max(maxResolution, duration * (gate / 100)) -- Never shorter than the system max resolution (1/64 tri)
+  end  
+}

@@ -183,7 +183,7 @@ randomizeResolutions.x = addResolutions.x + addResolutions.width + 10
 randomizeResolutions.y = resLabel.y
 randomizeResolutions.changed = function()
   for i,v in ipairs(resolutionInputs) do
-    toggleResolutionInputs[i]:setValue(getRandomBoolean())
+    toggleResolutionInputs[i]:setValue(gem.getRandomBoolean())
   end
 end
 
@@ -303,7 +303,7 @@ function attackDecay(targetVal, stepDuration, voiceId)
   -- FIND ATTACK TIME
   local attackValue = attack.value
   if attackValue == 0 then
-    attackValue = getRandom(3,50) -- TODO Parameter for this?
+    attackValue = gem.getRandom(3,50) -- TODO Parameter for this?
   end
   local attackTime = stepDuration * (attackValue / 100)
   if true then --getRandomBoolean() then
@@ -319,7 +319,7 @@ function attackDecay(targetVal, stepDuration, voiceId)
     -- FIND DECAY TIME
     local decayValue = decay.value
     if decayValue == 0 then
-      decayValue = getRandom(30,100) -- TODO Parameter for this?
+      decayValue = gem.getRandom(30,100) -- TODO Parameter for this?
     end
     local decayTime = restDuration * (decayValue / 100)
     modulateLinear(decayTime, targetVal, 0, voiceId)
@@ -337,7 +337,7 @@ end
 function doModulation(waitDuration, durationRepeatProbability, repeatCounter, voiceId)
   local steps = 1
   if maxSteps.value > 1 then
-    steps = getRandom(maxSteps.value)
+    steps = gem.getRandom(maxSteps.value)
   end
   waitDuration, repeatCounter, durationRepeatProbability = getNoteDuration(waitDuration, repeatCounter, durationRepeatProbability, durationRepeatDecay.value)
   if durationRepeatProbability == nil then
@@ -345,9 +345,9 @@ function doModulation(waitDuration, durationRepeatProbability, repeatCounter, vo
   end
   local val = 1 -- Spike level
   if minLevel.value < 100 then
-    val = getRandom(math.max(1, minLevel.value), 100) / 100
+    val = gem.getRandom(math.max(1, minLevel.value), 100) / 100
   end
-  if getRandomBoolean(bipolar.value) then
+  if gem.getRandomBoolean(bipolar.value) then
     val = -val
   end
   -- Do the attack/decay phase

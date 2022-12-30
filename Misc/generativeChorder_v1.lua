@@ -131,7 +131,7 @@ function getTopLevelNote(voice, scale)
   local index = 1
   for _,v in ipairs(notes) do
     if v.voice == voice then
-      index = getIndexFromValue(v.note, scale)
+      index = gem.getIndexFromValue(v.note, scale)
       print("Resetting to noteInput/notePosition", v.note, index)
       return index
     end
@@ -159,9 +159,9 @@ function getNoteFromStrategy(notePosition, strategyIndex, strategyPos, partPos, 
   end
   if notePosition[voice] == 0 or #strategy == 0 then
     -- Start at a random notePosition
-    local minPos = getIndexFromValue(minNote, scale)
-    local maxPos = getIndexFromValue(maxNote, scale)
-    notePosition[voice] = getRandom(minPos, maxPos)
+    local minPos = gem.getIndexFromValue(minNote, scale)
+    local maxPos = gem.getIndexFromValue(maxNote, scale)
+    notePosition[voice] = gem.getRandom(minPos, maxPos)
     print("Set random notePosition/voice", notePosition[voice], voice)
   else
     print("Get strategy strategyIndex, strategyPos, increment, notePosition", strategyIndex[voice], strategyPos[voice], strategy[strategyPos[voice]], notePosition[voice])
@@ -181,7 +181,7 @@ function getNoteFromStrategy(notePosition, strategyIndex, strategyPos, partPos, 
       print("Reset scale[notePosition] < minNote", scale[notePosition[voice]], minNote)
       -- Transpose to top octave
       local transposedNote = transpose(scale[notePosition[voice]], (maxNote-12), maxNote)
-      notePosition[voice] = getIndexFromValue(transposedNote, scale)
+      notePosition[voice] = gem.getIndexFromValue(transposedNote, scale)
     else
       -- Increment strategy pos
       if #strategy > 1 then
@@ -192,7 +192,7 @@ function getNoteFromStrategy(notePosition, strategyIndex, strategyPos, partPos, 
   end
   -- Ensure within range
   local note = transpose(scale[notePosition[voice]], minNote, maxNote)
-  notePosition[voice] = getIndexFromValue(note, scale)
+  notePosition[voice] = gem.getIndexFromValue(note, scale)
   return note, notePosition, strategyPos
 end
 
@@ -212,7 +212,7 @@ end
 
 -- Use the selected chord definition to find the index for the next note in the chord
 function getNextScaleIndex(note, scale, chordDefinitionIndex, inversionIndex)
-  local index = getIndexFromValue(note, scale)
+  local index = gem.getIndexFromValue(note, scale)
   local increment = chordDefinitions[chordDefinitionIndex][inversionIndex]
   return index + increment
 end
@@ -247,7 +247,7 @@ function getVelocity(part, step, skipRandomize)
   end
 
   -- Randomize velocity
-  return randomizeValue(velocity, seqVelTable.min, seqVelTable.max, paramsPerPart[part].velRandomization.value)
+  return gem.randomizeValue(velocity, seqVelTable.min, seqVelTable.max, paramsPerPart[part].velRandomization.value)
 end
 
 function getGate(part, step, skipRandomize)
@@ -258,7 +258,7 @@ function getGate(part, step, skipRandomize)
     return gate
   end
 
-  return randomizeValue(gate, seqGateTable.min, seqGateTable.max, paramsPerPart[part].gateRandomization.value)
+  return gem.randomizeValue(gate, seqGateTable.min, seqGateTable.max, paramsPerPart[part].gateRandomization.value)
 end
 
 --------------------------------------------------------------------------------
@@ -1260,12 +1260,12 @@ function arpeg()
       if focusButton.value == true then
         partWasChanged = currentPartPosition ~= editPartMenu.value
         currentPartPosition = editPartMenu.value
-      elseif isStarting == false and getRandomBoolean(partRandomizationAmount) then
+      elseif isStarting == false and gem.getRandomBoolean(partRandomizationAmount) then
         -- Randomize parts within the set limit, unless we are in startup mode
         print("currentPartPosition before", currentPartPosition)
         print("currentPosition before", currentPosition)
         --print("index before", index)
-        local randomPartPosition = getRandom(numParts)
+        local randomPartPosition = gem.getRandom(numParts)
         partWasChanged = currentPartPosition ~= randomPartPosition
         currentPartPosition = randomPartPosition
       end
@@ -1294,8 +1294,8 @@ function arpeg()
     if startOfPart == true then
       for voice=1,#strategyIndex do
         -- Randomize strategies
-        if strategyPerVoice[voice].value == 1 and getRandomBoolean() then
-          strategyIndex[voice] = getRandom(#strategies)
+        if strategyPerVoice[voice].value == 1 and gem.getRandomBoolean() then
+          strategyIndex[voice] = gem.getRandom(#strategies)
           print("Set random strategy index for voice", strategyIndex[voice], voice)
         end
       end
@@ -1311,14 +1311,14 @@ function arpeg()
     local chords = paramsPerPart[currentPartPosition].chords
     local activeChordDefinitions = {}
     for i,v in ipairs(chords) do
-      if getRandomBoolean(v.value) == true then
+      if gem.getRandomBoolean(v.value) == true then
         table.insert(activeChordDefinitions, i)
       end
     end
 
     if #activeChordDefinitions > 0 then
       -- Get a chord def index from the active definitions
-      chordDefinitionIndex = activeChordDefinitions[getRandom(#activeChordDefinitions)]
+      chordDefinitionIndex = activeChordDefinitions[gem.getRandom(#activeChordDefinitions)]
       print("Chord definition selected by random/#activeChordDefinitions", chordDefinitionIndex, #activeChordDefinitions)
     end
 
@@ -1328,14 +1328,14 @@ function arpeg()
       local inversions = paramsPerPart[currentPartPosition].inversions
       local activeInversions = {}
       for i,v in ipairs(inversions) do
-        if getRandomBoolean(v.value) == true then
+        if gem.getRandomBoolean(v.value) == true then
           table.insert(activeInversions, i)
         end
       end
 
       if #activeInversions > 0 then
         -- Get a chord def index from the active definitions
-        inversionIndex = activeInversions[getRandom(#activeInversions)] - 1
+        inversionIndex = activeInversions[gem.getRandom(#activeInversions)] - 1
         print("Chord inversion selected by random/#activeInversions", inversionIndex, #activeInversions)
       end
     end
@@ -1352,7 +1352,7 @@ function arpeg()
     local function getNotesToPlay(voice)
       -- Ensure voice has a strategy!
       if type(strategyIndex[voice]) == "nil" then
-        strategyIndex[voice] = getRandom(#strategies)
+        strategyIndex[voice] = gem.getRandom(#strategies)
         print("Set random strategy index for voice in getNotesToPlay", strategyIndex[voice], voice)
       end
 
@@ -1431,11 +1431,11 @@ function arpeg()
         local function getBaseNote()
           local baseNote = minNote -- Start from the lowest note
           local useBaseNote = currentStep == 1
-          if useBaseNote and getRandomBoolean(baseNoteRandomization) then
+          if useBaseNote and gem.getRandomBoolean(baseNoteRandomization) then
             while isRootNote(baseNote, currentPartPosition) == false and baseNote <= baseMax do
               baseNote = baseNote + 1 -- increment note until we hit the base note
             end
-            notePosition[voice] = getIndexFromValue(baseNote, scale)
+            notePosition[voice] = gem.getIndexFromValue(baseNote, scale)
             print("Get root note: note/baseMin/baseMax", baseNote, baseMin, baseMax)
           else
             local noteRange = baseMax - baseMin
@@ -1445,8 +1445,8 @@ function arpeg()
               print("Calculate range for base note baseMin/baseMax/noteRange", baseMin, baseMax, noteRange)
             end
             if notePosition[voice] == 0 then
-              baseNote = getNoteAccordingToScale(scale, (baseNote + getRandom(noteRange) - 1))
-              notePosition[voice] = getIndexFromValue(baseNote, scale)
+              baseNote = getNoteAccordingToScale(scale, (baseNote + gem.getRandom(noteRange) - 1))
+              notePosition[voice] = gem.getIndexFromValue(baseNote, scale)
             end
             baseNote, notePosition, strategyPos = getNoteFromStrategy(notePosition, strategyIndex, strategyPos, currentPartPosition, voice, baseMin, baseMax)
             print("Get base note from scale using strategy: note/minNote/maxNote/strategyIndex", baseNote, baseMin, baseMax, strategyIndex[voice])
@@ -1500,7 +1500,7 @@ function arpeg()
         end
 
         local harmonizationPropbability = paramsPerPart[currentPartPosition].harmonizationPropbability.value
-        if type(note) == "nil" and getRandomBoolean(harmonizationPropbability) == true and nodePos == 1 and hasHarmonizeableScale == true then
+        if type(note) == "nil" and gem.getRandomBoolean(harmonizationPropbability) == true and nodePos == 1 and hasHarmonizeableScale == true then
           local startingNotes = {}
           for _,v in ipairs(notes) do
             if v.stepCounter == 0 then
@@ -1530,7 +1530,7 @@ function arpeg()
             local octaveRange = math.floor(noteRange / 12)
             local notesLeft = polyphony - #notes
             local octave = math.floor(octaveRange / notesLeft)
-            if octave > 0 and note > baseMax / 2 and getRandomBoolean() then
+            if octave > 0 and note > baseMax / 2 and gem.getRandomBoolean() then
               octave = -octave
               print("Negative octave", octave)
             end
@@ -1550,7 +1550,7 @@ function arpeg()
           if type(note) == "nil" then
             notePosition[voice] = 0
           else
-            notePosition[voice] = getIndexFromValue(note, scale)
+            notePosition[voice] = gem.getIndexFromValue(note, scale)
           end
           print("Set note position for voice", notePosition[voice], voice)
         end
@@ -1605,7 +1605,7 @@ function arpeg()
       end
 
       -- Get the number of steps this structure will last
-      local steps = getRandom(minNoteSteps, maxNoteSteps)
+      local steps = gem.getRandom(minNoteSteps, maxNoteSteps)
       
       -- Adjust steps so note does not last beyond the part length
       local maxSteps = (paramsPerPart[currentPartPosition].numStepsBox.value - tablePos) + 1
@@ -1616,7 +1616,7 @@ function arpeg()
 
       local nodes = {}
 
-      if getRandomBoolean(stepRepeatProbability) and type(structureMemory[voice]) == "table" then --  and tablePos > 1
+      if gem.getRandomBoolean(stepRepeatProbability) and type(structureMemory[voice]) == "table" then --  and tablePos > 1
         nodes = structureMemory[voice] -- Load structure from memory
         print("Load structure from memory for voice", voice)
       else

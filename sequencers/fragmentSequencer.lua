@@ -2,7 +2,8 @@
 -- Sequencer using rythmic fragments
 -------------------------------------------------------------------------------
 
-require "includes.rythmicFragments"
+local gem = require "includes.common"
+local rythmicFragments = require "includes.rythmicFragments"
 
 local isPlaying = false
 local heldNotes = {}
@@ -222,7 +223,7 @@ minResLabel.height = adjustBias.height
 minResLabel.x = adjustBias.x + adjustBias.width + 10
 minResLabel.y = adjustBias.y
 
-local minResolution = rythmPanel:Menu("MinResolution", getResolutionNames())
+local minResolution = rythmPanel:Menu("MinResolution", rythmicFragments.resolutions.getResolutionNames())
 minResolution.displayName = minResLabel.text
 minResolution.tooltip = "The highest allowed resolution for evolve adjustments"
 minResolution.selected = 26
@@ -236,11 +237,11 @@ minResolution.outlineColour = menuOutlineColour
 minResolution.x = minResLabel.x + minResLabel.width
 minResolution.y = minResLabel.y
 minResolution.changed = function(self)
-  setMaxResolutionIndex(self.value)
+  rythmicFragments.setMaxResolutionIndex(self.value)
 end
 minResolution:changed()
 
-local paramsPerFragment = getParamsPerFragment(rythmPanel, rythmLabel, colours)
+local paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, rythmLabel, colours)
 
 --------------------------------------------------------------------------------
 -- Functions
@@ -275,7 +276,7 @@ function getNotes(heldNoteIndex)
   elseif playMode.selectedText == "Down" then
     table.insert(notes, sortedNotes[heldNoteIndex])
   elseif playMode.selectedText == "Random" then
-    table.insert(notes, getRandomFromTable(sortedNotes))
+    table.insert(notes, gem.getRandomFromTable(sortedNotes))
   elseif playMode.selectedText == "Mono" then
     -- Last held
     table.insert(notes, heldNotes[#heldNotes].note)
@@ -332,8 +333,8 @@ function play()
       break
     end
     notes, heldNoteIndex = getNotes(heldNoteIndex)
-    duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
-    local gate = randomizeValue(gateInput.value, gateInput.min, gateInput.max, gateRandomization.value)
+    duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = rythmicFragments.getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
+    local gate = gem.randomizeValue(gateInput.value, gateInput.min, gateInput.max, gateRandomization.value)
     local doPlayNote = gate > 0 and rest == false and #notes > 0 and type(duration) == "number" and activeButton.value == true
     if doPlayNote then
       -- TODO Add option to accent every n-th beat?
@@ -344,7 +345,7 @@ function play()
       end
       velocity = velocity + heldNotes[heldNoteIndex].velocity / 2 -- 50% between played velocity and sequencer velocity
       for _,note in ipairs(notes) do
-        playNote(note, velocity, beat2ms(getPlayDuration(duration, gate)) - offset)
+        playNote(note, velocity, beat2ms(rythmicFragments.resolutions.getPlayDuration(duration, gate)) - offset)
       end
     end
     if type(duration) == "nil" then
@@ -354,7 +355,7 @@ function play()
     durationCounter = durationCounter + duration
     if durationCounter >= 4 then
       durationCounter = 0 -- Reset counter
-      if getRandomBoolean(evolveFragmentProbability.value) then
+      if gem.getRandomBoolean(evolveFragmentProbability.value) then
         previous = evolveFragments(previous, randomizeCurrentResolutionProbability.value, adjustBias.value)
       end
     end

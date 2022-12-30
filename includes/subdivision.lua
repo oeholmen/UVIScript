@@ -2,7 +2,7 @@
 -- Methods for subdivisions
 --------------------------------------------------------------------------------
 
-require "includes.common"
+local gem = require "includes.common"
 
 local function createSubdivisions(subdivisionButtons, mainBeatDuration, minResolution, steps)
   local subdivisions = {}
@@ -21,7 +21,7 @@ local function createSubdivisions(subdivisionButtons, mainBeatDuration, minResol
       subdivision = subdivision * 2
       duration = (mainBeatDuration / subdivision) * steps
       print("Found subdivision/duration/minResolution", subdivision, duration, minResolution)
-      if duration >= minResolution and tableIncludes(subdivisions, subdivision) == false then
+      if duration >= minResolution and gem.tableIncludes(subdivisions, subdivision) == false then
         table.insert(subdivisions, subdivision)
         print("Added subdivision", subdivision)
       end
@@ -34,7 +34,7 @@ end
 function setNotesOnNodes(nodes, repeatProbability, generateNote)
   for i,node in ipairs(nodes) do
     -- This is where we add the notes to the node
-    if i > 1 and getRandomBoolean(repeatProbability) then
+    if i > 1 and gem.getRandomBoolean(repeatProbability) then
       node.note = nodes[1].note -- Repeat first note
       print("Note repeated", node.note)
     else
@@ -68,10 +68,10 @@ function getSubdivision(stepDuration, steps, minResolution, subdivisionProbabili
     else
       subdivision = minSubdivision -- Min is selected
     end
-    if #subdivisions > 1 and getRandomBoolean(subdivisionProbability) then
+    if #subdivisions > 1 and gem.getRandomBoolean(subdivisionProbability) then
       local i = 1
       while i < maxSubdivision do
-        subdivision = subdivisions[getRandom(#subdivisions)]
+        subdivision = subdivisions[gem.getRandom(#subdivisions)]
         print("SET RANDOM subdivision/round", subdivision, i)
         if subdivision > 1 then
           break
@@ -91,7 +91,7 @@ function getSubdivision(stepDuration, steps, minResolution, subdivisionProbabili
   end
 
   if subdivision > 1 then
-    dotted = subdivision % 4 == 0 and getRandomBoolean(subdivisionDotProbability)
+    dotted = subdivision % 4 == 0 and gem.getRandomBoolean(subdivisionDotProbability)
     print("Dotted is dotted/subdivision/subdivisionDotProbability", dotted, subdivision, subdivisionDotProbability)
     if dotted == true then
       stop = true -- TODO Param?
@@ -117,8 +117,8 @@ function getSubdivisionSteps(subdivision, subDivPos, subdivisionTieProbability)
   if maxSteps == subdivision then
     maxSteps = maxSteps - 1 -- Avoid it lasting the whole subdivision
   end
-  if maxSteps > 1 and getRandomBoolean(subdivisionTieProbability) then
-    subdivisionSteps = getRandom(maxSteps)
+  if maxSteps > 1 and gem.getRandomBoolean(subdivisionTieProbability) then
+    subdivisionSteps = gem.getRandom(maxSteps)
     if subdivisionSteps > 1 then
       stop = subdivisionSteps % 2 > 0 -- Stop subdividing if not an even number -- TODO Param?
       print("subdivisionSteps % 2", (subdivisionSteps % 2))

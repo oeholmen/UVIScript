@@ -2,7 +2,8 @@
 -- Stochastic Sequencer
 --------------------------------------------------------------------------------
 
-require "includes.common"
+local gem = require "includes.common"
+local r = require "includes.resolutions"
 
 local outlineColour = "#FFB5FF"
 local menuBackgroundColour = "#bf01011F"
@@ -237,11 +238,11 @@ function setNumSteps(index)
   print("setNumSteps", index)
   local numSteps = paramsPerPart[index].numStepsBox.value
   -- If follow step is selected, we use the value from numStepsBox
-  if paramsPerPart[index].partResolution.value > #getResolutions() then
+  if paramsPerPart[index].partResolution.value > #r.getResolutions() then
     paramsPerPart[index].numStepsBox.enabled = true
   else
-    local partDuration = getResolution(paramsPerPart[index].partResolution.value)
-    local stepDuration = getResolution(paramsPerPart[index].stepResolution.value)
+    local partDuration = r.getResolution(paramsPerPart[index].partResolution.value)
+    local stepDuration = r.getResolution(paramsPerPart[index].stepResolution.value)
     numSteps = partDuration / stepDuration
     paramsPerPart[index].numStepsBox.enabled = false
 
@@ -454,12 +455,12 @@ for i=1,numPartsBox.max do
   seqRatchetTable.x = tableX
   seqRatchetTable.y = seqGateTable.y + seqGateTable.height + 5
 
-  local partResolution = sequencerPanel:Menu("PartDuration" .. i, getResolutionNames({"Follow Step"}))
-  local stepResolution = sequencerPanel:Menu("StepResolution" .. i, getResolutionNames())
+  local partResolution = sequencerPanel:Menu("PartDuration" .. i, r.getResolutionNames({"Follow Step"}))
+  local stepResolution = sequencerPanel:Menu("StepResolution" .. i, r.getResolutionNames())
 
   partResolution.displayName = "Part Duration"
   partResolution.tooltip = "Set the duration of a part."
-  partResolution.selected = #getResolutions() + 1
+  partResolution.selected = #r.getResolutions() + 1
   partResolution.visible = isFirst
   partResolution.x = editPartMenu.x + editPartMenu.width + 5
   partResolution.y = editPartMenu.y
@@ -734,22 +735,22 @@ actionMenu.changed = function(self)
     -- Randomize tables
     for i=1,partParams.numStepsBox.value do
       if self.value == 2 or self.value == 3 then
-        partParams.seqPitchTable:setValue(i, getRandom(partParams.seqPitchTable.min, partParams.seqPitchTable.max))
+        partParams.seqPitchTable:setValue(i, gem.getRandom(partParams.seqPitchTable.min, partParams.seqPitchTable.max))
       end
       if self.value == 2 or self.value == 4 then
-        partParams.tieStepTable:setValue(i, getRandom(partParams.tieStepTable.min, partParams.tieStepTable.max))
+        partParams.tieStepTable:setValue(i, gem.getRandom(partParams.tieStepTable.min, partParams.tieStepTable.max))
       end
       if self.value == 2 or self.value == 5 then
-        partParams.seqPitchChangeProbabilityTable:setValue(i, getRandom(partParams.seqPitchChangeProbabilityTable.min, partParams.seqPitchChangeProbabilityTable.max))
+        partParams.seqPitchChangeProbabilityTable:setValue(i, gem.getRandom(partParams.seqPitchChangeProbabilityTable.min, partParams.seqPitchChangeProbabilityTable.max))
       end
       if self.value == 2 or self.value == 6 then
-        partParams.seqVelTable:setValue(i, getRandom(partParams.seqVelTable.min, partParams.seqVelTable.max))
+        partParams.seqVelTable:setValue(i, gem.getRandom(partParams.seqVelTable.min, partParams.seqVelTable.max))
       end
       if self.value == 2 or self.value == 7 then
-        partParams.seqGateTable:setValue(i, getRandom(partParams.seqGateTable.min, partParams.seqGateTable.max))
+        partParams.seqGateTable:setValue(i, gem.getRandom(partParams.seqGateTable.min, partParams.seqGateTable.max))
       end
       if self.value == 2 or self.value == 8 then
-        partParams.seqRatchetTable:setValue(i, getRandom(partParams.seqRatchetTable.min, partParams.seqRatchetTable.max))
+        partParams.seqRatchetTable:setValue(i, gem.getRandom(partParams.seqRatchetTable.min, partParams.seqRatchetTable.max))
       end
     end
   elseif self.value < 16 then
@@ -859,19 +860,19 @@ function arpeg()
         currentPartPosition = partRepeat
         partRepeat = 0 -- Reset repeat
         print("currentPartPosition repeat", currentPartPosition)
-      elseif (isStarting == false or partRand.value > 50) and getRandomBoolean(partRand.value) then
+      elseif (isStarting == false or partRand.value > 50) and gem.getRandomBoolean(partRand.value) then
         -- Randomize parts within the set limit
         print("currentPartPosition before", currentPartPosition)
         -- Suggest a part by random
-        local suggestedPartPosition = getRandom(numParts)
+        local suggestedPartPosition = gem.getRandom(numParts)
         print("suggestedPartPosition", suggestedPartPosition)
         -- Check play probability
-        if getRandomBoolean(paramsPerPart[suggestedPartPosition].playProbability.value) then
+        if gem.getRandomBoolean(paramsPerPart[suggestedPartPosition].playProbability.value) then
           currentPartPosition = suggestedPartPosition
           print("playProbability was used", playProbability)
         end
         -- Check if part should be repeated next time
-        if getRandomBoolean(paramsPerPart[currentPartPosition].repeatProbability.value) then
+        if gem.getRandomBoolean(paramsPerPart[currentPartPosition].repeatProbability.value) then
           partRepeat = currentPartPosition
           print("Part is set for repeating", partRepeat)
         end
@@ -885,7 +886,7 @@ function arpeg()
     if startOfPart then
       -- Set direction for this part
       local directionProbability = paramsPerPart[currentPartPosition].directionProbability.value
-      partDirectionBackward = getRandomBoolean(directionProbability)
+      partDirectionBackward = gem.getRandomBoolean(directionProbability)
       print("directionProbability/currentPartPosition/partDirectionBackward", directionProbability, currentPartPosition, partDirectionBackward)
     end
 
@@ -937,11 +938,11 @@ function arpeg()
     -- Randomize ties
     local tieRandomizationFrequency = paramsPerPart[currentPartPosition].tieRandFreq.value
     local tieRandomizationAmount = paramsPerPart[currentPartPosition].tieRand.value
-    if tieRandomizationAmount > 0 and tablePos < numStepsInPart and getRandomBoolean(tieRandomizationFrequency) then
+    if tieRandomizationAmount > 0 and tablePos < numStepsInPart and gem.getRandomBoolean(tieRandomizationFrequency) then
       print("Before randomized tieNext", tieNext)
       local min = 1
-      local max = getChangeMax((numStepsInPart-tablePos), tieRandomizationAmount)
-      noteSteps = getRandom(min, math.max(2, max))
+      local max = gem.getChangeMax((numStepsInPart-tablePos), tieRandomizationAmount)
+      noteSteps = gem.getRandom(min, math.max(2, max))
       if noteSteps == 1 then
         tieNext = 0
       else
@@ -1001,23 +1002,23 @@ function arpeg()
     -- Randomize ratchet
     local ratchetRandomizationFrequency = paramsPerPart[currentPartPosition].ratchetRandFreq.value
     local ratchetRandomizationAmount = paramsPerPart[currentPartPosition].ratchetRand.value
-    if ratchetRandomizationAmount > 0 and getRandomBoolean(ratchetRandomizationFrequency) then
+    if ratchetRandomizationAmount > 0 and gem.getRandomBoolean(ratchetRandomizationFrequency) then
       local min = seqRatchetTable.min
-      local max = math.min(seqRatchetTable.max, (getChangeMax(seqRatchetTable.max, ratchetRandomizationAmount) + noteSteps))
-      ratchet = getRandom(min, max)
+      local max = math.min(seqRatchetTable.max, (gem.getChangeMax(seqRatchetTable.max, ratchetRandomizationAmount) + noteSteps))
+      ratchet = gem.getRandom(min, max)
       print("Randomize ratchet, min/max/ratchet", min, max, ratchet)
       if evolve == true then
         seqRatchetTable:setValue(currentPosition, ratchet)
       end
     end
 
-    local stepDuration = (getResolution(paramsPerPart[currentPartPosition].stepResolution.value) * noteSteps) / ratchet
+    local stepDuration = (r.getResolution(paramsPerPart[currentPartPosition].stepResolution.value) * noteSteps) / ratchet
 
     for ratchetIndex=1, ratchet do
       -- Randomize gate
       local gateRandomizationFrequency = paramsPerPart[currentPartPosition].gateRandFreq.value
-      if getRandomBoolean(gateRandomizationFrequency) then
-        gate = randomizeValue(gate, seqGateTable.min, seqGateTable.max, paramsPerPart[currentPartPosition].gateRand.value)
+      if gem.getRandomBoolean(gateRandomizationFrequency) then
+        gate = gem.randomizeValue(gate, seqGateTable.min, seqGateTable.max, paramsPerPart[currentPartPosition].gateRand.value)
         if evolve == true then
           seqGateTable:setValue(tablePos, gate)
         end
@@ -1026,8 +1027,8 @@ function arpeg()
       -- Randomize pitch adjustment
       local pitchRandomizationFrequency = paramsPerPart[currentPartPosition].pitchRandFreq.value
       local pitchRandomizationAmount = paramsPerPart[currentPartPosition].pitchRand.value
-      if pitchRandomizationAmount > 0 and getRandomBoolean(pitchRandomizationFrequency) then
-        local changeMax = getChangeMax(seqPitchTable.max, pitchRandomizationAmount)
+      if pitchRandomizationAmount > 0 and gem.getRandomBoolean(pitchRandomizationFrequency) then
+        local changeMax = gem.getChangeMax(seqPitchTable.max, pitchRandomizationAmount)
         local min = pitchAdjustment - changeMax
         local max = pitchAdjustment + changeMax
         if min < seqPitchTable.min then
@@ -1037,7 +1038,7 @@ function arpeg()
           max = seqPitchTable.max
         end
         print("Before randomize pitchAdjustment", pitchAdjustment)
-        pitchAdjustment = getRandom(min, max)
+        pitchAdjustment = gem.getRandom(min, max)
         print("After randomize pitchAdjustment/changeMax/min/max", pitchAdjustment, changeMax, min, max)
         if evolve == true then
           seqPitchTable:setValue(tablePos, pitchAdjustment)
@@ -1046,8 +1047,8 @@ function arpeg()
 
       -- Randomize velocity
       local velocityRandomizationFrequency = paramsPerPart[currentPartPosition].velRandFreq.value
-      if getRandomBoolean(velocityRandomizationFrequency) then
-        vel = randomizeValue(vel, seqVelTable.min, seqVelTable.max, paramsPerPart[currentPartPosition].velRand.value)
+      if gem.getRandomBoolean(velocityRandomizationFrequency) then
+        vel = gem.randomizeValue(vel, seqVelTable.min, seqVelTable.max, paramsPerPart[currentPartPosition].velRand.value)
         if evolve == true then
           seqVelTable:setValue(tablePos, vel)
         end
@@ -1056,8 +1057,8 @@ function arpeg()
       -- Randomize pitch probaility
       local pitchProbabilityRandomizationFrequency = paramsPerPart[currentPartPosition].pitchProbRandFreq.value
       local pitchProbabilityRandomizationAmount = paramsPerPart[currentPartPosition].pitchProbRand.value
-      if pitchProbabilityRandomizationAmount > 0 and getRandomBoolean(pitchProbabilityRandomizationFrequency) then
-        local changeMax = getChangeMax(seqPitchChangeProbabilityTable.max, pitchProbabilityRandomizationAmount)
+      if pitchProbabilityRandomizationAmount > 0 and gem.getRandomBoolean(pitchProbabilityRandomizationFrequency) then
+        local changeMax = gem.getChangeMax(seqPitchChangeProbabilityTable.max, pitchProbabilityRandomizationAmount)
         local min = pitchChangeProbability - changeMax
         local max = pitchChangeProbability + changeMax
         if min < seqPitchChangeProbabilityTable.min then
@@ -1067,7 +1068,7 @@ function arpeg()
           max = seqPitchChangeProbabilityTable.max
         end
         print("Before randomize pitchChangeProbability", pitchChangeProbability)
-        pitchChangeProbability = getRandom(min, max)
+        pitchChangeProbability = gem.getRandom(min, max)
         print("After randomize pitchChangeProbability/changeMax/min/max", pitchChangeProbability, changeMax, min, max)
         if evolve == true then
           seqPitchChangeProbabilityTable:setValue(tablePos, pitchChangeProbability)
@@ -1093,9 +1094,9 @@ function arpeg()
       -- If gate is zero, no notes will play on this step
       if gate > 0 then
         -- Check for pitch change randomization
-        if getRandomBoolean(pitchChangeProbability) then
+        if gem.getRandomBoolean(pitchChangeProbability) then
           -- Get pitch adjustment from random index in pitch table for current part
-          local pitchPos = getRandom(numStepsInPart)
+          local pitchPos = gem.getRandom(numStepsInPart)
           pitchAdjustment = seqPitchTable:getValue(pitchPos)
           print("Playing pitch from other pos - tablePos/pitchPos", tablePos, pitchPos)
         end
@@ -1124,8 +1125,8 @@ function arpeg()
               heldNoteIndex = 1
             end
           end
-          if getRandomBoolean(pitchChangeProbability) then
-            table.insert(notes, heldNotes[getRandom(#heldNotes)].note)
+          if gem.getRandomBoolean(pitchChangeProbability) then
+            table.insert(notes, heldNotes[gem.getRandom(#heldNotes)].note)
           else
             -- Add a failsafe in case #heldNotes has changed since setting index
             if heldNoteIndex > #heldNotes then
@@ -1135,7 +1136,7 @@ function arpeg()
           end
         elseif playMode == 3 then
           -- Random
-          table.insert(notes, sortedNotes[getRandom(#sortedNotes)])
+          table.insert(notes, sortedNotes[gem.getRandom(#sortedNotes)])
         elseif playMode == 4 then
           -- Duo (Lowest and highest held notes)
           table.insert(notes, sortedNotes[1])
@@ -1161,7 +1162,7 @@ function arpeg()
       for _,note in ipairs(notes) do
         if gate > 0 then
           -- Play the note for the set duration
-          local duration = beat2ms(getPlayDuration(stepDuration, gate)) - 1 -- Make sure note is not played into the next
+          local duration = beat2ms(r.getPlayDuration(stepDuration, gate)) - 1 -- Make sure note is not played into the next
           playNote(note+pitchAdjustment, vel, duration)
           print("Playing note/stepDuration/gate/duration/ratchet", note, stepDuration, gate, duration, ratchet)
         end

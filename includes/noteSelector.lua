@@ -1,17 +1,21 @@
 --------------------------------------------------------------------------------
--- Common Generative Functions
+-- Include Reqired Functions
 --------------------------------------------------------------------------------
 
-require "includes.common"
+local m = {}
+local gem = require "includes.common"
+
+m.scales = require "includes.scales"
+m.notes = require "includes.notes"
 
 --------------------------------------------------------------------------------
 -- Note and Scale Parameters
 --------------------------------------------------------------------------------
 
 local octaves = 9
-local scaleDefinitions = getScaleDefinitions()
-local scaleNames = getScaleNames()
-local noteNames = getNoteNames()
+local scaleDefinitions = m.scales.getScaleDefinitions()
+local scaleNames = m.scales.getScaleNames()
+local noteNames = m.notes.getNoteNames()
 
 notesPlaying = {}
 noteInputs = {}
@@ -23,23 +27,23 @@ octaveProbabilityInputs = {}
 -- Functions
 --------------------------------------------------------------------------------
 
-function getScale(scaleIndex, keyIndex)
+function m.getScale(scaleIndex, keyIndex)
   local scaleDefinition = scaleDefinitions[scaleIndex]
   local rootNote = keyIndex - 1 -- Root note
-  return createScale(scaleDefinition, rootNote)
+  return m.scales.createScale(scaleDefinition, rootNote)
 end
 
-function setScale(scaleIndex, keyIndex)
-  local scale = getScale(scaleIndex, keyIndex)
+function m.setScale(scaleIndex, keyIndex)
+  local scale = m.getScale(scaleIndex, keyIndex)
   for i,v in ipairs(noteInputs) do
     local noteNumber = i + 11 -- Check note in octave above
-    v:setValue(tableIncludes(scale, noteNumber))
+    v:setValue(gem.tableIncludes(scale, noteNumber))
   end
 end
 
 -- Get notes that are activated in selected octaves, filtered by probability
 -- If getAllNotes is true, the filter for playing notes is disabled
-function getSelectedNotes(getAllNotes)
+function m.getSelectedNotes(getAllNotes)
   local selectedNotes = {} -- Holds note numbers that are available
   for octaveIndex,octave in ipairs(octaveInputs) do
     local octaveProbability = octaveProbabilityInputs[octaveIndex].value
@@ -49,10 +53,10 @@ function getSelectedNotes(getAllNotes)
         -- Check if note should be added for this octave
         local noteProbability = noteProbabilityInputs[i].value
         --print("noteProbability, octaveProbability, noteOnOff", noteProbability, octaveProbability, v.value)
-        if v.value and getRandomBoolean(noteProbability) and getRandomBoolean(octaveProbability) then
+        if v.value and gem.getRandomBoolean(noteProbability) and gem.getRandomBoolean(octaveProbability) then
           local noteNumber = i - 1 -- Base note
           noteNumber = noteNumber + (12 * octaveIndex) -- Set octave
-          if getAllNotes == true or tableIncludes(notesPlaying, noteNumber) == false then
+          if getAllNotes == true or gem.tableIncludes(notesPlaying, noteNumber) == false then
             table.insert(selectedNotes, noteNumber)
             --print("Note added: noteNumber", noteNumber)
           end
@@ -65,7 +69,7 @@ function getSelectedNotes(getAllNotes)
 end
 
 -- Get all notes that are activated in all octaves (full scale)
-function getActiveNotes()
+function m.getActiveNotes()
   local notes = {}
   for octaveIndex=1, #octaveInputs do
     for i,v in ipairs(noteInputs) do
@@ -79,7 +83,7 @@ function getActiveNotes()
   return notes
 end
 
-function createNoteAndOctaveSelector(notePanel, colours, noteLabel)
+function m.createNoteAndOctaveSelector(notePanel, colours, noteLabel)
   local columnCount = 0
   for i=1,#noteNames do
     local note = notePanel:OnOffButton("Note" .. i, true)
@@ -179,10 +183,12 @@ function createNoteAndOctaveSelector(notePanel, colours, noteLabel)
   generateScale.y = generateKey.y
 
   generateKey.changed = function(self)
-    setScale(generateScale.value, self.value)
+    m.setScale(generateScale.value, self.value)
   end
 
   generateScale.changed = function(self)
-    setScale(self.value, generateKey.value)
+    m.setScale(self.value, generateKey.value)
   end
 end
+
+return m

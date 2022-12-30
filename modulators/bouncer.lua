@@ -2,7 +2,8 @@
 -- A script modulator for a bouncing effect
 -------------------------------------------------------------------------------
 
-require "includes.common"
+local gem = require "includes.common"
+local resolutions = require "includes.resolutions"
 
 local isRunning = false
 local heldNotes = {}
@@ -37,7 +38,7 @@ label.textColour = labelTextColour
 label.fontSize = 22
 label.width = 80
 
-local waitResolution = panel:Menu("WaitResolution", getResolutionNames())
+local waitResolution = panel:Menu("WaitResolution", resolutions.getResolutionNames())
 waitResolution.displayName = "Start Duration"
 waitResolution.tooltip = "Start duration"
 waitResolution.selected = 17
@@ -48,7 +49,7 @@ waitResolution.textColour = widgetTextColour
 waitResolution.arrowColour = menuArrowColour
 waitResolution.outlineColour = menuOutlineColour
 
-local waitResolutionMin = panel:Menu("WaitResolutionMin", getResolutionNames())
+local waitResolutionMin = panel:Menu("WaitResolutionMin", resolutions.getResolutionNames())
 waitResolutionMin.displayName = "Stop Duration"
 waitResolutionMin.tooltip = "End duration"
 waitResolutionMin.selected = 23
@@ -121,8 +122,8 @@ end
 function getDuration(isRising, currentResolutionIndex)
   local minResolution = math.max(waitResolutionMin.value, waitResolution.value)
   local maxResolution = math.min(waitResolutionMin.value, waitResolution.value)
-  local duration = getResolution(currentResolutionIndex)
-  if getRandomBoolean(probability.value) == true then
+  local duration = resolutions.getResolution(currentResolutionIndex)
+  if gem.getRandomBoolean(probability.value) == true then
     if isRising == true then
       currentResolutionIndex = currentResolutionIndex + 1
       if currentResolutionIndex > minResolution then

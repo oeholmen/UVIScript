@@ -149,7 +149,7 @@ function getNotePositionFromStragegy(notesTable, notePosition, strategyIndex, st
   print("Get strategy strategyIndex, voice, strategyPos, increment, notePosition", index, voice, strategyPos, strategy[strategyPos], notePosition)
   if notePosition == 0 then
     -- Start at a random notePosition
-    notePosition = getRandom(#notesTable)
+    notePosition = gem.getRandom(#notesTable)
     print("Set random notePosition from notesTable", notePosition, #notesTable)
   else
     -- Get next notePosition from strategy
@@ -310,8 +310,8 @@ function getVelocity(part, step, skipRandomize)
 
   -- Randomize velocity
   local velRandomization = paramsPerPart[part].velRandomization.value
-  if getRandomBoolean(velRandomization) then
-    local changeMax = getChangeMax(seqVelTable.max, velRandomization)
+  if gem.getRandomBoolean(velRandomization) then
+    local changeMax = gem.getChangeMax(seqVelTable.max, velRandomization)
     local min = velocity - changeMax
     local max = velocity + changeMax
     if min < seqVelTable.min then
@@ -321,7 +321,7 @@ function getVelocity(part, step, skipRandomize)
       max = seqVelTable.max
     end
     --print("Before randomize vel", vel)
-    velocity = getRandom(min, max)
+    velocity = gem.getRandom(min, max)
     --print("After randomize vel/changeMax/min/max", vel, changeMax, min, max)
   end
 
@@ -333,19 +333,19 @@ function createStrategy(part)
   local numSteps = paramsPerPart[part].numStepsBox.value
   local maxLength = math.min(math.ceil(numSteps * 0.75), 9) -- 8 * 0.75 = 6
   local strategy = {} -- Table to hold strategy
-  local ln = getRandom(maxLength) -- Length
+  local ln = gem.getRandom(maxLength) -- Length
   for i=1, ln do
     local value = 1
-    if getRandomBoolean(25) then -- TODO Param?
+    if gem.getRandomBoolean(25) then -- TODO Param?
       value = 2
-    elseif getRandomBoolean(15) then -- TODO Param?
+    elseif gem.getRandomBoolean(15) then -- TODO Param?
       value = 3
-    elseif getRandomBoolean(3) then -- TODO Param?
+    elseif gem.getRandomBoolean(3) then -- TODO Param?
       value = 4
-    elseif getRandomBoolean(10) then -- TODO Param?
+    elseif gem.getRandomBoolean(10) then -- TODO Param?
       value = 0
     end
-    if getRandomBoolean(33) and value > 0 then -- TODO Param?
+    if gem.getRandomBoolean(33) and value > 0 then -- TODO Param?
       value = -value
     end
     table.insert(strategy, value)
@@ -365,8 +365,8 @@ function getGate(part, step, skipRandomize)
 
   -- Randomize gate
   local gateRandomization = paramsPerPart[part].gateRandomization.value
-  if getRandomBoolean(gateRandomization) then
-    local changeMax = getChangeMax(seqGateTable.max, gateRandomization)
+  if gem.getRandomBoolean(gateRandomization) then
+    local changeMax = gem.getChangeMax(seqGateTable.max, gateRandomization)
     local min = gate - changeMax
     local max = gate + changeMax
     if min < seqGateTable.min then
@@ -376,7 +376,7 @@ function getGate(part, step, skipRandomize)
       max = seqGateTable.max
     end
     --print("Before randomize gate", gate)
-    gate = getRandom(min, max)
+    gate = gem.getRandom(min, max)
     --print("After randomize gate/changeMax/min/max", gate, changeMax, min, max)
   end
 
@@ -1028,7 +1028,7 @@ for i=1,numPartsBox.max do
   strategyPropbability.textColour = menuTextColour
 
   local strategyInput = sequencerPanel:Label("StrategyInput" .. i)
-  strategyInput.text = table.concat(strategies[getRandom(#strategies)], ",")
+  strategyInput.text = table.concat(strategies[gem.getRandom(#strategies)], ",")
   strategyInput.tooltip = "Strategies are ways to play chords and scales. Numbers represent steps up or down the scale or chord that is currently playing."
   strategyInput.editable = true
   strategyInput.backgroundColour = menuBackgroundColour
@@ -1163,12 +1163,12 @@ function arpeg(selectedPart)
       elseif focusButton.value == true then
         partWasChanged = currentPartPosition ~= editPartMenu.value
         currentPartPosition = editPartMenu.value
-      elseif isStarting == false and getRandomBoolean(partRandomizationAmount) then
+      elseif isStarting == false and gem.getRandomBoolean(partRandomizationAmount) then
         -- Randomize parts within the set limit, unless we are in startup mode
         print("currentPartPosition before", currentPartPosition)
         print("currentPosition before", currentPosition)
         --print("index before", index)
-        local randomPartPosition = getRandom(numParts)
+        local randomPartPosition = gem.getRandom(numParts)
         partWasChanged = currentPartPosition ~= randomPartPosition
         currentPartPosition = randomPartPosition
       end
@@ -1199,7 +1199,7 @@ function arpeg(selectedPart)
       for voice=1, #strategyIndex do
         local strategy = createStrategy(currentPartPosition)
         table.insert(strategies, strategy)
-        strategyIndex[voice] = getRandom(#strategies)
+        strategyIndex[voice] = gem.getRandom(#strategies)
         if autoStrategy == true then
           paramsPerPart[currentPartPosition].strategyInput.text = table.concat(strategies[strategyIndex[voice]], ",") -- TODO Handle voice
         end
@@ -1214,14 +1214,14 @@ function arpeg(selectedPart)
       local chords = paramsPerPart[currentPartPosition].chords
       local activeChordDefinitions = {}
       for i,v in ipairs(chords) do
-        if getRandomBoolean(v.value) == true then
+        if gem.getRandomBoolean(v.value) == true then
           table.insert(activeChordDefinitions, i)
         end
       end
 
       if #activeChordDefinitions > 0 then
         -- Get a chord def index from the active definitions
-        chordDefinitionIndex = activeChordDefinitions[getRandom(#activeChordDefinitions)]
+        chordDefinitionIndex = activeChordDefinitions[gem.getRandom(#activeChordDefinitions)]
         print("Chord inversions selected by random/#activeChordDefinitions", chordDefinitionIndex, #activeChordDefinitions)
       end
 
@@ -1229,7 +1229,7 @@ function arpeg(selectedPart)
       -- Otherwise we select an inversion by random
       if startOfPart == false and polyphony > 1 then
         -- TODO Param for inversions
-        inversionIndex = getRandom(#chordDefinitions[chordDefinitionIndex])
+        inversionIndex = gem.getRandom(#chordDefinitions[chordDefinitionIndex])
         print("Set random inversionIndex", inversionIndex)
       end
     end
@@ -1259,7 +1259,7 @@ function arpeg(selectedPart)
 
       -- Ensure voice has a strategy!
       if type(strategyIndex[voice]) == "nil" then
-        strategyIndex[voice] = getRandom(#strategies)
+        strategyIndex[voice] = gem.getRandom(#strategies)
       end
 
       -- Get the subdivision to use
@@ -1279,8 +1279,8 @@ function arpeg(selectedPart)
           if #subdivisions == 1 then
             subdivision = subdivisions[1]
             print("SET SELECTED subdivision", subdivision)
-          elseif #subdivisions > 1 and getRandomBoolean(subdivisionProbability) then
-            subdivision = subdivisions[getRandom(#subdivisions)]
+          elseif #subdivisions > 1 and gem.getRandomBoolean(subdivisionProbability) then
+            subdivision = subdivisions[gem.getRandom(#subdivisions)]
             print("SET RANDOM subdivision", subdivision)
           end
         end
@@ -1312,7 +1312,7 @@ function arpeg(selectedPart)
         local baseNoteRandomization = paramsPerPart[currentPartPosition].baseNoteRandomization.value
         local hasHarmonizeableScale = canHarmonizeScale(paramsPerPart[currentPartPosition].scale)
         local minResolution = getResolution(paramsPerPart[currentPartPosition].subdivisionMinResolution.value)
-        local steps = getRandom(minNoteSteps, maxNoteSteps)
+        local steps = gem.getRandom(minNoteSteps, maxNoteSteps)
         local note = nil
         local baseMin = minNote
         local baseMax = maxNote
@@ -1381,7 +1381,7 @@ function arpeg(selectedPart)
             useBaseNote = (currentRound % paramsPerPart[currentPartPosition].numStepsBox.value) - 1 == 0
             print("useBaseNote/currentRound/modulo", useBaseNote, currentRound, (currentRound % paramsPerPart[currentPartPosition].numStepsBox.value) - 1)
           end
-          if useBaseNote and getRandomBoolean(baseNoteRandomization) then
+          if useBaseNote and gem.getRandomBoolean(baseNoteRandomization) then
             while isRootNote(baseNote, currentPartPosition) == false and baseNote <= baseMax do
               baseNote = baseNote + 1 -- increment note to find the base note
             end
@@ -1396,7 +1396,7 @@ function arpeg(selectedPart)
               noteRange = math.ceil(noteRange / polyphony)
               print("Calculate range for base note baseMin/baseMax/noteRange", baseMin, baseMax, noteRange)
             end
-            baseNote = baseNote + getRandom(noteRange) - 1
+            baseNote = baseNote + gem.getRandom(noteRange) - 1
             local scale = getFilteredScale(currentPartPosition, baseMin, baseMax)
             baseNote = getNoteAccordingToScale(scale, baseNote)
             print("Get random note from the low range: note/baseMin/monoLimit/baseMax/noteRange", baseNote, baseMin, monoLimit, baseMax, noteRange)
@@ -1407,7 +1407,7 @@ function arpeg(selectedPart)
 
         local harmonizationPropbability = paramsPerPart[currentPartPosition].harmonizationPropbability.value
         local strategyPropbability = paramsPerPart[currentPartPosition].strategyPropbability.value
-        if getRandomBoolean(strategyPropbability) == true and (polyphony == 1 or currentDepth > 0) then
+        if gem.getRandomBoolean(strategyPropbability) == true and (polyphony == 1 or currentDepth > 0) then
           if #noteSelection == 0 then
             local baseNote
             if polyphony == 1 and polyMode == true and currentPartPosition > 1 and type(paramsPerPart[1].baseNote) == "number" then
@@ -1417,13 +1417,13 @@ function arpeg(selectedPart)
             else
               baseNote = getBaseNote()
             end
-            if getRandomBoolean(harmonizationPropbability) == true and hasHarmonizeableScale == true and polyphony == 1 then
+            if gem.getRandomBoolean(harmonizationPropbability) == true and hasHarmonizeableScale == true and polyphony == 1 then
               noteSelection = getChord(baseNote)
               print("Get note selection from chord #noteSelection", #noteSelection)
             else
               local scaleMax = baseMax
               if (baseMax - baseNote) >= 24 then
-                scaleMax = getRandom(baseMax-11,baseMax) -- Do this for variation on decrementing strategies
+                scaleMax = gem.getRandom(baseMax-11,baseMax) -- Do this for variation on decrementing strategies
               end
               noteSelection = getFilteredScale(currentPartPosition, baseNote, scaleMax)
               print("Get note selection from scale #noteSelection", #noteSelection)
@@ -1436,7 +1436,7 @@ function arpeg(selectedPart)
           notePosition, strategyPos = getNotePositionFromStragegy(noteSelection, notePosition, strategyIndex, strategyPos, currentPartPosition, voice)
           note = noteSelection[notePosition]
           print("Found note, notePosition, strategyIndex, voice", note, notePosition, strategyIndex[voice], voice)
-        elseif getRandomBoolean(harmonizationPropbability) == true and currentDepth == 0 and polyphony > 1 and hasHarmonizeableScale == true then
+        elseif gem.getRandomBoolean(harmonizationPropbability) == true and currentDepth == 0 and polyphony > 1 and hasHarmonizeableScale == true then
           local startingNotes = {}
           for _,v in ipairs(notes) do
             if v.stepCounter == 0 then
@@ -1462,7 +1462,7 @@ function arpeg(selectedPart)
             local octaveRange = math.floor(noteRange / 12)
             local notesLeft = polyphony - #notes
             local octave = math.floor(octaveRange / notesLeft)
-            if octave > 0 and note > baseMax / 2 and getRandomBoolean() then
+            if octave > 0 and note > baseMax / 2 and gem.getRandomBoolean() then
               octave = -octave
               print("Negative octave", octave)
             end
@@ -1548,23 +1548,23 @@ function arpeg(selectedPart)
 
         -- Get a random or strategic note from the current scale / chord
         if type(note) == "nil" then
-          if #noteSelection > 0 and getRandomBoolean() then
-            if getRandomBoolean(strategyPropbability) == true then
+          if #noteSelection > 0 and gem.getRandomBoolean() then
+            if gem.getRandomBoolean(strategyPropbability) == true then
               notePosition, strategyPos = getNotePositionFromStragegy(noteSelection, notePosition, strategyIndex, strategyPos, currentPartPosition, voice)
               note = noteSelection[notePosition]
               print("Get note from selection using strategy: note/baseMin/baseMax/strategyIndex, voice", note, baseMin, baseMax, strategyIndex[voice], voice)
             else
-              note = noteSelection[getRandom(#noteSelection)]
+              note = noteSelection[gem.getRandom(#noteSelection)]
               print("Get random note from selection: note/baseMin/baseMax", note, baseMin, baseMax)
             end
           else
             local scale = getFilteredScale(currentPartPosition, baseMin, baseMax)
-            if getRandomBoolean(strategyPropbability) == true then
+            if gem.getRandomBoolean(strategyPropbability) == true then
               notePosition, strategyPos = getNotePositionFromStragegy(scale, notePosition, strategyIndex, strategyPos, currentPartPosition, voice)
               note = scale[notePosition]
               print("Get note from scale using strategy: note/baseMin/baseMax/strategyIndex, voice", note, baseMin, baseMax, strategyIndex[voice], voice)
             else
-              note = scale[getRandom(#scale)]
+              note = scale[gem.getRandom(#scale)]
               print("Get random note from scale: note/baseMin/baseMax", note, baseMin, baseMax)
             end
           end
@@ -1581,7 +1581,7 @@ function arpeg(selectedPart)
           print("Incrementing depth/stepDuration/subDivDuration", currentDepth, stepDuration, subDivDuration)
           for i=1,subdivision do
             local subDivNote = generateNote(subDivDuration, currentDepth)
-            if i == 1 or getRandomBoolean(subdivisionRepeatProbability) then
+            if i == 1 or gem.getRandomBoolean(subdivisionRepeatProbability) then
               subDivNote.note = note
             end
             table.insert(subdivisionNotes, subDivNote)

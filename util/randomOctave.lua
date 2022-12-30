@@ -2,7 +2,7 @@
 -- Transpose incoming notes to octave
 -------------------------------------------------------------------------------
 
-require "includes.common"
+local gem = require "includes.common"
 
 local backgroundColour = "595959" -- Light or Dark
 local widgetBackgroundColour = "01011F" -- Dark
@@ -62,15 +62,15 @@ bipolar.x = octaveRange.x + octaveRange.width + 10
 bipolar.y = octaveRange.y
 
 function setOctave(note)
-  if getRandomBoolean(probability.value) == false then
+  if gem.getRandomBoolean(probability.value) == false then
     print("Note was note transposed", note)
     return note
   end
   local octave = octaveRange.default
   if octaveRange.value > 1 then
-    octave = getRandom(octaveRange.value)
+    octave = gem.getRandom(octaveRange.value)
   end
-  if bipolar.value and getRandomBoolean() then
+  if bipolar.value and gem.getRandomBoolean() then
     octave = -octave
   end
   local transposedNote = note + (octave * 12)

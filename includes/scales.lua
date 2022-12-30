@@ -22,10 +22,6 @@ local scaleDefinitions = {
   {1}, -- Chomatic
 }
 
-function getScaleDefinitions()
-  return scaleDefinitions
-end
-
 local scaleNames = {
   "Major (Ionian)",
   "Minor (Aeolian)",
@@ -44,21 +40,27 @@ local scaleNames = {
   "Chomatic",
 }
 
-function getScaleNames()
-  return scaleNames
-end
+return {
+  getScaleDefinitions = function()
+    return scaleDefinitions
+  end,
 
-function createScale(scaleDefinition, rootNote)
-  local scale = {}
-  -- Find notes for scale
-  local pos = 0
-  while rootNote < 128 do
-    table.insert(scale, rootNote)
-    pos = pos + 1
-    rootNote = rootNote + scaleDefinition[pos]
-    if pos == #scaleDefinition then
-      pos = 0
+  getScaleNames = function()
+    return scaleNames
+  end,
+
+  createScale = function(scaleDefinition, rootNote)
+    local scale = {}
+    -- Find notes for scale
+    local pos = 0
+    while rootNote < 128 do
+      table.insert(scale, rootNote)
+      pos = pos + 1
+      rootNote = rootNote + scaleDefinition[pos]
+      if pos == #scaleDefinition then
+        pos = 0
+      end
     end
+    return scale
   end
-  return scale
-end
+}

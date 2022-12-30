@@ -2,7 +2,8 @@
 -- A script modulator that sends a random value at the given time, if probability hits.
 -----------------------------------------------------------------------------------------
 
-require "includes.common"
+local gem = require "includes.common"
+local resolutions = require "includes.resolutions"
 
 local isRunning = false
 local heldNotes = {}
@@ -47,7 +48,7 @@ probability.backgroundColour = widgetBackgroundColour
 probability.x = sourceIndex.x + sourceIndex.width + 10
 probability.width = 100
 
-local waitResolution = panel:Menu("WaitResolution", getResolutionNames())
+local waitResolution = panel:Menu("WaitResolution", resolutions.getResolutionNames())
 waitResolution.displayName = "Duration"
 waitResolution.tooltip = "The duration between changes"
 waitResolution.selected = 20
@@ -99,10 +100,10 @@ function hasVoiceId(voiceId)
 end
 
 function doModulation(voiceId)
-  local duration = getResolution(waitResolution.value)
-  if getRandomBoolean(probability.value) then
-    local val = getRandom()
-    if getRandomBoolean(bipolar.value) then
+  local duration = resolutions.getResolution(waitResolution.value)
+  if gem.getRandomBoolean(probability.value) then
+    local val = gem.getRandom()
+    if gem.getRandomBoolean(bipolar.value) then
       val = -val
     end
     local rampValue = rampTime.value / 100

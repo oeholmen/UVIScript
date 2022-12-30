@@ -27,7 +27,9 @@ setBackgroundColour(pageBackgoundColour)
 -- Include common functions and widgets
 --------------------------------------------------------------------------------
 
-require "includes.modseq"
+local modseq = require "includes.modseq"
+local gem = require "includes.common"
+local r = require "includes.resolutions"
 
 --------------------------------------------------------------------------------
 -- Sequencer
@@ -52,13 +54,13 @@ for page=1,maxPages do
   sequencerPanel.visible = page == 1
   sequencerPanel.backgroundColour = menuOutlineColour
   sequencerPanel.x = 10
-  sequencerPanel.y = headerPanel.height + 15
+  sequencerPanel.y = modseq.headerPanel.height + 15
   sequencerPanel.width = 700
   sequencerPanel.height = numParts * (tableHeight + buttonRowHeight)
 
   for part=1,numParts do
     local isVisible = true
-    local i = getPartIndex(part, page)
+    local i = modseq.getPartIndex(part, page)
     print("Set paramsPerPart, page/part", page, i)
 
     -- Tables
@@ -121,10 +123,10 @@ for page=1,maxPages do
     stepButton.x = partLabelInput.x + partLabelInput.width + buttonSpacing
     stepButton.y = inputWidgetY
     stepButton.changed = function(self)
-      setPageDuration(page)
+      modseq.setPageDuration(page)
     end
 
-    local stepResolution = sequencerPanel:Menu("StepResolution" .. i, getResolutionNames())
+    local stepResolution = sequencerPanel:Menu("StepResolution" .. i, r.getResolutionNames())
     stepResolution.tooltip = "Set the step resolution"
     stepResolution.showLabel = false
     stepResolution.visible = isVisible
@@ -137,7 +139,7 @@ for page=1,maxPages do
     stepResolution.arrowColour = menuArrowColour
     stepResolution.outlineColour = menuOutlineColour
     stepResolution.changed = function(self)
-      setPageDuration(page)
+      modseq.setPageDuration(page)
     end
 
     local numStepsBox = sequencerPanel:NumBox("Steps" .. i, defaultSteps, 1, 128, true)
@@ -208,7 +210,7 @@ for page=1,maxPages do
     tableY = tableY + tableHeight + buttonRowHeight
   end
 
-  local minRepeats = footerPanel:NumBox("MinRepeats" .. page, 1, 1, 128, true)
+  local minRepeats = modseq.footerPanel:NumBox("MinRepeats" .. page, 1, 1, 128, true)
   minRepeats.displayName = "Repeats"
   minRepeats.tooltip = "The minimum number of repeats before page will be changed (only relevant when multiple pages are activated)"
   minRepeats.visible = page == 1
@@ -218,14 +220,14 @@ for page=1,maxPages do
   minRepeats.arrowColour = menuArrowColour
   minRepeats.outlineColour = menuOutlineColour
   minRepeats.size = {100,20}
-  minRepeats.x = actionMenu.x + actionMenu.width + 9
-  minRepeats.y = actionMenu.y
+  minRepeats.x = modseq.actionMenu.x + modseq.actionMenu.width + 9
+  minRepeats.y = modseq.actionMenu.y
 
   table.insert(paramsPerPage, {sequencerPanel=sequencerPanel,minRepeats=minRepeats,pageDuration=4,active=(page==1)})
-  setPageDuration(page)
+  modseq.setPageDuration(page)
 end
 
-footerPanel.y = paramsPerPage[1].sequencerPanel.y + paramsPerPage[1].sequencerPanel.height
+modseq.footerPanel.y = paramsPerPage[1].sequencerPanel.y + paramsPerPage[1].sequencerPanel.height
 
 --------------------------------------------------------------------------------
 -- Sequencer
@@ -245,7 +247,7 @@ function sendControlChange(duration, startValue, targetValue, controlChangeNumbe
   repeat
     value = value + increment -- Increment value
     i = i + 1 -- Increment counter
-    controlChange(controlChangeNumber, round(value), channel)
+    controlChange(controlChangeNumber, gem.round(value), channel)
     --print("Over time controlChangeNumber, value, channel", controlChangeNumber, value, channel)
     wait(durationPerIteration)
   until value == targetValue or i >= numberOfIterations
@@ -265,12 +267,12 @@ function arpeg(part)
   local startValue = nil
   local targetValue = nil
   while isPlaying do
-    local partIndex = getPartIndex(part)
+    local partIndex = modseq.getPartIndex(part)
     local numStepsInPart = paramsPerPart[partIndex].numStepsBox.value
     local currentPosition = (index % numStepsInPart) + 1
     local smooth = paramsPerPart[partIndex].smoothButton.value
     local step = paramsPerPart[partIndex].stepButton.value
-    local duration = getResolution(paramsPerPart[partIndex].stepResolution.value)
+    local duration = r.getResolution(paramsPerPart[partIndex].stepResolution.value)
     local seqValueTable = paramsPerPart[partIndex].seqValueTable
     local controlChangeNumber = paramsPerPart[partIndex].midiControlNumber.value
     local channel = paramsPerPart[partIndex].channelBox.value
@@ -293,15 +295,15 @@ function arpeg(part)
     -- Send cc
     if type(startValue) == "nil" then
       startValue = seqValueTable:getValue(currentPosition)
-      startValue = randomizeValue(startValue, seqValueTable.min, seqValueTable.max, valueRandomizationAmount)
+      startValue = gem.randomizeValue(startValue, seqValueTable.min, seqValueTable.max, valueRandomizationAmount)
     end
     targetValue = getNextValue(seqValueTable, currentPosition, numStepsInPart) -- Get next value
-    targetValue = randomizeValue(targetValue, seqValueTable.min, seqValueTable.max, valueRandomizationAmount)
+    targetValue = gem.randomizeValue(targetValue, seqValueTable.min, seqValueTable.max, valueRandomizationAmount)
     if channel == 0 then
       channel = nil -- Send on all channels
     end
     if smooth == false then
-      controlChange(controlChangeNumber, round(startValue), channel)
+      controlChange(controlChangeNumber, gem.round(startValue), channel)
       --print("Send controlChangeNumber, startValue, channel", controlChangeNumber, startValue, channel)
     else
       -- Send cc over time
@@ -364,7 +366,7 @@ function onSave()
   table.insert(data, numStepsData)
   table.insert(data, seqValueTableData)
   table.insert(data, partLabelInputData)
-  table.insert(data, labelInput.text)
+  table.insert(data, modseq.labelInput.text)
 
   return data
 end
@@ -373,7 +375,7 @@ function onLoad(data)
   local numStepsData = data[1]
   local seqValueTableData = data[2]
   local partLabelInputData = data[3]
-  labelInput.text = data[4]
+  modseq.labelInput.text = data[4]
 
   local dataCounter = 1
   for i,v in ipairs(numStepsData) do
@@ -386,6 +388,6 @@ function onLoad(data)
     end
   end
   for page=1,numPages do
-    setPageDuration(page)
+    modseq.setPageDuration(page)
   end
 end

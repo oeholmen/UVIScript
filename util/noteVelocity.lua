@@ -2,7 +2,7 @@
 -- Set velocity on incoming notes
 --------------------------------------------------------------------------------
 
-require "includes.common"
+local gem = require "includes.common"
 
 local backgroundColour = "595959" -- Light or Dark
 local widgetBackgroundColour = "15133C" -- Dark
@@ -50,6 +50,6 @@ velRandomization.y = velocityInput.y
 --------------------------------------------------------------------------------
 
 function onNote(e)
-  e.velocity = randomizeValue(velocityInput.value, velocityInput.min, velocityInput.max, velRandomization.value)
+  e.velocity = gem.randomizeValue(velocityInput.value, velocityInput.min, velocityInput.max, velRandomization.value)
   postEvent(e)
 end
