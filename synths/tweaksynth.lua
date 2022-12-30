@@ -3,6 +3,7 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
+local r = require "includes.resolutions"
 
 local tweakables = {}
 local storedPatches = {}
@@ -1248,7 +1249,7 @@ function getWidget(name)
 end
 
 function getSyncedValue(value)
-  for key, res in pairs(getResolutions()) do
+  for key, res in pairs(r.getResolutions()) do
     print(key, " -- ", res)
     if isEqual(res, value) then
       print(res, "==", value)
@@ -3325,14 +3326,14 @@ function createLfoPanel()
       lfoFreqKnob:setValue(lfoFreqKnob.default)
     else
       -- Uses beat ratio when synced: 4 is 1/1, 0.25 is 1/16
-      lfoFreqKnob:setRange(1, #getResolutions())
+      lfoFreqKnob:setRange(1, #r.getResolutions())
       lfoFreqKnob.default = 20
       lfoFreqKnob.mapper = Mapper.Linear
       lfoFreqKnob.changed = function(self)
         --print("Sync on, value in", self.value)
         local index = math.floor(self.value)
         --print("Sync on, resolution index", index)
-        local resolution = getResolution(index)
+        local resolution = r.getResolution(index)
         --print("Sync on, resolution", resolution)
         if activeLfoOsc == 1 or activeLfoOsc == 2 then
           lfo1:setParameter("Freq", resolution)
@@ -3343,7 +3344,7 @@ function createLfoPanel()
         if activeLfoOsc == 1 or activeLfoOsc == 4 then
           lfo3:setParameter("Freq", resolution)
         end
-        self.displayText = getResolutionName(index)
+        self.displayText = r.getResolutionName(index)
       end
       lfoFreqKnob:setValue(lfoFreqKnob.default)
     end
@@ -5025,7 +5026,7 @@ function createTwequencerPanel()
     partsTable:setValue(1, 0)
   end
 
-  local roundResolution = tweqPanel:Menu("RoundDuration", getResolutionNames({}, 17))
+  local roundResolution = tweqPanel:Menu("RoundDuration", r.getResolutionNames({}, 17))
   roundResolution.displayName = "Tweak Duration"
   roundResolution.tooltip = "Set the duration that the tweak should take for each round"
   roundResolution.selected = 9
@@ -5224,7 +5225,7 @@ function createTwequencerPanel()
     isPlaying = true
     while isPlaying == true do
       -- SET VALUES
-      local roundDuration = getResolution(roundResolution.value)
+      local roundDuration = r.getResolution(roundResolution.value)
       local stepDuration = roundDuration / numSteps
       local useDuration = tweakDurationOnOffButton.value
       local envelopeStyle = envStyleMenu.value
