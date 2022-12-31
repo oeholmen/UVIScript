@@ -178,7 +178,7 @@ timeSignature.changed = function(self)
     table.insert(signature, w)
   end
   beatBase = tonumber(signature[1])
-  beatResolution = getResolution(gem.getIndexFromValue("1/" .. signature[2], getResolutionNames()))
+  beatResolution = rythmicFragments.resolutions.getResolution(gem.getIndexFromValue("1/" .. signature[2], rythmicFragments.resolutions.getResolutionNames()))
 end
 
 local velocityInput = settingsPanel:NumBox("Velocity", 90, 1, 127, true)
@@ -1154,7 +1154,7 @@ end
 function getRandomFragment(definitionNumber)
   local fragmentDefinition = {}
   if definitionNumber == 2 then
-    fragmentDefinition = {getResolution(gem.getRandomFromTable(getSelectedResolutions()))} -- Single
+    fragmentDefinition = {rythmicFragments.resolutions.getResolution(gem.getRandomFromTable(rythmicFragments.getSelectedResolutions()))} -- Single
   else
     fragmentDefinition = rythmicFragments.createFragmentDefinition(definitionNumber)
   end

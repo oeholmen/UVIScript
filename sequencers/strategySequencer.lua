@@ -3,7 +3,7 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
-local noteModule = require "includes.notes"
+local notes = require "includes.notes"
 local resolutions = require "includes.resolutions"
 local scales = require "includes.scales"
 
@@ -35,7 +35,7 @@ local numParts = 1
 
 local scaleDefinitions = scales.getScaleDefinitions()
 local scaleNames = scales.getScaleNames()
-local noteNames = noteModule.getNoteNames()
+local noteNames = notes.getNoteNames()
 
 -- Strategies are ways to play chords and scales
 local strategies = {
@@ -64,7 +64,7 @@ local strategies = {
 local strategyIndex = gem.getRandom(#strategies) -- Holds the selected strategy - start with a random strategy
 local structureMemory = {} -- Holds the most recent structure memory
 local maxStoredStructures = 100 -- Max stored structures
-local noteNumberToNoteName = noteModule.getNoteMapping()
+local noteNumberToNoteName = notes.getNoteMapping()
 
 setBackgroundColour(backgroundColour)
 
@@ -75,7 +75,7 @@ setBackgroundColour(backgroundColour)
 function getNotePositionFromHeldNotes(partPos, scale)
   local minNote = paramsPerPart[partPos].minNote.value
   local maxNote = paramsPerPart[partPos].maxNote.value
-  local noteInput = noteModule.transpose(noteModule.getNoteAccordingToScale(scale, heldNotes[#heldNotes].note), minNote, maxNote)
+  local noteInput = notes.transpose(notes.getNoteAccordingToScale(scale, heldNotes[#heldNotes].note), minNote, maxNote)
   local index = gem.getIndexFromValue(noteInput, scale)
   print("Resetting to noteInput/notePosition", noteInput, index)
   return index
@@ -83,8 +83,8 @@ end
 
 function getNoteFromStrategy(notePosition, strategyIndex, strategyPos, partPos)
   local scale = paramsPerPart[partPos].fullScale
-  local minNote = noteModule.getNoteAccordingToScale(scale, paramsPerPart[partPos].minNote.value)
-  local maxNote = noteModule.getNoteAccordingToScale(scale, paramsPerPart[partPos].maxNote.value)
+  local minNote = notes.getNoteAccordingToScale(scale, paramsPerPart[partPos].minNote.value)
+  local maxNote = notes.getNoteAccordingToScale(scale, paramsPerPart[partPos].maxNote.value)
   local strategy = {}
   local input = paramsPerPart[partPos].strategyInput
   if input.enabled == true and string.len(input.text) > 0 then
@@ -1024,7 +1024,7 @@ function arpeg()
   local currentStep = 0 -- Holds the current step in the round that is being played
   local currentRound = 0 -- Counter for rounds
   local currentPartPosition = 1 -- Holds the currently playing part
-  local notes = {} -- Holds the playing notes - notes are removed when they are finished playing
+  local playingNotes = {} -- Holds the playing notes - notes are removed when they are finished playing
   local isStarting = true
   local strategyPos = 1 -- Holds the position in the selected strategy
   --local slotIndex = 1 -- Holds the slot index when slot strategy is active
@@ -1297,13 +1297,13 @@ function arpeg()
     -- Play this step - If gate is set to zero, no notes will play on this step
     --------------------------------------------------------------------------------
 
-    if getGate(currentPartPosition, tablePos) > 0 and #notes == 0 then
-      table.insert(notes, getNoteToPlay())
+    if getGate(currentPartPosition, tablePos) > 0 and #playingNotes == 0 then
+      table.insert(playingNotes, getNoteToPlay())
       print("Added note for step", tablePos)
     end
 
     -- PLAY NOTE
-    for _,note in ipairs(notes) do
+    for _,note in ipairs(playingNotes) do
       -- Start playing when step counter is 0 (add an extra check for gate even though no notes should be added when gate is zero)
       if note.stepCounter == 0 then
         run(playSubdivision, note, currentPartPosition)
@@ -1341,13 +1341,13 @@ function arpeg()
 
     -- REMOVE COMPLETED NOTES
     local keep = {}
-    for _,note in ipairs(notes) do
+    for _,note in ipairs(playingNotes) do
       if note.steps > note.stepCounter then
         -- Keep note if more steps than counter is currently on
         table.insert(keep, note)
       end
     end
-    notes = keep -- Refresh notes table
+    playingNotes = keep -- Refresh notes table
 
     -- WAIT FOR NEXT BEAT
     waitBeat(mainBeatDuration)

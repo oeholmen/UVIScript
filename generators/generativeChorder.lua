@@ -4,6 +4,8 @@
 
 local gem = require "includes.common"
 local noteSelector = require "includes.noteSelector"
+local notes = require "includes.notes"
+local scales = require "includes.scales"
 local resolutions = require "includes.resolutions"
 
 local backgroundColour = "6c6c6c" -- Light or Dark
@@ -58,10 +60,10 @@ local chordDefinitions = {
 
 local noteDisplay = {} -- Holds the widgets that displays the notes being played
 local maxVoices = 16 -- Max number of oplyphonic voices
-local notes = {} -- Holds the playing notes - notes are removed when they are finished playing
-local noteNumberToNoteName = noteSelector.notes.getNoteMapping()
-local scaleDefinitions = noteSelector.scales.getScaleDefinitions()
-local scaleNames = noteSelector.scales.getScaleNames()
+local playingNotes = {} -- Holds the playing notes - notes are removed when they are finished playing
+local noteNumberToNoteName = notes.getNoteMapping()
+local scaleDefinitions = scales.getScaleDefinitions()
+local scaleNames = scales.getScaleNames()
 
 setBackgroundColour(backgroundColour)
 
@@ -605,7 +607,7 @@ for i=1,numPartsBox.max do
   numRepeatsBox.x = numStepsBox.x
   numRepeatsBox.y = numStepsBox.y + numStepsBox.height + 5
 
-  local generateKeyPart = sequencerPanel:Menu("GenerateKey" .. i, noteSelector.notes.getNoteNames())
+  local generateKeyPart = sequencerPanel:Menu("GenerateKey" .. i, notes.getNoteNames())
   generateKeyPart.displayName = "Root Note"
   generateKeyPart.tooltip = "Root Note"
   generateKeyPart.showLabel = true
@@ -1000,7 +1002,7 @@ function arpeg()
   local scale = {} -- The scale the generator can choose from.
   local inversionIndex = 0
   local repeatCounter = 0 -- Count part repeats
-  notes = {} -- Ensure notes are reset when seqencer starts
+  playingNotes = {} -- Ensure notes are reset when seqencer starts
 
   -- START ARP LOOP
   while isPlaying do
@@ -1158,7 +1160,7 @@ function arpeg()
           return scale[1]
         end
 
-        if hasNoteWithinMonoLimit(notes, currentPartPosition) == true then
+        if hasNoteWithinMonoLimit(playingNotes, currentPartPosition) == true then
           -- Ensure we only have one note below the mono limit
           baseMin = monoLimit
           print("Adjust baseMin to mono limit", baseMin)
@@ -1186,7 +1188,7 @@ function arpeg()
             baseNote = baseNote + gem.getRandom(noteRange) - 1
           end
 
-          return noteSelector.notes.getNoteAccordingToScale(scale, baseNote)
+          return notes.getNoteAccordingToScale(scale, baseNote)
         end
 
         -- The note on the first voice is the base note
@@ -1197,7 +1199,7 @@ function arpeg()
         local harmonizationPropbability = paramsPerPart[currentPartPosition].harmonizationPropbability.value
         if type(note) == "nil" and gem.getRandomBoolean(harmonizationPropbability) == true then
           local startingNotes = {}
-          for _,v in ipairs(notes) do
+          for _,v in ipairs(playingNotes) do
             if v.stepCounter == 0 then
               table.insert(startingNotes, v.note)
               print("Insert into startingNotes", v.note)
@@ -1216,11 +1218,11 @@ function arpeg()
             local scaleIndex = getNextScaleIndex(prevNote, fullScale, chordDefinition, inversionIndex)
             note = fullScale[scaleIndex]
             if type(note) == "number" then
-              note = noteSelector.notes.transpose(note, baseMin, baseMax)
+              note = notes.transpose(note, baseMin, baseMax)
               local noteRange = baseMax - prevNote
               local octaveFactor = 12-- / (selectedSpread / 2)
               local octaveRange = math.floor(noteRange / octaveFactor)
-              local notesLeft = polyphony - #notes
+              local notesLeft = polyphony - #playingNotes
               local octave = 0
               local octaveProbability = 50
               local negOctProbability = 50
@@ -1288,7 +1290,7 @@ function arpeg()
     if getGate(currentPartPosition, tablePos, true) > 0 then
       -- Check how many voices are already playing
       local voicesPlaying = {}
-      for _,v in ipairs(notes) do
+      for _,v in ipairs(playingNotes) do
         table.insert(voicesPlaying, v.voice)
         print("Voice is playing", v.voice)
       end
@@ -1328,8 +1330,8 @@ function arpeg()
         else
           print("Voice is not playing", voice)
           local noteToPlay = getNoteToPlay(voice, chordDefinition)
-          if type(noteToPlay.note) == "number" and notesInclude(notes, noteToPlay.note) == false then
-            table.insert(notes, noteToPlay)
+          if type(noteToPlay.note) == "number" and notesInclude(playingNotes, noteToPlay.note) == false then
+            table.insert(playingNotes, noteToPlay)
             print("Insert note", noteToPlay.note)
             noteDisplay[voice].text = noteNumberToNoteName[noteToPlay.note + 1] .. " (" .. noteToPlay.note .. ")"
             voice = voice + 1
@@ -1338,11 +1340,11 @@ function arpeg()
         roundCounter = roundCounter + 1
         print("Searching for notes roundCounter", roundCounter)
       end
-      print("Notes ready to play at this step/#notes-#voicesPlaying", tablePos, (#notes - #voicesPlaying))
+      print("Notes ready to play at this step/#notes-#voicesPlaying", tablePos, (#playingNotes - #voicesPlaying))
     end
 
     -- PLAY NOTE(S)
-    for _,note in ipairs(notes) do
+    for _,note in ipairs(playingNotes) do
       -- Start playing when step counter is 0 (add an extra check for gate even though no notes should be added when gate is zero)
       if note.stepCounter == 0 then
         play(note, currentPartPosition)
@@ -1380,13 +1382,13 @@ function arpeg()
 
     -- REMOVE COMPLETED NOTES
     local keep = {}
-    for _,note in ipairs(notes) do
+    for _,note in ipairs(playingNotes) do
       if note.steps > note.stepCounter then
         -- Keep note if more steps than counter is currently on
         table.insert(keep, note)
       end
     end
-    notes = keep -- Refresh notes table
+    playingNotes = keep -- Refresh notes table
 
     -- WAIT FOR NEXT BEAT
     waitBeat(mainBeatDuration)

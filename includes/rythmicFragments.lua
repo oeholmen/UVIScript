@@ -2,10 +2,8 @@
 -- Common functions for working with rythmic fragments
 --------------------------------------------------------------------------------
 
-local m = {}
 local gem = require "includes.common"
-m.resolutions = require "includes.resolutions"
-
+local r = require "includes.resolutions"
 local paramsPerFragment = {}
 
 -- Expand defaults
@@ -31,30 +29,22 @@ local resolutionFragments = {
 
 local singleResolutions = {14,15,17,18,20,23} -- Resolution indexes
 local resolutionsForEvolve = {} -- Resolutions used when evolving
-local resolutionsByType = m.resolutions.getResolutionsByType()
+local resolutionsByType = r.getResolutionsByType()
 local maxResolutionIndex = resolutionsByType[1][#resolutionsByType[1]] -- Set max resolution to the highest even resolution index
 
-function m.getMaxResolutionIndex()
-  return maxResolutionIndex
-end
-
-function m.setMaxResolutionIndex(i)
+local function setMaxResolutionIndex(i)
   maxResolutionIndex = i
 end
 
-function m.getResolutionFragments()
-  return resolutionFragments
-end
-
 -- Turn all recognized fragment items into note names
-function m.fragmentDefinitionToResolutionNames(fragmentDefinition)
+local function fragmentDefinitionToResolutionNames(fragmentDefinition)
   local parsed = {}
   for _,v in ipairs(fragmentDefinition) do
-    local index = gem.getIndexFromValue(v, m.resolutions.getResolutions())
+    local index = gem.getIndexFromValue(v, r.getResolutions())
     local text = v
     --print("index, text", index, text)
     if type(index) == "number" then
-      text = m.resolutions.getResolutionName(index)
+      text = r.getResolutionName(index)
       --print("text", text)
     end
     table.insert(parsed, text)
@@ -62,16 +52,48 @@ function m.fragmentDefinitionToResolutionNames(fragmentDefinition)
   return parsed
 end
 
-function m.getBeatValueForResolutionName(val)
-  local index = gem.getIndexFromValue(val, m.resolutions.getResolutionNames())
-  if type(index) == "number" then
-    return m.resolutions.getResolution(index)
+local function parseToBeatValue(duration)
+  if type(tonumber(duration)) == "number" then
+    duration = tonumber(duration)
+    --print("Duration is number", duration)
+    return duration
   end
-  return val
+
+  --print("Duration is NOT a number, try to find beat value from name", duration)
+  -- TODO Check if duration starts with a '-' indicating pause
+  local isRest = string.sub(duration,1,1) == "-"
+  if isRest then
+    duration = string.sub(duration, 2, string.len(duration))
+    --print("Duration starts with - 'REST'", duration)
+  end
+  local index = gem.getIndexFromValue(duration, r.getResolutionNames())
+  if type(index) == "number" then
+    --print("Found duration", duration)
+    if isRest then
+      return -r.getResolution(index)
+    end
+    return r.getResolution(index)
+  end
+
+  --print("Could not resolve duration, returning 0", duration)
+  return 0
 end
 
-function m.calculateFragmentDuration(fragmentText)
-  local fragment = m.createFragmentFromText(fragmentText)
+local function createFragmentFromText(fragmentText)
+  local fragment = {}
+  if string.len(fragmentText) > 0 then
+    for w in string.gmatch(fragmentText, "[^,]+") do
+      --print("Before parse", w)
+      w = parseToBeatValue(gem.trimStartAndEnd(w))
+      --print("Add to fragment", w)
+      table.insert(fragment, w)
+    end
+  end
+  return fragment
+end
+
+local function calculateFragmentDuration(fragmentText)
+  local fragment = createFragmentFromText(fragmentText)
   local total = 0
   for _,v in ipairs(fragment) do
     total = total + math.abs(v)
@@ -82,7 +104,7 @@ function m.calculateFragmentDuration(fragmentText)
 end
 
 -- Get the fragment as text for fragment input
-function m.getFragmentInputText(fragment)
+local function getFragmentInputText(fragment)
   if #fragment == 0 then
     return ""
   end
@@ -90,9 +112,9 @@ function m.getFragmentInputText(fragment)
 end
 
 -- Include all durations shorter than or equal to the total fragmentDuration
-function m.addDurations(resolutionIndexes, durations, fragmentDuration)
+local function addDurations(resolutionIndexes, durations, fragmentDuration)
   for _,i in ipairs(resolutionIndexes) do
-    local duration = m.resolutions.getResolution(i)
+    local duration = r.getResolution(i)
     if duration <= fragmentDuration then
       table.insert(durations, duration)
       --print("addDurations() Inserted duration", duration)
@@ -102,17 +124,17 @@ function m.addDurations(resolutionIndexes, durations, fragmentDuration)
 end
 
 -- Returns a probability (between 0-100) for the given resolution index
-function m.getProbabilityForResolutionIndex(i)
-  local baseProbability = math.ceil(100 / m.resolutions.getResolution(i))
+local function getProbabilityForResolutionIndex(i)
+  local baseProbability = math.ceil(100 / r.getResolution(i))
   local factor = i / 2
   return math.min(100, math.floor(baseProbability * factor))
 end
 
--- Returns indexes for "whole" m.resolutions, filtered by probability
-function m.getSlowResolutions()
+-- Returns indexes for "whole" resolutions, filtered by probability
+local function getSlowResolutions()
   local slowResolutions = {}
   for _,i in ipairs(resolutionsByType[4]) do
-    local probability = m.getProbabilityForResolutionIndex(i)
+    local probability = getProbabilityForResolutionIndex(i)
     --print("getSlowResolutions - set probability for resolution", probability, resolutions.getResolution(i))
     if gem.getRandomBoolean(probability) then
       table.insert(slowResolutions, i)
@@ -123,13 +145,28 @@ function m.getSlowResolutions()
   return slowResolutions
 end
 
+-- Returns a table of resolutions indexes that are "approved" to use
+local function getSelectedResolutions()
+  local selectedResolutions = getSlowResolutions()
+  for i=1,3 do
+    for _,resolutionIndex in ipairs(resolutionsByType[i]) do
+      -- Limit dotted/tri resolutions above 1/8 dot and 1/16 tri
+      if resolutionIndex > maxResolutionIndex or (i == 2 and resolutionIndex > 18) or (i == 3 and resolutionIndex > 25) then
+        break
+      end
+      table.insert(selectedResolutions, resolutionIndex)
+    end
+  end
+  return selectedResolutions
+end
+
 -- Auto generate fragment
 -- durationType:
 --    "Create fragment (even+dot)" 1
 --    "Create fragment (even+tri)" 2
 --    "Create fragment (extended)" 3
 --    "Create fragment (slow)" 4
-function m.createFragmentDefinition(durationType)
+local function createFragmentDefinition(durationType)
   if type(durationType) == "nil" then
     durationType = 1
   end
@@ -140,29 +177,29 @@ function m.createFragmentDefinition(durationType)
   local durations = {}
   -- Add resolutions that can fit inside the fragmentDuration
   if durationType == 1 or durationType == 2 then -- Add even
-    durations = m.addDurations({17,20,23}, durations, fragmentDuration)
+    durations = addDurations({17,20,23}, durations, fragmentDuration)
   end
   if durationType == 1 then -- Add dotted
-    durations = m.addDurations({15,18}, durations, fragmentDuration)
+    durations = addDurations({15,18}, durations, fragmentDuration)
   end
   if durationType == 2 then -- Add tri
-    durations = m.addDurations({19,22}, durations, fragmentDuration)
+    durations = addDurations({19,22}, durations, fragmentDuration)
   end
   if durationType == 3 then
     -- Extended includes both long and short durations
-    local extendedDurations = m.getSlowResolutions()
+    local extendedDurations = getSlowResolutions()
     for _,v in ipairs(fragmentDurations) do
       table.insert(extendedDurations, v)
     end
-    fragmentDuration = m.resolutions.getResolution(gem.getRandomFromTable(extendedDurations))
-    durations = m.addDurations(m.getSelectedResolutions(), durations, fragmentDuration)
+    fragmentDuration = r.getResolution(gem.getRandomFromTable(extendedDurations))
+    durations = addDurations(getSelectedResolutions(), durations, fragmentDuration)
   end
   if durationType == 4 then
     -- Slow durations
-    local slowResolutions = m.getSlowResolutions()
-    fragmentDuration = m.resolutions.getResolution(gem.getRandomFromTable(slowResolutions))
+    local slowResolutions = getSlowResolutions()
+    fragmentDuration = r.getResolution(gem.getRandomFromTable(slowResolutions))
     --print("Selected fragmentDuration", fragmentDuration)
-    durations = m.addDurations(slowResolutions, durations, fragmentDuration)
+    durations = addDurations(slowResolutions, durations, fragmentDuration)
   end
   --print("Found durations", #durations)
   -- Select durations to fill the definition until the total fragment duration is reached
@@ -180,47 +217,7 @@ function m.createFragmentDefinition(durationType)
   return definition
 end
 
-function m.parseToBeatValue(duration)
-  if type(tonumber(duration)) == "number" then
-    duration = tonumber(duration)
-    --print("Duration is number", duration)
-    return duration
-  end
-
-  --print("Duration is NOT a number, try to find beat value from name", duration)
-  -- TODO Check if duration starts with a '-' indicating pause
-  local isRest = string.sub(duration,1,1) == "-"
-  if isRest then
-    duration = string.sub(duration, 2, string.len(duration))
-    --print("Duration starts with - 'REST'", duration)
-  end
-  local index = gem.getIndexFromValue(duration, m.resolutions.getResolutionNames())
-  if type(index) == "number" then
-    --print("Found duration", duration)
-    if isRest then
-      return -m.resolutions.getResolution(index)
-    end
-    return m.resolutions.getResolution(index)
-  end
-
-  --print("Could not resolve duration, returning 0", duration)
-  return 0
-end
-
-function m.createFragmentFromText(fragmentText)
-  local fragment = {}
-  if string.len(fragmentText) > 0 then
-    for w in string.gmatch(fragmentText, "[^,]+") do
-      --print("Before parse", w)
-      w = m.parseToBeatValue(gem.trimStartAndEnd(w))
-      --print("Add to fragment", w)
-      table.insert(fragment, w)
-    end
-  end
-  return fragment
-end
-
-function m.parseFragment(fragmentInputIndex)
+local function parseFragment(fragmentInputIndex)
   if type(fragmentInputIndex) == "nil" then
     return
   end
@@ -228,7 +225,7 @@ function m.parseFragment(fragmentInputIndex)
   local fragmentPlayProbability = paramsPerFragment[fragmentInputIndex].fragmentPlayProbability.value
   local fragmentActive = paramsPerFragment[fragmentInputIndex].fragmentActive.value
   if fragmentActive and string.len(fragmentInput.text) > 0 and gem.getRandomBoolean(fragmentPlayProbability) then
-    local fragment = m.createFragmentFromText(fragmentInput.text)
+    local fragment = createFragmentFromText(fragmentInput.text)
     local selectProbability = 100
     local repeatProbability = paramsPerFragment[fragmentInputIndex].fragmentRepeatProbability.value
     local repeatProbabilityDecay = paramsPerFragment[fragmentInputIndex].fragmentRepeatProbabilityDecay.value
@@ -259,10 +256,10 @@ function m.parseFragment(fragmentInputIndex)
   end
 end
 
-function m.getSelectedFragments(fragmentIndexes)
+local function getSelectedFragments(fragmentIndexes)
   local selectedFragments = {}
   for i=1, #paramsPerFragment do
-    local fragment = m.parseFragment(i)
+    local fragment = parseFragment(i)
     local includeFragment = type(fragmentIndexes) ~= "table" or gem.tableIncludes(fragmentIndexes, i)
     if type(fragment) == "table" and includeFragment then
       table.insert(selectedFragments, fragment)
@@ -271,8 +268,8 @@ function m.getSelectedFragments(fragmentIndexes)
   return selectedFragments
 end
 
-function m.getFragment(fragmentIndexes, prevFragmentIndex)
-  local selectedFragments = m.getSelectedFragments(fragmentIndexes)
+local function getFragment(fragmentIndexes, prevFragmentIndex)
+  local selectedFragments = getSelectedFragments(fragmentIndexes)
 
   -- Remove the previous fragment to avoid repeat unless it is the only available fragment
   if #selectedFragments > 1 and type(prevFragmentIndex) == "number" and prevFragmentIndex > 0 then
@@ -293,7 +290,7 @@ function m.getFragment(fragmentIndexes, prevFragmentIndex)
   return {f={}, i=0, p=0, r=0, d=0, rev=0, rnd=0, rst=0}
 end
 
-function m.flashFragmentActive(fragmentActive, duration)
+local function flashFragmentActive(fragmentActive, duration)
   if type(duration) == "nil" then
     duration = 1
   end
@@ -304,7 +301,7 @@ function m.flashFragmentActive(fragmentActive, duration)
 end
 
 -- Get fragment state for storage
-function m.getFragmentState()
+local function getFragmentState()
   local fragments = {}
   for i,v in ipairs(paramsPerFragment) do
     table.insert(fragments, {
@@ -324,7 +321,7 @@ function m.getFragmentState()
 end
 
 -- Set the fragment state based on the given state
-function m.setFragmentState(state)
+local function setFragmentState(state)
   local fragments = state
   for i,v in ipairs(paramsPerFragment) do
     v.fragmentActive.value = fragments[i].fragmentActive
@@ -340,43 +337,28 @@ function m.setFragmentState(state)
   end
 end
 
--- Returns a table of resolutions indexes that are "approved" to use
-function m.getSelectedResolutions()
-  local selectedResolutions = m.getSlowResolutions()
-  for i=1,3 do
-    for _,resolutionIndex in ipairs(resolutionsByType[i]) do
-      -- Limit dotted/tri resolutions above 1/8 dot and 1/16 tri
-      if resolutionIndex > maxResolutionIndex or (i == 2 and resolutionIndex > 18) or (i == 3 and resolutionIndex > 25) then
-        break
-      end
-      table.insert(selectedResolutions, resolutionIndex)
-    end
-  end
-  return selectedResolutions
-end
-
 -- Tries to adjust the given resolution by adjusting
 -- length, and/or setting a even/dot/tri value variant
-function m.getResolutionFromCurrentIndex(currentResolution, adjustBias)
-  local currentIndex = gem.getIndexFromValue(currentResolution, m.resolutions.getResolutions())
+local function getResolutionFromCurrentIndex(currentResolution, adjustBias)
+  local currentIndex = gem.getIndexFromValue(currentResolution, r.getResolutions())
   if type(currentIndex) == "nil" then
     return
   end
 
   -- Include the resolutions that are available
-  local selectedResolutions = m.getSelectedResolutions()
+  local selectedResolutions = getSelectedResolutions()
 
   --print("BEFORE currentIndex", currentIndex)
   local resolutionIndex = currentIndex
   local availableChanges = {}
   if gem.tableIncludes(resolutionsByType[2], currentIndex) then
-    resolution = m.resolutions.getEvenFromDotted(m.resolutions.getResolution(currentIndex))
+    resolution = r.getEvenFromDotted(r.getResolution(currentIndex))
     --print("getEvenFromDotted", resolution)
   elseif gem.tableIncludes(resolutionsByType[3], currentIndex) then
-    resolution = m.resolutions.getEvenFromTriplet(m.resolutions.getResolution(currentIndex))
+    resolution = r.getEvenFromTriplet(r.getResolution(currentIndex))
     --print("getEvenFromTriplet", resolution)
   elseif gem.tableIncludes(resolutionsByType[1], currentIndex) or gem.tableIncludes(resolutionsByType[4], currentIndex) then
-    resolution = m.resolutions.getResolution(currentIndex)
+    resolution = r.getResolution(currentIndex)
     --print("getEvenOrSlow", resolution)
   end
   if type(resolution) == "number" then
@@ -386,9 +368,9 @@ function m.getResolutionFromCurrentIndex(currentResolution, adjustBias)
       if type(adjustBias) == "nil" then
         adjustBias = 50
       end
-      local doubleResIndex = gem.getIndexFromValue((resolution * 2), m.resolutions.getResolutions())
+      local doubleResIndex = gem.getIndexFromValue((resolution * 2), r.getResolutions())
       if gem.getRandomBoolean(adjustBias) == false and type(doubleResIndex) == "number" and gem.tableIncludes(selectedResolutions, doubleResIndex) then
-        resolution = m.resolutions.getResolution(doubleResIndex)
+        resolution = r.getResolution(doubleResIndex)
         --print("Slower resolution", resolution)
       else
         resolution = resolution / 2
@@ -398,29 +380,29 @@ function m.getResolutionFromCurrentIndex(currentResolution, adjustBias)
     -- Set dotted (or tri) on duration if no change was done to the lenght, or probability hits
     if doubleOrHalf == false or gem.getRandomBoolean() then
       if gem.tableIncludes(resolutionsByType[3], currentIndex) then
-        resolution = m.resolutions.getTriplet(resolution)
+        resolution = r.getTriplet(resolution)
         --print("getTriplet", resolution)
       else
-        local dottedResIndex = gem.getIndexFromValue(m.resolutions.getDotted(resolution), m.resolutions.getResolutions())
+        local dottedResIndex = gem.getIndexFromValue(r.getDotted(resolution), r.getResolutions())
         if type(dottedResIndex) == "number" and gem.tableIncludes(selectedResolutions, dottedResIndex) then
-          resolution = m.resolutions[dottedResIndex]
+          resolution = r[dottedResIndex]
           --print("getDotted", resolution)
         end
       end
     end
   end
-  currentIndex = gem.getIndexFromValue(resolution, m.resolutions.getResolutions())
+  currentIndex = gem.getIndexFromValue(resolution, r.getResolutions())
   --print("AFTER currentIndex", currentIndex)
   if type(currentIndex) == "number" and gem.tableIncludes(selectedResolutions, currentIndex) then
     --print("Got resolution from the current index")
-    return m.resolutions.getResolution(currentIndex)
+    return r.getResolution(currentIndex)
   end
 end
 
 -- Remove first resolution and append a (new) resolution last in the fragments
 -- Returns the removed resolution (or nil if no resolution was removed for some reason)
-function m.evolveFragment(fragmentIndex, previous, randomizeCurrentResolutionProbability, adjustBias)
-  local fragment = m.parseFragment(fragmentIndex)
+local function evolveFragment(fragmentIndex, previous, randomizeCurrentResolutionProbability, adjustBias)
+  local fragment = parseFragment(fragmentIndex)
   local removed = nil
   if type(fragment) == "table" then
     removed = fragment.f[1]
@@ -433,7 +415,7 @@ function m.evolveFragment(fragmentIndex, previous, randomizeCurrentResolutionPro
 
     -- Strategy 1: Create a resolution based on the current index
     if type(randomizeCurrentResolutionProbability) == "number" and gem.getRandomBoolean(randomizeCurrentResolutionProbability) then
-      resolution = m.getResolutionFromCurrentIndex(removed, adjustBias)
+      resolution = getResolutionFromCurrentIndex(removed, adjustBias)
     end
 
     -- Strategy 2: Use resolution from the previous fragment
@@ -452,16 +434,16 @@ function m.evolveFragment(fragmentIndex, previous, randomizeCurrentResolutionPro
     -- Set the resolution on the fragment, and update fragment input text
     table.insert(fragment.f, resolution)
     --print("Found resolution for evolve", resolution)
-    paramsPerFragment[fragmentIndex].fragmentInput.text = m.getFragmentInputText(m.fragmentDefinitionToResolutionNames(fragment.f))
+    paramsPerFragment[fragmentIndex].fragmentInput.text = getFragmentInputText(fragmentDefinitionToResolutionNames(fragment.f))
   end
   return removed
 end
 
-function m.clearResolutionsForEvolve()
+local function clearResolutionsForEvolve()
   resolutionsForEvolve = {}
 end
 
-function m.removeDuplicates()
+local function removeDuplicates()
   local removeAmount = 0
   local uniqueResolutions = {}
   for _,v in ipairs(resolutionsForEvolve) do
@@ -476,16 +458,16 @@ function m.removeDuplicates()
   return removeAmount
 end
 
-function m.setResolutionsForEvolve()
+local function setResolutionsForEvolve()
   local numFragments = #paramsPerFragment
   -- Remove the duplicates resolutions if memory is full
   if #resolutionsForEvolve > math.ceil(numFragments ^ 2.5) then
-    local removeAmount = m.removeDuplicates()
+    local removeAmount = removeDuplicates()
     --print("Removed from resolutionsForEvolve", removeAmount)
   end
   -- Find all resolutions that are present in the current fragments, and add to evolve memory
   for i=1,numFragments do
-    local fragment = m.parseFragment(i)
+    local fragment = parseFragment(i)
     if type(fragment) == "table" then
       for _,v in ipairs(fragment.f) do
         -- TODO Check that no resolution "takes over" if there are few resolutions to choose from
@@ -497,17 +479,17 @@ function m.setResolutionsForEvolve()
   --print("Total resolutionsForEvolve", #resolutionsForEvolve)
 end
 
-function m.evolveFragments(previous, randomizeCurrentResolutionProbability, adjustBias)
-  m.setResolutionsForEvolve()
+local function evolveFragments(previous, randomizeCurrentResolutionProbability, adjustBias)
+  setResolutionsForEvolve()
   for i,v in ipairs(paramsPerFragment) do
     if v.lockedForEvolve.value == false and string.len(v.fragmentInput.text) > 0 then
-      previous = m.evolveFragment(i, previous, randomizeCurrentResolutionProbability, adjustBias)
+      previous = evolveFragment(i, previous, randomizeCurrentResolutionProbability, adjustBias)
     end
   end
   return previous
 end
 
-function m.getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount, sources)
+local function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount, sources)
   local isRepeat = false
   local mustRepeat = false
   local isFragmentStart = type(activeFragment) == "nil" or (reverseFragment == false and fragmentPos == #activeFragment.f) or (reverseFragment and fragmentPos == 1)
@@ -522,7 +504,7 @@ function m.getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, r
 
     -- Reload fragment in case parameters are changed
     if type(activeFragment) == "table" then
-      local fragment = m.parseFragment(activeFragment.i)
+      local fragment = parseFragment(activeFragment.i)
       if type(fragment) == "table" or mustRepeat == false then
         activeFragment = fragment
       end
@@ -543,7 +525,7 @@ function m.getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, r
         prevFragmentIndex = activeFragment.i
       end
       -- Change to a new fragment input
-      activeFragment = m.getFragment(sources, prevFragmentIndex)
+      activeFragment = getFragment(sources, prevFragmentIndex)
       isRepeat = prevFragmentIndex == activeFragment.i -- Check if same as previous
       fragmentRepeatProbability = activeFragment.r
       --print("CHANGE FRAGMENT, activeFragment.i, fragmentRepeatProbability", activeFragment.i, fragmentRepeatProbability)
@@ -607,7 +589,7 @@ function m.getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, r
   return duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount
 end
 
-function m.getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelectors)
+local function getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelectors)
   if type(numSelectors) == "nil" then
     numSelectors = 4
   end
@@ -675,7 +657,7 @@ function m.getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelectors)
     fragmentInput.height = 24
     fragmentInput.fontSize = 14
     fragmentInput.changed = function(self)
-      local total = m.calculateFragmentDuration(self.text)
+      local total = calculateFragmentDuration(self.text)
       if total == 0 then
         fragmentInput.tooltip = fragmentInput.label
       else
@@ -704,15 +686,15 @@ function m.getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelectors)
     fragmentActions.changed = function(self)
       if self.value > 1 then
         -- Create
-        local fragmentDefinition = m.fragmentDefinitionToResolutionNames(m.createFragmentDefinition(self.value-1))
+        local fragmentDefinition = fragmentDefinitionToResolutionNames(createFragmentDefinition(self.value-1))
         --print("#fragmentDefinition", #fragmentDefinition)
-        fragmentInput.text = m.getFragmentInputText(fragmentDefinition)
+        fragmentInput.text = getFragmentInputText(fragmentDefinition)
       end
       -- Must be last
       self:setValue(1, false)
     end
   
-    local resolutionNames = m.resolutions.getResolutionNames()
+    local resolutionNames = r.getResolutionNames()
     local addToFragment = {"Add..."}
     for _,v in ipairs(resolutionNames) do
       table.insert(addToFragment, v)
@@ -741,7 +723,7 @@ function m.getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelectors)
   
     local loadFragment = {"Load..."}
     for _,v in ipairs(resolutionFragments) do
-      table.insert(loadFragment, m.getFragmentInputText(v))
+      table.insert(loadFragment, getFragmentInputText(v))
     end
   
     local fragmentLoad = rythmPanel:Menu("FragmentLoad" .. i, loadFragment)
@@ -912,4 +894,18 @@ function m.getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelectors)
   return paramsPerFragment
 end
 
-return m
+return {
+  resolutions = r,
+  getParamsPerFragment = getParamsPerFragment,
+  getDuration = getDuration,
+  evolveFragments = evolveFragments,
+  clearResolutionsForEvolve = clearResolutionsForEvolve,
+  getSelectedResolutions = getSelectedResolutions,
+  getFragmentState = getFragmentState,
+  setFragmentState = setFragmentState,
+  flashFragmentActive = flashFragmentActive,
+  createFragmentDefinition = createFragmentDefinition,
+  getFragmentInputText = getFragmentInputText,
+  fragmentDefinitionToResolutionNames = fragmentDefinitionToResolutionNames,
+  setMaxResolutionIndex = setMaxResolutionIndex,
+}

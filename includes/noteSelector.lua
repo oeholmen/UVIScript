@@ -2,20 +2,18 @@
 -- Include Reqired Functions
 --------------------------------------------------------------------------------
 
-local m = {}
 local gem = require "includes.common"
-
-m.scales = require "includes.scales"
-m.notes = require "includes.notes"
+local scales = require "includes.scales"
+local notes = require "includes.notes"
 
 --------------------------------------------------------------------------------
 -- Note and Scale Parameters
 --------------------------------------------------------------------------------
 
 local octaves = 9
-local scaleDefinitions = m.scales.getScaleDefinitions()
-local scaleNames = m.scales.getScaleNames()
-local noteNames = m.notes.getNoteNames()
+local scaleDefinitions = scales.getScaleDefinitions()
+local scaleNames = scales.getScaleNames()
+local noteNames = notes.getNoteNames()
 
 notesPlaying = {}
 noteInputs = {}
@@ -27,14 +25,14 @@ octaveProbabilityInputs = {}
 -- Functions
 --------------------------------------------------------------------------------
 
-function m.getScale(scaleIndex, keyIndex)
+local function getScale(scaleIndex, keyIndex)
   local scaleDefinition = scaleDefinitions[scaleIndex]
   local rootNote = keyIndex - 1 -- Root note
-  return m.scales.createScale(scaleDefinition, rootNote)
+  return scales.createScale(scaleDefinition, rootNote)
 end
 
-function m.setScale(scaleIndex, keyIndex)
-  local scale = m.getScale(scaleIndex, keyIndex)
+local function setScale(scaleIndex, keyIndex)
+  local scale = getScale(scaleIndex, keyIndex)
   for i,v in ipairs(noteInputs) do
     local noteNumber = i + 11 -- Check note in octave above
     v:setValue(gem.tableIncludes(scale, noteNumber))
@@ -43,7 +41,7 @@ end
 
 -- Get notes that are activated in selected octaves, filtered by probability
 -- If getAllNotes is true, the filter for playing notes is disabled
-function m.getSelectedNotes(getAllNotes)
+local function getSelectedNotes(getAllNotes)
   local selectedNotes = {} -- Holds note numbers that are available
   for octaveIndex,octave in ipairs(octaveInputs) do
     local octaveProbability = octaveProbabilityInputs[octaveIndex].value
@@ -69,7 +67,7 @@ function m.getSelectedNotes(getAllNotes)
 end
 
 -- Get all notes that are activated in all octaves (full scale)
-function m.getActiveNotes()
+local function getActiveNotes()
   local notes = {}
   for octaveIndex=1, #octaveInputs do
     for i,v in ipairs(noteInputs) do
@@ -83,7 +81,7 @@ function m.getActiveNotes()
   return notes
 end
 
-function m.createNoteAndOctaveSelector(notePanel, colours, noteLabel)
+local function createNoteAndOctaveSelector(notePanel, colours, noteLabel)
   local columnCount = 0
   for i=1,#noteNames do
     local note = notePanel:OnOffButton("Note" .. i, true)
@@ -183,12 +181,16 @@ function m.createNoteAndOctaveSelector(notePanel, colours, noteLabel)
   generateScale.y = generateKey.y
 
   generateKey.changed = function(self)
-    m.setScale(generateScale.value, self.value)
+    setScale(generateScale.value, self.value)
   end
 
   generateScale.changed = function(self)
-    m.setScale(self.value, generateKey.value)
+    setScale(self.value, generateKey.value)
   end
 end
 
-return m
+return {
+  createNoteAndOctaveSelector = createNoteAndOctaveSelector,
+  getActiveNotes = getActiveNotes,
+  getSelectedNotes = getSelectedNotes,
+}

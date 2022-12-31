@@ -103,7 +103,7 @@ end
 function getRandomFragment(definitionNumber)
   local fragmentDefinition = {}
   if definitionNumber == 2 then
-    fragmentDefinition = {rythmicFragments.resolutions.getResolution(gem.getRandomFromTable(getSelectedResolutions()))} -- Single
+    fragmentDefinition = {rythmicFragments.resolutions.getResolution(gem.getRandomFromTable(rythmicFragments.getSelectedResolutions()))} -- Single
   else
     fragmentDefinition = rythmicFragments.createFragmentDefinition(definitionNumber)
   end
