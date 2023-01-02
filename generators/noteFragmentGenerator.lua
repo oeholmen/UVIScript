@@ -202,6 +202,7 @@ velocityAccent.y = velocityInput.y
 
 local noteNames = notes.getNoteNames()
 local scaleNames = scales.getScaleNames()
+local scaleDefinitions = scales.getScaleDefinitions()
 local noteListen = nil
 local paramsPerNote = {}
 local rowSpacing = 3
@@ -470,11 +471,10 @@ end ]]
 function getScale(scaleIndex, keyIndex)
   local octave = octaveOffset.value + 2 -- Set the start octave for the scale
   print("getScale: octave", octave)
-  local scaleDefinitions = getScaleDefinitions()
   local scaleDefinition = scaleDefinitions[scaleIndex]
   local rootNote = (keyIndex - 1) + (octave * 12) -- Root note
   print("getScale: rootNote", rootNote)
-  return createScale(scaleDefinition, rootNote)
+  return scales.createScale(scaleDefinition, rootNote)
 end
 
 function setScale(scaleIndex, keyIndex)
