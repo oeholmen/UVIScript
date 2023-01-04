@@ -7,6 +7,7 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
+local notes = require "includes.notes"
 
 local backgroundColour = "1a4245" -- Light or Dark
 local widgetBackgroundColour = "072227" -- Dark
@@ -122,7 +123,7 @@ function onNote(e)
     return
   end
   local note = e.note -- The original note without transposition
-  e.note = transpose(e.note, noteMin.value, noteMax.value)
+  e.note = notes.transpose(e.note, noteMin.value, noteMax.value)
 
   -- Add to held notes, unless duplicate
   if eventsIncludeNote(heldNotes, e.note) == false then
@@ -206,7 +207,7 @@ function onRelease(e)
     return
   end
   print("onRelease note in", e.note)
-  e.note = transpose(e.note, noteMin.value, noteMax.value) -- Transpose note
+  e.note = notes.transpose(e.note, noteMin.value, noteMax.value) -- Transpose note
   e.velocity = 0 -- Set no velocity on release to avoid any sound on release
   for i,v in ipairs(heldNotes) do
     if v.note == e.note then
