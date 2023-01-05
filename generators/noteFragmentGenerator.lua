@@ -563,7 +563,7 @@ function sequenceRunner()
     local baseDuration = 4
     waitBeat(baseDuration)
     if gem.getRandomBoolean(evolveFragmentProbability.value) then
-      previous = evolveFragments(previous, randomizeCurrentResolutionProbability.value, adjustBias.value)
+      previous = rythmicFragments.evolveFragments(previous, randomizeCurrentResolutionProbability.value, adjustBias.value)
     end
   until #isPlaying == 0
 end

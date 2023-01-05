@@ -1254,7 +1254,7 @@ function arpeg()
 
         -- Get random note from scale
         if type(note) == "nil" then
-          note = getNoteAccordingToScale(scale, gem.getRandom(baseMin, baseMax))
+          note = notes.getNoteAccordingToScale(scale, gem.getRandom(baseMin, baseMax))
         end
 
         return note

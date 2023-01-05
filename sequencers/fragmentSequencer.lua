@@ -356,7 +356,7 @@ function play()
     if durationCounter >= 4 then
       durationCounter = 0 -- Reset counter
       if gem.getRandomBoolean(evolveFragmentProbability.value) then
-        previous = evolveFragments(previous, randomizeCurrentResolutionProbability.value, adjustBias.value)
+        previous = rythmicFragments.evolveFragments(previous, randomizeCurrentResolutionProbability.value, adjustBias.value)
       end
     end
   end
