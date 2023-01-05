@@ -286,8 +286,6 @@ local function getFragment(fragmentIndexes, prevFragmentIndex)
   if type(fragment) == "table" then
     return fragment
   end
-
-  return {f={}, i=0, p=0, r=0, d=0, rev=0, rnd=0, rst=0}
 end
 
 local function flashFragmentActive(fragmentActive, duration)
@@ -492,6 +490,8 @@ end
 local function getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount, sources)
   local isRepeat = false
   local mustRepeat = false
+  local duration = nil
+  local rest = false
   local isFragmentStart = type(activeFragment) == "nil" or (reverseFragment == false and fragmentPos == #activeFragment.f) or (reverseFragment and fragmentPos == 1)
   if isFragmentStart then
     -- Start fragment (previous fragment is completed or no fragemt is selected)
@@ -526,12 +526,14 @@ local function getDuration(activeFragment, fragmentPos, fragmentRepeatProbabilit
       end
       -- Change to a new fragment input
       activeFragment = getFragment(sources, prevFragmentIndex)
-      isRepeat = prevFragmentIndex == activeFragment.i -- Check if same as previous
-      fragmentRepeatProbability = activeFragment.r
-      --print("CHANGE FRAGMENT, activeFragment.i, fragmentRepeatProbability", activeFragment.i, fragmentRepeatProbability)
+      if type(activeFragment) == "table" then
+        isRepeat = prevFragmentIndex == activeFragment.i -- Check if same as previous
+        fragmentRepeatProbability = activeFragment.r
+      end
+      --print("CHANGE FRAGMENT, isRepeat, fragmentRepeatProbability", isRepeat, fragmentRepeatProbability)
     end
     -- RANDOMIZE fragment
-    randomizeFragment = #activeFragment.f > 1 and gem.getRandomBoolean(activeFragment.rnd)
+    randomizeFragment = type(activeFragment) == "table" and #activeFragment.f > 1 and gem.getRandomBoolean(activeFragment.rnd)
     if randomizeFragment then
       local tmp = {}
       local seen = {}
@@ -552,7 +554,7 @@ local function getDuration(activeFragment, fragmentPos, fragmentRepeatProbabilit
       --print("randomizeFragment")
     end
     -- REVERSE fragment
-    reverseFragment = #activeFragment.f > 1 and gem.getRandomBoolean(activeFragment.rev)
+    reverseFragment = type(activeFragment) == "table" and #activeFragment.f > 1 and gem.getRandomBoolean(activeFragment.rev)
     if reverseFragment then
       --print("REVERSE fragment", reverseFragment)
       fragmentPos = #activeFragment.f
@@ -570,20 +572,17 @@ local function getDuration(activeFragment, fragmentPos, fragmentRepeatProbabilit
     --print("INCREMENT FRAGMENT POS", fragmentPos)
   end
 
-  -- Get fragment at current position
-  local duration = activeFragment.f[fragmentPos]
-
-  --print("RETURN duration", duration)
-
-  local rest = false
-
-  -- A negative duration means a rest
-  if type(duration) == "number" and duration < 0 then
-    rest = gem.getRandomBoolean(activeFragment.rst) == false -- Apply randomization
-    duration = math.abs(duration)
-    --print("Rest detected for duration in activeFragment.i at fragmentPos, rest", duration, activeFragment.i, fragmentPos, rest)
-  else
-    rest = gem.getRandomBoolean(activeFragment.rst) -- Apply randomization
+  if type(activeFragment) == "table" then
+    -- Get duration at current position
+    duration = activeFragment.f[fragmentPos]
+    -- A negative duration means a rest
+    if duration < 0 then
+      rest = gem.getRandomBoolean(activeFragment.rst) == false -- Apply randomization
+      duration = math.abs(duration)
+      --print("Rest detected for duration in activeFragment.i at fragmentPos, rest", duration, activeFragment.i, fragmentPos, rest)
+    else
+      rest = gem.getRandomBoolean(activeFragment.rst) -- Apply randomization
+    end
   end
 
   return duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount
