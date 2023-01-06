@@ -324,24 +324,24 @@ end
 --------------------------------------------------------------------------------
 
 function onNote(e)
-  if autoplayButton.value == true then
+  if modseq.autoplayButton.value == true then
     postEvent(e)
   else
-    playButton:setValue(true)
+    modseq.playButton:setValue(true)
   end
 end
 
 function onRelease(e)
-  if autoplayButton.value == true then
+  if modseq.autoplayButton.value == true then
     postEvent(e)
   else
-    playButton:setValue(false)
+    modseq.playButton:setValue(false)
   end
 end
 
 function onTransport(start)
-  if autoplayButton.value == true then
-    playButton:setValue(start)
+  if modseq.autoplayButton.value == true then
+    modseq.playButton:setValue(start)
   end
 end
 
