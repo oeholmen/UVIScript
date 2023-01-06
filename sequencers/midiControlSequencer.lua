@@ -155,7 +155,7 @@ for page=1,maxPages do
     numStepsBox.y = inputWidgetY
     numStepsBox.changed = function(self)
       print("numStepsBox.changed index/value", i, self.value)
-      setNumSteps(i, self.value)
+      modseq.setNumSteps(i, self.value)
     end
 
     local valueRandomization = sequencerPanel:NumBox("ValueRandomization" .. i, 0, 0, 100, true)

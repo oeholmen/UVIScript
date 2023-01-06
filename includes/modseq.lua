@@ -74,17 +74,6 @@ local function clearPosition()
   end
 end
 
-local function setNumSteps(partIndex, numSteps)
-  print("setNumSteps for partIndex/numSteps", partIndex, numSteps)
-  paramsPerPart[partIndex].positionTable.length = numSteps
-  paramsPerPart[partIndex].seqValueTable.length = numSteps
-  if type(paramsPerPart[partIndex].smoothStepTable) ~= "nil" then
-    paramsPerPart[partIndex].smoothStepTable.length = numSteps
-  end
-  local page = getPageFromPartIndex(partIndex)
-  setPageDuration(page)
-end
-
 local function setPageDuration(page)
   print("setPageDuration for page", page)
   local pageResolutions = {}
@@ -100,6 +89,17 @@ local function setPageDuration(page)
   end
   table.sort(pageResolutions)
   paramsPerPage[page].pageDuration = pageResolutions[#pageResolutions]
+end
+
+local function setNumSteps(partIndex, numSteps)
+  print("setNumSteps for partIndex/numSteps", partIndex, numSteps)
+  paramsPerPart[partIndex].positionTable.length = numSteps
+  paramsPerPart[partIndex].seqValueTable.length = numSteps
+  if type(paramsPerPart[partIndex].smoothStepTable) ~= "nil" then
+    paramsPerPart[partIndex].smoothStepTable.length = numSteps
+  end
+  local page = getPageFromPartIndex(partIndex)
+  setPageDuration(page)
 end
 
 local function pageRunner()
@@ -467,4 +467,5 @@ return {
   autoplayButton = autoplayButton,
   getPartIndex = getPartIndex,
   setPageDuration = setPageDuration,
+  setNumSteps = setNumSteps,
 }
