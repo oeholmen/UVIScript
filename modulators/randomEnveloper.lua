@@ -2,11 +2,11 @@
 -- A script modulator that creates random multi-envelopes over time.
 -----------------------------------------------------------------------
 
-require "includes.resolutionSelector"
+local gem = require "includes.common"
+local resolutions = require "includes.resolutions"
+local resolutionSelector = require "includes.resolutionSelector"
 
 local heldNotes = {}
-local minResolution = 0.03125 -- The lowest possible resolution
-
 local backgroundColour = "303030" -- Light or Dark
 local widgetBackgroundColour = "01011F" -- Dark
 local widgetTextColour = "FF9551" -- Light
@@ -154,8 +154,8 @@ clearResolutions.width = 90
 clearResolutions.x = resolutionPanel.width - (clearResolutions.width * 3) - 30
 clearResolutions.y = resLabel.y
 clearResolutions.changed = function()
-  for i,v in ipairs(resolutionInputs) do
-    toggleResolutionInputs[i]:setValue(false)
+  for i,v in ipairs(resolutionSelector.resolutionInputs) do
+    resolutionSelector.toggleResolutionInputs[i]:setValue(false)
   end
 end
 
@@ -168,8 +168,8 @@ addResolutions.width = 90
 addResolutions.x = clearResolutions.x + clearResolutions.width + 10
 addResolutions.y = resLabel.y
 addResolutions.changed = function()
-  for i,v in ipairs(resolutionInputs) do
-    toggleResolutionInputs[i]:setValue(true)
+  for i,v in ipairs(resolutionSelector.resolutionInputs) do
+    resolutionSelector.toggleResolutionInputs[i]:setValue(true)
   end
 end
 
@@ -182,12 +182,12 @@ randomizeResolutions.width = 90
 randomizeResolutions.x = addResolutions.x + addResolutions.width + 10
 randomizeResolutions.y = resLabel.y
 randomizeResolutions.changed = function()
-  for i,v in ipairs(resolutionInputs) do
-    toggleResolutionInputs[i]:setValue(gem.getRandomBoolean())
+  for i,v in ipairs(resolutionSelector.resolutionInputs) do
+    resolutionSelector.toggleResolutionInputs[i]:setValue(gem.getRandomBoolean())
   end
 end
 
-local rowCount = createResolutionSelector(resolutionPanel, colours, 9)
+local rowCount = resolutionSelector.createResolutionSelector(resolutionPanel, colours, 9)
 
 local resLabel = resolutionPanel:Label("ResolutionsLabel")
 resLabel.text = "Base Resolution"
@@ -197,7 +197,7 @@ resLabel.width = 106
 resLabel.x = 5
 resLabel.y = (25 * rowCount) + 5
 
-local baseResolution = resolutionPanel:Menu("BaseResolution", resolutionNames)
+local baseResolution = resolutionPanel:Menu("BaseResolution", resolutions.getResolutionNames())
 baseResolution.displayName = resLabel.text
 baseResolution.tooltip = "The duration between resets"
 baseResolution.selected = 11
@@ -306,7 +306,7 @@ function attackDecay(targetVal, stepDuration, voiceId)
     attackValue = gem.getRandom(3,50) -- TODO Parameter for this?
   end
   local attackTime = stepDuration * (attackValue / 100)
-  if true then --getRandomBoolean() then
+  if true then --gem.getRandomBoolean() then
     -- LINEAR
     modulateLinear(attackTime, 0, targetVal, voiceId)
   else
@@ -339,7 +339,7 @@ function doModulation(waitDuration, durationRepeatProbability, repeatCounter, vo
   if maxSteps.value > 1 then
     steps = gem.getRandom(maxSteps.value)
   end
-  waitDuration, repeatCounter, durationRepeatProbability = getNoteDuration(waitDuration, repeatCounter, durationRepeatProbability, durationRepeatDecay.value)
+  waitDuration, repeatCounter, durationRepeatProbability = resolutionSelector.getNoteDuration(waitDuration, repeatCounter, durationRepeatProbability, durationRepeatDecay.value)
   if durationRepeatProbability == nil then
     durationRepeatProbability = durationRepeatProbabilityInput.value
   end

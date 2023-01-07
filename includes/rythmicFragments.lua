@@ -3,7 +3,7 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
-local r = require "includes.resolutions"
+local resoluions = require "includes.resolutions"
 local paramsPerFragment = {}
 
 -- Expand defaults
@@ -29,7 +29,7 @@ local resolutionFragments = {
 
 local singleResolutions = {14,15,17,18,20,23} -- Resolution indexes
 local resolutionsForEvolve = {} -- Resolutions used when evolving
-local resolutionsByType = r.getResolutionsByType()
+local resolutionsByType = resoluions.getResolutionsByType()
 local maxResolutionIndex = resolutionsByType[1][#resolutionsByType[1]] -- Set max resolution to the highest even resolution index
 
 local function setMaxResolutionIndex(i)
@@ -40,11 +40,11 @@ end
 local function fragmentDefinitionToResolutionNames(fragmentDefinition)
   local parsed = {}
   for _,v in ipairs(fragmentDefinition) do
-    local index = gem.getIndexFromValue(v, r.getResolutions())
+    local index = gem.getIndexFromValue(v, resoluions.getResolutions())
     local text = v
     --print("index, text", index, text)
     if type(index) == "number" then
-      text = r.getResolutionName(index)
+      text = resoluions.getResolutionName(index)
       --print("text", text)
     end
     table.insert(parsed, text)
@@ -66,13 +66,13 @@ local function parseToBeatValue(duration)
     duration = string.sub(duration, 2, string.len(duration))
     --print("Duration starts with - 'REST'", duration)
   end
-  local index = gem.getIndexFromValue(duration, r.getResolutionNames())
+  local index = gem.getIndexFromValue(duration, resoluions.getResolutionNames())
   if type(index) == "number" then
     --print("Found duration", duration)
     if isRest then
-      return -r.getResolution(index)
+      return -resoluions.getResolution(index)
     end
-    return r.getResolution(index)
+    return resoluions.getResolution(index)
   end
 
   --print("Could not resolve duration, returning 0", duration)
@@ -114,7 +114,7 @@ end
 -- Include all durations shorter than or equal to the total fragmentDuration
 local function addDurations(resolutionIndexes, durations, fragmentDuration)
   for _,i in ipairs(resolutionIndexes) do
-    local duration = r.getResolution(i)
+    local duration = resoluions.getResolution(i)
     if duration <= fragmentDuration then
       table.insert(durations, duration)
       --print("addDurations() Inserted duration", duration)
@@ -125,7 +125,7 @@ end
 
 -- Returns a probability (between 0-100) for the given resolution index
 local function getProbabilityForResolutionIndex(i)
-  local baseProbability = math.ceil(100 / r.getResolution(i))
+  local baseProbability = math.ceil(100 / resoluions.getResolution(i))
   local factor = i / 2
   return math.min(100, math.floor(baseProbability * factor))
 end
@@ -191,13 +191,13 @@ local function createFragmentDefinition(durationType)
     for _,v in ipairs(fragmentDurations) do
       table.insert(extendedDurations, v)
     end
-    fragmentDuration = r.getResolution(gem.getRandomFromTable(extendedDurations))
+    fragmentDuration = resoluions.getResolution(gem.getRandomFromTable(extendedDurations))
     durations = addDurations(getSelectedResolutions(), durations, fragmentDuration)
   end
   if durationType == 4 then
     -- Slow durations
     local slowResolutions = getSlowResolutions()
-    fragmentDuration = r.getResolution(gem.getRandomFromTable(slowResolutions))
+    fragmentDuration = resoluions.getResolution(gem.getRandomFromTable(slowResolutions))
     --print("Selected fragmentDuration", fragmentDuration)
     durations = addDurations(slowResolutions, durations, fragmentDuration)
   end
@@ -338,7 +338,7 @@ end
 -- Tries to adjust the given resolution by adjusting
 -- length, and/or setting a even/dot/tri value variant
 local function getResolutionFromCurrentIndex(currentResolution, adjustBias)
-  local currentIndex = gem.getIndexFromValue(currentResolution, r.getResolutions())
+  local currentIndex = gem.getIndexFromValue(currentResolution, resoluions.getResolutions())
   if type(currentIndex) == "nil" then
     return
   end
@@ -350,13 +350,13 @@ local function getResolutionFromCurrentIndex(currentResolution, adjustBias)
   local resolutionIndex = currentIndex
   local availableChanges = {}
   if gem.tableIncludes(resolutionsByType[2], currentIndex) then
-    resolution = r.getEvenFromDotted(r.getResolution(currentIndex))
+    resolution = resoluions.getEvenFromDotted(resoluions.getResolution(currentIndex))
     --print("getEvenFromDotted", resolution)
   elseif gem.tableIncludes(resolutionsByType[3], currentIndex) then
-    resolution = r.getEvenFromTriplet(r.getResolution(currentIndex))
+    resolution = resoluions.getEvenFromTriplet(resoluions.getResolution(currentIndex))
     --print("getEvenFromTriplet", resolution)
   elseif gem.tableIncludes(resolutionsByType[1], currentIndex) or gem.tableIncludes(resolutionsByType[4], currentIndex) then
-    resolution = r.getResolution(currentIndex)
+    resolution = resoluions.getResolution(currentIndex)
     --print("getEvenOrSlow", resolution)
   end
   if type(resolution) == "number" then
@@ -366,9 +366,9 @@ local function getResolutionFromCurrentIndex(currentResolution, adjustBias)
       if type(adjustBias) == "nil" then
         adjustBias = 50
       end
-      local doubleResIndex = gem.getIndexFromValue((resolution * 2), r.getResolutions())
+      local doubleResIndex = gem.getIndexFromValue((resolution * 2), resoluions.getResolutions())
       if gem.getRandomBoolean(adjustBias) == false and type(doubleResIndex) == "number" and gem.tableIncludes(selectedResolutions, doubleResIndex) then
-        resolution = r.getResolution(doubleResIndex)
+        resolution = resoluions.getResolution(doubleResIndex)
         --print("Slower resolution", resolution)
       else
         resolution = resolution / 2
@@ -378,10 +378,10 @@ local function getResolutionFromCurrentIndex(currentResolution, adjustBias)
     -- Set dotted (or tri) on duration if no change was done to the lenght, or probability hits
     if doubleOrHalf == false or gem.getRandomBoolean() then
       if gem.tableIncludes(resolutionsByType[3], currentIndex) then
-        resolution = r.getTriplet(resolution)
+        resolution = resoluions.getTriplet(resolution)
         --print("getTriplet", resolution)
       else
-        local dottedResIndex = gem.getIndexFromValue(r.getDotted(resolution), r.getResolutions())
+        local dottedResIndex = gem.getIndexFromValue(resoluions.getDotted(resolution), resoluions.getResolutions())
         if type(dottedResIndex) == "number" and gem.tableIncludes(selectedResolutions, dottedResIndex) then
           resolution = r[dottedResIndex]
           --print("getDotted", resolution)
@@ -389,11 +389,11 @@ local function getResolutionFromCurrentIndex(currentResolution, adjustBias)
       end
     end
   end
-  currentIndex = gem.getIndexFromValue(resolution, r.getResolutions())
+  currentIndex = gem.getIndexFromValue(resolution, resoluions.getResolutions())
   --print("AFTER currentIndex", currentIndex)
   if type(currentIndex) == "number" and gem.tableIncludes(selectedResolutions, currentIndex) then
     --print("Got resolution from the current index")
-    return r.getResolution(currentIndex)
+    return resoluions.getResolution(currentIndex)
   end
 end
 
@@ -693,7 +693,7 @@ local function getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelector
       self:setValue(1, false)
     end
   
-    local resolutionNames = r.getResolutionNames()
+    local resolutionNames = resoluions.getResolutionNames()
     local addToFragment = {"Add..."}
     for _,v in ipairs(resolutionNames) do
       table.insert(addToFragment, v)
@@ -894,7 +894,7 @@ local function getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelector
 end
 
 return {
-  resolutions = r,
+  resolutions = resolutions,
   getParamsPerFragment = getParamsPerFragment,
   getDuration = getDuration,
   evolveFragments = evolveFragments,

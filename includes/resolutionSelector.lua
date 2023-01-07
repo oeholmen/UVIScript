@@ -3,7 +3,7 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
-local resolutionModule = require "includes.resolutions"
+local resolutions = require "includes.resolutions"
 
 --------------------------------------------------------------------------------
 -- Resolution Parameters
@@ -14,28 +14,26 @@ for i=1,128 do
   table.insert(divOpt, "/ " .. i)
 end
 
-globalResolution = nil -- Holds the global resolution for all voices
-resolutions = resolutionModule.getResolutions()
-resolutionNames = resolutionModule.getResolutionNames()
-resolutionInputs = {}
-toggleResolutionInputs = {}
-resolutionProbabilityInputs = {}
-minRepeats = {}
-divisions = {}
+local globalResolution = nil -- Holds the global resolution for all voices
+local resolutionInputs = {}
+local toggleResolutionInputs = {}
+local resolutionProbabilityInputs = {}
+local minRepeats = {}
+local divisions = {}
 
 --------------------------------------------------------------------------------
 -- Functions
 --------------------------------------------------------------------------------
 
-function adjustForDuration(decay, currentDuration)
+local function adjustForDuration(decay, currentDuration)
   -- TODO Param for adjusting decay
   -- TODO Increase decay for longer durations - less repetition of longer notes
   local middleIndex = 17 -- 1/4 (1 beat) -- TODO Param?
-  local middleResolution = resolutions[middleIndex]
+  local middleResolution = resolutions.getResolution(middleIndex)
   local increase = 0
-  if currentDuration > middleResolution and gem.tableIncludes(resolutions, currentDuration) then
+  if currentDuration > middleResolution and gem.tableIncludes(resolutions.getResolutions(), currentDuration) then
     -- Note is longer than 1/4 - increase decay
-    local resolutionIndex = gem.getIndexFromValue(currentDuration, resolutions)
+    local resolutionIndex = gem.getIndexFromValue(currentDuration, resolutions.getResolutions())
     local percentIncrease = (middleIndex * resolutionIndex) / 100
     local factor = decay / percentIncrease
     increase = decay * (factor / 100)
@@ -44,7 +42,7 @@ function adjustForDuration(decay, currentDuration)
   return math.min(100, (decay + increase)) / 100
 end
 
-function getNoteDuration(currentDuration, repeatCounter, durationRepeatProbability, durationRepeatDecay, useGlobalProbability)
+local function getNoteDuration(currentDuration, repeatCounter, durationRepeatProbability, durationRepeatDecay, useGlobalProbability)
   --print("repeatCounter", repeatCounter)
   repeatCounter = repeatCounter - 1
   -- Repeat the current duration until repeat counter reaches zero
@@ -77,13 +75,13 @@ function getNoteDuration(currentDuration, repeatCounter, durationRepeatProbabili
     if type(globalResolution) == "number" then
       return globalResolution, 1, durationRepeatProbability
     else
-      return resolutionModule.getResolution(17), 1, durationRepeatProbability
+      return resolutions.getResolution(17), 1, durationRepeatProbability
     end
   end
 
   local resolutionIndex = nil
-  if gem.tableIncludes(resolutions, currentDuration) then
-    resolutionIndex = gem.getIndexFromValue(currentDuration, resolutions)
+  if gem.tableIncludes(resolutions.getResolutions(), currentDuration) then
+    resolutionIndex = gem.getIndexFromValue(currentDuration, resolutions.getResolutions())
   end
 
   -- Check resolution repeat by probability
@@ -112,12 +110,12 @@ function getNoteDuration(currentDuration, repeatCounter, durationRepeatProbabili
   end
 
   -- Get resolution and divide by the selected division - not lower than system min res (1/128)
-  globalResolution = getPlayDuration(resolutionModule.getResolution(availableResolutions[index]) / selectedDivisionsAndRepeats[index].division)
+  globalResolution = resolutions.getPlayDuration(resolutions.getResolution(availableResolutions[index]) / selectedDivisionsAndRepeats[index].division)
 
   return globalResolution, selectedDivisionsAndRepeats[index].repeats, nil
 end
 
-function createResolutionSelector(resolutionPanel, colours, numResolutions)
+local function createResolutionSelector(resolutionPanel, colours, numResolutions)
   if type(numResolutions) == "nil" then
     numResolutions = 12
   end
@@ -137,7 +135,7 @@ function createResolutionSelector(resolutionPanel, colours, numResolutions)
     toggleResolution.x = (columnCount * 232) + 5
     toggleResolution.y = ((toggleResolution.height + 5) * rowCount) + 5
 
-    local resolution = resolutionPanel:Menu("Resolution" .. i, resolutionNames)
+    local resolution = resolutionPanel:Menu("Resolution" .. i, resolutions.getResolutionNames())
     if i == 1 then
       resolution.selected = 20
     elseif i == 2 then
@@ -211,4 +209,9 @@ function createResolutionSelector(resolutionPanel, colours, numResolutions)
   return rowCount
 end
 
-return gem
+return {
+  resolutionInputs = resolutionInputs,
+  toggleResolutionInputs = toggleResolutionInputs,
+  getNoteDuration = getNoteDuration,
+  createResolutionSelector = createResolutionSelector,
+}
