@@ -3,6 +3,7 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
+local resolutions = require "includes.resolutions"
 
 local function createSubdivisions(subdivisionButtons, mainBeatDuration, minResolution, steps)
   local subdivisions = {}
@@ -31,7 +32,7 @@ local function createSubdivisions(subdivisionButtons, mainBeatDuration, minResol
   return subdivisions
 end
 
-function setNotesOnNodes(nodes, repeatProbability, generateNote)
+local function setNotesOnNodes(nodes, repeatProbability, generateNote)
   for i,node in ipairs(nodes) do
     -- This is where we add the notes to the node
     if i > 1 and gem.getRandomBoolean(repeatProbability) then
@@ -46,7 +47,7 @@ function setNotesOnNodes(nodes, repeatProbability, generateNote)
 end
 
 -- Get the subdivision to use for building the struncture
-function getSubdivision(stepDuration, steps, minResolution, subdivisionProbability, subdivisionButtons, stop, subdivisionDotProbability)
+local function getSubdivision(stepDuration, steps, minResolution, subdivisionProbability, subdivisionButtons, stop, subdivisionDotProbability)
   -- Calculate depth decay
   -- TODO If decay, there should be a setting for it...
   --[[ if currentDepth > 1 then
@@ -95,7 +96,7 @@ function getSubdivision(stepDuration, steps, minResolution, subdivisionProbabili
     print("Dotted is dotted/subdivision/subdivisionDotProbability", dotted, subdivision, subdivisionDotProbability)
     if dotted == true then
       stop = true -- TODO Param?
-      subDivDuration = getDotted(subDivDuration)
+      subDivDuration = resolutions.getDotted(subDivDuration)
       remainderDuration = fullDuration % subDivDuration -- Adjust remainder duration
       subdivision = math.ceil(fullDuration / subDivDuration) -- Adjust subdivision
       print("Dotted subdivision/duration/fullDuration/remainderDuration", subdivision, subDivDuration, fullDuration, remainderDuration)
@@ -110,7 +111,7 @@ function getSubdivision(stepDuration, steps, minResolution, subdivisionProbabili
   return subdivision, subDivDuration, remainderDuration, stop
 end
 
-function getSubdivisionSteps(subdivision, subDivPos, subdivisionTieProbability)
+local function getSubdivisionSteps(subdivision, subDivPos, subdivisionTieProbability)
   local stop = false
   local subdivisionSteps = 1 -- Default
   local maxSteps = (subdivision - subDivPos) + 1
@@ -127,3 +128,9 @@ function getSubdivisionSteps(subdivision, subDivPos, subdivisionTieProbability)
   end
   return subdivisionSteps, stop
 end
+
+return {
+  setNotesOnNodes = setNotesOnNodes,
+  getSubdivisionSteps = getSubdivisionSteps,
+  getSubdivision = getSubdivision,
+}

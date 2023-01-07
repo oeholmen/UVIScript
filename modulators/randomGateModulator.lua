@@ -2,8 +2,9 @@
 -- A script modulator for gating with min/max durations for on and off state --
 -------------------------------------------------------------------------------
 
-require "includes.subdivision"
+local gem = require "includes.common"
 local resolutions = require "includes.resolutions"
+local subdivision = require "includes.subdivision"
 
 local isRunning = false
 
@@ -99,7 +100,7 @@ function getDuration()
   local resolution = resolutions.getResolution(waitResolution.value)
   local subdivisions = {{value=true}}
   local subDivProbability = 100
-  local subdivision, subDivDuration, remainderDuration, stop = getSubdivision(resolution, 1, minResolution, subDivProbability, subdivisions, false, 0)
+  local subDiv, subDivDuration, remainderDuration, stop = subdivision.getSubdivision(resolution, 1, minResolution, subDivProbability, subdivisions, false, 0)
   return subDivDuration
 end
 

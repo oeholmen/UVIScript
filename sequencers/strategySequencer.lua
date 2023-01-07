@@ -6,8 +6,7 @@ local gem = require "includes.common"
 local notes = require "includes.notes"
 local resolutions = require "includes.resolutions"
 local scales = require "includes.scales"
-
-require "includes.subdivision"
+local subdiv = require "includes.subdivision"
 
 local backgroundColour = "4c4c4c" -- Light or Dark
 local widgetBackgroundColour = "2E0249" -- Dark
@@ -118,7 +117,7 @@ function getNoteFromStrategy(notePosition, strategyIndex, strategyPos, partPos)
       local offset = gem.getRandom(-12,12) -- 1 oct +/-
       local note = scale[notePosition] -- Get the current note from scale
       note = note + offset -- Change within the offset
-      note = transpose(getNoteAccordingToScale(scale, note), minNote, maxNote) -- Endure within scale and limits
+      note = notes.transpose(notes.getNoteAccordingToScale(scale, note), minNote, maxNote) -- Endure within scale and limits
       notePosition = gem.getIndexFromValue(note, scale)
       print("Set increment by random notePosition/note/offset(in semitones)/#scale", notePosition, note, offset, #scale)
     else
@@ -145,7 +144,7 @@ function getNoteFromStrategy(notePosition, strategyIndex, strategyPos, partPos)
       print("Reset scale[notePosition] < minNote", scale[notePosition], minNote)
       -- TODO Param for options
       -- Option 1: Transpose to top octave
-      local transposedNote = transpose(scale[notePosition], (maxNote-12), maxNote)
+      local transposedNote = notes.transpose(scale[notePosition], (maxNote-12), maxNote)
       notePosition = gem.getIndexFromValue(transposedNote, scale)
       -- Option 2: Reset to the input note from heldnotes
       --notePosition = getNotePositionFromHeldNotes(partPos, scale)
@@ -1192,7 +1191,7 @@ function arpeg()
           currentDepth = 0
         end
 
-        local subdivision, subDivDuration, remainderDuration, stop = getSubdivision(stepDuration, steps, minResolution, subdivisionProbability, subdivisions, stop, subdivisionDotProbability)
+        local subdivision, subDivDuration, remainderDuration, stop = subdiv.getSubdivision(stepDuration, steps, minResolution, subdivisionProbability, subdivisions, stop, subdivisionDotProbability)
         print("Got subdivision/currentDepth", subdivision, currentDepth)
 
         -- Check for minimum duration
@@ -1205,7 +1204,7 @@ function arpeg()
           while subDivPos <= subdivision do
             local subdivisionSteps = 1 -- Set default
             if dotted == false then
-              subdivisionSteps, stop = getSubdivisionSteps(subdivision, subDivPos, subdivisionTieProbability)
+              subdivisionSteps, stop = subdiv.getSubdivisionSteps(subdivision, subDivPos, subdivisionTieProbability)
             elseif subDivPos == subdivision then
               -- Use the remainder on the last step when dotted subdivision
               subDivDuration = remainderDuration
@@ -1282,7 +1281,7 @@ function arpeg()
       end
 
       -- Get notes for each node in the tree
-      nodes = setNotesOnNodes(nodes, subdivisionRepeatProbability, generateNote)
+      nodes = subdiv.setNotesOnNodes(nodes, subdivisionRepeatProbability, generateNote)
       local notesToPlay = {
         notes = nodes,
         step = tablePos,
