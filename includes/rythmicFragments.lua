@@ -383,7 +383,7 @@ local function getResolutionFromCurrentIndex(currentResolution, adjustBias)
       else
         local dottedResIndex = gem.getIndexFromValue(resolutions.getDotted(resolution), resolutions.getResolutions())
         if type(dottedResIndex) == "number" and gem.tableIncludes(selectedResolutions, dottedResIndex) then
-          resolution = r[dottedResIndex]
+          resolution = resolutions[dottedResIndex]
           --print("getDotted", resolution)
         end
       end
