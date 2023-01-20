@@ -42,6 +42,7 @@ local backgroundColourOn = "ff02ACFE"
 local textColourOff = "ff22FFFF"
 local textColourOn = "efFFFFFF"
 local knobFillColour = "E6D5B8" -- Light
+local outlineColour = "#FFB5FF"
 
 local colours = {
   backgroundColour = backgroundColour,
@@ -185,7 +186,7 @@ local velocityInput = settingsPanel:NumBox("Velocity", 90, 1, 127, true)
 velocityInput.textColour = widgetTextColour
 velocityInput.backgroundColour = widgetBackgroundColour
 velocityInput.displayName = "Velocity"
-velocityInput.tooltip = "Note velocity"
+velocityInput.tooltip = "Velocity amount triggered on beats that are not accented"
 velocityInput.height = widgetHeight
 velocityInput.width = timeSignature.width
 velocityInput.x = timeSignature.x + timeSignature.width + 10
@@ -195,7 +196,7 @@ local velocityAccent = settingsPanel:NumBox("VelocityAccent", 127, 1, 127, true)
 velocityAccent.textColour = widgetTextColour
 velocityAccent.backgroundColour = widgetBackgroundColour
 velocityAccent.displayName = "Accent"
-velocityAccent.tooltip = "Velocity accent amount triggered on the start of a fragment"
+velocityAccent.tooltip = "Velocity amount triggered on accented beats"
 velocityAccent.height = widgetHeight
 velocityAccent.width = velocityInput.width
 velocityAccent.x = velocityInput.x + velocityInput.width + 10
@@ -352,7 +353,7 @@ templateMenu.changed = function(self)
       v.accentFragmentStart:setValue(gem.getRandomBoolean(25))
       v.accentDownBeat:setValue(gem.getRandomBoolean(25))
       v.accentUpBeat:setValue(gem.getRandomBoolean(25))
-      v.accent:setValue(gem.getRandom(v.accent.max))
+      --v.accent:setValue(gem.getRandom(v.accent.max))
       v.restDownBeatProbability:setValue(gem.getRandom(25))
       v.restUpBeatProbability:setValue(gem.getRandom(25))
       v.restFirstInFragmentProbability:setValue(gem.getRandom(25))
@@ -367,7 +368,7 @@ templateMenu.changed = function(self)
       v.accentFragmentStart:setValue(false)
       v.accentDownBeat:setValue(false)
       v.accentUpBeat:setValue(false)
-      v.accent:setValue(0)
+      --v.accent:setValue(0)
       v.restDownBeatProbability:setValue(0)
       v.restUpBeatProbability:setValue(0)
       v.restFirstInFragmentProbability:setValue(0)
@@ -378,7 +379,7 @@ templateMenu.changed = function(self)
       v.accentFragmentStart:setValue(false)
       v.accentDownBeat:setValue(false)
       v.accentUpBeat:setValue(false)
-      v.accent:setValue(0)
+      --v.accent:setValue(0)
       v.restFirstInFragmentProbability:setValue(0)
       v.noteProbability:setValue(0)
       v.restDownBeatProbability:setValue(0)
@@ -590,6 +591,10 @@ for i=1,numNotes do
         v.noteInput.visible = isVisible
         v.noteProbability.visible = isVisible
         v.accent.visible = isVisible
+        v.accentTable.visible = isVisible
+        v.pitch.visible = isVisible
+        v.pitchTable.visible = isVisible
+        v.pitchChangeProbability.visible = isVisible
         v.accentFragmentStart.visible = isVisible
         v.accentDownBeat.visible = isVisible
         v.accentUpBeat.visible = isVisible
@@ -625,6 +630,10 @@ for i=1,numNotes do
         v.edit.visible = true
         v.edit.displayName = "E"
         v.accent.visible = false
+        v.accentTable.visible = false
+        v.pitch.visible = false
+        v.pitchTable.visible = false
+        v.pitchChangeProbability.visible = false
         v.accentDownBeat.visible = false
         v.accentUpBeat.visible = false
         v.accentFragmentStart.visible = false
@@ -661,53 +670,109 @@ for i=1,numNotes do
 
   local accentLabel = notePanel:Label("AccentLabel" .. i)
   accentLabel.visible = false
-  accentLabel.text = "Accent"
-  accentLabel.tooltip = "Set accents"
+  accentLabel.text = "Accent/Pitch"
+  accentLabel.tooltip = "Set accents and pitch offsets"
   accentLabel.height = noteInput.height
   accentLabel.width = 120
   accentLabel.x = noteInputLabel.width + 18
   accentLabel.y = noteLabel.y
 
-  local accent = notePanel:NumBox("NoteAccent" .. i, 0, 0, 16, true)
+  local accent = notePanel:NumBox("NoteAccent" .. i, 1, 1, 16, true)
   accent.visible = false
-  accent.displayName = "Every n-th note"
-  accent.tooltip = "Accent every n-th note"
+  accent.showLabel = false
+  accent.tooltip = "Accent table lenght"
   accent.backgroundColour = menuBackgroundColour
   accent.textColour = menuTextColour
   accent.height = noteInput.height
-  accent.width = accentLabel.width
+  accent.width = 20
   accent.x = accentLabel.x
   accent.y = accentLabel.y + accentLabel.height + rowSpacing
 
+  local accentTable = notePanel:Table("AccentTable" .. i, 1, velocityInput.default, 1, 127, true)
+  accentTable.visible = false
+  accentTable.showPopupDisplay = true
+  accentTable.fillStyle = "solid"
+  accentTable.backgroundColour = "#9f02ACFE"
+  accentTable.sliderColour = outlineColour
+  accentTable.width = accentLabel.width - accent.width
+  accentTable.height = accent.height
+  accentTable.x = accent.x + accent.width
+  accentTable.y = accent.y
+
+  accent.changed = function(self)
+    print("accent.changed", self.value)
+    accentTable.length = self.value
+  end
+
+  local pitch = notePanel:NumBox("NotePitch" .. i, 1, 1, 16, true)
+  pitch.visible = false
+  pitch.showLabel = false
+  pitch.tooltip = "Pitch offset table lenght"
+  pitch.backgroundColour = menuBackgroundColour
+  pitch.textColour = menuTextColour
+  pitch.height = noteInput.height
+  pitch.width = 20
+  pitch.x = accent.x
+  pitch.y = accent.y + accent.height + rowSpacing
+
+  local pitchTable = notePanel:Table("AccentTable" .. i, 1, 0, -12, 12, true)
+  pitchTable.visible = false
+  pitchTable.showPopupDisplay = true
+  pitchTable.fillStyle = "solid"
+  pitchTable.backgroundColour = "#9f02ACFE"
+  pitchTable.sliderColour = outlineColour
+  pitchTable.width = accentLabel.width - 50
+  pitchTable.height = pitch.height
+  pitchTable.x = pitch.x + pitch.width
+  pitchTable.y = pitch.y
+
+  local pitchChangeProbability = notePanel:NumBox("PitchChangeProbability" .. i, 0, 0, 100, true)
+  pitchChangeProbability.unit = Unit.Percent
+  pitchChangeProbability.visible = false
+  pitchChangeProbability.showLabel = false
+  pitchChangeProbability.displayName = "Pitch change probability"
+  pitchChangeProbability.tooltip = "Probability that the pitch offset from another step will be used"
+  pitchChangeProbability.backgroundColour = menuBackgroundColour
+  pitchChangeProbability.textColour = menuTextColour
+  pitchChangeProbability.height = pitch.height
+  pitchChangeProbability.width = 30
+  pitchChangeProbability.x = pitchTable.x + pitchTable.width
+  pitchChangeProbability.y = pitchTable.y
+
+  pitch.changed = function(self)
+    print("pitch.changed", self.value)
+    pitchTable.length = self.value
+  end
+
   local accentFragmentStart = notePanel:OnOffButton("AccentFragmentStart" .. i, false)
   accentFragmentStart.visible = false
-  accentFragmentStart.displayName = "Fragment Start"
-  accentFragmentStart.tooltip = "When this is active, fragment start is accented"
+  accentFragmentStart.displayName = "Start"
+  accentFragmentStart.tooltip = "Accent note at the start of a fragment"
   accentFragmentStart.backgroundColourOff = backgroundColourOff
   accentFragmentStart.backgroundColourOn = backgroundColourOn
   accentFragmentStart.textColourOff = textColourOff
   accentFragmentStart.textColourOn = textColourOn
   accentFragmentStart.height = accent.height
-  accentFragmentStart.width = accent.width
-  accentFragmentStart.x = accent.x
-  accentFragmentStart.y = accent.y + accent.height + rowSpacing
+  accentFragmentStart.width = accentLabel.width / 3
+  accentFragmentStart.x = pitch.x
+  accentFragmentStart.y = pitch.y + pitch.height + rowSpacing
 
   local accentDownBeat = notePanel:OnOffButton("AccentDownBeat" .. i, false)
   accentDownBeat.visible = false
-  accentDownBeat.displayName = "Downbeat"
+  accentDownBeat.displayName = "Down"
   accentDownBeat.tooltip = "Accent note if triggered on the downbeat"
   accentDownBeat.backgroundColourOff = backgroundColourOff
   accentDownBeat.backgroundColourOn = backgroundColourOn
   accentDownBeat.textColourOff = textColourOff
   accentDownBeat.textColourOn = textColourOn
   accentDownBeat.height = accent.height
-  accentDownBeat.width = accent.width / 2
-  accentDownBeat.x = accentFragmentStart.x
-  accentDownBeat.y = accentFragmentStart.y + accentFragmentStart.height + rowSpacing
+  accentDownBeat.width = accentFragmentStart.width
+  accentDownBeat.x = accentFragmentStart.x + accentFragmentStart.width
+  accentDownBeat.y = accentFragmentStart.y
 
   local accentUpBeat = notePanel:OnOffButton("AccentUpBeat" .. i, false)
   accentUpBeat.visible = false
-  accentUpBeat.displayName = "Upbeat"
+  accentUpBeat.displayName = "Up"
   accentUpBeat.tooltip = "Accent note if triggered on the upbeat"
   accentUpBeat.backgroundColourOff = backgroundColourOff
   accentUpBeat.backgroundColourOn = backgroundColourOn
@@ -815,7 +880,7 @@ for i=1,numNotes do
     end
   end
 
-  table.insert(paramsPerNote, {noteInputLabel=noteInputLabel, noteInput=noteInput, noteProbability=noteProbability, accent=accent, restFirstInFragmentProbability=restFirstInFragmentProbability, restDownBeatProbability=restDownBeatProbability, restDownBeatProbability=restDownBeatProbability, restUpBeatProbability=restUpBeatProbability, accentLabel=accentLabel, restLabel=restLabel, sourceLabel=sourceLabel, sourceSelectors=sourceSelectors, sourceSelectorAll=sourceSelectorAll, listen=listen, edit=edit, mute=mute, accentFragmentStart=accentFragmentStart, accentDownBeat=accentDownBeat, accentUpBeat=accentUpBeat})
+  table.insert(paramsPerNote, {noteInputLabel=noteInputLabel, noteInput=noteInput, noteProbability=noteProbability, accent=accent, accentTable=accentTable, pitch=pitch, pitchTable=pitchTable, pitchChangeProbability=pitchChangeProbability, restFirstInFragmentProbability=restFirstInFragmentProbability, restDownBeatProbability=restDownBeatProbability, restDownBeatProbability=restDownBeatProbability, restUpBeatProbability=restUpBeatProbability, accentLabel=accentLabel, restLabel=restLabel, sourceLabel=sourceLabel, sourceSelectors=sourceSelectors, sourceSelectorAll=sourceSelectorAll, listen=listen, edit=edit, mute=mute, accentFragmentStart=accentFragmentStart, accentDownBeat=accentDownBeat, accentUpBeat=accentUpBeat})
 end
 
 --------------------------------------------------------------------------------
@@ -1164,7 +1229,20 @@ end
 function getNote(voice)
   local noteProbability = paramsPerNote[voice].noteProbability.value
   if gem.getRandomBoolean(noteProbability) then
-    return paramsPerNote[voice].noteInput.value
+    local pitchTable = paramsPerNote[voice].pitchTable
+    local pitchChangeProbability = paramsPerNote[voice].pitchChangeProbability.value
+    local pos = (roundCounterPerVoice[voice] % pitchTable.length) + 1
+
+    -- Check for pitch change randomization
+    if gem.getRandomBoolean(pitchChangeProbability) then
+      -- Get pitch adjustment from random index in pitch table for current part
+      pos = gem.getRandom(paramsPerNote[voice].pitch.value)
+      print("Playing pitch from random pos", pos)
+    end
+
+    local offset = pitchTable:getValue(pos)
+    print("Pitch offset/pos", offset, pos)
+    return paramsPerNote[voice].noteInput.value + offset
   end
 end
 
@@ -1250,12 +1328,6 @@ function useAccent(voice, activeFragment, isStartOfBeat, isFragmentStart, mustRe
   
   if paramsPerNote[voice].accentUpBeat.value and isStartOfBeat and isUpBeat() then
     print("ACCENT isStartOfBeat, isUpBeat()", isStartOfBeat, isUpBeat())
-    return true
-  end
-  
-  local accentEvery = paramsPerNote[voice].accent.value
-  if accentEvery > 0 and roundCounterPerVoice[voice] % accentEvery == 0 then
-    print("ACCENT roundCounterPerVoice[voice], accentEvery, voice", roundCounterPerVoice[voice], accentEvery, voice)
     return true
   end
 
@@ -1468,6 +1540,12 @@ function play(voice, uniqueId, partDuration)
     local doPlayNote = rest == false and type(note) == "number"
     if doPlayNote then
       local velocity = velocityInput.value
+      local accentTable = paramsPerNote[voice].accentTable
+      if accentTable.enabled then
+        local pos = (roundCounterPerVoice[voice] % accentTable.length) + 1
+        velocity = accentTable:getValue(pos)
+        print("Velocity set from accentTable at pos", velocity, pos)
+      end
       if useAccent(voice, activeFragment, isStartOfBeat, isFragmentStart, mustRepeat) then
         velocity = velocityAccent.value
       end
@@ -1546,9 +1624,21 @@ function onSave()
   local fragmentInputData = {}
   local noteLabelData = {}
   local fragmentSlotsData = {}
+  local accentTableData = {}
+  local pitchTableData = {}
 
   for _,v in ipairs(paramsPerNote) do
     table.insert(noteLabelData, v.noteInputLabel.text)
+    local accentData = {}
+    for j=1, v.accent.value do
+      table.insert(accentData, v.accentTable:getValue(j))
+    end
+    table.insert(accentTableData, accentData)
+    local pitchData = {}
+    for j=1, v.pitch.value do
+      table.insert(pitchData, v.pitchTable:getValue(j))
+    end
+    table.insert(pitchTableData, pitchData)
   end
 
   for _,v in ipairs(paramsPerFragment) do
@@ -1559,7 +1649,7 @@ function onSave()
     table.insert(fragmentSlotsData, v.tooltip)
   end
 
-  return {fragmentInputData, noteLabelData, fragmentSlotsData, storedFragments, partOrderInput.text, slotToStoredIndex}
+  return {fragmentInputData, noteLabelData, fragmentSlotsData, storedFragments, partOrderInput.text, slotToStoredIndex, accentTableData, pitchTableData}
 end
 
 function onLoad(data)
@@ -1569,6 +1659,8 @@ function onLoad(data)
   storedFragments = data[4]
   partOrderInput.text = tostring(data[5])
   slotToStoredIndex = data[6]
+  local accentTableData = data[7]
+  local pitchTableData = data[8]
 
   setPartOrder(partOrderInput.text)
 
@@ -1594,8 +1686,22 @@ function onLoad(data)
   end
   loadFragmentMenu.enabled = #storedFragments > 0
 
-  for i,v in ipairs(noteLabelData) do
-    paramsPerNote[i].noteInputLabel.text = v
+  for i,v in ipairs(paramsPerNote) do
+    v.noteInputLabel.text = noteLabelData[i]
+    if type(accentTableData) == "table" then
+      v.accent:setValue(#accentTableData[i])
+      --print("Loading v.accent.value/v.accentTable.length", v.accent.value, v.accentTable.length)
+      for j,a in ipairs(accentTableData[i]) do
+        v.accentTable:setValue(j,a)
+      end
+    end
+    if type(pitchTableData) == "table" then
+      v.pitch:setValue(#pitchTableData[i])
+      --print("Loading v.pitch.value/v.pitchTable.length", v.pitch.value, v.pitchTable.length)
+      for j,a in ipairs(pitchTableData[i]) do
+        v.pitchTable:setValue(j,a)
+      end
+    end
   end
 
   for i,v in ipairs(fragmentInputData) do

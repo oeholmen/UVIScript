@@ -5,7 +5,6 @@
 local gem = require "includes.common"
 local noteSelector = require "includes.noteSelector"
 local notes = require "includes.notes"
-local scales = require "includes.scales"
 local resolutions = require "includes.resolutions"
 
 local backgroundColour = "6c6c6c" -- Light or Dark
@@ -50,7 +49,7 @@ local chordDefinitions = {
   {2,2,2,1}, -- Builds 7th chords
   {3,1,3}, -- Builds supended chords
   {2,2,1,2}, -- Builds 6th chords
-  {2,2,2,2,6}, -- Builds 7th and 9th chords depending on polyphony
+  {2,2,2,2,-1}, -- Builds 7th and 9th chords depending on polyphony
   {1,1,2,2,1}, -- Builds (close) 7th and 9th chords
   {4,3}, -- Builds open chords (no3)
   {1,2,1,2,1}, -- Builds supended chords including 7th and 9ths
@@ -62,8 +61,6 @@ local noteDisplay = {} -- Holds the widgets that displays the notes being played
 local maxVoices = 16 -- Max number of oplyphonic voices
 local playingNotes = {} -- Holds the playing notes - notes are removed when they are finished playing
 local noteNumberToNoteName = notes.getNoteMapping()
-local scaleDefinitions = scales.getScaleDefinitions()
-local scaleNames = scales.getScaleNames()
 
 setBackgroundColour(backgroundColour)
 
@@ -472,14 +469,14 @@ function setTableWidths()
 end
 
 function createChordDefinition(part)
-  local maxValue = 4 -- Max value
+  local maxSteps = 4 -- Max steps
   local maxLength = paramsPerPart[part].polyphony.value -- Max length depends on polyphony
   local definition = {} -- Table to hold definition
   local ln = gem.getRandom(maxLength) -- Set a random length for the definition
   for i=1, ln do
-    local value = gem.getRandom(maxValue)
-    table.insert(definition, value)
-    print("Add value to definition", value)
+    local steps = gem.getRandom(maxSteps)
+    table.insert(definition, steps)
+    print("Add steps to definition", steps)
   end
   return definition
 end
@@ -501,7 +498,7 @@ spreadProbabilityLabel.tooltip = "Set note spread probability"
 
 local inversionProbabilityLabel = sequencerPanel:Label("InversionProbabilityLabel")
 inversionProbabilityLabel.text = "Chord Inversions"
-inversionProbabilityLabel.tooltip = "Choose the probability that inversions will be used when harmonizing"
+inversionProbabilityLabel.tooltip = "Choose the probability that inversions will be used when harmonizing (root position is always included)"
 
 -- Add params that are to be editable per part
 for i=1,numPartsBox.max do
@@ -1100,7 +1097,7 @@ function arpeg()
     if startOfPart == false then
       -- Find inversions to include
       local inversions = paramsPerPart[currentPartPosition].inversions
-      local activeInversions = {}
+      local activeInversions = {0} -- Always add root
       for i,v in ipairs(inversions) do
         if gem.getRandomBoolean(v.value) == true then
           table.insert(activeInversions, i)
@@ -1109,7 +1106,8 @@ function arpeg()
 
       if #activeInversions > 0 then
         -- Get a chord def index from the active definitions
-        inversionIndex = activeInversions[gem.getRandom(#activeInversions)] - 1
+        --inversionIndex = activeInversions[gem.getRandom(#activeInversions)] - 1
+        inversionIndex = gem.getRandomFromTable(activeInversions)
         print("Chord inversion selected by random/#activeInversions", inversionIndex, #activeInversions)
       end
     end
