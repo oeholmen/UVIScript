@@ -101,16 +101,13 @@ function hasNoteWithinMonoLimit(notesTable, partPos)
   return false
 end
 
-function getVelocity(part, step, skipRandomize)
+function getVelocity(part)
   local velocityInput = paramsPerPart[part].velocityInput
+  local velRandomization = paramsPerPart[part].velRandomization
   local velocity = velocityInput.value
 
-  if skipRandomize == true then
-    return velocity
-  end
-
   -- Randomize velocity
-  return gem.randomizeValue(velocity, velocityInput.min, velocityInput.max, paramsPerPart[part].velRandomization.value)
+  return gem.randomizeValue(velocity, velocityInput.min, velocityInput.max, velRandomization.value)
 end
 
 function getGate(part, skipRandomize)
@@ -988,7 +985,7 @@ function play(node, partPos)
   if channelButton.value == true then
     channel = node.voice
   end
-  playNote(noteToPlay, getVelocity(partPos, node.step), beat2ms(playDuration)-1, nil, channel)
+  playNote(noteToPlay, getVelocity(partPos), beat2ms(playDuration)-1, nil, channel)
 end
 
 function arpeg()
