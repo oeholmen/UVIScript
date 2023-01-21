@@ -4846,7 +4846,8 @@ function createTwequencerPanel()
 
   local waveformMenu
   if isAnalog or isAnalog3Osc or isAnalogStack then
-    waveformMenu = tweqPanel:Menu("AllowedWaveforms", {"All", "Saw/Square", "Triangle/Sine", "Square/Triangle", "Saw/Sq/Tri/Sine"})
+    local allowed = {"All", "Saw/Square", "Triangle/Sine", "Square/Triangle", "Saw/Sq/Tri/Sine", "Sine/Noise/Pulse", "Triangle/Sine/Pulse"}
+    waveformMenu = tweqPanel:Menu("AllowedWaveforms", allowed)
     waveformMenu.backgroundColour = menuBackgroundColour
     waveformMenu.textColour = menuTextColour
     waveformMenu.arrowColour = menuArrowColour
@@ -5253,7 +5254,7 @@ function createTwequencerPanel()
             --snapshotsMenu:setValue(snapshotPosition, false)
             
             -- Check for allowed waveforms
-            -- {1:"All", 2:"Saw/Square", 3:"Triangle/Sine", 4:"Square/Triangle", 5:"Saw/Sq/Tri/Sine", 6:"Saw", 7:"Square", 8:"Triangle", 9:"Sine", 10:"Noise", 11:"Pulse"}
+            -- local allowed = {"All", "Saw/Square", "Triangle/Sine", "Square/Triangle", "Saw/Sq/Tri/Sine", "Sine/Noise/Pulse", "Triangle/Sine/Pulse"}
             -- local waveforms = {1:"Saw", 2:"Square", 3:"Triangle", 4:"Sine", 5:"Noise", 6:"Pulse"}
             local valueFilter = nil
             if waveformMenu then
@@ -5266,6 +5267,10 @@ function createTwequencerPanel()
                 valueFilter = {2,3}
               elseif allowedWaveforms == 5 then
                 valueFilter = {1,2,3,4}
+              elseif allowedWaveforms == 6 then
+                valueFilter = {4,5,6}
+              elseif allowedWaveforms == 7 then
+                valueFilter = {3,4,6}
               end
             end
 

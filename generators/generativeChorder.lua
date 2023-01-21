@@ -113,16 +113,17 @@ function getVelocity(part, step, skipRandomize)
   return gem.randomizeValue(velocity, velocityInput.min, velocityInput.max, paramsPerPart[part].velRandomization.value)
 end
 
-function getGate(part, step, skipRandomize)
+function getGate(part, skipRandomize)
   local gateInput = paramsPerPart[part].gateInput
+  local gateRandomization = paramsPerPart[part].gateRandomization
   local gate = gateInput.value
 
-  if skipRandomize == true then
+  if skipRandomize == true or gateRandomization.value == 0 then
     return gate
   end
 
   -- Randomize velocity
-  return gem.randomizeValue(gate, gateInput.min, gateInput.max, paramsPerPart[part].velRandomization.value)
+  return gem.randomizeValue(gate, gateInput.min, gateInput.max, gateRandomization.value)
 end
 
 --------------------------------------------------------------------------------
@@ -973,11 +974,11 @@ numPartsBox:changed()
 --------------------------------------------------------------------------------
 
 function play(node, partPos)
-  local gate = getGate(partPos, node.step)
+  local gate = getGate(partPos)
   local noteDuration = node.stepDuration * node.steps
   local playDuration = resolutions.getPlayDuration(noteDuration, gate)
   local noteToPlay = node.note
-  print("play note partPos/noteToPlay/noteName/duration/voice", partPos, noteToPlay, noteNumberToNoteName[noteToPlay+1], playDuration, node.voice)
+  print("play note partPos/noteToPlay/noteName/noteDuration/playDuration/gate/voice", partPos, noteToPlay, noteNumberToNoteName[noteToPlay+1], noteDuration, playDuration, gate, node.voice)
   -- If the key is already playing, send a note off event before playing the note
   if isKeyDown(noteToPlay) then
     postEvent({type=Event.NoteOff, note=noteToPlay, velocity=0})
@@ -1283,9 +1284,9 @@ function arpeg()
     end
 
     --------------------------------------------------------------------------------
-    -- Play this step - If gate is set to zero, no notes will play on this step
+    -- Play this step - If gate is set to zero, no notes will play
     --------------------------------------------------------------------------------
-    if getGate(currentPartPosition, tablePos, true) > 0 then
+    if getGate(currentPartPosition, true) > 0 then
       -- Check how many voices are already playing
       local voicesPlaying = {}
       for _,v in ipairs(playingNotes) do
