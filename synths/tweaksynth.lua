@@ -1205,8 +1205,8 @@ function applyValueFilter(valueFilter, startValue)
   return endValue
 end
 
-local selectedArpResolutions = {} -- Must be at the global level
-local selectedSeqResolutions = {} -- Must be at the global level
+--local selectedArpResolutions = {} -- Must be at the global level
+--local selectedSeqResolutions = {} -- Must be at the global level
 local waveforms = {"Saw", "Square", "Triangle", "Sine", "Noise", "Pulse"}
 
 function formatTimeInSeconds(value)
@@ -4709,7 +4709,7 @@ function createPatchMakerPanel()
   mixerButton.y = synthesisButton.y
 
   -- ARP TWEAK BUTTON
-  tweakArpeggiatorButton = tweakPanel:Button("TweakArp")
+--[[   tweakArpeggiatorButton = tweakPanel:Button("TweakArp")
   tweakArpeggiatorButton.persistent = false
   tweakArpeggiatorButton.alpha = buttonAlpha
   tweakArpeggiatorButton.backgroundColourOff = buttonBackgroundColourOff
@@ -4734,7 +4734,7 @@ function createPatchMakerPanel()
 
   tweakArpeggiatorButton.changed = function(self)
     doArpTweaks(tweakArpResMenu.value)
-  end
+  end ]]
 
   tweakButton.changed = function(self)
     print("Find widgets to tweak")
@@ -5322,7 +5322,7 @@ function createTwequencerPanel()
     end
   end
 
-  function getArpOctave()
+  --[[ function getArpOctave()
     if gem.getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 40)) then
       return gem.getRandom(-1,1)
     end
@@ -5360,7 +5360,7 @@ function createTwequencerPanel()
       return 4
     end
     return gem.getRandom(16) -- default 16
-  end
+  end ]]
 
   -- TODO Resolution should depend on step length?
   -- 0 = 32x
@@ -5397,7 +5397,7 @@ function createTwequencerPanel()
   -- 29 = 1/64 tri
   ----------------
   -- default 22
-  function getArpResolution(resolutionOption)
+  --[[ function getArpResolution(resolutionOption)
     if resolutionOption == 1 then
       local activeResolutions = {}
       for i,v in ipairs(selectedArpResolutions) do
@@ -5467,7 +5467,7 @@ function createTwequencerPanel()
         arp:setParameter("Step"..i.."Level", gem.getRandom(60,100) / 100) -- 0-1 def 1
       end
     end
-  end
+  end ]]
 
   function storeRoundTweaks(live)
     if type(live) == "nil" then
@@ -5539,9 +5539,9 @@ end
 --------------------------------------------------------------------------------
 
 local settingsPanel = Panel("Settings")
-local seqResPanel = Panel("TwequencerResolutions")
-local arpResPanel = Panel("ArpeggiatorResolutions")
-local velGateRandPanel = Panel("VelGateRandomization")
+--local seqResPanel = Panel("TwequencerResolutions")
+--local arpResPanel = Panel("ArpeggiatorResolutions")
+--local velGateRandPanel = Panel("VelGateRandomization")
 local settingsPageMenu = settingsPanel:Menu("SettingsPageMenu", {"synthesis", "filter", "modulation", "effects+mixer"})
 
 function createSettingsPanel()
@@ -6492,9 +6492,9 @@ function setPage(page)
     settingsPageMenu:changed()
   else
     settingsPanel.visible = false
-    seqResPanel.visible = false
-    arpResPanel.visible = false
-    velGateRandPanel.visible = false
+    --seqResPanel.visible = false
+    --arpResPanel.visible = false
+    --velGateRandPanel.visible = false
   end
 end
 
