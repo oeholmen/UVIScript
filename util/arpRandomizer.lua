@@ -60,15 +60,12 @@ local gem = {
 -- Arp Randomization Functions
 --------------------------------------------------------------------------------
 
---{"Auto", "0", "+/-1", "+/-2", "+/-4", "+/-5", "+/-6", "Off"}
+--{"Auto", "+/-1", "+/-2", "+/-4", "+/-5", "+/-6", "Off"}
 local function getArpOctave(octaveOption)
   if octaveOption == 1 then
     octaveOption = gem.getRandom(6) + 1
   end
-  octaveOption = octaveOption - 2
-  if octaveOption == 0 then
-    return 0 -- default
-  end
+  octaveOption = octaveOption - 1
   return gem.getRandom(-octaveOption,octaveOption)
 end
 
@@ -77,6 +74,25 @@ local function getArpNumStrike()
     return gem.getRandom(4)
   end
   return 1 -- default
+end
+
+local function getArpStepLength()
+  if gem.getRandomBoolean(75) then
+    return 1.0 -- default
+  end
+
+  local min = 60
+  local max = 110
+
+  if gem.getRandomBoolean() then
+    min = 75
+  end
+
+  if gem.getRandomBoolean() then
+    max = 100
+  end
+
+  return gem.getRandom(min, max) / 100
 end
 
 -- {"Auto", "Up, Down, Up & Down, Down & Up", "Off"}
@@ -214,11 +230,11 @@ local function doArpTweaks(resolutionOption, lengthOption, octaveOption, modeOpt
     arp:setParameter("Mode", getArpMode(modeOption))
   end
   arp:setParameter("NumStrike", getArpNumStrike())
-  if octaveOption < 8 then
+  arp:setParameter("StepLength", getArpStepLength())
+  if octaveOption < 7 then
     arp:setParameter("Octave", getArpOctave(octaveOption))
   end
   arp:setParameter("ArpVelocityBlend", gem.getRandom())
-  arp:setParameter("StepLength", 1)
   for i=0,arpNumSteps do
     if i > 0 and gem.getRandomBoolean(30) then
       arp:setParameter("Step"..i.."State", gem.getRandom(0,3)) -- 0-3 def 0
@@ -296,8 +312,8 @@ tweakArpLengthMenu.tooltip = "Set step randomization - Use Off to leave the step
 tweakArpLengthMenu.width = tweakArpResMenu.width
 tweakArpLengthMenu.x = tweakArpResMenu.x + tweakArpResMenu.width + spacing
 
-local tweakArpOctaveMenu = panel:Menu("TweakArpOctave", {"Auto", "0", "+/-1", "+/-2", "+/-4", "+/-5", "+/-6", "Off"})
-tweakArpOctaveMenu.selected = 3
+local tweakArpOctaveMenu = panel:Menu("TweakArpOctave", {"Auto", "+/-1", "+/-2", "+/-4", "+/-5", "+/-6", "Off"})
+tweakArpOctaveMenu.selected = 2
 tweakArpOctaveMenu.backgroundColour = menuBackgroundColour
 tweakArpOctaveMenu.textColour = menuTextColour
 tweakArpOctaveMenu.arrowColour = menuArrowColour
