@@ -46,8 +46,8 @@ table.insert(gridXY, {
   pos = 0,
   direction = 1,
   playMode = playModes[1],
-  size = 4,
-  offset = 0,
+  size = 8,
+  offset = 4,
   max = 16
 })
 
@@ -56,8 +56,8 @@ table.insert(gridXY, {
   pos = 0,
   direction = 1,
   playMode = playModes[1],
-  size = 2,
-  offset = 0,
+  size = 3,
+  offset = 3,
   max = 8
 })
 
@@ -93,9 +93,21 @@ local function flashNote(noteInput, duration)
   noteInput.textColour = menuTextColour
 end
 
+local function setPlayMode(axis, playMode)
+  gridXY[axis].playMode = playMode
+
+  if playMode == "<-" or playMode == "<-->" then
+    gridXY[axis].direction = -1
+  else
+    gridXY[axis].direction = 1
+  end
+
+  print("axis, playMode, direction", axis, gridXY[axis].playMode, gridXY[axis].direction)
+end
+
 -- playModes = {"Random", "->", "<-", "-><-", "<-->"}
 local function getNote()
-  for _,v in ipairs(gridXY) do
+  for i,v in ipairs(gridXY) do
     if v.playMode == "Random" then
       if v.size > 1 then
         v.pos = gem.getRandom(v.offset + 1, v.offset + v.size)
@@ -103,27 +115,26 @@ local function getNote()
         v.pos = v.offset + v.size
       end
     elseif v.playMode == "->" then
-      --v.direction = 1
       v.pos = v.pos + v.direction
-      if v.pos > v.size then
-        v.pos = 1
+      if v.pos > v.offset + v.size or v.pos > v.max then
+        v.pos = v.offset + 1
       end
     elseif v.playMode == "<-" then
-      --v.direction = -1
       v.pos = v.pos + v.direction
-      if v.pos < 1 then
-        v.pos = v.size
+      if v.pos <= v.offset then
+        v.pos = v.offset + v.size
       end
     elseif v.playMode == "-><-" or v.playMode == "<-->" then
       v.pos = v.pos + v.direction
-      if v.pos < 1 then
+      if v.pos <= v.offset then
         v.direction = 1
-        v.pos = 1
-      elseif v.pos > v.size then
+        v.pos = v.offset + 1
+      elseif v.pos > v.offset + v.size or v.pos > v.max then
         v.direction = -1
-        v.pos = v.size
+        v.pos = v.offset + v.size
       end
     end
+    v.pos = math.min(v.max, v.pos)
   end
 
   local noteInput = getGridCell(gridXY[1].pos, gridXY[2].pos)
@@ -136,7 +147,7 @@ end
 
 local function resetGridPos()
   gridXY[1].pos = gridXY[1].offset
-  gridXY[2].pos = gridXY[1].offset
+  gridXY[2].pos = gridXY[2].offset
 end
 
 local function sequenceRunner()
@@ -278,7 +289,7 @@ seqResolution:changed()
 
 -- X Axis
 
-local gridOffsetX = settingsPanel:NumBox("GridOffsetX", gridXY[2].offset, 0, gridXY[2].max - 1, true)
+local gridOffsetX = settingsPanel:NumBox("GridOffsetX", gridXY[1].offset, 0, gridXY[1].max - 1, true)
 gridOffsetX.displayName = "Offset"
 gridOffsetX.tooltip = "Offset of x axis"
 gridOffsetX.backgroundColour = menuBackgroundColour
@@ -320,15 +331,7 @@ seqPlayModeX.textColour = menuTextColour
 seqPlayModeX.arrowColour = menuArrowColour
 seqPlayModeX.outlineColour = menuOutlineColour
 seqPlayModeX.changed = function(self)
-  gridXY[1].playMode = self.text
-
-  if self.text == "<-" or self.text == "<-->" then
-    gridXY[1].direction = -1
-  else
-    gridXY[1].direction = 1
-  end
-
-  print("playMode, direction", gridXY[1].playMode, gridXY[1].direction)
+  setPlayMode(1, self.text)
 end
 seqPlayModeX:changed()
 
@@ -376,15 +379,7 @@ seqPlayModeY.textColour = menuTextColour
 seqPlayModeY.arrowColour = menuArrowColour
 seqPlayModeY.outlineColour = menuOutlineColour
 seqPlayModeY.changed = function(self)
-  gridXY[2].playMode = self.text
-
-  if self.text == "<-" or self.text == "<-->" then
-    gridXY[2].direction = -1
-  else
-    gridXY[2].direction = 1
-  end
-
-  print("playMode, direction", gridXY[2].playMode, gridXY[2].direction)
+  setPlayMode(2, self.text)
 end
 seqPlayModeY:changed()
 
