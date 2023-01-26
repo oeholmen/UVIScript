@@ -40,6 +40,7 @@ local defaultResolution = 23
 local sequencerResolution
 local grid = {} -- Holds the note inputs
 local gridXY = {} -- Holds x and y axis positon and other settings
+local startNote = 24 -- The start note for the grid
 
 -- X Axis (index 1)
 table.insert(gridXY, {
@@ -47,8 +48,8 @@ table.insert(gridXY, {
   direction = 1,
   playMode = playModes[1],
   size = 8,
-  offset = 4,
-  max = 16
+  offset = 2,
+  max = 12
 })
 
 -- Y Axis (index 2)
@@ -57,7 +58,7 @@ table.insert(gridXY, {
   direction = 1,
   playMode = playModes[1],
   size = 3,
-  offset = 3,
+  offset = 2,
   max = 8
 })
 
@@ -65,7 +66,7 @@ table.insert(gridXY, {
 -- Sequencer Functions
 --------------------------------------------------------------------------------
 
-local function getEnabledCells()
+--[[ local function getEnabledCells()
   local enabledCells = {}
   for _,v in ipairs(grid) do
     if v.enabled then
@@ -73,10 +74,10 @@ local function getEnabledCells()
     end
   end
   return enabledCells
-end
+end ]]
 
 local function getGridCell(x, y)
-  print("Get grid cell x, y", x, y)
+  --print("Get grid cell x, y", x, y)
   --[[ local index = x * y -- TODO Find index using a formula
   return grid[index] ]]
   local cellName = "Cell" .. x .. '_' .. y
@@ -102,7 +103,7 @@ local function setPlayMode(axis, playMode)
     gridXY[axis].direction = 1
   end
 
-  print("axis, playMode, direction", axis, gridXY[axis].playMode, gridXY[axis].direction)
+  --print("axis, playMode, direction", axis, gridXY[axis].playMode, gridXY[axis].direction)
 end
 
 -- playModes = {"Random", "->", "<-", "-><-", "<-->"}
@@ -159,7 +160,7 @@ local function sequenceRunner()
     local gate = 90 -- TODO Param
     local duration = sequencerResolution -- TODO Get resolution for the selected note/step
     local playDuration = resolutions.getPlayDuration(duration, gate)
-    print("Playing note", note)
+    --print("Playing note", note)
     playNote(note, velocity, beat2ms(playDuration))
     spawn(flashNote, noteInput, playDuration)
     waitBeat(duration)
@@ -182,7 +183,9 @@ local function stopPlaying()
 end
 
 local function getEnabledStatus(x, y)
-  return x > gridXY[1].offset and x <= gridXY[1].offset + gridXY[1].size and y > gridXY[2].offset and y <= gridXY[2].offset + gridXY[2].size
+  local enabledX = x > gridXY[1].offset and x <= gridXY[1].offset + gridXY[1].size
+  local enabledY = y > gridXY[2].offset and y <= gridXY[2].offset + gridXY[2].size
+  return enabledX and enabledY
 end
 
 local function recalculateGrid()
@@ -211,7 +214,7 @@ settingsPanel.backgroundColour = "404040"
 settingsPanel.x = 0
 settingsPanel.y = sequencerPanel.y + sequencerPanel.height
 settingsPanel.width = 720
-settingsPanel.height = 30
+settingsPanel.height = 60
 
 local notePanel = Panel("Notes")
 notePanel.backgroundColour = "black"
@@ -269,14 +272,14 @@ end
 --------------------------------------------------------------------------------
 
 local seqResolution = settingsPanel:Menu("SequencerResolution", resolutions.getResolutionNames())
-seqResolution.showLabel = false
+--seqResolution.showLabel = false
 seqResolution.displayName = "Resolution"
 seqResolution.tooltip = "The resolution to use"
 seqResolution.selected = defaultResolution
 seqResolution.x = 5
 seqResolution.y = 5
-seqResolution.height = 22
-seqResolution.width = 120
+seqResolution.height = 45
+seqResolution.width = 90
 seqResolution.backgroundColour = menuBackgroundColour
 seqResolution.textColour = menuTextColour
 seqResolution.arrowColour = menuArrowColour
@@ -289,24 +292,35 @@ seqResolution:changed()
 
 -- X Axis
 
-local gridOffsetX = settingsPanel:NumBox("GridOffsetX", gridXY[1].offset, 0, gridXY[1].max - 1, true)
+local axisLabelX = settingsPanel:Label("AxisLabelX")
+axisLabelX.text = "X-axis"
+axisLabelX.tooltip = "Settings for the x-axis (horizontal)"
+axisLabelX.textColour = labelBackgoundColour
+axisLabelX.backgroundColour = labelTextColour
+axisLabelX.fontSize = 18
+axisLabelX.height = seqResolution.height
+axisLabelX.width = 45
+axisLabelX.x = seqResolution.x + seqResolution.width + 20
+axisLabelX.y = seqResolution.y
+
+local gridOffsetX = settingsPanel:Slider("GridOffsetX", gridXY[1].offset, 0, gridXY[1].max - 1)
 gridOffsetX.displayName = "Offset"
 gridOffsetX.tooltip = "Offset of x axis"
 gridOffsetX.backgroundColour = menuBackgroundColour
 gridOffsetX.textColour = menuTextColour
-gridOffsetX.height = seqResolution.height
+gridOffsetX.height = 45
 gridOffsetX.width = 75
-gridOffsetX.x = seqResolution.x + seqResolution.width + 5
+gridOffsetX.x = axisLabelX.x + axisLabelX.width + 5
 gridOffsetX.y = seqResolution.y
 gridOffsetX.changed = function(self)
-  gridXY[1].offset = self.value
+  gridXY[1].offset = gem.round(self.value)
   resetGridPos()
   recalculateGrid()
 end
 
-local gridSizeX = settingsPanel:NumBox("GridSizeX", gridXY[1].size, 1, gridXY[1].max, true)
-gridSizeX.displayName = "Size"
-gridSizeX.tooltip = "Size of x axis"
+local gridSizeX = settingsPanel:Slider("GridSizeX", gridXY[1].size, 1, gridXY[1].max)
+gridSizeX.displayName = "Length"
+gridSizeX.tooltip = "Length of x axis"
 gridSizeX.backgroundColour = menuBackgroundColour
 gridSizeX.textColour = menuTextColour
 gridSizeX.height = gridOffsetX.height
@@ -314,17 +328,17 @@ gridSizeX.width = 75
 gridSizeX.x = gridOffsetX.x + gridOffsetX.width + 5
 gridSizeX.y = gridOffsetX.y
 gridSizeX.changed = function(self)
-  gridXY[1].size = self.value
+  gridXY[1].size = gem.round(self.value)
   recalculateGrid()
 end
 
 local seqPlayModeX = settingsPanel:Menu("SequencerPlayModeX", playModes)
-seqPlayModeX.showLabel = false
+--seqPlayModeX.showLabel = false
 seqPlayModeX.displayName = "Playmode"
 seqPlayModeX.tooltip = "The sequencer play mode for the x (horizontal) axis"
 seqPlayModeX.x = gridSizeX.x + gridSizeX.width + 5
-seqPlayModeX.y = gridSizeX.y
-seqPlayModeX.height = gridSizeX.height
+seqPlayModeX.y = seqResolution.y
+seqPlayModeX.height = seqResolution.height
 seqPlayModeX.width = gridSizeX.width
 seqPlayModeX.backgroundColour = menuBackgroundColour
 seqPlayModeX.textColour = menuTextColour
@@ -337,24 +351,35 @@ seqPlayModeX:changed()
 
 -- Y Axis
 
-local gridOffsetY = settingsPanel:NumBox("GridOffsetY", gridXY[2].offset, 0, gridXY[2].max - 1, true)
+local axisLabelY = settingsPanel:Label("AxisLabelY")
+axisLabelY.text = "Y-axis"
+axisLabelY.tooltip = "Settings for the y-axis (vertical)"
+axisLabelY.fontSize = 18
+axisLabelY.textColour = labelBackgoundColour
+axisLabelY.backgroundColour = labelTextColour
+axisLabelY.height = seqPlayModeX.height
+axisLabelY.width = axisLabelX.width
+axisLabelY.x = seqPlayModeX.x + seqPlayModeX.width + 20
+axisLabelY.y = seqResolution.y
+
+local gridOffsetY = settingsPanel:Slider("GridOffsetY", gridXY[2].offset, 0, gridXY[2].max - 1)
 gridOffsetY.displayName = "Offset"
 gridOffsetY.tooltip = "Offset of y axis"
 gridOffsetY.backgroundColour = menuBackgroundColour
 gridOffsetY.textColour = menuTextColour
-gridOffsetY.height = seqPlayModeX.height
-gridOffsetY.width = seqPlayModeX.width
-gridOffsetY.x = seqPlayModeX.x + seqPlayModeX.width + 5
-gridOffsetY.y = seqPlayModeX.y
+gridOffsetY.height = gridOffsetX.height
+gridOffsetY.width = gridOffsetX.width
+gridOffsetY.x = axisLabelY.x + axisLabelY.width + 5
+gridOffsetY.y = gridOffsetX.y
 gridOffsetY.changed = function(self)
-  gridXY[2].offset = self.value
+  gridXY[2].offset = gridXY[2].max - gem.round(self.value) - 1
   resetGridPos()
   recalculateGrid()
 end
 
-local gridLengthY = settingsPanel:NumBox("GridSizeY", gridXY[2].size, 1, gridXY[2].max, true)
-gridLengthY.displayName = "Size"
-gridLengthY.tooltip = "Size of y axis"
+local gridLengthY = settingsPanel:Slider("GridSizeY", gridXY[2].size, 1, gridXY[2].max)
+gridLengthY.displayName = "Length"
+gridLengthY.tooltip = "Length of y axis"
 gridLengthY.backgroundColour = menuBackgroundColour
 gridLengthY.textColour = menuTextColour
 gridLengthY.height = gridOffsetY.height
@@ -362,17 +387,17 @@ gridLengthY.width = gridOffsetY.width
 gridLengthY.x = gridOffsetY.x + gridOffsetY.width + 5
 gridLengthY.y = gridOffsetY.y
 gridLengthY.changed = function(self)
-  gridXY[2].size = self.value
+  gridXY[2].size = gem.round(self.value)
   recalculateGrid()
 end
 
 local seqPlayModeY = settingsPanel:Menu("SequencerPlayModeY", playModes)
-seqPlayModeY.showLabel = false
+--seqPlayModeY.showLabel = false
 seqPlayModeY.displayName = "Playmode"
 seqPlayModeY.tooltip = "The sequencer play mode for the y (vertical) axis"
 seqPlayModeY.x = gridLengthY.x + gridLengthY.width + 5
-seqPlayModeY.y = gridLengthY.y
-seqPlayModeY.height = gridLengthY.height
+seqPlayModeY.y = seqResolution.y
+seqPlayModeY.height = seqResolution.height
 seqPlayModeY.width = gridLengthY.width
 seqPlayModeY.backgroundColour = menuBackgroundColour
 seqPlayModeY.textColour = menuTextColour
@@ -387,7 +412,6 @@ seqPlayModeY:changed()
 -- Note Grid
 --------------------------------------------------------------------------------
 
-local startNote = 0
 local rowCounter = 0
 local columnCounter = 0
 local colSpacing = 10
@@ -417,6 +441,14 @@ for y=1,gridXY[2].max do
     end
   end
 end
+
+local xyOffset = notePanel:XY('GridOffsetX', 'GridOffsetY')
+xyOffset.bounds = {540, 6, 168, 112}
+xyOffset.tooltip = "Adjust offset"
+
+local xySize = notePanel:XY('GridSizeX', 'GridSizeY')
+xySize.bounds = {xyOffset.x, xyOffset.y+xyOffset.height+3, xyOffset.width, xyOffset.height}
+xyOffset.tooltip = "Adjust length"
 
 --------------------------------------------------------------------------------
 -- Handle events
