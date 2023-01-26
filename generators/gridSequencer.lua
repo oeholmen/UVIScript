@@ -29,13 +29,13 @@ local resolutions = require "includes.resolutions"
 -- Variables
 --------------------------------------------------------------------------------
 
-local playModes = {"Random", "->", "<-", "-><-", "<-->"}
+local playModes = {"Random", "->", "<-", "-><-", "<-->", "Follow ->", "Follow <-"}
 local isPlaying = false
 local defaultResolution = 23
 local sequencerResolution
 local grid = {} -- Holds the note inputs
 local gridXY = {} -- Holds x and y axis positon and other settings
-local startNote = 24 -- The start note for the grid
+local startNote = 12 -- The start note for the grid - TODO Param?
 
 -- X Axis (index 1)
 table.insert(gridXY, {
@@ -54,7 +54,7 @@ table.insert(gridXY, {
   playMode = playModes[1],
   size = 3,
   offset = 2,
-  max = 8
+  max = 9
 })
 
 --------------------------------------------------------------------------------
@@ -92,67 +92,105 @@ end
 local function setPlayMode(axis, playMode)
   gridXY[axis].playMode = playMode
 
-  if playMode == "<-" or playMode == "<-->" then
+  if playMode == "<-" or playMode == "<-->" or playMode == "Follow <-" then
     gridXY[axis].direction = -1
   else
     gridXY[axis].direction = 1
   end
-
-  --print("axis, playMode, direction", axis, gridXY[axis].playMode, gridXY[axis].direction)
 end
 
--- playModes = {"Random", "->", "<-", "-><-", "<-->"}
+local function handleFollow(axis)
+  axis = gridXY[axis]
+  axis.pos = axis.pos + axis.direction
+  if axis.direction == 1 and axis.pos > axis.offset + axis.size or axis.pos > axis.max then
+    axis.pos = axis.offset + 1
+  elseif axis.pos <= axis.offset then
+    axis.pos = axis.offset + axis.size
+  end
+end
+
+-- playModes = {"Random", "->", "<-", "-><-", "<-->", "Follow ->", "Follow <-"}
 local function getNote()
+  local bothAxisAreFollow = string.sub(gridXY[1].playMode, 1, 6) == "Follow" and string.sub(gridXY[2].playMode, 1, 6) == "Follow"
   for i,v in ipairs(gridXY) do
+    local otherAxis = 1
+    if i == otherAxis then
+      otherAxis = 2
+    end
+    local otherAxisIsFollow = string.sub(gridXY[otherAxis].playMode, 1, 6) == "Follow"
     if v.playMode == "Random" then
       if v.size > 1 then
         v.pos = gem.getRandom(v.offset + 1, v.offset + v.size)
       else
         v.pos = v.offset + v.size
       end
-    elseif v.playMode == "->" then
+      local followProbability = 25 -- TODO Param?
+      if otherAxisIsFollow and gem.getRandomBoolean(followProbability) then
+        handleFollow(otherAxis)
+      end
+    elseif v.playMode == "->" or bothAxisAreFollow then
       v.pos = v.pos + v.direction
       if v.pos > v.offset + v.size or v.pos > v.max then
         v.pos = v.offset + 1
+        if otherAxisIsFollow and bothAxisAreFollow == false then
+          handleFollow(otherAxis)
+        end
       end
     elseif v.playMode == "<-" then
       v.pos = v.pos + v.direction
       if v.pos <= v.offset then
         v.pos = v.offset + v.size
+        if otherAxisIsFollow then
+          handleFollow(otherAxis)
+        end
       end
     elseif v.playMode == "-><-" or v.playMode == "<-->" then
       v.pos = v.pos + v.direction
       if v.pos <= v.offset then
         v.direction = 1
         v.pos = v.offset + 1
+        if otherAxisIsFollow then
+          handleFollow(otherAxis)
+        end
       elseif v.pos > v.offset + v.size or v.pos > v.max then
         v.direction = -1
         v.pos = v.offset + v.size
+        if otherAxisIsFollow then
+          handleFollow(otherAxis)
+        end
       end
     end
-    v.pos = math.min(v.max, v.pos)
+    v.pos = math.min(v.max, math.max(v.offset + 1, v.pos))
   end
 
-  local noteInput = getGridCell(gridXY[1].pos, gridXY[2].pos)
+  return getGridCell(gridXY[1].pos, gridXY[2].pos)
+
+  --[[ local noteInput = getGridCell(gridXY[1].pos, gridXY[2].pos)
   if type(noteInput) == "nil" then
     -- Failsafe
     noteInput = grid[1]
   end
-  return noteInput
+  return noteInput ]]
 end
 
 local function resetGridPos()
-  gridXY[1].pos = gridXY[1].offset
-  gridXY[2].pos = gridXY[2].offset
+  for axis=1,2 do
+    if gridXY[axis].direction == 1 then
+      gridXY[axis].pos = gridXY[axis].offset
+    else
+      gridXY[axis].pos = gridXY[axis].offset + gridXY[axis].size
+    end
+  end
 end
 
 local function sequenceRunner()
+  resetGridPos()
   isPlaying = true
   while isPlaying do
     local noteInput = getNote()
     local note = noteInput.value
-    local velocity = 64 -- TODO Param
-    local gate = 90 -- TODO Param
+    local velocity = 64 -- TODO Param?
+    local gate = 90 -- TODO Param?
     local duration = sequencerResolution -- TODO Get resolution for the selected note/step
     local playDuration = resolutions.getPlayDuration(duration, gate)
     --print("Playing note", note)
@@ -174,7 +212,6 @@ local function stopPlaying()
     return
   end
   isPlaying = false
-  resetGridPos()
 end
 
 local function getEnabledStatus(x, y)
@@ -267,7 +304,6 @@ end
 --------------------------------------------------------------------------------
 
 local seqResolution = settingsPanel:Menu("SequencerResolution", resolutions.getResolutionNames())
---seqResolution.showLabel = false
 seqResolution.displayName = "Resolution"
 seqResolution.tooltip = "The resolution to use"
 seqResolution.selected = defaultResolution
@@ -281,7 +317,6 @@ seqResolution.arrowColour = menuArrowColour
 seqResolution.outlineColour = menuOutlineColour
 seqResolution.changed = function(self)
   sequencerResolution = resolutions.getResolution(self.value)
-  --print("sequencerResolution", sequencerResolution)
 end
 seqResolution:changed()
 
@@ -309,7 +344,6 @@ gridOffsetX.x = axisLabelX.x + axisLabelX.width + 5
 gridOffsetX.y = seqResolution.y
 gridOffsetX.changed = function(self)
   gridXY[1].offset = gem.round(self.value)
-  resetGridPos()
   recalculateGrid()
 end
 
@@ -328,7 +362,6 @@ gridSizeX.changed = function(self)
 end
 
 local seqPlayModeX = settingsPanel:Menu("SequencerPlayModeX", playModes)
---seqPlayModeX.showLabel = false
 seqPlayModeX.displayName = "Playmode"
 seqPlayModeX.tooltip = "The sequencer play mode for the x (horizontal) axis"
 seqPlayModeX.x = gridSizeX.x + gridSizeX.width + 5
@@ -367,9 +400,7 @@ gridOffsetY.width = gridOffsetX.width
 gridOffsetY.x = axisLabelY.x + axisLabelY.width + 5
 gridOffsetY.y = gridOffsetX.y
 gridOffsetY.changed = function(self)
-  --gridXY[2].offset = gridXY[2].max - gem.round(self.value) - 1
   gridXY[2].offset = gem.round(self.value)
-  resetGridPos()
   recalculateGrid()
 end
 
@@ -388,7 +419,6 @@ gridLengthY.changed = function(self)
 end
 
 local seqPlayModeY = settingsPanel:Menu("SequencerPlayModeY", playModes)
---seqPlayModeY.showLabel = false
 seqPlayModeY.displayName = "Playmode"
 seqPlayModeY.tooltip = "The sequencer play mode for the y (vertical) axis"
 seqPlayModeY.x = gridLengthY.x + gridLengthY.width + 5
@@ -410,12 +440,12 @@ seqPlayModeY:changed()
 
 local rowCounter = gridXY[2].max - 1
 local columnCounter = 0
-local colSpacing = 10
-local rowSpacing = 5
+local colSpacing = 3
+local rowSpacing = 2
 
 for y=1,gridXY[2].max do
   for x=1,gridXY[1].max do
-    print("x, y, note", x, y, startNote)
+    --print("x, y, note", x, y, startNote)
     local gridCell = notePanel:NumBox("Cell" .. x .. '_' .. y, startNote, 0, 127, true)
     gridCell.enabled = getEnabledStatus(x, y)
     gridCell.showLabel = false
@@ -424,10 +454,10 @@ for y=1,gridXY[2].max do
     gridCell.unit = Unit.MidiKey
     gridCell.backgroundColour = menuBackgroundColour
     gridCell.textColour = menuTextColour
-    gridCell.height = 22
-    gridCell.width = 33
-    gridCell.x = (colSpacing * 1.5) + (columnCounter * (gridCell.width + colSpacing))
-    gridCell.y = (rowSpacing * 3) + ((gridCell.height + rowSpacing) * rowCounter)
+    gridCell.height = 24
+    gridCell.width = 42
+    gridCell.x = (colSpacing * 1) + (columnCounter * (gridCell.width + colSpacing))
+    gridCell.y = (rowSpacing * 1.5) + ((gridCell.height + rowSpacing) * rowCounter)
     table.insert(grid, gridCell)
     startNote = startNote + 1
     columnCounter = columnCounter + 1
@@ -439,11 +469,11 @@ for y=1,gridXY[2].max do
 end
 
 local xyOffset = notePanel:XY('GridOffsetX', 'GridOffsetY')
-xyOffset.bounds = {540, 6, 168, 112}
+xyOffset.bounds = {546, 6, 168, 112}
 xyOffset.tooltip = "Adjust offset"
 
 local xySize = notePanel:XY('GridSizeX', 'GridSizeY')
-xySize.bounds = {xyOffset.x, xyOffset.y+xyOffset.height+3, xyOffset.width, xyOffset.height}
+xySize.bounds = {xyOffset.x, xyOffset.y+xyOffset.height+4, xyOffset.width, xyOffset.height}
 xyOffset.tooltip = "Adjust length"
 
 --------------------------------------------------------------------------------
