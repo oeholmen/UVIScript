@@ -2,15 +2,10 @@
 -- Grid Sequencer
 --------------------------------------------------------------------------------
 
-local buttonAlpha = 0.9
 local textColourOff = "ff22FFFF"
 local textColourOn = "efFFFFFF"
 local backgroundColourOff = "ff084486"
 local backgroundColourOn = "ff02ACFE"
-local buttonBackgroundColourOff = "#ff084486"
-local buttonBackgroundColourOn = "#ff02ACFE"
-local buttonTextColourOff = "#ff22FFFF"
-local buttonTextColourOn = "#efFFFFFF"
 local backgroundColour = "202020" -- Light or Dark
 local widgetBackgroundColour = "black" -- Dark
 local widgetTextColour = "CFFFFE" -- Light
@@ -372,7 +367,8 @@ gridOffsetY.width = gridOffsetX.width
 gridOffsetY.x = axisLabelY.x + axisLabelY.width + 5
 gridOffsetY.y = gridOffsetX.y
 gridOffsetY.changed = function(self)
-  gridXY[2].offset = gridXY[2].max - gem.round(self.value) - 1
+  --gridXY[2].offset = gridXY[2].max - gem.round(self.value) - 1
+  gridXY[2].offset = gem.round(self.value)
   resetGridPos()
   recalculateGrid()
 end
@@ -412,19 +408,19 @@ seqPlayModeY:changed()
 -- Note Grid
 --------------------------------------------------------------------------------
 
-local rowCounter = 0
+local rowCounter = gridXY[2].max - 1
 local columnCounter = 0
 local colSpacing = 10
 local rowSpacing = 5
 
 for y=1,gridXY[2].max do
   for x=1,gridXY[1].max do
-    --print("x, y, note", x, y, startNote)
+    print("x, y, note", x, y, startNote)
     local gridCell = notePanel:NumBox("Cell" .. x .. '_' .. y, startNote, 0, 127, true)
     gridCell.enabled = getEnabledStatus(x, y)
     gridCell.showLabel = false
     gridCell.displayName = "Note"
-    gridCell.tooltip = "The note to trigger in this cell"
+    gridCell.tooltip = "The note to trigger in cell x:" .. x .. ', y:' .. y
     gridCell.unit = Unit.MidiKey
     gridCell.backgroundColour = menuBackgroundColour
     gridCell.textColour = menuTextColour
@@ -437,7 +433,7 @@ for y=1,gridXY[2].max do
     columnCounter = columnCounter + 1
     if columnCounter >= gridXY[1].max then
       columnCounter = 0
-      rowCounter = rowCounter + 1
+      rowCounter = rowCounter - 1
     end
   end
 end
