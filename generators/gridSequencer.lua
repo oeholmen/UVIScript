@@ -15,6 +15,21 @@ local menuBackgroundColour = "01011F"
 local menuTextColour = "#9f02ACFE"
 local menuArrowColour = "66" .. labelTextColour
 local menuOutlineColour = "5f" .. widgetTextColour
+local knobFillColour = "E6D5B8" -- Light
+
+local colours = {
+  backgroundColour = backgroundColour,
+  widgetBackgroundColour = widgetBackgroundColour,
+  widgetTextColour = widgetTextColour,
+  labelTextColour = labelTextColour,
+  menuBackgroundColour = menuBackgroundColour,
+  menuArrowColour = menuArrowColour,
+  menuOutlineColour = menuOutlineColour,
+  backgroundColourOff = backgroundColourOff,
+  backgroundColourOn = backgroundColourOn,
+  textColourOff = textColourOff,
+  textColourOn = textColourOn,
+}
 
 setBackgroundColour(backgroundColour)
 
@@ -25,7 +40,7 @@ setBackgroundColour(backgroundColour)
 local gem = require "includes.common"
 local scales = require "includes.scales"
 local notes = require "includes.notes"
-local resolutions = require "includes.resolutions"
+local rythmicFragments = require "includes.rythmicFragments"
 
 --------------------------------------------------------------------------------
 -- Variables
@@ -33,17 +48,19 @@ local resolutions = require "includes.resolutions"
 
 local playModes = {"Random", "->", "<-", "-><-", "<-->", "Follow ->", "Follow <-"}
 local isPlaying = false
-local defaultResolution = 23
-local sequencerResolution
+local sequencerResolution = 0.25 -- Fallback value
+local paramsPerFragment = {} -- Holds the rythmic fragments
 local grid = {} -- Holds the note inputs
 local gridXY = {} -- Holds x and y axis positon and other settings
-local startNote = 12 -- The start note for the grid - TODO Param?
+local gateInput
+local gateRandomization
 
 -- X Axis (index 1)
 table.insert(gridXY, {
   pos = 0,
   direction = 1,
   playMode = playModes[1],
+  probability = 100,
   size = 8,
   offset = 2,
   max = 12
@@ -54,6 +71,7 @@ table.insert(gridXY, {
   pos = 0,
   direction = 1,
   playMode = playModes[1],
+  probability = 100,
   size = 3,
   offset = 2,
   max = 9
@@ -112,65 +130,66 @@ local function handleFollow(axis)
 end
 
 -- playModes = {"Random", "->", "<-", "-><-", "<-->", "Follow ->", "Follow <-"}
+local function advanceByPlayMode(v, i, bothAxisAreFollow)
+  local otherAxis = 1
+  if i == otherAxis then
+    otherAxis = 2
+  end
+  local otherAxisIsFollow = string.sub(gridXY[otherAxis].playMode, 1, 6) == "Follow"
+  if v.playMode == "Random" then
+    if v.size > 1 then
+      v.pos = gem.getRandom(v.offset + 1, v.offset + v.size)
+    else
+      v.pos = v.offset + v.size
+    end
+    local followProbability = 25 -- TODO Param?
+    if otherAxisIsFollow and gem.getRandomBoolean(followProbability) then
+      handleFollow(otherAxis)
+    end
+  elseif v.playMode == "->" or bothAxisAreFollow then
+    v.pos = v.pos + v.direction
+    if v.pos > v.offset + v.size or v.pos > v.max then
+      v.pos = v.offset + 1
+      if otherAxisIsFollow and bothAxisAreFollow == false then
+        handleFollow(otherAxis)
+      end
+    end
+  elseif v.playMode == "<-" then
+    v.pos = v.pos + v.direction
+    if v.pos <= v.offset then
+      v.pos = v.offset + v.size
+      if otherAxisIsFollow then
+        handleFollow(otherAxis)
+      end
+    end
+  elseif v.playMode == "-><-" or v.playMode == "<-->" then
+    v.pos = v.pos + v.direction
+    if v.pos <= v.offset then
+      v.direction = 1
+      v.pos = v.offset + 1
+      if otherAxisIsFollow then
+        handleFollow(otherAxis)
+      end
+    elseif v.pos > v.offset + v.size or v.pos > v.max then
+      v.direction = -1
+      v.pos = v.offset + v.size
+      if otherAxisIsFollow then
+        handleFollow(otherAxis)
+      end
+    end
+  end
+  v.pos = math.min(v.max, math.max(v.offset + 1, v.pos))
+end
+
 local function getNote()
   local bothAxisAreFollow = string.sub(gridXY[1].playMode, 1, 6) == "Follow" and string.sub(gridXY[2].playMode, 1, 6) == "Follow"
   for i,v in ipairs(gridXY) do
-    local otherAxis = 1
-    if i == otherAxis then
-      otherAxis = 2
+    if gem.getRandomBoolean(v.probability) then
+      advanceByPlayMode(v, i, bothAxisAreFollow)
     end
-    local otherAxisIsFollow = string.sub(gridXY[otherAxis].playMode, 1, 6) == "Follow"
-    if v.playMode == "Random" then
-      if v.size > 1 then
-        v.pos = gem.getRandom(v.offset + 1, v.offset + v.size)
-      else
-        v.pos = v.offset + v.size
-      end
-      local followProbability = 25 -- TODO Param?
-      if otherAxisIsFollow and gem.getRandomBoolean(followProbability) then
-        handleFollow(otherAxis)
-      end
-    elseif v.playMode == "->" or bothAxisAreFollow then
-      v.pos = v.pos + v.direction
-      if v.pos > v.offset + v.size or v.pos > v.max then
-        v.pos = v.offset + 1
-        if otherAxisIsFollow and bothAxisAreFollow == false then
-          handleFollow(otherAxis)
-        end
-      end
-    elseif v.playMode == "<-" then
-      v.pos = v.pos + v.direction
-      if v.pos <= v.offset then
-        v.pos = v.offset + v.size
-        if otherAxisIsFollow then
-          handleFollow(otherAxis)
-        end
-      end
-    elseif v.playMode == "-><-" or v.playMode == "<-->" then
-      v.pos = v.pos + v.direction
-      if v.pos <= v.offset then
-        v.direction = 1
-        v.pos = v.offset + 1
-        if otherAxisIsFollow then
-          handleFollow(otherAxis)
-        end
-      elseif v.pos > v.offset + v.size or v.pos > v.max then
-        v.direction = -1
-        v.pos = v.offset + v.size
-        if otherAxisIsFollow then
-          handleFollow(otherAxis)
-        end
-      end
-    end
-    v.pos = math.min(v.max, math.max(v.offset + 1, v.pos))
   end
 
-  local noteInput = getGridCell(gridXY[1].pos, gridXY[2].pos)
-  if type(noteInput) == "nil" then
-    -- Failsafe - get a random input
-    noteInput = gem.getRandomFromTable(grid)
-  end
-  return noteInput
+  return getGridCell(gridXY[1].pos, gridXY[2].pos)
 end
 
 local function resetGridPos()
@@ -183,19 +202,42 @@ local function resetGridPos()
   end
 end
 
+local function getGate()
+  return gem.randomizeValue(gateInput.value, gateInput.min, gateInput.max, gateRandomization.value)
+end
+
 local function sequenceRunner()
   resetGridPos()
+  local activeFragment = nil -- The fragment currently playing
+  local fragmentPos = 0 -- Position in the active fragment
+  local fragmentRepeatCount = 0
+  local fragmentRepeatProbability = 0
+  local duration = nil
+  local reverseFragment = false
+  local rest = false
   isPlaying = true
   while isPlaying do
     local noteInput = getNote()
-    local note = noteInput.value
-    local velocity = 64 -- TODO Param?
-    local gate = 90 -- TODO Param?
-    local duration = sequencerResolution -- TODO Get resolution for the selected note/step
-    local playDuration = resolutions.getPlayDuration(duration, gate)
-    --print("Playing note", note)
-    playNote(note, velocity, beat2ms(playDuration))
-    spawn(flashNote, noteInput, playDuration)
+    local velocity = 64 -- Default velocity - override in velocity event processor if required
+    -- Get resolution from fragments
+    duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = rythmicFragments.getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
+    if type(duration) == "nil" then
+      -- Fallback to the default resolution if not found in fragment
+      duration = sequencerResolution
+    end
+    if type(noteInput) ~= "nil" and rest == false then
+      local note = noteInput.value
+      local playDuration = rythmicFragments.resolutions.getPlayDuration(duration, getGate())
+      playNote(note, velocity, beat2ms(playDuration))
+      if type(activeFragment) == "table" then
+        for i,v in ipairs(paramsPerFragment) do
+          if activeFragment.i == i then
+            spawn(rythmicFragments.flashFragmentActive, v.fragmentActive, duration)
+          end
+        end
+      end
+      spawn(flashNote, noteInput, playDuration)
+    end
     waitBeat(duration)
   end
 end
@@ -263,26 +305,33 @@ sequencerPanel.y = 10
 sequencerPanel.width = 700
 sequencerPanel.height = 36
 
-local settingsPanel = Panel("Settings")
-settingsPanel.backgroundColour = "404040"
-settingsPanel.x = 0
-settingsPanel.y = sequencerPanel.y + sequencerPanel.height
-settingsPanel.width = 720
-settingsPanel.height = 60
-
 local notePanel = Panel("Notes")
 notePanel.backgroundColour = "black"
 notePanel.x = 0
-notePanel.y = settingsPanel.y + settingsPanel.height
+notePanel.y = sequencerPanel.y + sequencerPanel.height
 notePanel.width = 720
 notePanel.height = 240
 
-local scalePanel = Panel("Scale")
-scalePanel.backgroundColour = "404040"
-scalePanel.x = 0
-scalePanel.y = notePanel.y + notePanel.height
-scalePanel.width = 720
-scalePanel.height = 60
+local settingsPanel = Panel("Scale")
+settingsPanel.backgroundColour = "404040"
+settingsPanel.x = 5
+settingsPanel.y = notePanel.y + notePanel.height + 5
+settingsPanel.width = 244
+settingsPanel.height = 105
+
+local axisPanel = Panel("AxisPanel")
+axisPanel.backgroundColour = "404040"
+axisPanel.x = settingsPanel.x + settingsPanel.width + 5
+axisPanel.y = settingsPanel.y
+axisPanel.width = 460
+axisPanel.height = 105
+
+local rythmPanel = Panel("Rythm")
+rythmPanel.backgroundColour = "404040"
+rythmPanel.x = settingsPanel.x
+rythmPanel.y = settingsPanel.y + settingsPanel.height + 5
+rythmPanel.width = 710
+rythmPanel.height = settingsPanel.height
 
 --------------------------------------------------------------------------------
 -- Widgets
@@ -329,124 +378,6 @@ playButton.changed = function(self)
 end
 
 --------------------------------------------------------------------------------
--- Settings
---------------------------------------------------------------------------------
-
--- X Axis
-
-local axisLabelX = settingsPanel:Label("AxisLabelX")
-axisLabelX.text = "X-axis"
-axisLabelX.tooltip = "Settings for the x-axis (horizontal)"
-axisLabelX.textColour = labelBackgoundColour
-axisLabelX.backgroundColour = labelTextColour
-axisLabelX.fontSize = 28
-axisLabelX.height = 45
-axisLabelX.width = 75
-axisLabelX.x = 7
-axisLabelX.y = 7
-
-local gridOffsetX = settingsPanel:Slider("GridOffsetX", gridXY[1].offset, 0, gridXY[1].max - 1)
-gridOffsetX.displayName = "Offset"
-gridOffsetX.tooltip = "Offset of x axis"
-gridOffsetX.backgroundColour = menuBackgroundColour
-gridOffsetX.textColour = menuTextColour
-gridOffsetX.height = 45
-gridOffsetX.width = 75
-gridOffsetX.x = axisLabelX.x + axisLabelX.width + 5
-gridOffsetX.y = axisLabelX.y
-gridOffsetX.changed = function(self)
-  gridXY[1].offset = gem.round(self.value)
-  recalculateGrid()
-end
-
-local gridSizeX = settingsPanel:Slider("GridSizeX", gridXY[1].size, 1, gridXY[1].max)
-gridSizeX.displayName = "Length"
-gridSizeX.tooltip = "Length of x axis"
-gridSizeX.backgroundColour = menuBackgroundColour
-gridSizeX.textColour = menuTextColour
-gridSizeX.height = gridOffsetX.height
-gridSizeX.width = 75
-gridSizeX.x = gridOffsetX.x + gridOffsetX.width + 5
-gridSizeX.y = gridOffsetX.y
-gridSizeX.changed = function(self)
-  gridXY[1].size = gem.round(self.value)
-  recalculateGrid()
-end
-
-local seqPlayModeX = settingsPanel:Menu("SequencerPlayModeX", playModes)
-seqPlayModeX.displayName = "Playmode"
-seqPlayModeX.tooltip = "The sequencer play mode for the x (horizontal) axis"
-seqPlayModeX.x = gridSizeX.x + gridSizeX.width + 5
-seqPlayModeX.y = gridSizeX.y
-seqPlayModeX.height = gridSizeX.height
-seqPlayModeX.width = gridSizeX.width
-seqPlayModeX.backgroundColour = menuBackgroundColour
-seqPlayModeX.textColour = menuTextColour
-seqPlayModeX.arrowColour = menuArrowColour
-seqPlayModeX.outlineColour = menuOutlineColour
-seqPlayModeX.changed = function(self)
-  setPlayMode(1, self.text)
-end
-seqPlayModeX:changed()
-
--- Y Axis
-
-local axisLabelY = settingsPanel:Label("AxisLabelY")
-axisLabelY.text = "Y-axis"
-axisLabelY.tooltip = "Settings for the y-axis (vertical)"
-axisLabelY.fontSize = axisLabelX.fontSize
-axisLabelY.textColour = labelBackgoundColour
-axisLabelY.backgroundColour = labelTextColour
-axisLabelY.height = axisLabelX.height
-axisLabelY.width = axisLabelX.width
-axisLabelY.x = seqPlayModeX.x + seqPlayModeX.width + 69
-axisLabelY.y = seqPlayModeX.y
-
-local gridOffsetY = settingsPanel:Slider("GridOffsetY", gridXY[2].offset, 0, gridXY[2].max - 1)
-gridOffsetY.displayName = "Offset"
-gridOffsetY.tooltip = "Offset of y axis"
-gridOffsetY.backgroundColour = menuBackgroundColour
-gridOffsetY.textColour = menuTextColour
-gridOffsetY.height = gridOffsetX.height
-gridOffsetY.width = gridOffsetX.width
-gridOffsetY.x = axisLabelY.x + axisLabelY.width + 5
-gridOffsetY.y = gridOffsetX.y
-gridOffsetY.changed = function(self)
-  gridXY[2].offset = gem.round(self.value)
-  recalculateGrid()
-end
-
-local gridLengthY = settingsPanel:Slider("GridSizeY", gridXY[2].size, 1, gridXY[2].max)
-gridLengthY.displayName = "Length"
-gridLengthY.tooltip = "Length of y axis"
-gridLengthY.backgroundColour = menuBackgroundColour
-gridLengthY.textColour = menuTextColour
-gridLengthY.height = gridOffsetY.height
-gridLengthY.width = gridOffsetY.width
-gridLengthY.x = gridOffsetY.x + gridOffsetY.width + 5
-gridLengthY.y = gridOffsetY.y
-gridLengthY.changed = function(self)
-  gridXY[2].size = gem.round(self.value)
-  recalculateGrid()
-end
-
-local seqPlayModeY = settingsPanel:Menu("SequencerPlayModeY", playModes)
-seqPlayModeY.displayName = "Playmode"
-seqPlayModeY.tooltip = "The sequencer play mode for the y (vertical) axis"
-seqPlayModeY.x = gridLengthY.x + gridLengthY.width + 5
-seqPlayModeY.y = gridLengthY.y
-seqPlayModeY.height = gridLengthY.height
-seqPlayModeY.width = gridLengthY.width
-seqPlayModeY.backgroundColour = menuBackgroundColour
-seqPlayModeY.textColour = menuTextColour
-seqPlayModeY.arrowColour = menuArrowColour
-seqPlayModeY.outlineColour = menuOutlineColour
-seqPlayModeY.changed = function(self)
-  setPlayMode(2, self.text)
-end
-seqPlayModeY:changed()
-
---------------------------------------------------------------------------------
 -- Note Grid
 --------------------------------------------------------------------------------
 
@@ -458,7 +389,7 @@ local rowSpacing = 2
 for y=1,gridXY[2].max do
   for x=1,gridXY[1].max do
     --print("x, y, note", x, y, startNote)
-    local gridCell = notePanel:NumBox("Cell" .. x .. '_' .. y, startNote, 0, 127, true)
+    local gridCell = notePanel:NumBox("Cell" .. x .. '_' .. y, 0, 0, 127, true)
     gridCell.enabled = getEnabledStatus(x, y)
     gridCell.showLabel = false
     gridCell.displayName = "Note"
@@ -471,7 +402,6 @@ for y=1,gridXY[2].max do
     gridCell.x = (colSpacing * 1) + (columnCounter * (gridCell.width + colSpacing))
     gridCell.y = (rowSpacing * 1.5) + ((gridCell.height + rowSpacing) * rowCounter)
     table.insert(grid, gridCell)
-    startNote = startNote + 1
     columnCounter = columnCounter + 1
     if columnCounter >= gridXY[1].max then
       columnCounter = 0
@@ -489,71 +419,230 @@ xySize.bounds = {xyOffset.x, xyOffset.y+xyOffset.height+4, xyOffset.width, xyOff
 xyOffset.tooltip = "Adjust length"
 
 --------------------------------------------------------------------------------
+-- Axis Settings
+--------------------------------------------------------------------------------
+
+local xSpacing = 10
+
+-- X Axis
+
+local axisLabelX = axisPanel:Label("AxisLabelX")
+axisLabelX.text = "X-axis"
+axisLabelX.tooltip = "Settings for the x-axis (horizontal)"
+axisLabelX.textColour = labelBackgoundColour
+axisLabelX.backgroundColour = labelTextColour
+axisLabelX.fontSize = 22
+axisLabelX.height = 40
+axisLabelX.width = 60
+axisLabelX.x = 5
+axisLabelX.y = 5
+
+local gridOffsetX = axisPanel:Slider("GridOffsetX", gridXY[1].offset, 0, gridXY[1].max - 1)
+gridOffsetX.displayName = "Offset"
+gridOffsetX.tooltip = "Offset of x axis"
+gridOffsetX.backgroundColour = menuBackgroundColour
+gridOffsetX.textColour = menuTextColour
+gridOffsetX.height = 45
+gridOffsetX.width = 75
+gridOffsetX.x = axisLabelX.x + axisLabelX.width + xSpacing
+gridOffsetX.y = 0
+gridOffsetX.changed = function(self)
+  gridXY[1].offset = gem.round(self.value)
+  recalculateGrid()
+end
+
+local gridSizeX = axisPanel:Slider("GridSizeX", gridXY[1].size, 1, gridXY[1].max)
+gridSizeX.displayName = "Length"
+gridSizeX.tooltip = "Length of x axis"
+gridSizeX.backgroundColour = menuBackgroundColour
+gridSizeX.textColour = menuTextColour
+gridSizeX.height = gridOffsetX.height
+gridSizeX.width = 75
+gridSizeX.x = gridOffsetX.x + gridOffsetX.width + xSpacing
+gridSizeX.y = gridOffsetX.y
+gridSizeX.changed = function(self)
+  gridXY[1].size = gem.round(self.value)
+  recalculateGrid()
+end
+
+local seqPlayModeX = axisPanel:Menu("SequencerPlayModeX", playModes)
+seqPlayModeX.displayName = "Mode"
+seqPlayModeX.tooltip = "The sequencer play mode for the x (horizontal) axis"
+seqPlayModeX.x = gridSizeX.x + gridSizeX.width + xSpacing
+seqPlayModeX.y = gridSizeX.y
+seqPlayModeX.height = gridSizeX.height
+seqPlayModeX.width = gridSizeX.width
+seqPlayModeX.backgroundColour = menuBackgroundColour
+seqPlayModeX.textColour = menuTextColour
+seqPlayModeX.arrowColour = menuArrowColour
+seqPlayModeX.outlineColour = menuOutlineColour
+seqPlayModeX.changed = function(self)
+  setPlayMode(1, self.text)
+end
+seqPlayModeX:changed()
+
+local probabilityX = axisPanel:Knob("ProbabilityX", 100, 0, 100, true)
+probabilityX.unit = Unit.Percent
+probabilityX.displayName = "Probability X"
+probabilityX.tooltip = "Set the play mode probability for the x (horizontal) axis"
+probabilityX.backgroundColour = widgetBackgroundColour
+probabilityX.fillColour = knobFillColour
+probabilityX.outlineColour = labelBackgoundColour
+probabilityX.showPopupDisplay = true
+probabilityX.height = 39
+probabilityX.width = 120
+probabilityX.y = 10
+probabilityX.x = seqPlayModeX.x + seqPlayModeX.width + xSpacing
+probabilityX.changed = function(self)
+  gridXY[1].probability = self.value
+end
+
+-- Y Axis
+
+local axisLabelY = axisPanel:Label("AxisLabelY")
+axisLabelY.text = "Y-axis"
+axisLabelY.tooltip = "Settings for the y-axis (vertical)"
+axisLabelY.fontSize = axisLabelX.fontSize
+axisLabelY.textColour = labelBackgoundColour
+axisLabelY.backgroundColour = labelTextColour
+axisLabelY.height = axisLabelX.height
+axisLabelY.width = axisLabelX.width
+axisLabelY.x = axisLabelX.x
+axisLabelY.y = axisLabelX.y + axisLabelX.height + 15
+
+local gridOffsetY = axisPanel:Slider("GridOffsetY", gridXY[2].offset, 0, gridXY[2].max - 1)
+gridOffsetY.displayName = "Offset"
+gridOffsetY.tooltip = "Offset of y axis"
+gridOffsetY.backgroundColour = menuBackgroundColour
+gridOffsetY.textColour = menuTextColour
+gridOffsetY.height = gridOffsetX.height
+gridOffsetY.width = gridOffsetX.width
+gridOffsetY.x = axisLabelY.x + axisLabelY.width + xSpacing
+gridOffsetY.y = gridOffsetX.y + gridOffsetX.height + 10
+gridOffsetY.changed = function(self)
+  gridXY[2].offset = gem.round(self.value)
+  recalculateGrid()
+end
+
+local gridLengthY = axisPanel:Slider("GridSizeY", gridXY[2].size, 1, gridXY[2].max)
+gridLengthY.displayName = "Length"
+gridLengthY.tooltip = "Length of y axis"
+gridLengthY.backgroundColour = menuBackgroundColour
+gridLengthY.textColour = menuTextColour
+gridLengthY.height = gridOffsetY.height
+gridLengthY.width = gridOffsetY.width
+gridLengthY.x = gridOffsetY.x + gridOffsetY.width + xSpacing
+gridLengthY.y = gridOffsetY.y
+gridLengthY.changed = function(self)
+  gridXY[2].size = gem.round(self.value)
+  recalculateGrid()
+end
+
+local seqPlayModeY = axisPanel:Menu("SequencerPlayModeY", playModes)
+seqPlayModeY.displayName = "Mode"
+seqPlayModeY.tooltip = "The sequencer play mode for the y (vertical) axis"
+seqPlayModeY.x = gridLengthY.x + gridLengthY.width + xSpacing
+seqPlayModeY.y = gridLengthY.y
+seqPlayModeY.height = gridLengthY.height
+seqPlayModeY.width = gridLengthY.width
+seqPlayModeY.backgroundColour = menuBackgroundColour
+seqPlayModeY.textColour = menuTextColour
+seqPlayModeY.arrowColour = menuArrowColour
+seqPlayModeY.outlineColour = menuOutlineColour
+seqPlayModeY.changed = function(self)
+  setPlayMode(2, self.text)
+end
+seqPlayModeY:changed()
+
+local probabilityY = axisPanel:Knob("ProbabilityY", 100, 0, 100, true)
+probabilityY.unit = Unit.Percent
+probabilityY.displayName = "Probability Y"
+probabilityY.tooltip = "Set the play mode probability for the y (vertical) axis"
+probabilityY.backgroundColour = widgetBackgroundColour
+probabilityY.fillColour = knobFillColour
+probabilityY.outlineColour = labelBackgoundColour
+probabilityY.showPopupDisplay = true
+probabilityY.height = 39
+probabilityY.width = 120
+probabilityY.y = probabilityX.y + probabilityX.height + 15
+probabilityY.x = probabilityX.x
+probabilityY.changed = function(self)
+  gridXY[2].probability = self.value
+end
+
+--------------------------------------------------------------------------------
 -- Resolution and Scale
 --------------------------------------------------------------------------------
 
-local seqResolution = scalePanel:Menu("SequencerResolution", resolutions.getResolutionNames())
-seqResolution.displayName = "Resolution"
-seqResolution.tooltip = "The resolution to use"
-seqResolution.selected = defaultResolution
-seqResolution.x = 5
-seqResolution.y = 5
-seqResolution.height = 45
-seqResolution.width = 90
-seqResolution.backgroundColour = menuBackgroundColour
-seqResolution.textColour = menuTextColour
-seqResolution.arrowColour = menuArrowColour
-seqResolution.outlineColour = menuOutlineColour
-seqResolution.changed = function(self)
-  sequencerResolution = resolutions.getResolution(self.value)
-end
-seqResolution:changed()
-
-local keyMenu = scalePanel:Menu("Key", notes.getNoteNames())
+local keyMenu = settingsPanel:Menu("Key", notes.getNoteNames())
 keyMenu.displayName = "Key"
 keyMenu.tooltip = "The key"
 keyMenu.showLabel = true
-keyMenu.width = 90
-keyMenu.x = seqResolution.x + seqResolution.width + 5
-keyMenu.y = seqResolution.y
+keyMenu.width = 108--seqResolution.width
+keyMenu.x = 10--seqResolution.x + seqResolution.width + 5
+keyMenu.y = 3--seqResolution.y
 keyMenu.backgroundColour = menuBackgroundColour
 keyMenu.textColour = menuTextColour
 keyMenu.arrowColour = menuArrowColour
 keyMenu.outlineColour = menuOutlineColour
 
 local scalesNames = scales.getScaleNames()
-local scaleMenu = scalePanel:Menu("Scale", scalesNames)
+local scaleMenu = settingsPanel:Menu("Scale", scalesNames)
 scaleMenu.selected = #scalesNames
 scaleMenu.displayName = "Scale"
 scaleMenu.tooltip = "The scale"
 scaleMenu.showLabel = true
-scaleMenu.width = 120
-scaleMenu.x = keyMenu.x + keyMenu.width + 5
+scaleMenu.width = 108
+scaleMenu.x = keyMenu.x + keyMenu.width + 9
 scaleMenu.y = keyMenu.y
 scaleMenu.backgroundColour = menuBackgroundColour
 scaleMenu.textColour = menuTextColour
 scaleMenu.arrowColour = menuArrowColour
 scaleMenu.outlineColour = menuOutlineColour
 
-local startOctave = scalePanel:NumBox("StartOctave", -1, -2, 7, true)
+local startOctave = settingsPanel:NumBox("StartOctave", -1, -2, 7, true)
 startOctave.displayName = "Start octave"
 startOctave.tooltip = "The octave to start from when creating the scale"
 startOctave.backgroundColour = menuBackgroundColour
 startOctave.textColour = menuTextColour
 startOctave.height = 20
-startOctave.width = scaleMenu.width
-startOctave.x = scaleMenu.x + scaleMenu.width + 5
-startOctave.y = scaleMenu.y + (scaleMenu.height / 2) + 3
+startOctave.width = 108
+startOctave.x = keyMenu.x
+startOctave.y = scaleMenu.y + scaleMenu.height + 5
 
-local octaves = scalePanel:NumBox("Octaves", 9, 1, 9, true)
+local octaves = settingsPanel:NumBox("Octaves", 9, 1, 9, true)
 octaves.displayName = "Octaves"
 octaves.tooltip = "Set the octave range"
 octaves.backgroundColour = menuBackgroundColour
 octaves.textColour = menuTextColour
-octaves.height = 20
-octaves.width = scaleMenu.width
-octaves.x = startOctave.x + startOctave.width + 5
+octaves.height = startOctave.height
+octaves.width = startOctave.width
+octaves.x = scaleMenu.x
 octaves.y = startOctave.y
+
+gateInput = settingsPanel:NumBox("GateInput", 90, 0, 100, true)
+gateInput.unit = Unit.Percent
+gateInput.displayName = "Gate"
+gateInput.tooltip = "Set the gate length"
+gateInput.backgroundColour = menuBackgroundColour
+gateInput.textColour = menuTextColour
+gateInput.height = octaves.height
+gateInput.width = octaves.width
+gateInput.x = startOctave.x
+gateInput.y = octaves.y + octaves.height + 5
+gateInput.changed = function(self)
+  gate = self.value
+end
+
+gateRandomization = settingsPanel:NumBox("GateRandomization", 25, 0, 100, true)
+gateRandomization.unit = Unit.Percent
+gateRandomization.textColour = menuTextColour
+gateRandomization.backgroundColour = widgetBackgroundColour
+gateRandomization.displayName = "Gate Rand"
+gateRandomization.tooltip = "Gate randomization amount"
+gateRandomization.size = gateInput.size
+gateRandomization.x = scaleMenu.x
+gateRandomization.y = gateInput.y
 
 keyMenu.changed = function(self)
   setScale(self.value, scaleMenu.value, startOctave.value, octaves.value)
@@ -572,6 +661,18 @@ octaves.changed = function(self)
 end
 
 keyMenu:changed()
+
+--------------------------------------------------------------------------------
+-- Rythm Panel
+--------------------------------------------------------------------------------
+
+local rythmLabel = rythmPanel:Label("RythmLabel")
+rythmLabel.text = "Rythm"
+rythmLabel.alpha = 0.75
+rythmLabel.width = 45
+rythmLabel.y = 1
+
+paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, rythmLabel, colours, 2)
 
 --------------------------------------------------------------------------------
 -- Handle events
@@ -596,5 +697,27 @@ end
 function onTransport(start)
   if autoplayButton.value == true then
     playButton:setValue(start)
+  end
+end
+
+--------------------------------------------------------------------------------
+-- Save / Load
+--------------------------------------------------------------------------------
+
+function onSave()
+  local fragmentInputData = {}
+
+  for _,v in ipairs(paramsPerFragment) do
+    table.insert(fragmentInputData, v.fragmentInput.text)
+  end
+
+  return {fragmentInputData}
+end
+
+function onLoad(data)
+  local fragmentInputData = data[1]
+
+  for i,v in ipairs(fragmentInputData) do
+    paramsPerFragment[i].fragmentInput.text = v
   end
 end
