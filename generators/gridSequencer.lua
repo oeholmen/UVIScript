@@ -130,7 +130,8 @@ local function handleFollow(axis)
 end
 
 -- playModes = {"Random", "->", "<-", "-><-", "<-->", "Follow ->", "Follow <-"}
-local function advanceByPlayMode(v, i, bothAxisAreFollow)
+local function advanceByPlayMode(v, i)
+  local bothAxisAreFollow = string.sub(gridXY[1].playMode, 1, 6) == "Follow" and string.sub(gridXY[2].playMode, 1, 6) == "Follow"
   local otherAxis = 1
   if i == otherAxis then
     otherAxis = 2
@@ -150,7 +151,7 @@ local function advanceByPlayMode(v, i, bothAxisAreFollow)
     v.pos = v.pos + v.direction
     if v.pos > v.offset + v.size or v.pos > v.max then
       v.pos = v.offset + 1
-      if otherAxisIsFollow and bothAxisAreFollow == false then
+      if otherAxisIsFollow then
         handleFollow(otherAxis)
       end
     end
@@ -182,10 +183,9 @@ local function advanceByPlayMode(v, i, bothAxisAreFollow)
 end
 
 local function getNote()
-  local bothAxisAreFollow = string.sub(gridXY[1].playMode, 1, 6) == "Follow" and string.sub(gridXY[2].playMode, 1, 6) == "Follow"
   for i,v in ipairs(gridXY) do
     if gem.getRandomBoolean(v.probability) then
-      advanceByPlayMode(v, i, bothAxisAreFollow)
+      advanceByPlayMode(v, i)
     end
   end
 
@@ -467,7 +467,7 @@ end
 
 local seqPlayModeX = axisPanel:Menu("SequencerPlayModeX", playModes)
 seqPlayModeX.displayName = "Mode"
-seqPlayModeX.tooltip = "The sequencer play mode for the x (horizontal) axis"
+seqPlayModeX.tooltip = "The sequencer play mode for the x axis (horizontal)"
 seqPlayModeX.x = gridSizeX.x + gridSizeX.width + xSpacing
 seqPlayModeX.y = gridSizeX.y
 seqPlayModeX.height = gridSizeX.height
@@ -484,7 +484,7 @@ seqPlayModeX:changed()
 local probabilityX = axisPanel:Knob("ProbabilityX", 100, 0, 100, true)
 probabilityX.unit = Unit.Percent
 probabilityX.displayName = "Probability X"
-probabilityX.tooltip = "Set the play mode probability for the x (horizontal) axis"
+probabilityX.tooltip = "Set the probability that the position will advance on the x axis (horizontal)"
 probabilityX.backgroundColour = widgetBackgroundColour
 probabilityX.fillColour = knobFillColour
 probabilityX.outlineColour = labelBackgoundColour
@@ -540,7 +540,7 @@ end
 
 local seqPlayModeY = axisPanel:Menu("SequencerPlayModeY", playModes)
 seqPlayModeY.displayName = "Mode"
-seqPlayModeY.tooltip = "The sequencer play mode for the y (vertical) axis"
+seqPlayModeY.tooltip = "The sequencer play mode for the y axis (vertical)"
 seqPlayModeY.x = gridLengthY.x + gridLengthY.width + xSpacing
 seqPlayModeY.y = gridLengthY.y
 seqPlayModeY.height = gridLengthY.height
@@ -557,7 +557,7 @@ seqPlayModeY:changed()
 local probabilityY = axisPanel:Knob("ProbabilityY", 100, 0, 100, true)
 probabilityY.unit = Unit.Percent
 probabilityY.displayName = "Probability Y"
-probabilityY.tooltip = "Set the play mode probability for the y (vertical) axis"
+probabilityY.tooltip = "Set the probability that the position will advance on the y axis (vertical)"
 probabilityY.backgroundColour = widgetBackgroundColour
 probabilityY.fillColour = knobFillColour
 probabilityY.outlineColour = labelBackgoundColour
@@ -576,11 +576,11 @@ end
 
 local keyMenu = settingsPanel:Menu("Key", notes.getNoteNames())
 keyMenu.displayName = "Key"
-keyMenu.tooltip = "The key"
+keyMenu.tooltip = "The key to set for the notes in the grid"
 keyMenu.showLabel = true
-keyMenu.width = 108--seqResolution.width
-keyMenu.x = 10--seqResolution.x + seqResolution.width + 5
-keyMenu.y = 3--seqResolution.y
+keyMenu.width = 108
+keyMenu.x = 10
+keyMenu.y = 3
 keyMenu.backgroundColour = menuBackgroundColour
 keyMenu.textColour = menuTextColour
 keyMenu.arrowColour = menuArrowColour
@@ -590,7 +590,7 @@ local scalesNames = scales.getScaleNames()
 local scaleMenu = settingsPanel:Menu("Scale", scalesNames)
 scaleMenu.selected = #scalesNames
 scaleMenu.displayName = "Scale"
-scaleMenu.tooltip = "The scale"
+scaleMenu.tooltip = "The scale to set for the notes in the grid"
 scaleMenu.showLabel = true
 scaleMenu.width = 108
 scaleMenu.x = keyMenu.x + keyMenu.width + 9
