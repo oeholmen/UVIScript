@@ -51,6 +51,7 @@ local isPlaying = false
 local sequencerResolution = 0.25 -- Fallback value
 local paramsPerFragment = {} -- Holds the rythmic fragments
 local grid = {} -- Holds the note inputs
+local listeners = {} -- Holds the note listeners
 local gridXY = {} -- Holds x and y axis positon and other settings
 local gateInput
 local gateRandomization
@@ -91,22 +92,58 @@ table.insert(gridXY, {
   return enabledCells
 end ]]
 
-local function getGridCell(x, y)
+local function getCell(x, y, prefix, table)
   --print("Get grid cell x, y", x, y)
   --[[ local index = x * y -- TODO Find index using a formula
   return grid[index] ]]
-  local cellName = "Cell" .. x .. '_' .. y
-  for _,v in ipairs(grid) do
+  local cellName = prefix .. x .. '_' .. y
+  for _,v in ipairs(table) do
     if v.name == cellName then
       return v
     end
   end
 end
 
+local function showListeners(show)
+  for i,v in ipairs(grid) do
+    if show then
+      v.width = 30
+    else
+      v.width = 42
+    end
+    listeners[i].visible = show
+  end
+end
+
+local function isWithinSelectedGrid(x, y)
+  local enabledX = x > gridXY[1].offset and x <= gridXY[1].offset + gridXY[1].size
+  local enabledY = y > gridXY[2].offset and y <= gridXY[2].offset + gridXY[2].size
+  return enabledX and enabledY
+end
+
+local function recalculateGrid()
+  local i = 1
+  for y=1,gridXY[2].max do
+    for x=1,gridXY[1].max do
+      if isWithinSelectedGrid(x, y) then
+        grid[i].textColour = "green"
+        grid[i].backgroundColour = "052525"
+        --grid[i].enabled = true
+      else
+        grid[i].textColour = menuTextColour
+        grid[i].backgroundColour = menuBackgroundColour
+        --grid[i].enabled = false
+      end
+      i = i + 1
+    end
+  end  
+end
+
 local function flashNote(noteInput, duration)
   noteInput.textColour = "yellow"
   waitBeat(duration)
-  noteInput.textColour = menuTextColour
+  --noteInput.textColour = "green"
+  recalculateGrid()
 end
 
 local function setPlayMode(axis, playMode)
@@ -189,7 +226,7 @@ local function getNote()
     end
   end
 
-  return getGridCell(gridXY[1].pos, gridXY[2].pos)
+  return getCell(gridXY[1].pos, gridXY[2].pos, "Note", grid)
 end
 
 local function resetGridPos()
@@ -256,22 +293,6 @@ local function stopPlaying()
   isPlaying = false
 end
 
-local function getEnabledStatus(x, y)
-  local enabledX = x > gridXY[1].offset and x <= gridXY[1].offset + gridXY[1].size
-  local enabledY = y > gridXY[2].offset and y <= gridXY[2].offset + gridXY[2].size
-  return enabledX and enabledY
-end
-
-local function recalculateGrid()
-  local i = 1
-  for y=1,gridXY[2].max do
-    for x=1,gridXY[1].max do
-      grid[i].enabled = getEnabledStatus(x, y)
-      i = i + 1
-    end
-  end  
-end
-
 local function setScale(rootNote, scale, startOctave, octaves)
   rootNote = rootNote - 1 + ((startOctave + 2) * 12)
   local scaleDefinitions = scales.getScaleDefinitions()
@@ -285,11 +306,11 @@ local function setScale(rootNote, scale, startOctave, octaves)
     scaleIndex = scaleIndex + 1
     if scaleIndex > #scale then
       scaleIndex = 1
-      if bgColour == menuBackgroundColour then
+      --[[ if bgColour == menuBackgroundColour then
         bgColour = "01012F"
       else
         bgColour = menuBackgroundColour
-      end
+      end ]]
     end
   end
 end
@@ -348,6 +369,20 @@ sequencerLabel.fontSize = 22
 sequencerLabel.position = {0,0}
 sequencerLabel.size = {135,25}
 
+local showListenersButton = sequencerPanel:OnOffButton("ShowListeners", false)
+showListenersButton.backgroundColourOff = backgroundColourOff
+showListenersButton.backgroundColourOn = backgroundColourOn
+showListenersButton.textColourOff = textColourOff
+showListenersButton.textColourOn = textColourOn
+showListenersButton.displayName = "Show Listeners"
+showListenersButton.tooltip = "Show listeners for each note"
+showListenersButton.size = {100,22}
+showListenersButton.x = sequencerPanel.width - (showListenersButton.width * 3) - 10
+showListenersButton.y = 5
+showListenersButton.changed = function(self)
+  showListeners(self.value)
+end
+
 local autoplayButton = sequencerPanel:OnOffButton("AutoPlay", true)
 autoplayButton.backgroundColourOff = backgroundColourOff
 autoplayButton.backgroundColourOn = backgroundColourOn
@@ -355,9 +390,9 @@ autoplayButton.textColourOff = textColourOff
 autoplayButton.textColourOn = textColourOn
 autoplayButton.displayName = "Auto Play"
 autoplayButton.tooltip = "Play automatically on transport"
-autoplayButton.size = {100,22}
-autoplayButton.x = sequencerPanel.width - (autoplayButton.width * 2) - 10
-autoplayButton.y = 5
+autoplayButton.size = showListenersButton.size
+autoplayButton.x = showListenersButton.x + showListenersButton.width + 5
+autoplayButton.y = showListenersButton.y
 
 local playButton = sequencerPanel:OnOffButton("Play", false)
 playButton.persistent = false
@@ -385,12 +420,13 @@ local rowCounter = gridXY[2].max - 1
 local columnCounter = 0
 local colSpacing = 3
 local rowSpacing = 2
+local noteListen = nil
+local noteIndex = 0
 
 for y=1,gridXY[2].max do
   for x=1,gridXY[1].max do
     --print("x, y, note", x, y, startNote)
-    local gridCell = notePanel:NumBox("Cell" .. x .. '_' .. y, 0, 0, 127, true)
-    gridCell.enabled = getEnabledStatus(x, y)
+    local gridCell = notePanel:NumBox("Note" .. x .. '_' .. y, noteIndex, 0, 127, true)
     gridCell.showLabel = false
     gridCell.displayName = "Note"
     gridCell.tooltip = "The note to trigger in cell x:" .. x .. ', y:' .. y
@@ -402,6 +438,29 @@ for y=1,gridXY[2].max do
     gridCell.x = (colSpacing * 1) + (columnCounter * (gridCell.width + colSpacing))
     gridCell.y = (rowSpacing * 1.5) + ((gridCell.height + rowSpacing) * rowCounter)
     table.insert(grid, gridCell)
+
+    local listen = notePanel:OnOffButton("Listen" .. x .. '_' .. y)
+    listen.visible = false
+    listen.displayName = "L"
+    listen.tooltip = "Note learn"
+    listen.persistent = false
+    listen.textColourOff = "white"
+    listen.backgroundColourOn = "green"
+    listen.height = gridCell.height
+    listen.width = 14
+    listen.x = gridCell.x + 30
+    listen.y = gridCell.y
+    listen.changed = function(self)
+      if self.value then
+        noteListen = {x,y}
+        print("noteListen", x, y)
+      else
+        noteListen = nil
+      end
+    end
+    table.insert(listeners, listen)
+
+    noteIndex = noteIndex + 1
     columnCounter = columnCounter + 1
     if columnCounter >= gridXY[1].max then
       columnCounter = 0
@@ -661,6 +720,7 @@ octaves.changed = function(self)
 end
 
 keyMenu:changed()
+recalculateGrid()
 
 --------------------------------------------------------------------------------
 -- Rythm Panel
@@ -679,6 +739,11 @@ paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, rythmLabel
 --------------------------------------------------------------------------------
 
 function onNote(e)
+  if type(noteListen) == "table" then
+    print("noteListen", noteListen[1], noteListen[2])
+    getCell(noteListen[1], noteListen[2], "Note", grid):setValue(e.note)
+    getCell(noteListen[1], noteListen[2], "Listen", listeners):setValue(false)
+  end
   if autoplayButton.value == true then
     postEvent(e)
   else
