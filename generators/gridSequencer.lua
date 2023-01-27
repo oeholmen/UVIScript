@@ -108,8 +108,10 @@ local function showListeners(show)
   for i,v in ipairs(grid) do
     if show then
       v.width = 30
+      v.x = listeners[i].x + listeners[i].width
     else
       v.width = 42
+      v.x = listeners[i].x
     end
     listeners[i].visible = show
   end
@@ -128,11 +130,9 @@ local function recalculateGrid()
       if isWithinSelectedGrid(x, y) then
         grid[i].textColour = "green"
         grid[i].backgroundColour = "052525"
-        --grid[i].enabled = true
       else
         grid[i].textColour = menuTextColour
         grid[i].backgroundColour = menuBackgroundColour
-        --grid[i].enabled = false
       end
       i = i + 1
     end
@@ -142,7 +142,6 @@ end
 local function flashNote(noteInput, duration)
   noteInput.textColour = "yellow"
   waitBeat(duration)
-  --noteInput.textColour = "green"
   recalculateGrid()
 end
 
@@ -306,11 +305,6 @@ local function setScale(rootNote, scale, startOctave, octaves)
     scaleIndex = scaleIndex + 1
     if scaleIndex > #scale then
       scaleIndex = 1
-      --[[ if bgColour == menuBackgroundColour then
-        bgColour = "01012F"
-      else
-        bgColour = menuBackgroundColour
-      end ]]
     end
   end
 end
@@ -425,20 +419,6 @@ local noteIndex = 0
 
 for y=1,gridXY[2].max do
   for x=1,gridXY[1].max do
-    --print("x, y, note", x, y, startNote)
-    local gridCell = notePanel:NumBox("Note" .. x .. '_' .. y, noteIndex, 0, 127, true)
-    gridCell.showLabel = false
-    gridCell.displayName = "Note"
-    gridCell.tooltip = "The note to trigger in cell x:" .. x .. ', y:' .. y
-    gridCell.unit = Unit.MidiKey
-    gridCell.backgroundColour = menuBackgroundColour
-    gridCell.textColour = menuTextColour
-    gridCell.height = 24
-    gridCell.width = 42
-    gridCell.x = (colSpacing * 1) + (columnCounter * (gridCell.width + colSpacing))
-    gridCell.y = (rowSpacing * 1.5) + ((gridCell.height + rowSpacing) * rowCounter)
-    table.insert(grid, gridCell)
-
     local listen = notePanel:OnOffButton("Listen" .. x .. '_' .. y)
     listen.visible = false
     listen.displayName = "L"
@@ -446,10 +426,10 @@ for y=1,gridXY[2].max do
     listen.persistent = false
     listen.textColourOff = "white"
     listen.backgroundColourOn = "green"
-    listen.height = gridCell.height
+    listen.height = 24
     listen.width = 14
-    listen.x = gridCell.x + 30
-    listen.y = gridCell.y
+    listen.x = (colSpacing * 1) + (columnCounter * (42 + colSpacing))
+    listen.y = (rowSpacing * 1.5) + ((listen.height + rowSpacing) * rowCounter)
     listen.changed = function(self)
       if self.value then
         noteListen = {x,y}
@@ -459,6 +439,19 @@ for y=1,gridXY[2].max do
       end
     end
     table.insert(listeners, listen)
+
+    local gridCell = notePanel:NumBox("Note" .. x .. '_' .. y, noteIndex + 12, 0, 127, true)
+    gridCell.showLabel = false
+    gridCell.displayName = "Note"
+    gridCell.tooltip = "The note to trigger in cell x:" .. x .. ', y:' .. y
+    gridCell.unit = Unit.MidiKey
+    gridCell.backgroundColour = menuBackgroundColour
+    gridCell.textColour = menuTextColour
+    gridCell.height = 24
+    gridCell.width = 42
+    gridCell.x = listen.x
+    gridCell.y = listen.y
+    table.insert(grid, gridCell)
 
     noteIndex = noteIndex + 1
     columnCounter = columnCounter + 1
