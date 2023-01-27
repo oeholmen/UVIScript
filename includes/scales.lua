@@ -49,16 +49,19 @@ return {
     return scaleNames
   end,
 
-  createScale = function(scaleDefinition, rootNote)
+  createScale = function(scaleDefinition, rootNote, maxNote)
+    if type(maxNote) ~= "number" then
+      maxNote = 128
+    end
     local scale = {}
     -- Find notes for scale
-    local pos = 0
-    while rootNote < 128 do
+    local pos = 1
+    while rootNote < maxNote do
       table.insert(scale, rootNote)
-      pos = pos + 1
       rootNote = rootNote + scaleDefinition[pos]
-      if pos == #scaleDefinition then
-        pos = 0
+      pos = pos + 1
+      if pos > #scaleDefinition then
+        pos = 1
       end
     end
     return scale

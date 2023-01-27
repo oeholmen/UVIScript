@@ -23,6 +23,8 @@ setBackgroundColour(backgroundColour)
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
+local scales = require "includes.scales"
+local notes = require "includes.notes"
 local resolutions = require "includes.resolutions"
 
 --------------------------------------------------------------------------------
@@ -163,14 +165,12 @@ local function getNote()
     v.pos = math.min(v.max, math.max(v.offset + 1, v.pos))
   end
 
-  return getGridCell(gridXY[1].pos, gridXY[2].pos)
-
-  --[[ local noteInput = getGridCell(gridXY[1].pos, gridXY[2].pos)
+  local noteInput = getGridCell(gridXY[1].pos, gridXY[2].pos)
   if type(noteInput) == "nil" then
-    -- Failsafe
-    noteInput = grid[1]
+    -- Failsafe - get a random input
+    noteInput = gem.getRandomFromTable(grid)
   end
-  return noteInput ]]
+  return noteInput
 end
 
 local function resetGridPos()
@@ -230,6 +230,28 @@ local function recalculateGrid()
   end  
 end
 
+local function setScale(rootNote, scale, startOctave, octaves)
+  rootNote = rootNote - 1 + ((startOctave + 2) * 12)
+  local scaleDefinitions = scales.getScaleDefinitions()
+  local maxNote = rootNote + 1 + (octaves * 12)
+  local scale = scales.createScale(scaleDefinitions[scale], rootNote, math.min(128, maxNote))
+  local scaleIndex = 1
+  local bgColour = menuBackgroundColour
+  for _,v in ipairs(grid) do
+    v:setValue(scale[scaleIndex])
+    v.backgroundColour = bgColour
+    scaleIndex = scaleIndex + 1
+    if scaleIndex > #scale then
+      scaleIndex = 1
+      if bgColour == menuBackgroundColour then
+        bgColour = "01012F"
+      else
+        bgColour = menuBackgroundColour
+      end
+    end
+  end
+end
+
 --------------------------------------------------------------------------------
 -- Panel Definitions
 --------------------------------------------------------------------------------
@@ -254,6 +276,13 @@ notePanel.x = 0
 notePanel.y = settingsPanel.y + settingsPanel.height
 notePanel.width = 720
 notePanel.height = 240
+
+local scalePanel = Panel("Scale")
+scalePanel.backgroundColour = "404040"
+scalePanel.x = 0
+scalePanel.y = notePanel.y + notePanel.height
+scalePanel.width = 720
+scalePanel.height = 60
 
 --------------------------------------------------------------------------------
 -- Widgets
@@ -303,23 +332,6 @@ end
 -- Settings
 --------------------------------------------------------------------------------
 
-local seqResolution = settingsPanel:Menu("SequencerResolution", resolutions.getResolutionNames())
-seqResolution.displayName = "Resolution"
-seqResolution.tooltip = "The resolution to use"
-seqResolution.selected = defaultResolution
-seqResolution.x = 5
-seqResolution.y = 5
-seqResolution.height = 45
-seqResolution.width = 90
-seqResolution.backgroundColour = menuBackgroundColour
-seqResolution.textColour = menuTextColour
-seqResolution.arrowColour = menuArrowColour
-seqResolution.outlineColour = menuOutlineColour
-seqResolution.changed = function(self)
-  sequencerResolution = resolutions.getResolution(self.value)
-end
-seqResolution:changed()
-
 -- X Axis
 
 local axisLabelX = settingsPanel:Label("AxisLabelX")
@@ -327,11 +339,11 @@ axisLabelX.text = "X-axis"
 axisLabelX.tooltip = "Settings for the x-axis (horizontal)"
 axisLabelX.textColour = labelBackgoundColour
 axisLabelX.backgroundColour = labelTextColour
-axisLabelX.fontSize = 18
-axisLabelX.height = seqResolution.height
-axisLabelX.width = 45
-axisLabelX.x = seqResolution.x + seqResolution.width + 20
-axisLabelX.y = seqResolution.y
+axisLabelX.fontSize = 28
+axisLabelX.height = 45
+axisLabelX.width = 75
+axisLabelX.x = 7
+axisLabelX.y = 7
 
 local gridOffsetX = settingsPanel:Slider("GridOffsetX", gridXY[1].offset, 0, gridXY[1].max - 1)
 gridOffsetX.displayName = "Offset"
@@ -341,7 +353,7 @@ gridOffsetX.textColour = menuTextColour
 gridOffsetX.height = 45
 gridOffsetX.width = 75
 gridOffsetX.x = axisLabelX.x + axisLabelX.width + 5
-gridOffsetX.y = seqResolution.y
+gridOffsetX.y = axisLabelX.y
 gridOffsetX.changed = function(self)
   gridXY[1].offset = gem.round(self.value)
   recalculateGrid()
@@ -365,8 +377,8 @@ local seqPlayModeX = settingsPanel:Menu("SequencerPlayModeX", playModes)
 seqPlayModeX.displayName = "Playmode"
 seqPlayModeX.tooltip = "The sequencer play mode for the x (horizontal) axis"
 seqPlayModeX.x = gridSizeX.x + gridSizeX.width + 5
-seqPlayModeX.y = seqResolution.y
-seqPlayModeX.height = seqResolution.height
+seqPlayModeX.y = gridSizeX.y
+seqPlayModeX.height = gridSizeX.height
 seqPlayModeX.width = gridSizeX.width
 seqPlayModeX.backgroundColour = menuBackgroundColour
 seqPlayModeX.textColour = menuTextColour
@@ -382,13 +394,13 @@ seqPlayModeX:changed()
 local axisLabelY = settingsPanel:Label("AxisLabelY")
 axisLabelY.text = "Y-axis"
 axisLabelY.tooltip = "Settings for the y-axis (vertical)"
-axisLabelY.fontSize = 18
+axisLabelY.fontSize = axisLabelX.fontSize
 axisLabelY.textColour = labelBackgoundColour
 axisLabelY.backgroundColour = labelTextColour
-axisLabelY.height = seqPlayModeX.height
+axisLabelY.height = axisLabelX.height
 axisLabelY.width = axisLabelX.width
-axisLabelY.x = seqPlayModeX.x + seqPlayModeX.width + 20
-axisLabelY.y = seqResolution.y
+axisLabelY.x = seqPlayModeX.x + seqPlayModeX.width + 69
+axisLabelY.y = seqPlayModeX.y
 
 local gridOffsetY = settingsPanel:Slider("GridOffsetY", gridXY[2].offset, 0, gridXY[2].max - 1)
 gridOffsetY.displayName = "Offset"
@@ -422,8 +434,8 @@ local seqPlayModeY = settingsPanel:Menu("SequencerPlayModeY", playModes)
 seqPlayModeY.displayName = "Playmode"
 seqPlayModeY.tooltip = "The sequencer play mode for the y (vertical) axis"
 seqPlayModeY.x = gridLengthY.x + gridLengthY.width + 5
-seqPlayModeY.y = seqResolution.y
-seqPlayModeY.height = seqResolution.height
+seqPlayModeY.y = gridLengthY.y
+seqPlayModeY.height = gridLengthY.height
 seqPlayModeY.width = gridLengthY.width
 seqPlayModeY.backgroundColour = menuBackgroundColour
 seqPlayModeY.textColour = menuTextColour
@@ -475,6 +487,91 @@ xyOffset.tooltip = "Adjust offset"
 local xySize = notePanel:XY('GridSizeX', 'GridSizeY')
 xySize.bounds = {xyOffset.x, xyOffset.y+xyOffset.height+4, xyOffset.width, xyOffset.height}
 xyOffset.tooltip = "Adjust length"
+
+--------------------------------------------------------------------------------
+-- Resolution and Scale
+--------------------------------------------------------------------------------
+
+local seqResolution = scalePanel:Menu("SequencerResolution", resolutions.getResolutionNames())
+seqResolution.displayName = "Resolution"
+seqResolution.tooltip = "The resolution to use"
+seqResolution.selected = defaultResolution
+seqResolution.x = 5
+seqResolution.y = 5
+seqResolution.height = 45
+seqResolution.width = 90
+seqResolution.backgroundColour = menuBackgroundColour
+seqResolution.textColour = menuTextColour
+seqResolution.arrowColour = menuArrowColour
+seqResolution.outlineColour = menuOutlineColour
+seqResolution.changed = function(self)
+  sequencerResolution = resolutions.getResolution(self.value)
+end
+seqResolution:changed()
+
+local keyMenu = scalePanel:Menu("Key", notes.getNoteNames())
+keyMenu.displayName = "Key"
+keyMenu.tooltip = "The key"
+keyMenu.showLabel = true
+keyMenu.width = 90
+keyMenu.x = seqResolution.x + seqResolution.width + 5
+keyMenu.y = seqResolution.y
+keyMenu.backgroundColour = menuBackgroundColour
+keyMenu.textColour = menuTextColour
+keyMenu.arrowColour = menuArrowColour
+keyMenu.outlineColour = menuOutlineColour
+
+local scalesNames = scales.getScaleNames()
+local scaleMenu = scalePanel:Menu("Scale", scalesNames)
+scaleMenu.selected = #scalesNames
+scaleMenu.displayName = "Scale"
+scaleMenu.tooltip = "The scale"
+scaleMenu.showLabel = true
+scaleMenu.width = 120
+scaleMenu.x = keyMenu.x + keyMenu.width + 5
+scaleMenu.y = keyMenu.y
+scaleMenu.backgroundColour = menuBackgroundColour
+scaleMenu.textColour = menuTextColour
+scaleMenu.arrowColour = menuArrowColour
+scaleMenu.outlineColour = menuOutlineColour
+
+local startOctave = scalePanel:NumBox("StartOctave", -1, -2, 7, true)
+startOctave.displayName = "Start octave"
+startOctave.tooltip = "The octave to start from when creating the scale"
+startOctave.backgroundColour = menuBackgroundColour
+startOctave.textColour = menuTextColour
+startOctave.height = 20
+startOctave.width = scaleMenu.width
+startOctave.x = scaleMenu.x + scaleMenu.width + 5
+startOctave.y = scaleMenu.y + (scaleMenu.height / 2) + 3
+
+local octaves = scalePanel:NumBox("Octaves", 9, 1, 9, true)
+octaves.displayName = "Octaves"
+octaves.tooltip = "Set the octave range"
+octaves.backgroundColour = menuBackgroundColour
+octaves.textColour = menuTextColour
+octaves.height = 20
+octaves.width = scaleMenu.width
+octaves.x = startOctave.x + startOctave.width + 5
+octaves.y = startOctave.y
+
+keyMenu.changed = function(self)
+  setScale(self.value, scaleMenu.value, startOctave.value, octaves.value)
+end
+
+scaleMenu.changed = function(self)
+  setScale(keyMenu.value, self.value, startOctave.value, octaves.value)
+end
+
+startOctave.changed = function(self)
+  setScale(keyMenu.value, scaleMenu.value, self.value, octaves.value)
+end
+
+octaves.changed = function(self)
+  setScale(keyMenu.value, scaleMenu.value, startOctave.value, self.value)
+end
+
+keyMenu:changed()
 
 --------------------------------------------------------------------------------
 -- Handle events
