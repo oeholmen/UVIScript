@@ -46,7 +46,7 @@ local rythmicFragments = require "includes.rythmicFragments"
 -- Variables
 --------------------------------------------------------------------------------
 
-local playModes = {"->", "<-", "-><-", "<-->", "Follow ->", "Follow <-"} -- TODO Add Chord
+local playModes = {"->", "<-", "-><-", "<-->", "Follow ->", "Follow <-"}
 local isPlaying = false
 local sequencerResolution = 0.25 -- Fallback value
 local paramsPerFragment = {} -- Holds the rythmic fragments
@@ -63,6 +63,7 @@ table.insert(gridXY, {
   pos = 0,
   direction = 1,
   playMode = playModes[1],
+  chord = false,
   randomProbability = 0, -- Probability that position will be selected by random
   advanceProbability = 100, -- Probability that a new position for the axis will be selected by the play mode
   mustAdvance = true, -- Set true to ensure pos is moved to within the selected area even if advanceProbability = 0
@@ -76,6 +77,7 @@ table.insert(gridXY, {
   pos = 0,
   direction = 1,
   playMode = playModes[1],
+  chord = false,
   randomProbability = 0, -- Probability that position will be selected by random
   advanceProbability = 100, -- Probability that a new position for the axis will be selected by the play mode
   mustAdvance = true, -- Set true to ensure pos is moved to within the selected area even if advanceProbability = 0
@@ -87,16 +89,6 @@ table.insert(gridXY, {
 --------------------------------------------------------------------------------
 -- Sequencer Functions
 --------------------------------------------------------------------------------
-
---[[ local function getEnabledCells()
-  local enabledCells = {}
-  for _,v in ipairs(grid) do
-    if v.enabled then
-      table.insert(enabledCells, v)
-    end
-  end
-  return enabledCells
-end ]]
 
 local function getCell(x, y, prefix, table)
   --print("Get grid cell x, y", x, y)
@@ -129,10 +121,12 @@ local function showListeners(show)
   end
 end
 
+local function isAxisWithinSelectedGrid(axis, i)
+  return axis > gridXY[i].offset and axis <= gridXY[i].offset + gridXY[i].size
+end
+
 local function isWithinSelectedGrid(x, y)
-  local enabledX = x > gridXY[1].offset and x <= gridXY[1].offset + gridXY[1].size
-  local enabledY = y > gridXY[2].offset and y <= gridXY[2].offset + gridXY[2].size
-  return enabledX and enabledY
+  return isAxisWithinSelectedGrid(x, 1) and isAxisWithinSelectedGrid(y, 2)
 end
 
 local function recalculateGrid()
@@ -177,7 +171,7 @@ local function handleFollow(axis)
   end
 end
 
--- playModes = {"->", "<-", "-><-", "<-->", "Follow ->", "Follow <-"} -- TODO Add Chord
+-- playModes = {"->", "<-", "-><-", "<-->", "Follow ->", "Follow <-"}
 local function advanceByPlayMode(v, i)
   local bothAxisAreFollow = string.sub(gridXY[1].playMode, 1, 6) == "Follow" and string.sub(gridXY[2].playMode, 1, 6) == "Follow"
   local otherAxis = 1
@@ -191,10 +185,8 @@ local function advanceByPlayMode(v, i)
     else
       v.pos = v.offset + v.size
     end
-    --if otherAxisIsFollow and (gridXY[otherAxis].mustAdvance or gem.getRandomBoolean(gridXY[otherAxis].advanceProbability)) then
     if otherAxisIsFollow then
       handleFollow(otherAxis)
-      gridXY[otherAxis].mustAdvance = false
     end
   elseif v.playMode == "->" or bothAxisAreFollow then
     v.pos = gem.inc(v.pos, v.direction)
@@ -217,12 +209,18 @@ local function advanceByPlayMode(v, i)
     if v.pos <= v.offset then
       v.direction = 1
       v.pos = v.offset + 1
+      if v.size > 1 then
+        v.pos = v.pos + 1 -- To avoid repeat
+      end
       if otherAxisIsFollow then
         handleFollow(otherAxis)
       end
     elseif v.pos > v.offset + v.size or v.pos > v.max then
       v.direction = -1
       v.pos = v.offset + v.size
+      if v.size > 1 then
+        v.pos = v.pos - 1 -- To avoid repeat
+      end
       if otherAxisIsFollow then
         handleFollow(otherAxis)
       end
@@ -231,14 +229,47 @@ local function advanceByPlayMode(v, i)
   v.pos = math.min(v.max, math.max(v.offset + 1, v.pos))
 end
 
-local function getNote()
+local function getNotes()
+  local cells = {}
+
   for i,v in ipairs(gridXY) do
-    if v.mustAdvance or gem.getRandomBoolean(v.advanceProbability) then
+    if (v.mustAdvance or gem.getRandomBoolean(v.advanceProbability)) then
       advanceByPlayMode(v, i)
       v.mustAdvance = false
     end
   end
-  return getCell(gridXY[1].pos, gridXY[2].pos, "Note", grid)
+
+  if gridXY[1].chord or gridXY[2].chord then
+    for i,v in ipairs(gridXY) do
+      if v.chord then
+        local startPos = v.offset + 1
+        local endPos = math.min(v.max, v.offset + v.size)
+        print("axis, startPos, endPos", i, startPos, endPos)
+        for pos=1, endPos do
+          print("isAxisWithinSelectedGrid(pos, i)", pos, i, isAxisWithinSelectedGrid(pos, i))
+          if isAxisWithinSelectedGrid(pos, i) then
+            local cell
+            if i == 1 then
+              local yPos = gridXY[2].pos
+              print("getCell @ axis, pos, yPos", i, pos, yPos)
+              cell = getCell(pos, yPos, "Note", grid)
+            else
+              local xPos = gridXY[1].pos
+              print("getCell @ axis, xPos, pos", i, xPos, pos)
+              cell = getCell(xPos, pos, "Note", grid)
+            end
+            table.insert(cells, cell)
+          end
+        end
+      end
+    end
+  else
+    -- No chord, just get the one note
+    table.insert(cells, getCell(gridXY[1].pos, gridXY[2].pos, "Note", grid))
+  end
+
+  print("Returning cells", #cells)
+  return cells
 end
 
 local function resetGridPos()
@@ -268,7 +299,7 @@ local function sequenceRunner()
   local rest = false
   isPlaying = true
   while isPlaying do
-    local noteInput = getNote()
+    local noteInputs = getNotes()
     local velocity = 64 -- Default velocity - override in velocity event processor if required
     -- Get resolution from fragments
     duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = rythmicFragments.getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
@@ -276,10 +307,13 @@ local function sequenceRunner()
       -- Fallback to the default resolution if not found in fragment
       duration = sequencerResolution
     end
-    if type(noteInput) ~= "nil" and rest == false then
-      local note = noteInput.value
-      local playDuration = rythmicFragments.resolutions.getPlayDuration(duration, getGate())
-      playNote(note, velocity, beat2ms(playDuration))
+    if #noteInputs > 0 and rest == false then
+      for _,noteInput in ipairs(noteInputs) do
+        local playDuration = rythmicFragments.resolutions.getPlayDuration(duration, getGate())
+        local note = noteInput.value
+        playNote(note, velocity, beat2ms(playDuration))
+        spawn(flashNote, noteInput, playDuration)
+      end
       if type(activeFragment) == "table" then
         for i,v in ipairs(paramsPerFragment) do
           if activeFragment.i == i then
@@ -287,7 +321,6 @@ local function sequenceRunner()
           end
         end
       end
-      spawn(flashNote, noteInput, playDuration)
     end
     waitBeat(duration)
   end
@@ -336,6 +369,7 @@ local function setScale(rootNote, scale, startOctave, octaves)
       -- Increment degree octave on pos 1
       if i > 1 and degreeDefinitionPos == 1 then
         degreeOctave = gem.inc(degreeOctave, 1, (octaves - 1), 0)
+        print("Increment degreeOctave", degreeOctave)
       end
     end
 
@@ -642,13 +676,13 @@ local xSpacing = 5
 -- X Axis
 
 local axisLabelX = axisPanel:Label("AxisLabelX")
-axisLabelX.text = "X-axis"
+axisLabelX.text = "X"
 axisLabelX.tooltip = "Settings for the x-axis (horizontal)"
 axisLabelX.textColour = labelBackgoundColour
 axisLabelX.backgroundColour = labelTextColour
 axisLabelX.fontSize = 22
 axisLabelX.height = 40
-axisLabelX.width = 60
+axisLabelX.width = 23
 axisLabelX.x = 5
 axisLabelX.y = 5
 
@@ -658,7 +692,7 @@ gridOffsetX.tooltip = "Offset of x axis"
 gridOffsetX.backgroundColour = menuBackgroundColour
 gridOffsetX.textColour = menuTextColour
 gridOffsetX.height = 45
-gridOffsetX.width = 63
+gridOffsetX.width = 60
 gridOffsetX.x = axisLabelX.x + axisLabelX.width + xSpacing
 gridOffsetX.y = 0
 gridOffsetX.changed = function(self)
@@ -698,6 +732,20 @@ seqPlayModeX.changed = function(self)
 end
 seqPlayModeX:changed()
 
+local chordButtonX = axisPanel:OnOffButton("ChordX", false)
+chordButtonX.backgroundColourOff = backgroundColourOff
+chordButtonX.backgroundColourOn = backgroundColourOn
+chordButtonX.textColourOff = textColourOff
+chordButtonX.textColourOn = textColourOn
+chordButtonX.displayName = "Poly"
+chordButtonX.tooltip = "Play all notes on this axis at once"
+chordButtonX.size = {39,21}
+chordButtonX.x = seqPlayModeX.x + seqPlayModeX.width + xSpacing
+chordButtonX.y = seqPlayModeX.y + 24
+chordButtonX.changed = function(self)
+  gridXY[1].chord = self.value
+end
+
 local advanceProbabilityX = axisPanel:Knob("AdvanceProbabilityX", gridXY[1].advanceProbability, 0, 100, true)
 advanceProbabilityX.unit = Unit.Percent
 --advanceProbabilityX.showLabel = false
@@ -711,7 +759,7 @@ advanceProbabilityX.showPopupDisplay = true
 advanceProbabilityX.height = 39
 advanceProbabilityX.width = 90
 advanceProbabilityX.y = 10
-advanceProbabilityX.x = seqPlayModeX.x + seqPlayModeX.width + xSpacing
+advanceProbabilityX.x = chordButtonX.x + chordButtonX.width + xSpacing
 advanceProbabilityX.changed = function(self)
   gridXY[1].advanceProbability = self.value
 end
@@ -737,7 +785,7 @@ end
 -- Y Axis
 
 local axisLabelY = axisPanel:Label("AxisLabelY")
-axisLabelY.text = "Y-axis"
+axisLabelY.text = "Y"
 axisLabelY.tooltip = "Settings for the y-axis (vertical)"
 axisLabelY.fontSize = axisLabelX.fontSize
 axisLabelY.textColour = labelBackgoundColour
@@ -793,6 +841,20 @@ seqPlayModeY.changed = function(self)
 end
 seqPlayModeY:changed()
 
+local chordButtonY = axisPanel:OnOffButton("ChordY", false)
+chordButtonY.backgroundColourOff = backgroundColourOff
+chordButtonY.backgroundColourOn = backgroundColourOn
+chordButtonY.textColourOff = textColourOff
+chordButtonY.textColourOn = textColourOn
+chordButtonY.displayName = "Poly"
+chordButtonY.tooltip = "Play all notes on this axis at once"
+chordButtonY.size = {39,21}
+chordButtonY.x = seqPlayModeY.x + seqPlayModeY.width + xSpacing
+chordButtonY.y = seqPlayModeY.y + 24
+chordButtonY.changed = function(self)
+  gridXY[2].chord = self.value
+end
+
 local advanceProbabilityY = axisPanel:Knob("AdvanceProbabilityY", gridXY[2].advanceProbability, 0, 100, true)
 advanceProbabilityY.unit = Unit.Percent
 --advanceProbabilityY.showLabel = false
@@ -806,7 +868,7 @@ advanceProbabilityY.showPopupDisplay = true
 advanceProbabilityY.height = advanceProbabilityX.height
 advanceProbabilityY.width = advanceProbabilityX.width
 advanceProbabilityY.y = advanceProbabilityY.y + advanceProbabilityY.height + 15
-advanceProbabilityY.x = seqPlayModeY.x + seqPlayModeY.width + xSpacing
+advanceProbabilityY.x = chordButtonY.x + chordButtonY.width + xSpacing
 advanceProbabilityY.changed = function(self)
   gridXY[2].advanceProbability = self.value
 end
@@ -879,8 +941,6 @@ function onNote(e)
       end
     end
     noteListen = false
-    --[[ getCell(noteListen[1], noteListen[2], "Note", grid):setValue(e.note)
-    getCell(noteListen[1], noteListen[2], "Listen", listeners):setValue(false) ]]
   end
   if autoplayButton.value == true then
     postEvent(e)
