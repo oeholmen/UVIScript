@@ -209,7 +209,7 @@ local function advanceByPlayMode(v, i)
     if v.pos <= v.offset then
       v.direction = 1
       v.pos = v.offset + 1
-      if v.size > 1 then
+      if v.size > 1 and otherAxisIsFollow == false then
         v.pos = v.pos + 1 -- To avoid repeat
       end
       if otherAxisIsFollow then
@@ -218,7 +218,7 @@ local function advanceByPlayMode(v, i)
     elseif v.pos > v.offset + v.size or v.pos > v.max then
       v.direction = -1
       v.pos = v.offset + v.size
-      if v.size > 1 then
+      if v.size > 1 and otherAxisIsFollow == false then
         v.pos = v.pos - 1 -- To avoid repeat
       end
       if otherAxisIsFollow then
