@@ -91,7 +91,22 @@ local function trimStartAndEnd(s)
   return s:match("^%s*(.-)%s*$")
 end
 
+local function inc(val, inc, max, reset)
+  if type(inc) ~= "number" then
+    inc = 1
+  end
+  if type(reset) ~= "number" then
+    reset = 1
+  end
+  val = val + inc
+  if type(max) == "number" and val > max then
+    val = reset
+  end
+  return val
+end
+
 return {  
+  inc = inc,
   round = round,
   getRandom = getRandom,
   getChangeMax = getChangeMax,
