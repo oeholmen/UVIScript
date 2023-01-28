@@ -244,18 +244,18 @@ local function getNotes()
       if v.chord then
         local startPos = v.offset + 1
         local endPos = math.min(v.max, v.offset + v.size)
-        print("axis, startPos, endPos", i, startPos, endPos)
+        --print("axis, startPos, endPos", i, startPos, endPos)
         for pos=1, endPos do
-          print("isAxisWithinSelectedGrid(pos, i)", pos, i, isAxisWithinSelectedGrid(pos, i))
+          --print("isAxisWithinSelectedGrid(pos, i)", pos, i, isAxisWithinSelectedGrid(pos, i))
           if isAxisWithinSelectedGrid(pos, i) then
             local cell
             if i == 1 then
               local yPos = gridXY[2].pos
-              print("getCell @ axis, pos, yPos", i, pos, yPos)
+              --print("getCell @ axis, pos, yPos", i, pos, yPos)
               cell = getCell(pos, yPos, "Note", grid)
             else
               local xPos = gridXY[1].pos
-              print("getCell @ axis, xPos, pos", i, xPos, pos)
+              --print("getCell @ axis, xPos, pos", i, xPos, pos)
               cell = getCell(xPos, pos, "Note", grid)
             end
             table.insert(cells, cell)
@@ -268,7 +268,7 @@ local function getNotes()
     table.insert(cells, getCell(gridXY[1].pos, gridXY[2].pos, "Note", grid))
   end
 
-  print("Returning cells", #cells)
+  --print("Returning cells", #cells)
   return cells
 end
 
@@ -299,7 +299,8 @@ local function sequenceRunner()
   local rest = false
   isPlaying = true
   while isPlaying do
-    local noteInputs = getNotes()
+    local noteInputs = getNotes() -- The notes to play
+    local notesPlaying = {} -- Holds the playing notes, to avoid duplicates
     local velocity = 64 -- Default velocity - override in velocity event processor if required
     -- Get resolution from fragments
     duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = rythmicFragments.getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
@@ -311,7 +312,10 @@ local function sequenceRunner()
       for _,noteInput in ipairs(noteInputs) do
         local playDuration = rythmicFragments.resolutions.getPlayDuration(duration, getGate())
         local note = noteInput.value
-        playNote(note, velocity, beat2ms(playDuration))
+        if gem.tableIncludes(notesPlaying, note) == false then
+          playNote(note, velocity, beat2ms(playDuration))
+          table.insert(notesPlaying, note)
+        end
         spawn(flashNote, noteInput, playDuration)
       end
       if type(activeFragment) == "table" then
@@ -364,8 +368,10 @@ local function setScale(rootNote, scale, startOctave, octaves)
     if #degreeDefinition > 0 and (i - 1) % gridXY[1].max == 0 then
       -- Increment degree position
       degreeDefinitionPos = gem.inc(degreeDefinitionPos, 1, #degreeDefinition)
-      -- Set the scale pos to the selected degree
-      scalePos = degreeDefinition[degreeDefinitionPos]
+      -- Set the scale pos to the selected degree if within the scale
+      if degreeDefinition[degreeDefinitionPos] <= #scale then
+        scalePos = degreeDefinition[degreeDefinitionPos]
+      end
       -- Increment degree octave on pos 1
       if i > 1 and degreeDefinitionPos == 1 then
         degreeOctave = gem.inc(degreeOctave, 1, (octaves - 1), 0)
@@ -374,7 +380,8 @@ local function setScale(rootNote, scale, startOctave, octaves)
     end
 
     -- Set the note for this cell
-    v:setValue(scale[scalePos] + (degreeOctave * 12))
+    local noteNumber = math.min(127, scale[scalePos] + (degreeOctave * 12))
+    v:setValue(noteNumber)
 
     -- Get next scale position
     scalePos = gem.inc(scalePos, scaleIncrementDefinition[scaleIncrementDefinitionPos], #scale)
