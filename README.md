@@ -9,7 +9,9 @@ There are a few scripts for creating generative music. Check out the "generators
 
 The sequencers are a lot of fun! I recommend checking them out.
 ## Usage
-To use these scripts, download the code (Code->Download Zip), and load the script you want to use with the default script processor in UVI Falcon. *NOTE* The "includes" folder must be placed in your "Falcon/UVIScripts" folder. The other scripts can be in any location you choose.
+To use these scripts, download the code (Code->Download Zip), and load the script you want to use with the default script processor in UVI Falcon.
+
+*NOTE:* The "includes" folder must be placed in your "Falcon/UVIScripts" folder. The other scripts can be in any location you choose.
 ### Effects
 Effects for incoming note events.
 ### Generators
