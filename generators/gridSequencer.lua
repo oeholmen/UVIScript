@@ -370,7 +370,7 @@ local function setScale(rootNote, scale, startOctave, octaves)
     -- Check if we have a degree definition
     -- Check if we are at the start of the x axis
     if #degreeDefinition > 0 and (i - 1) % gridXY[1].max == 0 then
-    -- Increment degree position
+      -- Increment degree position
       degreeDefinitionPos = gem.inc(degreeDefinitionPos, 1, #degreeDefinition)
       -- Set the scale pos to the selected degree if within the scale
       if degreeDefinition[degreeDefinitionPos] <= #scale then
@@ -381,6 +381,8 @@ local function setScale(rootNote, scale, startOctave, octaves)
         degreeOctave = gem.inc(degreeOctave, 1, (octaves - 1), 0)
         print("Increment octave at degree pos", degreeOctave)
       end
+      -- Reset the position for scale increments
+      scaleIncrementDefinitionPos = 1
     end
 
     -- Set the note for this cell

@@ -32,6 +32,9 @@ The chorder also has a multichannel option, so each voice in the chord can be se
 ### generativeStrategySeqencer.lua (Generative Strategy Sequencer)
 This generator lets you define tonal "strategies", short sequences, that are played at different pitches.
 
+### gridSeqencer.lua (Grid Sequencer)
+This generator lets you arrange notes in a grid, and play them back as single notes or chords/clusters.
+
 ### noteFragmentGenerator.lua (Note Fragment Generator)
 This generator lets you pick the exact notes that you want to include. The notes are selected by random when playing.
 
