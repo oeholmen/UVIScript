@@ -1,3 +1,3 @@
 title = "Multi Midi CC Sequencer"
-numParts = 8
-require "sequencers.midiControlSequencer"
+numParts = 4
+require "midiControlSequencer"

@@ -1,2 +1,2 @@
 numParts = 8
-require "sequencers.stochasticDrumSequencer"
+require "stochasticDrumSequencer"

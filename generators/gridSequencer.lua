@@ -363,19 +363,23 @@ local function setScale(rootNote, scale, startOctave, octaves)
   local scaleIncrementDefinitionPos = 1
   local degreeDefinitionPos = 0
   local degreeOctave = 0
+  print("Root note note is", rootNote)
+  print("Max note is", maxNote)
+  print("#scale", #scale)
   for i,v in ipairs(grid) do
-    -- Check if we have a degreeDefinition and are at the start of the x axis
+    -- Check if we have a degree definition
+    -- Check if we are at the start of the x axis
     if #degreeDefinition > 0 and (i - 1) % gridXY[1].max == 0 then
-      -- Increment degree position
+    -- Increment degree position
       degreeDefinitionPos = gem.inc(degreeDefinitionPos, 1, #degreeDefinition)
       -- Set the scale pos to the selected degree if within the scale
       if degreeDefinition[degreeDefinitionPos] <= #scale then
         scalePos = degreeDefinition[degreeDefinitionPos]
       end
-      -- Increment degree octave on pos 1
+      -- Increment degree octave on pos 1 of the degree def
       if i > 1 and degreeDefinitionPos == 1 then
         degreeOctave = gem.inc(degreeOctave, 1, (octaves - 1), 0)
-        print("Increment degreeOctave", degreeOctave)
+        print("Increment octave at degree pos", degreeOctave)
       end
     end
 
@@ -385,6 +389,10 @@ local function setScale(rootNote, scale, startOctave, octaves)
 
     -- Get next scale position
     scalePos = gem.inc(scalePos, scaleIncrementDefinition[scaleIncrementDefinitionPos], #scale)
+
+    if scalePos == 1 then
+      print("Scale was reset at index/note", i, noteNumber)
+    end
 
     -- Get next scale increment position
     scaleIncrementDefinitionPos = gem.inc(scaleIncrementDefinitionPos, 1, #scaleIncrementDefinition)
@@ -695,7 +703,7 @@ axisLabelX.y = 5
 
 local gridOffsetX = axisPanel:Slider("GridOffsetX", gridXY[1].offset, 0, gridXY[1].max - 1)
 gridOffsetX.displayName = "Offset"
-gridOffsetX.tooltip = "Offset of x axis"
+gridOffsetX.tooltip = "Offset of x axis (can be adjusted by the top XY controller)"
 gridOffsetX.backgroundColour = menuBackgroundColour
 gridOffsetX.textColour = menuTextColour
 gridOffsetX.height = 45
@@ -703,14 +711,17 @@ gridOffsetX.width = 60
 gridOffsetX.x = axisLabelX.x + axisLabelX.width + xSpacing
 gridOffsetX.y = 0
 gridOffsetX.changed = function(self)
-  gridXY[1].offset = gem.round(self.value)
-  gridXY[1].mustAdvance = true
-  recalculateGrid()
+  local offset = gem.round(self.value)
+  if offset ~= gridXY[1].offset then
+    gridXY[1].offset = offset
+    gridXY[1].mustAdvance = true
+    recalculateGrid()
+  end
 end
 
 local gridLengthX = axisPanel:Slider("GridSizeX", gridXY[1].size, 1, gridXY[1].max)
 gridLengthX.displayName = "Length"
-gridLengthX.tooltip = "Length of x axis"
+gridLengthX.tooltip = "Length of x axis (can be adjusted by the bottom XY controller)"
 gridLengthX.backgroundColour = menuBackgroundColour
 gridLengthX.textColour = menuTextColour
 gridLengthX.height = gridOffsetX.height
@@ -718,9 +729,12 @@ gridLengthX.width = gridOffsetX.width
 gridLengthX.x = gridOffsetX.x + gridOffsetX.width + xSpacing
 gridLengthX.y = gridOffsetX.y
 gridLengthX.changed = function(self)
-  gridXY[1].size = gem.round(self.value)
-  gridXY[1].mustAdvance = true
-  recalculateGrid()
+  local size = gem.round(self.value)
+  if size ~= gridXY[1].size then
+    gridXY[1].size = size
+    gridXY[1].mustAdvance = true
+    recalculateGrid()
+  end
 end
 
 local seqPlayModeX = axisPanel:Menu("SequencerPlayModeX", playModes)
@@ -804,7 +818,7 @@ axisLabelY.y = axisLabelX.y + axisLabelX.height + 15
 
 local gridOffsetY = axisPanel:Slider("GridOffsetY", gridXY[2].offset, 0, gridXY[2].max - 1)
 gridOffsetY.displayName = "Offset"
-gridOffsetY.tooltip = "Offset of y axis"
+gridOffsetY.tooltip = "Offset of y axis (can be adjusted by the top XY controller)"
 gridOffsetY.backgroundColour = menuBackgroundColour
 gridOffsetY.textColour = menuTextColour
 gridOffsetY.height = gridOffsetX.height
@@ -812,14 +826,17 @@ gridOffsetY.width = gridOffsetX.width
 gridOffsetY.x = axisLabelY.x + axisLabelY.width + xSpacing
 gridOffsetY.y = gridOffsetX.y + gridOffsetX.height + 10
 gridOffsetY.changed = function(self)
-  gridXY[2].offset = gem.round(self.value)
-  gridXY[2].mustAdvance = true
-  recalculateGrid()
+  local offset = gem.round(self.value)
+  if offset ~= gridXY[2].offset then
+    gridXY[2].offset = offset
+    gridXY[2].mustAdvance = true
+    recalculateGrid()
+  end
 end
 
 local gridLengthY = axisPanel:Slider("GridSizeY", gridXY[2].size, 1, gridXY[2].max)
 gridLengthY.displayName = "Length"
-gridLengthY.tooltip = "Length of y axis"
+gridLengthY.tooltip = "Length of y axis (can be adjusted by the bottom XY controller)"
 gridLengthY.backgroundColour = menuBackgroundColour
 gridLengthY.textColour = menuTextColour
 gridLengthY.height = gridLengthX.height
@@ -827,9 +844,12 @@ gridLengthY.width = gridLengthX.width
 gridLengthY.x = gridOffsetY.x + gridOffsetY.width + xSpacing
 gridLengthY.y = gridOffsetY.y
 gridLengthY.changed = function(self)
-  gridXY[2].size = gem.round(self.value)
-  gridXY[2].mustAdvance = true
-  recalculateGrid()
+  local size = gem.round(self.value)
+  if size ~= gridXY[2].size then
+    gridXY[2].size = size
+    gridXY[2].mustAdvance = true
+    recalculateGrid()
+  end
 end
 
 local seqPlayModeY = axisPanel:Menu("SequencerPlayModeY", playModes)
