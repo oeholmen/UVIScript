@@ -55,8 +55,14 @@ local degreeDefinition = {} -- Holds the definition for degrees on the y-axis
 local grid = {} -- Holds the note inputs
 local listeners = {} -- Holds the note listeners
 local gridXY = {} -- Holds x and y axis positon and other settings
+local scalesNames = scales.getScaleNames()
+local scaleDefinitions = scales.getScaleDefinitions()
 local gateInput
 local gateRandomization
+local rootNote = 1 -- Holds the current root note (key)
+local scaleDefinitionIndex = #scalesNames -- Holds the scale definition index
+local startOctave = -1 -- Holds the start octave when creating the scale
+local octaves = 9 -- Holds the octave range
 
 -- X Axis (index 1)
 table.insert(gridXY, {
@@ -81,7 +87,7 @@ table.insert(gridXY, {
   randomProbability = 0, -- Probability that position will be selected by random
   advanceProbability = 100, -- Probability that a new position for the axis will be selected by the play mode
   mustAdvance = true, -- Set true to ensure pos is moved to within the selected area even if advanceProbability = 0
-  offset = 2,
+  offset = 3,
   size = 3,
   max = 9
 })
@@ -129,7 +135,7 @@ local function isWithinSelectedGrid(x, y)
   return isAxisWithinSelectedGrid(x, 1) and isAxisWithinSelectedGrid(y, 2)
 end
 
-local function recalculateGrid()
+local function setSelectedGrid()
   local i = 1
   for y=1,gridXY[2].max do
     for x=1,gridXY[1].max do
@@ -148,7 +154,7 @@ end
 local function flashNote(noteInput, duration)
   noteInput.textColour = "yellow"
   waitBeat(duration)
-  recalculateGrid()
+  setSelectedGrid()
 end
 
 local function setPlayMode(axis, playMode)
@@ -163,7 +169,7 @@ end
 
 local function handleFollow(axis)
   axis = gridXY[axis]
-  axis.pos = axis.pos + axis.direction
+  axis.pos = gem.inc(axis.pos, axis.direction)
   if axis.direction == 1 and axis.pos > axis.offset + axis.size or axis.pos > axis.max then
     axis.pos = gem.inc(axis.offset)
   elseif axis.pos <= axis.offset then
@@ -354,16 +360,16 @@ local function createTableFromText(text)
   return theTable
 end
 
-local function setScale(rootNote, scale, startOctave, octaves)
-  rootNote = (rootNote - 1) + ((startOctave + 2) * 12)
-  local scaleDefinitions = scales.getScaleDefinitions()
-  local maxNote = rootNote + (octaves * 12)
-  local scale = scales.createScale(scaleDefinitions[scale], rootNote, math.min(128, maxNote))
+local function setScale()
+  local startNote = (rootNote - 1) + ((startOctave + 2) * 12)
+  local maxNote = startNote + (octaves * 12)
+  local scale = scales.createScale(scaleDefinitions[scaleDefinitionIndex], startNote, math.min(128, maxNote))
   local scalePos = 1
   local scaleIncrementDefinitionPos = 1
   local degreeDefinitionPos = 0
   local degreeOctave = 0
-  print("Root note note is", rootNote)
+  local scaleResetPos = 1
+  print("Root note is", startNote)
   print("Max note is", maxNote)
   print("#scale", #scale)
   for i,v in ipairs(grid) do
@@ -376,6 +382,8 @@ local function setScale(rootNote, scale, startOctave, octaves)
       if degreeDefinition[degreeDefinitionPos] <= #scale then
         scalePos = degreeDefinition[degreeDefinitionPos]
       end
+      -- Set scale reset pos to match the degree definition
+      scaleResetPos = scalePos
       -- Increment degree octave on pos 1 of the degree def
       if i > 1 and degreeDefinitionPos == 1 then
         degreeOctave = gem.inc(degreeOctave, 1, (octaves - 1), 0)
@@ -390,14 +398,15 @@ local function setScale(rootNote, scale, startOctave, octaves)
     v:setValue(noteNumber)
 
     -- Get next scale position
-    scalePos = gem.inc(scalePos, scaleIncrementDefinition[scaleIncrementDefinitionPos], #scale)
+    scalePos = gem.inc(scalePos, scaleIncrementDefinition[scaleIncrementDefinitionPos], #scale, scaleResetPos)
 
     if scalePos == 1 then
-      print("Scale was reset at index/note", i, noteNumber)
+      -- Reset the position for scale increments when scale position is reset
+      scaleIncrementDefinitionPos = 1
+    else
+      -- Get next scale increment position
+      scaleIncrementDefinitionPos = gem.inc(scaleIncrementDefinitionPos, 1, #scaleIncrementDefinition)
     end
-
-    -- Get next scale increment position
-    scaleIncrementDefinitionPos = gem.inc(scaleIncrementDefinitionPos, 1, #scaleIncrementDefinition)
   end
 end
 
@@ -597,7 +606,6 @@ keyMenu.textColour = menuTextColour
 keyMenu.arrowColour = menuArrowColour
 keyMenu.outlineColour = menuOutlineColour
 
-local scalesNames = scales.getScaleNames()
 local scaleMenu = settingsPanel:Menu("Scale", scalesNames)
 scaleMenu.selected = #scalesNames
 scaleMenu.displayName = "Scale"
@@ -611,25 +619,25 @@ scaleMenu.textColour = menuTextColour
 scaleMenu.arrowColour = menuArrowColour
 scaleMenu.outlineColour = menuOutlineColour
 
-local startOctave = settingsPanel:NumBox("StartOctave", -1, -2, 7, true)
-startOctave.displayName = "Start octave"
-startOctave.tooltip = "The octave to start from when creating the scale"
-startOctave.backgroundColour = menuBackgroundColour
-startOctave.textColour = menuTextColour
-startOctave.height = 20
-startOctave.width = 108
-startOctave.x = keyMenu.x
-startOctave.y = scaleMenu.y + scaleMenu.height + 5
+local startOctaveInput = settingsPanel:NumBox("StartOctave", startOctave, -2, 7, true)
+startOctaveInput.displayName = "Start octave"
+startOctaveInput.tooltip = "The octave to start from when creating the scale"
+startOctaveInput.backgroundColour = menuBackgroundColour
+startOctaveInput.textColour = menuTextColour
+startOctaveInput.height = 20
+startOctaveInput.width = 108
+startOctaveInput.x = keyMenu.x
+startOctaveInput.y = scaleMenu.y + scaleMenu.height + 5
 
-local octaves = settingsPanel:NumBox("Octaves", 9, 1, 9, true)
-octaves.displayName = "Octaves"
-octaves.tooltip = "Set the octave range"
-octaves.backgroundColour = menuBackgroundColour
-octaves.textColour = menuTextColour
-octaves.height = startOctave.height
-octaves.width = startOctave.width
-octaves.x = scaleMenu.x
-octaves.y = startOctave.y
+local octavesInput = settingsPanel:NumBox("Octaves", octaves, 1, 9, true)
+octavesInput.displayName = "Octaves"
+octavesInput.tooltip = "Set the octave range"
+octavesInput.backgroundColour = menuBackgroundColour
+octavesInput.textColour = menuTextColour
+octavesInput.height = startOctaveInput.height
+octavesInput.width = startOctaveInput.width
+octavesInput.x = scaleMenu.x
+octavesInput.y = startOctaveInput.y
 
 local scaleIncrementInput = settingsPanel:Label("ScaleIncrementInput")
 scaleIncrementInput.text = "1"
@@ -639,13 +647,13 @@ scaleIncrementInput.backgroundColour = colours.labelTextColour
 scaleIncrementInput.backgroundColourWhenEditing = "white"
 scaleIncrementInput.textColour = "white"
 scaleIncrementInput.textColourWhenEditing = colours.labelTextColour
-scaleIncrementInput.height = startOctave.height
-scaleIncrementInput.width = startOctave.width
-scaleIncrementInput.x = startOctave.x
-scaleIncrementInput.y = startOctave.y + startOctave.height + 5
+scaleIncrementInput.height = startOctaveInput.height
+scaleIncrementInput.width = startOctaveInput.width
+scaleIncrementInput.x = startOctaveInput.x
+scaleIncrementInput.y = startOctaveInput.y + startOctaveInput.height + 5
 scaleIncrementInput.changed = function(self)
   scaleIncrementDefinition = createTableFromText(self.text)
-  setScale(keyMenu.value, scaleMenu.value, startOctave.value, octaves.value)
+  setScale()
 end
 
 local degreeInput = settingsPanel:Label("DegreeInput")
@@ -656,33 +664,34 @@ degreeInput.backgroundColour = colours.labelTextColour
 degreeInput.backgroundColourWhenEditing = "white"
 degreeInput.textColour = "white"
 degreeInput.textColourWhenEditing = colours.labelTextColour
-degreeInput.height = startOctave.height
-degreeInput.width = startOctave.width
-degreeInput.x = octaves.x
+degreeInput.height = startOctaveInput.height
+degreeInput.width = startOctaveInput.width
+degreeInput.x = octavesInput.x
 degreeInput.y = scaleIncrementInput.y
 degreeInput.changed = function(self)  
   degreeDefinition = createTableFromText(self.text)
-  setScale(keyMenu.value, scaleMenu.value, startOctave.value, octaves.value)
+  setScale()
 end
 
 keyMenu.changed = function(self)
-  setScale(self.value, scaleMenu.value, startOctave.value, octaves.value)
+  rootNote = self.value
+  setScale()
 end
 
 scaleMenu.changed = function(self)
-  setScale(keyMenu.value, self.value, startOctave.value, octaves.value)
+  scaleDefinitionIndex = self.value
+  setScale()
 end
 
-startOctave.changed = function(self)
-  setScale(keyMenu.value, scaleMenu.value, self.value, octaves.value)
+startOctaveInput.changed = function(self)
+  startOctave = self.value
+  setScale()
 end
 
-octaves.changed = function(self)
-  setScale(keyMenu.value, scaleMenu.value, startOctave.value, self.value)
+octavesInput.changed = function(self)
+  octaves = self.value
+  setScale()
 end
-
-keyMenu:changed()
-recalculateGrid()
 
 --------------------------------------------------------------------------------
 -- Axis Settings
@@ -717,7 +726,7 @@ gridOffsetX.changed = function(self)
   if offset ~= gridXY[1].offset then
     gridXY[1].offset = offset
     gridXY[1].mustAdvance = true
-    recalculateGrid()
+    setSelectedGrid()
   end
 end
 
@@ -735,7 +744,7 @@ gridLengthX.changed = function(self)
   if size ~= gridXY[1].size then
     gridXY[1].size = size
     gridXY[1].mustAdvance = true
-    recalculateGrid()
+    setSelectedGrid()
   end
 end
 
@@ -832,7 +841,7 @@ gridOffsetY.changed = function(self)
   if offset ~= gridXY[2].offset then
     gridXY[2].offset = offset
     gridXY[2].mustAdvance = true
-    recalculateGrid()
+    setSelectedGrid()
   end
 end
 
@@ -850,7 +859,7 @@ gridLengthY.changed = function(self)
   if size ~= gridXY[2].size then
     gridXY[2].size = size
     gridXY[2].mustAdvance = true
-    recalculateGrid()
+    setSelectedGrid()
   end
 end
 
@@ -960,6 +969,11 @@ paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, rythmLabel
 --------------------------------------------------------------------------------
 -- Handle events
 --------------------------------------------------------------------------------
+
+function onInit()
+  print("Init grid")
+  setSelectedGrid()
+end
 
 function onNote(e)
   if noteListen then
