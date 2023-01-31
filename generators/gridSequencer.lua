@@ -63,6 +63,7 @@ local rootNote = 1 -- Holds the current root note (key)
 local scaleDefinitionIndex = #scalesNames -- Holds the scale definition index
 local startOctave = -1 -- Holds the start octave when creating the scale
 local octaves = 9 -- Holds the octave range
+local noteRandomizationProbability = 0
 
 -- X Axis (index 1)
 table.insert(gridXY, {
@@ -97,7 +98,7 @@ table.insert(gridXY, {
 --------------------------------------------------------------------------------
 
 local function getCell(x, y, prefix, table)
-  --print("Get grid cell x, y", x, y)
+  print("Get grid cell x, y", x, y)
   --[[ local index = x * y -- TODO Find index using a formula
   return grid[index] ]]
   local cellName = prefix .. x .. '_' .. y
@@ -179,6 +180,7 @@ end
 
 -- playModes = {"->", "<-", "-><-", "<-->", "Follow ->", "Follow <-"}
 local function advanceByPlayMode(v, i)
+  print("advanceByPlayMode")
   local bothAxisAreFollow = string.sub(gridXY[1].playMode, 1, 6) == "Follow" and string.sub(gridXY[2].playMode, 1, 6) == "Follow"
   local otherAxis = 1
   if i == otherAxis then
@@ -186,6 +188,7 @@ local function advanceByPlayMode(v, i)
   end
   local otherAxisIsFollow = string.sub(gridXY[otherAxis].playMode, 1, 6) == "Follow"
   if gem.getRandomBoolean(v.randomProbability) then
+    print("PlayMode random")
     if v.size > 1 then
       v.pos = gem.getRandom(v.offset + 1, v.offset + v.size)
     else
@@ -232,7 +235,9 @@ local function advanceByPlayMode(v, i)
       end
     end
   end
+  print("Verify pos before", v.pos)
   v.pos = math.min(v.max, math.max(v.offset + 1, v.pos))
+  print("Verify pos after", v.pos)
 end
 
 local function getNotes()
@@ -274,7 +279,7 @@ local function getNotes()
     table.insert(cells, getCell(gridXY[1].pos, gridXY[2].pos, "Note", grid))
   end
 
-  --print("Returning cells", #cells)
+  print("Returning cells", #cells)
   return cells
 end
 
@@ -282,16 +287,18 @@ local function resetGridPos()
   for axis=1,2 do
     if gridXY[axis].direction == 1 then
       gridXY[axis].pos = gridXY[axis].offset
+      gridXY[axis].mustAdvance = true
     elseif string.sub(gridXY[axis].playMode, 1, 6) == "Follow" then
       gridXY[axis].pos = gridXY[axis].offset + gridXY[axis].size
     else
       gridXY[axis].pos = gridXY[axis].offset + gridXY[axis].size + 1
     end
+    print("resetGridPos: Set axis to pos", axis, gridXY[axis].pos)
   end
 end
 
 local function getGate()
-  return gem.randomizeValue(gateInput.value, gateInput.min, gateInput.max, gateRandomization.value)
+  return gem.randomizeValue(gateInput.value, gateInput.min, gateInput.max + 10, gateRandomization.value)
 end
 
 local function sequenceRunner()
@@ -304,6 +311,7 @@ local function sequenceRunner()
   local reverseFragment = false
   local rest = false
   isPlaying = true
+  print("Seq runner starting")
   while isPlaying do
     local noteInputs = getNotes() -- The notes to play
     local notesPlaying = {} -- Holds the playing notes, to avoid duplicates
@@ -321,6 +329,7 @@ local function sequenceRunner()
         if gem.tableIncludes(notesPlaying, note) == false then
           playNote(note, velocity, beat2ms(playDuration))
           table.insert(notesPlaying, note)
+          print("Play note/duration", note, playDuration)
         end
         spawn(flashNote, noteInput, playDuration)
       end
@@ -382,7 +391,7 @@ local function setScale()
       if degreeDefinition[degreeDefinitionPos] <= #scale then
         scalePos = degreeDefinition[degreeDefinitionPos]
       end
-      -- Set scale reset pos to match the degree definition
+      -- Set scale reset pos to match the scale pos set by the degree definition
       scaleResetPos = scalePos
       -- Increment degree octave on pos 1 of the degree def
       if i > 1 and degreeDefinitionPos == 1 then
@@ -395,12 +404,16 @@ local function setScale()
 
     -- Set the note for this cell
     local noteNumber = math.min(127, scale[scalePos] + (degreeOctave * 12))
+    -- Get random from scale
+    if gem.getRandomBoolean(noteRandomizationProbability) then
+      noteNumber = gem.getRandomFromTable(scale)
+    end
     v:setValue(noteNumber)
 
     -- Get next scale position
     scalePos = gem.inc(scalePos, scaleIncrementDefinition[scaleIncrementDefinitionPos], #scale, scaleResetPos)
 
-    if scalePos == 1 then
+    if scalePos == scaleResetPos then
       -- Reset the position for scale increments when scale position is reset
       scaleIncrementDefinitionPos = 1
     else
@@ -598,8 +611,8 @@ local keyMenu = settingsPanel:Menu("Key", notes.getNoteNames())
 keyMenu.displayName = "Key"
 keyMenu.tooltip = "The key to set for the notes in the grid"
 keyMenu.showLabel = true
-keyMenu.width = 108
-keyMenu.x = 10
+keyMenu.width = 40
+keyMenu.x = 8
 keyMenu.y = 3
 keyMenu.backgroundColour = menuBackgroundColour
 keyMenu.textColour = menuTextColour
@@ -611,13 +624,30 @@ scaleMenu.selected = #scalesNames
 scaleMenu.displayName = "Scale"
 scaleMenu.tooltip = "The scale to set for the notes in the grid"
 scaleMenu.showLabel = true
-scaleMenu.width = 108
-scaleMenu.x = keyMenu.x + keyMenu.width + 9
+scaleMenu.width = 99
+scaleMenu.x = keyMenu.x + keyMenu.width + 5
 scaleMenu.y = keyMenu.y
 scaleMenu.backgroundColour = menuBackgroundColour
 scaleMenu.textColour = menuTextColour
 scaleMenu.arrowColour = menuArrowColour
 scaleMenu.outlineColour = menuOutlineColour
+
+local noteRandomizationProbabilityInput = settingsPanel:Knob("NoteRandomizationProbability", noteRandomizationProbability, 0, 100, true)
+noteRandomizationProbabilityInput.unit = Unit.Percent
+noteRandomizationProbabilityInput.displayName = "Random"
+noteRandomizationProbabilityInput.tooltip = "Set the probability that notes within the current scale will be selected by random."
+noteRandomizationProbabilityInput.backgroundColour = widgetBackgroundColour
+noteRandomizationProbabilityInput.fillColour = knobFillColour
+noteRandomizationProbabilityInput.outlineColour = labelBackgoundColour
+noteRandomizationProbabilityInput.showPopupDisplay = true
+noteRandomizationProbabilityInput.height = 33
+noteRandomizationProbabilityInput.width = 84
+noteRandomizationProbabilityInput.y = scaleMenu.y + 12
+noteRandomizationProbabilityInput.x = scaleMenu.x + scaleMenu.width + 5
+noteRandomizationProbabilityInput.changed = function(self)
+  noteRandomizationProbability = self.value
+  setScale()
+end
 
 local startOctaveInput = settingsPanel:NumBox("StartOctave", startOctave, -2, 7, true)
 startOctaveInput.displayName = "Start octave"
@@ -629,14 +659,14 @@ startOctaveInput.width = 108
 startOctaveInput.x = keyMenu.x
 startOctaveInput.y = scaleMenu.y + scaleMenu.height + 5
 
-local octavesInput = settingsPanel:NumBox("Octaves", octaves, 1, 9, true)
+local octavesInput = settingsPanel:NumBox("Octaves", octaves, 1, 10, true)
 octavesInput.displayName = "Octaves"
 octavesInput.tooltip = "Set the octave range"
 octavesInput.backgroundColour = menuBackgroundColour
 octavesInput.textColour = menuTextColour
 octavesInput.height = startOctaveInput.height
 octavesInput.width = startOctaveInput.width
-octavesInput.x = scaleMenu.x
+octavesInput.x = startOctaveInput.x + startOctaveInput.width + 9
 octavesInput.y = startOctaveInput.y
 
 local scaleIncrementInput = settingsPanel:Label("ScaleIncrementInput")
@@ -780,8 +810,6 @@ end
 
 local advanceProbabilityX = axisPanel:Knob("AdvanceProbabilityX", gridXY[1].advanceProbability, 0, 100, true)
 advanceProbabilityX.unit = Unit.Percent
---advanceProbabilityX.showLabel = false
---advanceProbabilityX.showValue = false
 advanceProbabilityX.displayName = "Advance"
 advanceProbabilityX.tooltip = "Set the probability that the position will advance on the x axis (horizontal)."
 advanceProbabilityX.backgroundColour = widgetBackgroundColour
@@ -798,8 +826,6 @@ end
 
 local randomProbabilityX = axisPanel:Knob("RandomProbabilityX", gridXY[1].randomProbability , 0, 100, true)
 randomProbabilityX.unit = Unit.Percent
---randomProbabilityX.showLabel = false
---randomProbabilityX.showValue = false
 randomProbabilityX.displayName = "Random"
 randomProbabilityX.tooltip = "Set the probability that the position on the x axis (horizontal) will be selected using the Random play mode."
 randomProbabilityX.backgroundColour = widgetBackgroundColour
