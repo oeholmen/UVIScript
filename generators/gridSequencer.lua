@@ -389,7 +389,7 @@ local function setScale()
       degreeDefinitionPos = gem.inc(degreeDefinitionPos, 1, #degreeDefinition)
       -- Set the scale pos to the selected degree if within the scale
       if degreeDefinition[degreeDefinitionPos] <= #scale then
-        scalePos = degreeDefinition[degreeDefinitionPos]
+        scalePos = math.max(1, degreeDefinition[degreeDefinitionPos])
       end
       -- Set scale reset pos to match the scale pos set by the degree definition
       scaleResetPos = scalePos
@@ -411,7 +411,7 @@ local function setScale()
     v:setValue(noteNumber)
 
     -- Get next scale position
-    scalePos = gem.inc(scalePos, scaleIncrementDefinition[scaleIncrementDefinitionPos], #scale, scaleResetPos)
+    scalePos = math.max(1, gem.inc(scalePos, scaleIncrementDefinition[scaleIncrementDefinitionPos], #scale, scaleResetPos))
 
     if scalePos == scaleResetPos then
       -- Reset the position for scale increments when scale position is reset
