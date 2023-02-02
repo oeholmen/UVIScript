@@ -1288,13 +1288,16 @@ function getChannel(voice)
   return channel
 end
 
+function isStartOfBeat(playDuration)
+  return math.floor(playDuration) == playDuration
+end
+
 function isDownBeat(playDuration)
-  local startOfBeat = math.floor(playDuration) == playDuration
-  return startOfBeat and (playDuration % beatBase == 0 or (beatBase > 3 and playDuration % math.ceil(beatBase / 2) == 0))
+  return isStartOfBeat(playDuration) and (playDuration % beatBase == 0 or (beatBase > 3 and playDuration % math.ceil(beatBase / 2) == 0))
 end
 
 function isUpBeat(playDuration)
-  return isDownBeat(playDuration) == false
+  return isStartOfBeat(playDuration) and isDownBeat(playDuration) == false
 end
 
 function isNoteActive(voice)
