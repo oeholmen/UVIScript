@@ -12,7 +12,10 @@ local widgetTextColour = "CFFFFE" -- Light
 local labelTextColour = widgetBackgroundColour
 local labelBackgoundColour = widgetTextColour
 local menuBackgroundColour = "01011F"
+local menuSelectedBackgroundColour = "052525"
 local menuTextColour = "#9f02ACFE"
+local noteSelectedTextColour = "green"
+local notePlayingTextColour = "yellow"
 local menuArrowColour = "66" .. labelTextColour
 local menuOutlineColour = "5f" .. widgetTextColour
 local knobFillColour = "E6D5B8" -- Light
@@ -64,6 +67,7 @@ local scaleDefinitionIndex = #scalesNames -- Holds the scale definition index
 local startOctave = -1 -- Holds the start octave when creating the scale
 local octaves = 9 -- Holds the octave range
 local noteRandomizationProbability = 0
+local manualInput = false
 
 -- X Axis (index 1)
 table.insert(gridXY, {
@@ -74,6 +78,7 @@ table.insert(gridXY, {
   randomProbability = 0, -- Probability that position will be selected by random
   advanceProbability = 100, -- Probability that a new position for the axis will be selected by the play mode
   mustAdvance = true, -- Set true to ensure pos is moved to within the selected area even if advanceProbability = 0
+  hasAdvanced = false,
   offset = 2,
   size = 8,
   max = 12
@@ -88,6 +93,7 @@ table.insert(gridXY, {
   randomProbability = 0, -- Probability that position will be selected by random
   advanceProbability = 100, -- Probability that a new position for the axis will be selected by the play mode
   mustAdvance = true, -- Set true to ensure pos is moved to within the selected area even if advanceProbability = 0
+  hasAdvanced = false,
   offset = 3,
   size = 3,
   max = 9
@@ -141,8 +147,8 @@ local function setSelectedGrid()
   for y=1,gridXY[2].max do
     for x=1,gridXY[1].max do
       if isWithinSelectedGrid(x, y) then
-        grid[i].textColour = "green"
-        grid[i].backgroundColour = "052525"
+        grid[i].textColour = noteSelectedTextColour
+        grid[i].backgroundColour = menuSelectedBackgroundColour
       else
         grid[i].textColour = menuTextColour
         grid[i].backgroundColour = menuBackgroundColour
@@ -153,9 +159,13 @@ local function setSelectedGrid()
 end
 
 local function flashNote(noteInput, duration)
-  noteInput.textColour = "yellow"
+  noteInput.textColour = notePlayingTextColour
   waitBeat(duration)
-  setSelectedGrid()
+  if noteInput.backgroundColour == menuSelectedBackgroundColour then
+    noteInput.textColour = noteSelectedTextColour
+  else
+    noteInput.textColour = menuTextColour
+  end
 end
 
 local function setPlayMode(axis, playMode)
@@ -170,6 +180,10 @@ end
 
 local function handleFollow(axis)
   axis = gridXY[axis]
+  if axis.hasAdvanced then
+    -- Skip follow if the axis has already advanced
+    return
+  end
   axis.pos = gem.inc(axis.pos, axis.direction)
   if axis.direction == 1 and axis.pos > axis.offset + axis.size or axis.pos > axis.max then
     axis.pos = gem.inc(axis.offset)
@@ -181,6 +195,8 @@ end
 -- playModes = {"->", "<-", "-><-", "<-->", "Follow ->", "Follow <-"}
 local function advanceByPlayMode(v, i)
   print("advanceByPlayMode")
+  gridXY[1].hasAdvanced = false -- Reset
+  gridXY[2].hasAdvanced = false -- Reset
   local bothAxisAreFollow = string.sub(gridXY[1].playMode, 1, 6) == "Follow" and string.sub(gridXY[2].playMode, 1, 6) == "Follow"
   local otherAxis = 1
   if i == otherAxis then
@@ -194,6 +210,7 @@ local function advanceByPlayMode(v, i)
     else
       v.pos = v.offset + v.size
     end
+    v.hasAdvanced = true
     if otherAxisIsFollow then
       handleFollow(otherAxis)
     end
@@ -298,7 +315,7 @@ local function resetGridPos()
 end
 
 local function getGate()
-  return gem.randomizeValue(gateInput.value, gateInput.min, gateInput.max + 10, gateRandomization.value)
+  return gem.randomizeValue(gateInput.value, gateInput.min, gateInput.max, gateRandomization.value)
 end
 
 local function sequenceRunner()
@@ -331,7 +348,7 @@ local function sequenceRunner()
           table.insert(notesPlaying, note)
           print("Play note/duration", note, playDuration)
         end
-        spawn(flashNote, noteInput, playDuration)
+        spawn(flashNote, noteInput, math.min(playDuration, duration))
       end
       if type(activeFragment) == "table" then
         for i,v in ipairs(paramsPerFragment) do
@@ -370,6 +387,11 @@ local function createTableFromText(text)
 end
 
 local function setScale()
+  if manualInput then
+    -- Do not change anything when manual input is active
+    print("Skip set scale - manual input is active")
+    return
+  end
   local startNote = (rootNote - 1) + ((startOctave + 2) * 12)
   local maxNote = startNote + (octaves * 12)
   local scale = scales.createScale(scaleDefinitions[scaleDefinitionIndex], startNote, math.min(128, maxNote))
@@ -477,7 +499,7 @@ sequencerLabel.fontSize = 22
 sequencerLabel.position = {0,0}
 sequencerLabel.size = {135,25}
 
-local manualInputButton = sequencerPanel:OnOffButton("ManualInputButton", false)
+local manualInputButton = sequencerPanel:OnOffButton("ManualInputButton", manualInput)
 local showListenersButton = sequencerPanel:OnOffButton("ShowListeners", false)
 local autoplayButton = sequencerPanel:OnOffButton("AutoPlay", true)
 local playButton = sequencerPanel:OnOffButton("Play", false)
@@ -492,6 +514,7 @@ manualInputButton.size = {100,22}
 manualInputButton.x = sequencerPanel.width - (manualInputButton.width * 4) - 15
 manualInputButton.y = 5
 manualInputButton.changed = function(self)
+  manualInput = self.value
   showListenersButton.enabled = self.value
   if self.value == false then
     showListenersButton:setValue(false)
@@ -967,7 +990,7 @@ rythmLabel.height = 30
 rythmLabel.x = 15
 rythmLabel.y = 0
 
-gateInput = rythmPanel:NumBox("GateInput", 90, 0, 100, true)
+gateInput = rythmPanel:NumBox("GateInput", 90, 0, 110, true)
 gateInput.unit = Unit.Percent
 gateInput.displayName = "Gate"
 gateInput.tooltip = "Set the gate length"
@@ -976,9 +999,6 @@ gateInput.textColour = menuTextColour
 gateInput.size = {120,20}
 gateInput.x = 448
 gateInput.y = 5
-gateInput.changed = function(self)
-  gate = self.value
-end
 
 gateRandomization = rythmPanel:NumBox("GateRandomization", 25, 0, 100, true)
 gateRandomization.unit = Unit.Percent

@@ -8,7 +8,6 @@ local rythmicFragments = require "includes.rythmicFragments"
 local playIndex = 1
 local beatResolution = 1
 local beatBase = 4
-local beatCounter = 1
 local noteListen = nil
 local numNotes = 8
 local voices = 8
@@ -700,7 +699,7 @@ for i=1,numNotes do
   accentTable.y = accent.y
 
   accent.changed = function(self)
-    print("accent.changed", self.value)
+    --print("accent.changed", self.value)
     accentTable.length = self.value
   end
 
@@ -740,7 +739,7 @@ for i=1,numNotes do
   pitchChangeProbability.y = pitchTable.y
 
   pitch.changed = function(self)
-    print("pitch.changed", self.value)
+    --print("pitch.changed", self.value)
     pitchTable.length = self.value
   end
 
@@ -1237,11 +1236,11 @@ function getNote(voice)
     if gem.getRandomBoolean(pitchChangeProbability) then
       -- Get pitch adjustment from random index in pitch table for current part
       pos = gem.getRandom(paramsPerNote[voice].pitch.value)
-      print("Playing pitch from random pos", pos)
+      --print("Playing pitch from random pos", pos)
     end
 
     local offset = pitchTable:getValue(pos)
-    print("Pitch offset/pos", offset, pos)
+    --print("Pitch offset/pos", offset, pos)
     return paramsPerNote[voice].noteInput.value + offset
   end
 end
@@ -1289,12 +1288,13 @@ function getChannel(voice)
   return channel
 end
 
-function isDownBeat()
-  return (beatCounter - 1) % beatBase == 0 or (beatBase > 3 and (beatCounter - 1) % math.ceil(beatBase / 2) == 0)
+function isDownBeat(playDuration)
+  local startOfBeat = math.floor(playDuration) == playDuration
+  return startOfBeat and (playDuration % beatBase == 0 or (beatBase > 3 and playDuration % math.ceil(beatBase / 2) == 0))
 end
 
-function isUpBeat()
-  return isDownBeat() == false
+function isUpBeat(playDuration)
+  return isDownBeat(playDuration) == false
 end
 
 function isNoteActive(voice)
@@ -1320,24 +1320,24 @@ function initNotes()
   end
 end
 
-function useAccent(voice, activeFragment, isStartOfBeat, isFragmentStart, mustRepeat)
-  if paramsPerNote[voice].accentDownBeat.value and isStartOfBeat and isDownBeat() then
-    print("ACCENT isStartOfBeat, isUpBeat()", isStartOfBeat, isDownBeat())
+function useAccent(voice, activeFragment, isFragmentStart, mustRepeat, isDownBeat, isUpBeat)
+  if paramsPerNote[voice].accentDownBeat.value and isDownBeat then
+    --print("ACCENT isDownBeat", isDownBeat)
     return true
   end
   
-  if paramsPerNote[voice].accentUpBeat.value and isStartOfBeat and isUpBeat() then
-    print("ACCENT isStartOfBeat, isUpBeat()", isStartOfBeat, isUpBeat())
+  if paramsPerNote[voice].accentUpBeat.value and isUpBeat then
+    --print("ACCENT isUpBeat", isUpBeat)
     return true
   end
 
   if paramsPerNote[voice].accentFragmentStart.value and isFragmentStart then
     if #activeFragment.f > 1 then
-      print("ACCENT #activeFragment.f", #activeFragment.f)
+      --print("ACCENT #activeFragment.f", #activeFragment.f)
       return true
     end
     if activeFragment.m > 1 and mustRepeat == false then
-      print("ACCENT activeFragment.m, mustRepeat", activeFragment.m, mustRepeat)
+      --print("ACCENT activeFragment.m, mustRepeat", activeFragment.m, mustRepeat)
       return true
     end
   end
@@ -1417,12 +1417,11 @@ function sequenceRunner()
   local partDuration = nil -- When using part order, this is the duration of the parts with repeats
   local partInfo = nil
   local startEvolve = false -- Can be set by part order
+  local beatCounter = 1 -- Holds the beat count
   playIndex = 1 -- Reset play index
   isPlaying = true
-  beatCounter = 1 -- Reset when starting sequencer
   initNotes()
   while isPlaying do
-    --print("sequenceRunner, beatCounter, isDownBeat", beatCounter, isDownBeat())
     if beatCounter == 1 then
       if partOrderButton.value and #partOrder > 0 then
         if partOrderRepeatCounter == 0 then
@@ -1472,6 +1471,7 @@ function sequenceRunner()
     end
 
     beatCounter = beatCounter + 1 -- Increment counter
+    print("Increment beat counter", beatCounter)
     if beatCounter > beatBase then
       beatCounter = 1 -- Reset counter
       if evolveButton.value and gem.getRandomBoolean(evolveFragmentProbability.value) then
@@ -1500,43 +1500,65 @@ function play(voice, uniqueId, partDuration)
 
     duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = rythmicFragments.getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount, getSources(voice))
 
+    if voice == 2 then
+      if isFragmentStart then
+        print("Fragment start!")
+      end
+      print("From rythmicFragments.getDuration: rest, duration, isRepeat", rest, duration, isRepeat)
+    end
+
     if type(duration) == "nil" or activeFragment.i == 0 or isNoteActive(voice) == false then
       -- Return voice to sequence runner
-      --print("BEFORE: Breaking loop for voice, isNoteActive(voice), duration", isNoteActive(voice), duration, "voice " .. voice)
+      if voice == 2 then
+        print("BEFORE: Breaking loop for voice, isNoteActive(voice), duration", "voice " .. voice, isNoteActive(voice), duration)
+      end
       setSourceActive(voice)
       playingVoices[voice] = false
       break
     end
 
-    local isStartOfBeat = math.floor(playDuration) == playDuration
+    local isDownBeat = isDownBeat(playDuration)
+    local isUpBeat = isUpBeat(playDuration)
 
     -- Check rest at start of downbeat
-    if isStartOfBeat and rest == false and isDownBeat() and gem.getRandomBoolean(paramsPerNote[voice].restDownBeatProbability.value) then
-      --print("REST isStartOfBeat, isDownBeat, voice", isStartOfBeat, isDownBeat(), voice)
+    if isDownBeat and rest == false and gem.getRandomBoolean(paramsPerNote[voice].restDownBeatProbability.value) then
+      if voice == 2 then
+        print("REST isDownBeat, voice", isDownBeat, voice)
+      end
       rest = true
     end
 
     -- Check rest at start of upbeat
-    if isStartOfBeat and rest == false and isUpBeat() and gem.getRandomBoolean(paramsPerNote[voice].restUpBeatProbability.value) then
-      --print("REST isStartOfBeat, isUpBeat, voice", isStartOfBeat, isUpBeat(), voice)
+    if isUpBeat and rest == false and gem.getRandomBoolean(paramsPerNote[voice].restUpBeatProbability.value) then
+      if voice == 2 then
+        print("REST isUpBeat, voice", isUpBeat, voice)
+      end
       rest = true
     end
 
     -- Check rest at start of fragment - only if fragment has more than one item
     if isFragmentStart and rest == false and (#activeFragment.f > 1 or (activeFragment.m > 1 and mustRepeat == false)) and gem.getRandomBoolean(paramsPerNote[voice].restFirstInFragmentProbability.value) then
-      --print("REST isFragmentStart, voice", isFragmentStart, voice)
+      if voice == 2 then
+        print("REST isFragmentStart, voice", isFragmentStart, voice)
+      end
       rest = true
     end
 
     if type(partDuration) == "number" and (playDuration + duration) > partDuration then
       duration = partDuration - playDuration -- Remaining
-      --print("duration changed to remaining", duration, "voice " .. voice)
+      if voice == 2 then
+        print("duration changed to remaining", duration, "voice " .. voice)
+      end
     end
 
     -- Update total play duration
     playDuration = playDuration + duration
 
     local note = getNote(voice)
+    if voice == 2 then
+      print("playDuration", playDuration)
+      print("Playing note, rest, duration, playDuration, voice", note, rest, duration, playDuration, "voice " .. voice)
+    end
     local doPlayNote = rest == false and type(note) == "number"
     if doPlayNote then
       local velocity = velocityInput.value
@@ -1544,12 +1566,14 @@ function play(voice, uniqueId, partDuration)
       if accentTable.enabled then
         local pos = (roundCounterPerVoice[voice] % accentTable.length) + 1
         velocity = accentTable:getValue(pos)
-        print("Velocity set from accentTable at pos", velocity, pos)
+        --print("Velocity set from accentTable at pos", velocity, pos)
       end
-      if useAccent(voice, activeFragment, isStartOfBeat, isFragmentStart, mustRepeat) then
+      if useAccent(voice, activeFragment, isFragmentStart, mustRepeat, isDownBeat, isUpBeat) then
         velocity = velocityAccent.value
       end
-      --print("play: note, velocity, duration, isDownBeat", note, velocity, duration, isDownBeat(), "voice " .. voice)
+      if voice == 2 then
+        print("play: note, velocity, duration, isDownBeat", note, velocity, duration, isDownBeat, "voice " .. voice)
+      end
       playNote(note, velocity, beat2ms(rythmicFragments.resolutions.getPlayDuration(duration)), nil, getChannel())
 
       if isFragmentStart then
@@ -1565,7 +1589,7 @@ function play(voice, uniqueId, partDuration)
     end
 
     if type(partDuration) == "number" and playDuration == partDuration then
-      --print("playDuration == partDuration", playDuration, "voice " .. voice)
+      print("playDuration == partDuration", playDuration, "voice " .. voice)
       playingVoices[voice] = false -- Break loop
       break
     end
@@ -1573,6 +1597,7 @@ function play(voice, uniqueId, partDuration)
     if activeFragment.i > 0 and paramsPerFragment[activeFragment.i].fragmentInputDirty then
       paramsPerFragment[activeFragment.i].fragmentInputDirty = false
       playingVoices[voice] = false -- Restart voice next bar to reload fragment input
+      print("fragmentInputDirty", "voice " .. voice)
     end
 
     if duration > 0 then
