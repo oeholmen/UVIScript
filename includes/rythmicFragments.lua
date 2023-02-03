@@ -588,9 +588,15 @@ local function getDuration(activeFragment, fragmentPos, fragmentRepeatProbabilit
   return duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount
 end
 
-local function getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelectors)
+local function getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelectors, x, y)
   if type(numSelectors) == "nil" then
     numSelectors = 4
+  end
+  if type(x) == "nil" then
+    x = 0
+  end
+  if type(y) == "nil" then
+    y = 0
   end
   local perColumn = 2
   local rowCounter = 0
@@ -600,8 +606,8 @@ local function getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelector
     local offsetY = 100
     local defaultResolution = ""
 
-    offsetX = offsetX * columnCounter
-    offsetY = (offsetY * rowCounter) + 30
+    offsetX = (offsetX * columnCounter) + x
+    offsetY = (offsetY * rowCounter) + 30 + y
   
     if i == 1 then
       defaultResolution = "1/8"
