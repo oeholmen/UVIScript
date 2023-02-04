@@ -19,6 +19,7 @@ local notePlayingTextColour = "yellow"
 local menuArrowColour = "66" .. labelTextColour
 local menuOutlineColour = "5f" .. widgetTextColour
 local knobFillColour = "E6D5B8" -- Light
+local sliderColour = "5FB5FF"
 
 local colours = {
   backgroundColour = backgroundColour,
@@ -64,6 +65,8 @@ local scalesNames = scales.getScaleNames()
 local scaleDefinitions = scales.getScaleDefinitions()
 local gateInput
 local gateRandomization
+local seqVelTable
+local velocityRandomization
 local rootNote = 1 -- Holds the current root note (key)
 local scaleDefinitionIndex = #scalesNames -- Holds the scale definition index
 local startOctave = -1 -- Holds the start octave when creating the scale
@@ -386,6 +389,13 @@ local function getNotes()
   return cells
 end
 
+local function getVelocity()
+  local pos = math.max(1, math.floor(gridXY[xAxis].pos))
+  --print("Setting velocity from", pos)
+  local velocity = seqVelTable:getValue(pos)
+  return gem.randomizeValue(velocity, seqVelTable.min, seqVelTable.max, 15)--velocityRandomization.value)
+end
+
 local function getGate()
   return gem.randomizeValue(gateInput.value, gateInput.min, gateInput.max, gateRandomization.value)
 end
@@ -406,7 +416,8 @@ local function sequenceRunner()
   while isPlaying do
     local noteInputs = getNotes() -- The notes to play
     local notesPlaying = {} -- Holds the playing notes, to avoid duplicates
-    local velocity = 64 -- Default velocity - override in velocity event processor if required
+    --local velocity = 64 -- Default velocity - override in velocity event processor if required
+    local velocity = getVelocity()
     -- Get resolution from fragments
     duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = rythmicFragments.getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
     if type(duration) == "nil" then
@@ -541,7 +552,7 @@ notePanel.backgroundColour = "black"
 notePanel.x = sequencerPanel.x
 notePanel.y = sequencerPanel.y + sequencerPanel.height
 notePanel.width = sequencerPanel.width
-notePanel.height = 240
+notePanel.height = 290
 
 local settingsPanel = Panel("Scale")
 settingsPanel.backgroundColour = "404040"
@@ -565,10 +576,10 @@ rythmPanel.width = sequencerPanel.width
 rythmPanel.height = 150
 
 --------------------------------------------------------------------------------
--- Widgets
+-- Grid Sequencer
 --------------------------------------------------------------------------------
 
-local spacing = 20
+local xSpacing = 5
 
 local sequencerLabel = sequencerPanel:Label("Label")
 sequencerLabel.text = "Grid Sequencer"
@@ -612,7 +623,7 @@ showListenersButton.textColourOn = textColourOn
 showListenersButton.displayName = "Show Listeners"
 showListenersButton.tooltip = "Show listeners for each note - only available in manual input mode"
 showListenersButton.size = {100,22}
-showListenersButton.x = manualInputButton.x + manualInputButton.width + 5
+showListenersButton.x = manualInputButton.x + manualInputButton.width + xSpacing
 showListenersButton.y = manualInputButton.y
 showListenersButton.changed = function(self)
   showListeners(self.value)
@@ -625,7 +636,7 @@ autoplayButton.textColourOn = textColourOn
 autoplayButton.displayName = "Auto Play"
 autoplayButton.tooltip = "Play automatically on transport"
 autoplayButton.size = showListenersButton.size
-autoplayButton.x = showListenersButton.x + showListenersButton.width + 5
+autoplayButton.x = showListenersButton.x + showListenersButton.width + xSpacing
 autoplayButton.y = showListenersButton.y
 
 playButton.persistent = false
@@ -635,7 +646,7 @@ playButton.textColourOff = textColourOff
 playButton.textColourOn = textColourOn
 playButton.displayName = "Play"
 playButton.size = autoplayButton.size
-playButton.x = autoplayButton.x + autoplayButton.width + 5
+playButton.x = autoplayButton.x + autoplayButton.width + xSpacing
 playButton.y = autoplayButton.y
 playButton.changed = function(self)
   if self.value == true then
@@ -701,17 +712,35 @@ end
 
 local xyOffset = notePanel:XY('GridOffsetX', 'GridOffsetY')
 xyOffset.bounds = {546, 6, 168, 112}
-xyOffset.tooltip = "Adjust offset"
 
 local xySize = notePanel:XY('GridSizeX', 'GridSizeY')
 xySize.bounds = {xyOffset.x, xyOffset.y+xyOffset.height+4, xyOffset.width, xyOffset.height}
-xyOffset.tooltip = "Adjust length"
+
+seqVelTable = notePanel:Table("Velocity", gridXY[xAxis].max, 90, 1, 127, true)
+seqVelTable.tooltip = "Set the velocity for each position in the grid"
+seqVelTable.showPopupDisplay = true
+seqVelTable.fillStyle = "solid"
+seqVelTable.sliderColour = sliderColour
+seqVelTable.width = notePanel.width - xySize.width - 10
+seqVelTable.height = 54
+seqVelTable.x = 0
+seqVelTable.y = xySize.y + xySize.height + 1
+
+meter = notePanel:AudioMeter("OutputLevel", Part, false, 0, true)
+meter.height = seqVelTable.height - 1
+meter.width = xySize.width
+meter.x = xySize.x
+meter.y = seqVelTable.y + 1
+meter["0dBColour"] = "red"
+meter["3dBColour"] = "orange"
+meter["6dBColour"] = "yellow"
+meter["10dBColour"] = "green"
 
 --------------------------------------------------------------------------------
 -- Note Selection
 --------------------------------------------------------------------------------
 
-local xSpacing = 10
+xSpacing = 10
 
 local noteSelectionLabel = settingsPanel:Label("NoteSelectionLabel")
 noteSelectionLabel.text = "Note Selection"
