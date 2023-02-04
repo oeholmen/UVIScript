@@ -70,6 +70,9 @@ local startOctave = -1 -- Holds the start octave when creating the scale
 local octaves = 9 -- Holds the octave range
 local noteRandomizationProbability = 0
 local manualInput = false
+local evolveFragmentProbability = 0
+local randomizeCurrentResolutionProbability = 0
+local adjustBias = 50
 
 -- X Axis (index 1)
 table.insert(gridXY, {
@@ -110,17 +113,21 @@ table.insert(gridXY, {
 --------------------------------------------------------------------------------
 
 local function getCell(x, y, prefix, table)
-  print("Get grid cell: x, y, floor(x), floor(y)", x, y, math.floor(x), math.floor(y))
+  --print("Get grid cell: x, y, floor(x), floor(y)", x, y, math.floor(x), math.floor(y))
   -- Not < 1
   x = math.max(1, math.floor(x))
   y = math.max(1, math.floor(y))
   -- Not > max
+  -- TODO Handle elsewhere?
   if x > gridXY[xAxis].max then
+    print("x > gridXY[xAxis].max")
     x = gridXY[xAxis].max
   end
   if y > gridXY[yAxis].max then
+    print("y > gridXY[yAxis].max")
     y = gridXY[yAxis].max
   end
+  -- Get cell name
   local cellName = prefix .. x .. '_' .. y
   for _,v in ipairs(table) do
     if v.name == cellName then
@@ -156,6 +163,31 @@ local function isWithinSelectedGrid(x, y)
   return isPosWithinSelectedAxis(x, xAxis) and isPosWithinSelectedAxis(y, yAxis)
 end
 
+local function getStartPos(axis)
+  --print("getStartPos for axis", axis)
+  if gridXY[axis].increment < 1 or string.sub(gridXY[axis].playMode, 1, 6) == "Follow" then
+    return gridXY[axis].offset + 1
+  end
+
+  gridXY[axis].mustAdvance = true
+  return gridXY[axis].offset
+end
+
+local function setPos()
+  for axis=xAxis,yAxis do
+    if gridXY[axis].direction == 1 then
+      gridXY[axis].pos = getStartPos(axis)
+      --print("setPos on direction == 1: axis/pos", axis, gridXY[axis].pos)
+    elseif string.sub(gridXY[axis].playMode, 1, 6) == "Follow" then
+      gridXY[axis].pos = gridXY[axis].offset + gridXY[axis].size
+      --print("setPos on direction == -1 and playMode=follow: axis/pos", axis, gridXY[axis].pos)
+    else
+      gridXY[axis].pos = gridXY[axis].offset + gridXY[axis].size + 1
+      --print("setPos on direction == -1: axis/pos", axis, gridXY[axis].pos)
+    end
+  end
+end
+
 local function setSelectedGrid()
   local i = 1
   for y=1,gridXY[yAxis].max do
@@ -170,6 +202,7 @@ local function setSelectedGrid()
       i = gem.inc(i)
     end
   end
+  --setPos()
 end
 
 local function flashNote(noteInput, duration)
@@ -182,37 +215,34 @@ local function flashNote(noteInput, duration)
   end
 end
 
-local function setPlayMode(axis, playMode)
+local function setDirectionFromPlaymode(axis, playMode)
   gridXY[axis].playMode = playMode
+  gridXY[axis].direction = 1
   gridXY[axis].increment = math.abs(gridXY[axis].increment)
 
   if playMode == "<-" or playMode == "<-->" or playMode == "Follow <-" then
     gridXY[axis].direction = -1
     gridXY[axis].increment = -gridXY[axis].increment
-  elseif playMode == "->" or playMode == "-><-" or playMode == "Follow ->" then
-    gridXY[axis].direction = 1
   end
+
+  --print("setDirectionFromPlaymode: direction, increment, playMode", gridXY[axis].direction, gridXY[axis].increment, playMode)
 end
 
 local function handleFollow(axis)
-  axis = gridXY[axis]
-  if axis.hasAdvanced then
+  if gridXY[axis].hasAdvanced then
     -- Skip follow if the axis has already advanced
     return
   end
-  axis.pos = gem.inc(axis.pos, axis.increment)
-  if axis.direction > 0 and axis.pos > axis.offset + axis.size or axis.pos > axis.max then
-    axis.pos = gem.inc(axis.offset, axis.increment)
-  elseif axis.pos <= axis.offset then
-    axis.pos = axis.offset + axis.size
+  gridXY[axis].pos = gem.inc(gridXY[axis].pos, gridXY[axis].increment)
+  if gridXY[axis].direction == 1 and (gridXY[axis].pos > gridXY[axis].offset + gridXY[axis].size or gridXY[axis].pos > gridXY[axis].max) then
+    gridXY[axis].pos = getStartPos(axis)
+  elseif gridXY[axis].pos <= gridXY[axis].offset then
+    gridXY[axis].pos = gridXY[axis].offset + gridXY[axis].size
   end
 end
 
 -- playModes = {"->", "<-", "-><-", "<-->", "Follow ->", "Follow <-"}
 local function advanceByPlayMode(v, axis)
-  --print("advanceByPlayMode")
-  gridXY[xAxis].hasAdvanced = false -- Reset
-  gridXY[yAxis].hasAdvanced = false -- Reset
   local otherAxis = xAxis
   if axis == otherAxis then
     otherAxis = yAxis
@@ -221,11 +251,12 @@ local function advanceByPlayMode(v, axis)
   if extra >= 1 then
     extra = 0
   end
+  --print("advanceByPlayMode: extra", extra)
   local axisIsFollow = string.sub(v.playMode, 1, 6) == "Follow"
   local otherAxisIsFollow = string.sub(gridXY[otherAxis].playMode, 1, 6) == "Follow"
   local bothAxisAreFollow = axisIsFollow and otherAxisIsFollow
   if gem.getRandomBoolean(v.randomProbability) then
-    --print("PlayMode random")
+    --print("Advance random")
     if v.size > 1 then
       v.pos = gem.getRandom(v.offset + 1, v.offset + v.size)
     else
@@ -237,38 +268,50 @@ local function advanceByPlayMode(v, axis)
     end
   elseif v.playMode == "-><-" or v.playMode == "<-->" then
     v.pos = gem.inc(v.pos, v.increment)
-    if v.pos <= v.offset then
+    --if v.pos <= v.offset then
+    if math.floor(v.pos) <= v.offset then
       v.direction = 1
-      v.pos = v.offset + 1
+      v.increment = math.abs(v.increment) -- Turn positive
+      --print("Turned direction and increment positive", v.direction, v.increment)
+      --v.pos = v.offset + 1
+      v.pos = getStartPos(axis) + v.increment
       if v.size > 1 and otherAxisIsFollow == false then
-        v.pos = v.pos + 1 -- To avoid repeat
+        --v.pos = v.pos + 1
+        v.pos = gem.inc(v.pos, v.increment) -- To avoid repeat
       end
       if otherAxisIsFollow then
         handleFollow(otherAxis)
       end
     elseif v.pos > v.offset + v.size or v.pos > v.max then
       v.direction = -1
+      v.increment = -v.increment -- Turn negative
+      --print("Turned direction and increment negative", v.direction, v.increment)
       v.pos = v.offset + v.size
       if v.size > 1 and otherAxisIsFollow == false then
-        v.pos = v.pos - 1 -- To avoid repeat
+        --v.pos = v.pos - 1 -- To avoid repeat
+        v.pos = gem.inc(v.pos, v.increment) -- To avoid repeat
       end
       if otherAxisIsFollow then
         handleFollow(otherAxis)
       end
     end
-  elseif (v.direction > 0 and axisIsFollow == false) or bothAxisAreFollow then
+  elseif (v.direction == 1 and axisIsFollow == false) or bothAxisAreFollow then
+    --print("advanceByPlayMode: direction == 1")
     v.pos = gem.inc(v.pos, v.increment)
+    --print("advanceByPlayMode: axis, pos", axis, v.pos)
     if v.pos > v.offset + v.size + extra or v.pos > v.max + extra then
-      v.pos = gem.inc(v.offset, v.increment)
+      --v.pos = gem.inc(v.offset, v.increment)
+      v.pos = getStartPos(axis) + v.increment
+      --print("advanceByPlayMode: reset axis, pos", axis, v.pos)
       if otherAxisIsFollow then
         handleFollow(otherAxis)
       end
     end
-  elseif v.direction < 0 and axisIsFollow == false then
+  elseif v.direction == -1 and axisIsFollow == false then
     v.pos = gem.inc(v.pos, v.increment)
     if v.pos - extra <= v.offset then
       v.pos = v.offset + v.size + extra
-      print("v.pos, extra", v.pos, extra)
+      --print("v.pos, extra", v.pos, extra)
       if otherAxisIsFollow then
         handleFollow(otherAxis)
       end
@@ -289,6 +332,8 @@ local function getCellForAxis(axis, pos)
 end
 
 local function getNotes()
+  gridXY[xAxis].hasAdvanced = false -- Reset
+  gridXY[yAxis].hasAdvanced = false -- Reset
 
   for axis,v in ipairs(gridXY) do
     if (v.mustAdvance or gem.getRandomBoolean(v.advanceProbability)) then
@@ -341,26 +386,13 @@ local function getNotes()
   return cells
 end
 
-local function resetGridPos()
-  for axis=1,2 do
-    if gridXY[axis].direction > 0 then
-      gridXY[axis].pos = gridXY[axis].offset
-      gridXY[axis].mustAdvance = true
-    elseif string.sub(gridXY[axis].playMode, 1, 6) == "Follow" then
-      gridXY[axis].pos = gridXY[axis].offset + gridXY[axis].size
-    else
-      gridXY[axis].pos = gridXY[axis].offset + gridXY[axis].size + 1
-    end
-    --print("resetGridPos: Set axis to pos", axis, gridXY[axis].pos)
-  end
-end
-
 local function getGate()
   return gem.randomizeValue(gateInput.value, gateInput.min, gateInput.max, gateRandomization.value)
 end
 
 local function sequenceRunner()
-  resetGridPos()
+  setPos()
+  local previous = nil
   local activeFragment = nil -- The fragment currently playing
   local fragmentPos = 0 -- Position in the active fragment
   local fragmentRepeatCount = 0
@@ -368,8 +400,9 @@ local function sequenceRunner()
   local duration = nil
   local reverseFragment = false
   local rest = false
+  local durationCounter = 0
   isPlaying = true
-  print("Seq runner starting")
+  --print("Seq runner starting")
   while isPlaying do
     local noteInputs = getNotes() -- The notes to play
     local notesPlaying = {} -- Holds the playing notes, to avoid duplicates
@@ -400,6 +433,12 @@ local function sequenceRunner()
       end
     end
     waitBeat(duration)
+    local beatBase = 4 -- TODO Param?
+    durationCounter = durationCounter + duration
+    if durationCounter >= beatBase and gem.getRandomBoolean(evolveFragmentProbability) then
+      durationCounter = 0
+      previous = rythmicFragments.evolveFragments(previous, randomizeCurrentResolutionProbability, adjustBias)
+    end
   end
 end
 
@@ -441,9 +480,9 @@ local function setScale()
   local degreeDefinitionPos = 0
   local degreeOctave = 0
   local scaleResetPos = 1
-  print("Root note is", startNote)
-  print("Max note is", maxNote)
-  print("#scale", #scale)
+  --print("Root note is", startNote)
+  --print("Max note is", maxNote)
+  --print("#scale", #scale)
   for i,v in ipairs(grid) do
     -- Check if we have a degree definition
     -- Check if we are at the start of the x axis
@@ -523,7 +562,7 @@ rythmPanel.backgroundColour = "404040"
 rythmPanel.x = axisMotionPanel.x
 rythmPanel.y = axisMotionPanel.y + axisMotionPanel.height + 0
 rythmPanel.width = sequencerPanel.width
-rythmPanel.height = 114
+rythmPanel.height = 150
 
 --------------------------------------------------------------------------------
 -- Widgets
@@ -895,7 +934,7 @@ seqPlayModeX.textColour = menuTextColour
 seqPlayModeX.arrowColour = menuArrowColour
 seqPlayModeX.outlineColour = menuOutlineColour
 seqPlayModeX.changed = function(self)
-  setPlayMode(1, self.text)
+  setDirectionFromPlaymode(xAxis, self.text)
 end
 seqPlayModeX:changed()
 
@@ -941,6 +980,7 @@ incrementX.y = seqPlayModeX.y + 8
 incrementX.x = randomChordButtonX.x + randomChordButtonX.width + xSpacing
 incrementX.changed = function(self)
   gridXY[xAxis].increment = self.value
+  setDirectionFromPlaymode(xAxis, seqPlayModeX.text)
 end
 
 local advanceProbabilityX = axisMotionPanel:Knob("AdvanceProbabilityX", gridXY[xAxis].advanceProbability, 0, 100, true)
@@ -1036,7 +1076,7 @@ seqPlayModeY.textColour = menuTextColour
 seqPlayModeY.arrowColour = menuArrowColour
 seqPlayModeY.outlineColour = menuOutlineColour
 seqPlayModeY.changed = function(self)
-  setPlayMode(2, self.text)
+  setDirectionFromPlaymode(yAxis, self.text)
 end
 seqPlayModeY:changed()
 
@@ -1082,6 +1122,7 @@ incrementY.y = incrementX.y + incrementX.height + 15
 incrementY.x = incrementX.x
 incrementY.changed = function(self)
   gridXY[yAxis].increment = self.value
+  setDirectionFromPlaymode(yAxis, seqPlayModeY.text)
 end
 
 local advanceProbabilityY = axisMotionPanel:Knob("AdvanceProbabilityY", gridXY[yAxis].advanceProbability, 0, 100, true)
@@ -1136,34 +1177,115 @@ rythmLabel.height = 18
 rythmLabel.x = 0
 rythmLabel.y = 0
 
+local evolveFragmentProbabilityInput = rythmPanel:NumBox("EvolveFragmentProbability", evolveFragmentProbability, 0, 100, true)
+evolveFragmentProbabilityInput.unit = Unit.Percent
+evolveFragmentProbabilityInput.textColour = widgetTextColour
+evolveFragmentProbabilityInput.backgroundColour = widgetBackgroundColour
+evolveFragmentProbabilityInput.displayName = "Evolve"
+evolveFragmentProbabilityInput.tooltip = "Set the probability that fragments will change over time, using the resolutions present in the fragments"
+evolveFragmentProbabilityInput.width = 100
+evolveFragmentProbabilityInput.height = 18
+evolveFragmentProbabilityInput.x = rythmLabel.x + 10
+evolveFragmentProbabilityInput.y = 114
+evolveFragmentProbabilityInput.changed = function(self)
+  evolveFragmentProbability = self.value
+end
+
+local randomizeCurrentResolutionProbabilityInput = rythmPanel:NumBox("RandomizeCurrentResolutionProbability", randomizeCurrentResolutionProbability, 0, 100, true)
+randomizeCurrentResolutionProbabilityInput.unit = Unit.Percent
+randomizeCurrentResolutionProbabilityInput.textColour = widgetTextColour
+randomizeCurrentResolutionProbabilityInput.backgroundColour = widgetBackgroundColour
+randomizeCurrentResolutionProbabilityInput.displayName = "Adjust"
+randomizeCurrentResolutionProbabilityInput.tooltip = "Set the probability that evolve will adjust resolutions, based on the resolutions present in the fragments"
+randomizeCurrentResolutionProbabilityInput.width = evolveFragmentProbabilityInput.width
+randomizeCurrentResolutionProbabilityInput.height = evolveFragmentProbabilityInput.height
+randomizeCurrentResolutionProbabilityInput.x = evolveFragmentProbabilityInput.x + evolveFragmentProbabilityInput.width + 5
+randomizeCurrentResolutionProbabilityInput.y = evolveFragmentProbabilityInput.y
+randomizeCurrentResolutionProbabilityInput.changed = function(self)
+  randomizeCurrentResolutionProbability = self.value
+end
+
+local biasLabel = rythmPanel:Label("BiasLabel")
+biasLabel.text = "Bias slow > fast"
+biasLabel.tooltip = "Adjust bias: <50=more slow resolutions, >50=more fast resolutions"
+biasLabel.alpha = 0.5
+biasLabel.fontSize = 15
+biasLabel.width = 90
+biasLabel.height = randomizeCurrentResolutionProbabilityInput.height
+biasLabel.x = randomizeCurrentResolutionProbabilityInput.x + randomizeCurrentResolutionProbabilityInput.width + 5
+biasLabel.y = randomizeCurrentResolutionProbabilityInput.y
+
+local adjustBiasInput = rythmPanel:Knob("Bias", adjustBias, 0, 100, true)
+adjustBiasInput.showLabel = false
+adjustBiasInput.showValue = false
+adjustBiasInput.displayName = "Bias"
+adjustBiasInput.tooltip = biasLabel.tooltip
+adjustBiasInput.backgroundColour = widgetBackgroundColour
+adjustBiasInput.fillColour = knobFillColour
+adjustBiasInput.outlineColour = widgetTextColour
+adjustBiasInput.width = 18
+adjustBiasInput.height = biasLabel.height
+adjustBiasInput.x = biasLabel.x + biasLabel.width
+adjustBiasInput.y = biasLabel.y
+adjustBiasInput.changed = function(self)
+  adjustBias = self.value
+end
+
+local minResLabel = rythmPanel:Label("MinResolutionsLabel")
+minResLabel.text = "Min resolution"
+minResLabel.alpha = 0.5
+minResLabel.fontSize = 15
+minResLabel.width = 90
+minResLabel.height = adjustBiasInput.height
+minResLabel.x = adjustBiasInput.x + adjustBiasInput.width + 10
+minResLabel.y = adjustBiasInput.y
+
+local minResolution = rythmPanel:Menu("MinResolution", rythmicFragments.resolutions.getResolutionNames())
+minResolution.displayName = minResLabel.text
+minResolution.tooltip = "The highest allowed resolution for evolve adjustments"
+minResolution.selected = 26
+minResolution.showLabel = false
+minResolution.width = 60
+minResolution.height = adjustBiasInput.height
+minResolution.backgroundColour = widgetBackgroundColour
+minResolution.textColour = widgetTextColour
+minResolution.arrowColour = menuArrowColour
+minResolution.outlineColour = menuOutlineColour
+minResolution.x = minResLabel.x + minResLabel.width
+minResolution.y = minResLabel.y
+minResolution.changed = function(self)
+  rythmicFragments.setMaxResolutionIndex(self.value)
+end
+minResolution:changed()
+
 gateInput = rythmPanel:NumBox("GateInput", 90, 0, 110, true)
 gateInput.unit = Unit.Percent
 gateInput.displayName = "Gate"
 gateInput.tooltip = "Set the gate length"
-gateInput.backgroundColour = menuBackgroundColour
-gateInput.textColour = menuTextColour
-gateInput.size = {120,16}
-gateInput.x = 468
-gateInput.y = 1
+gateInput.textColour = widgetTextColour
+gateInput.backgroundColour = widgetBackgroundColour
+gateInput.size = {100,minResolution.height}
+gateInput.x = minResolution.x + minResolution.width + 15
+gateInput.y = minResolution.y
 
 gateRandomization = rythmPanel:NumBox("GateRandomization", 25, 0, 100, true)
 gateRandomization.unit = Unit.Percent
-gateRandomization.textColour = menuTextColour
+gateRandomization.textColour = widgetTextColour
 gateRandomization.backgroundColour = widgetBackgroundColour
 gateRandomization.displayName = "Gate Rand"
 gateRandomization.tooltip = "Gate randomization amount"
 gateRandomization.size = gateInput.size
-gateRandomization.x = gateInput.x + gateInput.width + 1
+gateRandomization.x = gateInput.x + gateInput.width + 5
 gateRandomization.y = gateInput.y
 
-paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, rythmLabel, colours, 2, 10, 10)
+paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, rythmLabel, colours, 2, 15, 5)
 
 --------------------------------------------------------------------------------
 -- Handle events
 --------------------------------------------------------------------------------
 
 function onInit()
-  print("Init grid")
+  --print("Init grid")
   setSelectedGrid()
 end
 
