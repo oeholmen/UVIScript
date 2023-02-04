@@ -63,10 +63,10 @@ local xAxis = 1 -- Hold the index for the x axis in the gridXY table
 local yAxis = 2 -- Hold the index for the y axis in the gridXY table
 local scalesNames = scales.getScaleNames()
 local scaleDefinitions = scales.getScaleDefinitions()
-local gateInput
-local gateRandomization
 local seqVelTable
 local velocityRandomization
+local seqGateTable
+local gateRandomization
 local rootNote = 1 -- Holds the current root note (key)
 local scaleDefinitionIndex = #scalesNames -- Holds the scale definition index
 local startOctave = -1 -- Holds the start octave when creating the scale
@@ -389,15 +389,20 @@ local function getNotes()
   return cells
 end
 
-local function getVelocity()
-  local pos = math.max(1, math.floor(gridXY[xAxis].pos))
-  --print("Setting velocity from", pos)
-  local velocity = seqVelTable:getValue(pos)
+local function getVelocity(pos)
+  return seqVelTable:getValue(pos), gem.inc(pos, 1, seqVelTable.length)
+end
+
+local function randomizeVelocity(velocity)
   return gem.randomizeValue(velocity, seqVelTable.min, seqVelTable.max, velocityRandomization.value)
 end
 
-local function getGate()
-  return gem.randomizeValue(gateInput.value, gateInput.min, gateInput.max, gateRandomization.value)
+local function randomizeGate(gate)
+  return gem.randomizeValue(gate, seqGateTable.min, seqGateTable.max, gateRandomization.value)
+end
+
+local function getGate(pos)
+  return seqGateTable:getValue(pos), gem.inc(pos, 1, seqGateTable.length)
 end
 
 local function sequenceRunner()
@@ -411,25 +416,29 @@ local function sequenceRunner()
   local reverseFragment = false
   local rest = false
   local durationCounter = 0
+  local velocity = seqVelTable:getValue(1)
+  local velocityPos = 0
+  local gate = seqGateTable:getValue(1)
+  local gatePos = 0
   isPlaying = true
   --print("Seq runner starting")
   while isPlaying do
     local noteInputs = getNotes() -- The notes to play
     local notesPlaying = {} -- Holds the playing notes, to avoid duplicates
-    --local velocity = 64 -- Default velocity - override in velocity event processor if required
-    local velocity = getVelocity()
+    velocity, velocityPos = getVelocity(velocityPos)
+    gate, gatePos = getGate(gatePos)
     -- Get resolution from fragments
     duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = rythmicFragments.getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
     if type(duration) == "nil" then
       -- Fallback to the default resolution if not found in fragment
       duration = sequencerResolution
     end
-    if #noteInputs > 0 and rest == false then
+    if #noteInputs > 0 and rest == false and gate > 0 then
       for _,noteInput in ipairs(noteInputs) do
-        local playDuration = rythmicFragments.resolutions.getPlayDuration(duration, getGate())
+        local playDuration = rythmicFragments.resolutions.getPlayDuration(duration, randomizeGate(gate))
         local note = noteInput.value
         if gem.tableIncludes(notesPlaying, note) == false then
-          playNote(note, velocity, beat2ms(playDuration))
+          playNote(note, randomizeVelocity(velocity), beat2ms(playDuration))
           table.insert(notesPlaying, note)
           --print("Play note/duration", note, playDuration)
         end
@@ -552,7 +561,7 @@ notePanel.backgroundColour = "black"
 notePanel.x = sequencerPanel.x
 notePanel.y = sequencerPanel.y + sequencerPanel.height
 notePanel.width = sequencerPanel.width
-notePanel.height = 290
+notePanel.height = 300
 
 local settingsPanel = Panel("Scale")
 settingsPanel.backgroundColour = "404040"
@@ -573,7 +582,7 @@ rythmPanel.backgroundColour = "404040"
 rythmPanel.x = axisMotionPanel.x
 rythmPanel.y = axisMotionPanel.y + axisMotionPanel.height + 0
 rythmPanel.width = sequencerPanel.width
-rythmPanel.height = 150
+rythmPanel.height = 220
 
 --------------------------------------------------------------------------------
 -- Grid Sequencer
@@ -716,15 +725,57 @@ xyOffset.bounds = {546, 6, 168, 112}
 local xySize = notePanel:XY('GridSizeX', 'GridSizeY')
 xySize.bounds = {xyOffset.x, xyOffset.y+xyOffset.height+4, xyOffset.width, xyOffset.height}
 
-seqVelTable = notePanel:Table("Velocity", gridXY[xAxis].max, 90, 1, 127, true)
-seqVelTable.tooltip = "Set the velocity for each position in the grid"
+seqVelTable = notePanel:Table("Velocity", 8, 90, 1, 127, true)
+seqVelTable.tooltip = "Set velocity pattern"
 seqVelTable.showPopupDisplay = true
 seqVelTable.fillStyle = "solid"
 seqVelTable.sliderColour = sliderColour
-seqVelTable.width = notePanel.width - xySize.width - 10
-seqVelTable.height = 54
+seqVelTable.width = notePanel.width - xySize.width - 84
+seqVelTable.height = 32
 seqVelTable.x = 0
 seqVelTable.y = xySize.y + xySize.height + 1
+
+local velocityTableLength = notePanel:NumBox("VelocityTableLength", 8, 1, 16, true)
+--velocityTableLength.showLabel = false
+velocityTableLength.displayName = "Vel"
+velocityTableLength.fontSize = 22
+velocityTableLength.tooltip = "Length of velocity table"
+velocityTableLength.width = 75
+velocityTableLength.height = seqVelTable.height
+velocityTableLength.x = seqVelTable.x + seqVelTable.width + 1
+velocityTableLength.y = seqVelTable.y
+velocityTableLength.backgroundColour = menuBackgroundColour
+--velocityTableLength.backgroundColour = "red"
+velocityTableLength.textColour = menuTextColour
+velocityTableLength.changed = function(self)
+  seqVelTable.length = self.value
+end
+
+seqGateTable = notePanel:Table("Velocity", 8, 90, 0, 110, true)
+seqGateTable.unit = Unit.Percent
+seqGateTable.tooltip = "Set gate pattern"
+seqGateTable.showPopupDisplay = true
+seqGateTable.fillStyle = "solid"
+seqGateTable.sliderColour = sliderColour
+seqGateTable.width = seqVelTable.width
+seqGateTable.height = seqVelTable.height
+seqGateTable.x = seqVelTable.x
+seqGateTable.y = seqVelTable.y + seqVelTable.height + 1
+
+local gateTableLength = notePanel:NumBox("GateTableLength", 8, 1, 16, true)
+--gateTableLength.showLabel = false
+gateTableLength.displayName = "Gate"
+gateTableLength.fontSize = velocityTableLength.fontSize
+gateTableLength.tooltip = "Length of gate table"
+gateTableLength.width = velocityTableLength.width
+gateTableLength.height = seqGateTable.height
+gateTableLength.x = seqGateTable.x + seqGateTable.width + 1
+gateTableLength.y = seqGateTable.y
+gateTableLength.backgroundColour = menuBackgroundColour
+gateTableLength.textColour = menuTextColour
+gateTableLength.changed = function(self)
+  seqGateTable.length = self.value
+end
 
 meter = notePanel:AudioMeter("OutputLevel", Part, false, 0, true)
 meter.height = seqVelTable.height / 2
@@ -745,6 +796,16 @@ velocityRandomization.x = meter.x
 velocityRandomization.y = meter.y + meter.height + 4
 velocityRandomization.backgroundColour = menuBackgroundColour
 velocityRandomization.textColour = menuTextColour
+
+gateRandomization = notePanel:NumBox("GateRandomization", 15, 0, 100, true)
+gateRandomization.unit = Unit.Percent
+gateRandomization.displayName = "Gate Rand"
+gateRandomization.tooltip = "Gate randomization amount"
+gateRandomization.backgroundColour = menuBackgroundColour
+gateRandomization.textColour = menuTextColour
+gateRandomization.size = velocityRandomization.size
+gateRandomization.x = velocityRandomization.x
+gateRandomization.y = velocityRandomization.y + velocityRandomization.height + 1
 
 --------------------------------------------------------------------------------
 -- Note Selection
@@ -1223,9 +1284,9 @@ evolveFragmentProbabilityInput.backgroundColour = widgetBackgroundColour
 evolveFragmentProbabilityInput.displayName = "Evolve"
 evolveFragmentProbabilityInput.tooltip = "Set the probability that fragments will change over time, using the resolutions present in the fragments"
 evolveFragmentProbabilityInput.width = 100
-evolveFragmentProbabilityInput.height = 18
-evolveFragmentProbabilityInput.x = rythmLabel.x + 10
-evolveFragmentProbabilityInput.y = 114
+evolveFragmentProbabilityInput.height = 16
+evolveFragmentProbabilityInput.x = rythmLabel.x + 239
+evolveFragmentProbabilityInput.y = 1
 evolveFragmentProbabilityInput.changed = function(self)
   evolveFragmentProbability = self.value
 end
@@ -1297,27 +1358,7 @@ minResolution.changed = function(self)
 end
 minResolution:changed()
 
-gateInput = rythmPanel:NumBox("GateInput", 90, 0, 110, true)
-gateInput.unit = Unit.Percent
-gateInput.displayName = "Gate"
-gateInput.tooltip = "Set the gate length"
-gateInput.textColour = widgetTextColour
-gateInput.backgroundColour = widgetBackgroundColour
-gateInput.size = {100,minResolution.height}
-gateInput.x = minResolution.x + minResolution.width + 15
-gateInput.y = minResolution.y
-
-gateRandomization = rythmPanel:NumBox("GateRandomization", 25, 0, 100, true)
-gateRandomization.unit = Unit.Percent
-gateRandomization.textColour = widgetTextColour
-gateRandomization.backgroundColour = widgetBackgroundColour
-gateRandomization.displayName = "Gate Rand"
-gateRandomization.tooltip = "Gate randomization amount"
-gateRandomization.size = gateInput.size
-gateRandomization.x = gateInput.x + gateInput.width + 5
-gateRandomization.y = gateInput.y
-
-paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, rythmLabel, colours, 2, 15, 5)
+paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, rythmLabel, colours, 4, 15, 5)
 
 --------------------------------------------------------------------------------
 -- Handle events
