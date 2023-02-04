@@ -393,7 +393,7 @@ local function getVelocity()
   local pos = math.max(1, math.floor(gridXY[xAxis].pos))
   --print("Setting velocity from", pos)
   local velocity = seqVelTable:getValue(pos)
-  return gem.randomizeValue(velocity, seqVelTable.min, seqVelTable.max, 15)--velocityRandomization.value)
+  return gem.randomizeValue(velocity, seqVelTable.min, seqVelTable.max, velocityRandomization.value)
 end
 
 local function getGate()
@@ -727,7 +727,7 @@ seqVelTable.x = 0
 seqVelTable.y = xySize.y + xySize.height + 1
 
 meter = notePanel:AudioMeter("OutputLevel", Part, false, 0, true)
-meter.height = seqVelTable.height - 1
+meter.height = seqVelTable.height / 2
 meter.width = xySize.width
 meter.x = xySize.x
 meter.y = seqVelTable.y + 1
@@ -735,6 +735,16 @@ meter["0dBColour"] = "red"
 meter["3dBColour"] = "orange"
 meter["6dBColour"] = "yellow"
 meter["10dBColour"] = "green"
+
+velocityRandomization = notePanel:NumBox("VelocityRandomization", 15, 0, 100, true)
+velocityRandomization.unit = Unit.Percent
+velocityRandomization.displayName = "Velocity radomization"
+velocityRandomization.tooltip = "Amount of radomization applied to sequencer velocity"
+velocityRandomization.width = meter.width
+velocityRandomization.x = meter.x
+velocityRandomization.y = meter.y + meter.height + 4
+velocityRandomization.backgroundColour = menuBackgroundColour
+velocityRandomization.textColour = menuTextColour
 
 --------------------------------------------------------------------------------
 -- Note Selection
