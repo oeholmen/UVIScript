@@ -724,10 +724,10 @@ for y=1,gridXY[yAxis].max do
   end
 end
 
-local xyOffset = notePanel:XY('GridOffsetX', 'GridOffsetY')
+local xyOffset = notePanel:XY('GridOffset1', 'GridOffset2')
 xyOffset.bounds = {546, 6, 168, 112}
 
-local xySize = notePanel:XY('GridSizeX', 'GridSizeY')
+local xySize = notePanel:XY('GridSize1', 'GridSize2')
 xySize.bounds = {xyOffset.x, xyOffset.y+xyOffset.height+4, xyOffset.width, xyOffset.height}
 
 seqVelTable = notePanel:Table("Velocity", 8, 90, 1, 127, true)
@@ -1047,7 +1047,7 @@ for axis=xAxis,yAxis do
   seqPlayMode:changed()
 
   local chordNotes = axisMotionPanel:NumBox("ChordNotes" .. axis, gridXY[axis].chordNotes, 2, gridXY[axis].max, true)
-  local chordNoteIncrement = axisMotionPanel:NumBox("ChordNoteIncrement" .. axis, gridXY[axis].chordNotesIncrement, 1, 4, true)
+  local chordNoteIncrement = axisMotionPanel:NumBox("ChordNoteIncrement" .. axis, gridXY[axis].chordNotesIncrement, 1, math.floor(gridXY[axis].max / 2), true)
   local randomChordButton = axisMotionPanel:OnOffButton("RandomChordButton" .. axis, gridXY[axis].randomChord)
 
   local chordButton = axisMotionPanel:OnOffButton("ChordButton" .. axis, gridXY[axis].chord)
