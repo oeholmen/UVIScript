@@ -85,6 +85,7 @@ table.insert(gridXY, {
   playMode = playModes[1],
   chord = false,
   chordNotes = 2,
+  chordNotesIncrement = 1,
   randomChord = false,
   randomProbability = 0, -- Probability that position will be selected by chance
   advanceProbability = 100, -- Probability that a new position for the axis will be selected by the play mode
@@ -103,6 +104,7 @@ table.insert(gridXY, {
   playMode = playModes[1],
   chord = false,
   chordNotes = 2,
+  chordNotesIncrement = 1,
   randomChord = false,
   randomProbability = 0, -- Probability that position will be selected by chance
   advanceProbability = 100, -- Probability that a new position for the axis will be selected by the play mode
@@ -342,43 +344,34 @@ local function getNotes()
   end
 
   local cells = {} -- The selected cells to play
-  if gridXY[xAxis].chord or gridXY[yAxis].chord then
-    for axis,v in ipairs(gridXY) do
-      if v.chord then
-        local startPos = v.offset + 1
-        local endPos = math.min(v.max, v.offset + v.size)
-        --print("axis, startPos, endPos", i, startPos, endPos)
-        local cellsForAxis = {}
-        if v.randomChord then
-          -- Get selected notes in random order
-          local currentPos = startPos
-          while currentPos <= endPos do
-            --if isPosWithinSelectedAxis(pos, axis) then
-            table.insert(cellsForAxis, getCellForAxis(axis, currentPos))
-            currentPos = gem.inc(currentPos)
-            --end
-          end
-          -- Remove random cells until we have the correct amount
-          while #cellsForAxis > v.chordNotes do
-            table.remove(cellsForAxis, gem.getRandom(#cellsForAxis))
-          end
-        else
-          -- Get selected notes in sequential order
-          local currentPos = v.pos
-          -- Add cells until we have the correct amount
-          while #cellsForAxis < math.min(v.chordNotes, v.size) do
-            table.insert(cellsForAxis, getCellForAxis(axis, currentPos))
-            currentPos = gem.inc(currentPos, 1, endPos, startPos)
-          end
-        end
-        for _,cell in ipairs(cellsForAxis) do
-          table.insert(cells, cell)
-        end
+  for axis,v in ipairs(gridXY) do
+    local startPos = v.offset + 1
+    local endPos = math.min(v.max, v.offset + v.size)
+    --print("axis, startPos, endPos", i, startPos, endPos)
+    local cellsForAxis = {}
+    if v.chord and v.randomChord then
+      -- Get selected notes in random order
+      local currentPos = startPos
+      while currentPos <= endPos do
+        table.insert(cellsForAxis, getCellForAxis(axis, currentPos))
+        currentPos = gem.inc(currentPos)
+      end
+      -- Remove random cells until we have the correct amount
+      while #cellsForAxis > v.chordNotes do
+        table.remove(cellsForAxis, gem.getRandom(#cellsForAxis))
+      end
+    else
+      -- Get selected notes in sequential order
+      local currentPos = v.pos
+      -- Add cells until we have the correct amount
+      while #cellsForAxis < math.min(v.chordNotes, v.size) do
+        table.insert(cellsForAxis, getCellForAxis(axis, currentPos))
+        currentPos = gem.inc(currentPos, v.chordNotesIncrement, endPos, startPos)
       end
     end
-  else
-    -- No chord, just get the one note
-    table.insert(cells, getCell(gridXY[xAxis].pos, gridXY[yAxis].pos, "Note", grid))
+    for _,cell in ipairs(cellsForAxis) do
+      table.insert(cells, cell)
+    end
   end
 
   --print("Returning cells", #cells)
@@ -1033,35 +1026,55 @@ end
 seqPlayModeX:changed()
 
 local chordNotesX = axisMotionPanel:NumBox("ChordNotesX", gridXY[xAxis].chordNotes, 2, gridXY[xAxis].max, true)
+local chordNoteIncrementX = axisMotionPanel:NumBox("ChordNoteIncrementX", gridXY[xAxis].chordNotesIncrement, 1, 4, true)
 local randomChordButtonX = axisMotionPanel:OnOffButton("RandomChordButtonX", gridXY[xAxis].randomChord)
 
-local chordButtonX = axisMotionPanel:OnOffButton("ChordButtonX", gridXY[xAxis].randomChord)
+local chordButtonX = axisMotionPanel:OnOffButton("ChordButtonX", gridXY[xAxis].chord)
 chordButtonX.backgroundColourOff = backgroundColourOff
 chordButtonX.backgroundColourOn = backgroundColourOn
 chordButtonX.textColourOff = textColourOff
 chordButtonX.textColourOn = textColourOn
-chordButtonX.displayName = "Chord"
-chordButtonX.tooltip = "If you activate chord mode, mutiple notes are played along the x axis"
-chordButtonX.size = {66+54+1,20}
+chordButtonX.displayName = "Polymode"
+chordButtonX.tooltip = "In polymode, mutiple notes are played along the x axis"
+chordButtonX.size = {100,20}
 chordButtonX.x = seqPlayModeX.x + seqPlayModeX.width + xSpacing
 chordButtonX.y = seqPlayModeX.y + 3
 chordButtonX.changed = function(self)
   gridXY[xAxis].chord = self.value
+  if self.value then
+    gridXY[xAxis].chordNotes = chordNotesX.value
+  else
+    gridXY[xAxis].chordNotes = 1
+  end
   chordNotesX.enabled = self.value
+  chordNoteIncrementX.enabled = self.value
   randomChordButtonX.enabled = self.value
 end
+chordButtonX:changed()
 
 chordNotesX.enabled = false
-chordNotesX.displayName = "Poly"
-chordNotesX.tooltip = "Number of notes to play simultaniously on the x axis"
+chordNotesX.showLabel = false
+chordNotesX.displayName = "Notes"
+chordNotesX.tooltip = "Number of notes to play in polymode"
 chordNotesX.backgroundColour = menuBackgroundColour
 chordNotesX.textColour = menuTextColour
-chordNotesX.height = 20
-chordNotesX.width = 66
-chordNotesX.x = chordButtonX.x
-chordNotesX.y = chordButtonX.y + chordButtonX.height + 2
+chordNotesX.size = {30,20}
+chordNotesX.x = chordButtonX.x + chordButtonX.width + 1
+chordNotesX.y = chordButtonX.y-- + chordButtonX.height + 2
 chordNotesX.changed = function(self)
   gridXY[xAxis].chordNotes = self.value
+end
+
+chordNoteIncrementX.enabled = false
+chordNoteIncrementX.displayName = "Increment"
+chordNoteIncrementX.tooltip = "The increment between notes in polymode"
+chordNoteIncrementX.backgroundColour = menuBackgroundColour
+chordNoteIncrementX.textColour = menuTextColour
+chordNoteIncrementX.size = {81,20}
+chordNoteIncrementX.x = chordButtonX.x
+chordNoteIncrementX.y = chordButtonX.y + chordButtonX.height + 2
+chordNoteIncrementX.changed = function(self)
+  gridXY[xAxis].chordNotesIncrement = self.value
 end
 
 randomChordButtonX.enabled = false
@@ -1071,9 +1084,9 @@ randomChordButtonX.textColourOff = textColourOff
 randomChordButtonX.textColourOn = textColourOn
 randomChordButtonX.displayName = "Random"
 randomChordButtonX.tooltip = "Select chord notes by chance from within the active x axis (only when numer of notes as > 1)"
-randomChordButtonX.size = {54,chordNotesX.height}
-randomChordButtonX.x = chordNotesX.x + chordNotesX.width + 1
-randomChordButtonX.y = chordNotesX.y
+randomChordButtonX.size = {48,chordNotesX.height}
+randomChordButtonX.x = chordNoteIncrementX.x + chordNoteIncrementX.width + 2
+randomChordButtonX.y = chordNoteIncrementX.y
 randomChordButtonX.changed = function(self)
   gridXY[xAxis].randomChord = self.value
 end
@@ -1192,35 +1205,55 @@ end
 seqPlayModeY:changed()
 
 local chordNotesY = axisMotionPanel:NumBox("ChordNotesY", gridXY[yAxis].chordNotes, 2, gridXY[yAxis].max, true)
+local chordNoteIncrementY = axisMotionPanel:NumBox("ChordNoteIncrementY", gridXY[yAxis].chordNotesIncrement, 1, 4, true)
 local randomChordButtonY = axisMotionPanel:OnOffButton("RandomChordButtonY", gridXY[yAxis].randomChord)
 
-local chordButtonY = axisMotionPanel:OnOffButton("ChordButtonY", gridXY[yAxis].randomChord)
+local chordButtonY = axisMotionPanel:OnOffButton("ChordButtonY", gridXY[yAxis].chord)
 chordButtonY.backgroundColourOff = backgroundColourOff
 chordButtonY.backgroundColourOn = backgroundColourOn
 chordButtonY.textColourOff = textColourOff
 chordButtonY.textColourOn = textColourOn
-chordButtonY.displayName = "Chord"
-chordButtonY.tooltip = "If you activate chord mode, mutiple notes are played along the y axis"
-chordButtonY.size = {66+54+1,20}
+chordButtonY.displayName = "Polymode"
+chordButtonY.tooltip = "In polymode, mutiple notes are played along the y axis"
+chordButtonY.size = chordButtonX.size
 chordButtonY.x = chordButtonX.x
 chordButtonY.y = seqPlayModeY.y + 3
 chordButtonY.changed = function(self)
   gridXY[yAxis].chord = self.value
+  if self.value then
+    gridXY[yAxis].chordNotes = chordNotesY.value
+  else
+    gridXY[yAxis].chordNotes = 1
+  end
   chordNotesY.enabled = self.value
+  chordNoteIncrementY.enabled = self.value
   randomChordButtonY.enabled = self.value
 end
+chordButtonY:changed()
 
 chordNotesY.enabled = false
-chordNotesY.displayName = "Poly"
-chordNotesY.tooltip = "Number of notes to play simultaniously on the x axis"
+chordNotesY.showLabel = false
+chordNotesY.displayName = "Notes"
+chordNotesY.tooltip = "Number of notes to play in polymode"
 chordNotesY.backgroundColour = menuBackgroundColour
 chordNotesY.textColour = menuTextColour
-chordNotesY.height = 20
-chordNotesY.width = 66
+chordNotesY.size = chordNotesX.size
 chordNotesY.x = chordNotesX.x
-chordNotesY.y = chordButtonY.y + chordButtonY.height + 2
+chordNotesY.y = chordButtonY.y
 chordNotesY.changed = function(self)
   gridXY[yAxis].chordNotes = self.value
+end
+
+chordNoteIncrementY.enabled = false
+chordNoteIncrementY.displayName = chordNoteIncrementX.displayName
+chordNoteIncrementY.tooltip = chordNoteIncrementX.tooltip
+chordNoteIncrementY.backgroundColour = menuBackgroundColour
+chordNoteIncrementY.textColour = menuTextColour
+chordNoteIncrementY.size = chordNoteIncrementX.size
+chordNoteIncrementY.x = chordNoteIncrementX.x
+chordNoteIncrementY.y = chordButtonY.y + chordButtonY.height + 2
+chordNoteIncrementY.changed = function(self)
+  gridXY[yAxis].chordNotesIncrement = self.value
 end
 
 randomChordButtonY.enabled = false
@@ -1230,9 +1263,9 @@ randomChordButtonY.textColourOff = textColourOff
 randomChordButtonY.textColourOn = textColourOn
 randomChordButtonY.displayName = "Random"
 randomChordButtonY.tooltip = "Select chord notes by chance from within the active x axis (only when numer of notes as > 1)"
-randomChordButtonY.size = {54,chordNotesY.height}
+randomChordButtonY.size = randomChordButtonX.size
 randomChordButtonY.x = randomChordButtonX.x
-randomChordButtonY.y = chordNotesY.y
+randomChordButtonY.y = chordNoteIncrementY.y
 randomChordButtonY.changed = function(self)
   gridXY[yAxis].randomChord = self.value
 end
