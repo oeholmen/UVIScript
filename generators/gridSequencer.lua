@@ -1047,7 +1047,7 @@ for axis=xAxis,yAxis do
   seqPlayMode:changed()
 
   local chordNotes = axisMotionPanel:NumBox("ChordNotes" .. axis, gridXY[axis].chordNotes, 2, gridXY[axis].max, true)
-  local chordNoteIncrement = axisMotionPanel:NumBox("ChordNoteIncrement" .. axis, gridXY[axis].chordNotesIncrement, 1, math.floor(gridXY[axis].max / 2), true)
+  local chordNoteIncrement = axisMotionPanel:NumBox("ChordNoteIncrement" .. axis, gridXY[axis].chordNotesIncrement, 1, (math.floor(gridXY[axis].max / 2) + 1), true)
   local randomChordButton = axisMotionPanel:OnOffButton("RandomChordButton" .. axis, gridXY[axis].randomChord)
 
   local chordButton = axisMotionPanel:OnOffButton("ChordButton" .. axis, gridXY[axis].chord)
