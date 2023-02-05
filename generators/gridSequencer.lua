@@ -332,46 +332,61 @@ local function getCellForAxis(axis, pos)
   return getCell(xPos, pos, "Note", grid)
 end
 
-local function getNotes()
-  gridXY[xAxis].hasAdvanced = false -- Reset
-  gridXY[yAxis].hasAdvanced = false -- Reset
+local function getCellsForAxis(axis, v)
+  local cellsForAxis = {}
+  local startPos = v.offset + 1
+  local endPos = math.min(v.max, v.offset + v.size)
+  --print("axis, startPos, endPos", i, startPos, endPos)
+  if v.chord and v.randomChord then
+    -- Get selected notes in random order
+    local currentPos = startPos
+    while currentPos <= endPos do
+      table.insert(cellsForAxis, getCellForAxis(axis, currentPos))
+      currentPos = gem.inc(currentPos)
+    end
+    -- Remove random cells until we have the correct amount
+    while #cellsForAxis > v.chordNotes do
+      table.remove(cellsForAxis, gem.getRandom(#cellsForAxis))
+    end
+  else
+    -- Get selected notes in sequential order
+    local currentPos = v.pos
+    -- Add cells until we have the correct amount
+    while #cellsForAxis < v.chordNotes do
+      table.insert(cellsForAxis, getCellForAxis(axis, currentPos))
+      currentPos = gem.inc(currentPos, v.chordNotesIncrement, endPos, startPos)
+    end
+  end
+  return cellsForAxis
+end
 
+local function getNotes()
+  local cells = {} -- Holds the selected grid cells to play
+
+  -- Reset advance status
+  gridXY[xAxis].hasAdvanced = false
+  gridXY[yAxis].hasAdvanced = false
+
+  -- Advance each axis according to the set increment
   for axis,v in ipairs(gridXY) do
-    if (v.mustAdvance or gem.getRandomBoolean(v.advanceProbability)) then
+    if v.mustAdvance or gem.getRandomBoolean(v.advanceProbability) then
       advanceByPlayMode(v, axis)
       v.mustAdvance = false
     end
   end
 
-  local cells = {} -- The selected cells to play
+  -- Get multiple cells if polymode is active on any of the axis
   for axis,v in ipairs(gridXY) do
-    local startPos = v.offset + 1
-    local endPos = math.min(v.max, v.offset + v.size)
-    --print("axis, startPos, endPos", i, startPos, endPos)
-    local cellsForAxis = {}
-    if v.chord and v.randomChord then
-      -- Get selected notes in random order
-      local currentPos = startPos
-      while currentPos <= endPos do
-        table.insert(cellsForAxis, getCellForAxis(axis, currentPos))
-        currentPos = gem.inc(currentPos)
-      end
-      -- Remove random cells until we have the correct amount
-      while #cellsForAxis > v.chordNotes do
-        table.remove(cellsForAxis, gem.getRandom(#cellsForAxis))
-      end
-    else
-      -- Get selected notes in sequential order
-      local currentPos = v.pos
-      -- Add cells until we have the correct amount
-      while #cellsForAxis < math.min(v.chordNotes, v.size) do
-        table.insert(cellsForAxis, getCellForAxis(axis, currentPos))
-        currentPos = gem.inc(currentPos, v.chordNotesIncrement, endPos, startPos)
+    if v.chord then
+      for _,cell in ipairs(getCellsForAxis(axis, v)) do
+        table.insert(cells, cell)
       end
     end
-    for _,cell in ipairs(cellsForAxis) do
-      table.insert(cells, cell)
-    end
+  end
+
+  -- If no cells were found using polymode, we return the cell at the current pos
+  if #cells == 0 then
+    table.insert(cells, getCellForAxis(gridXY[xAxis].pos, gridXY[yAxis].pos))
   end
 
   --print("Returning cells", #cells)
@@ -960,366 +975,191 @@ motionLabel.height = 18
 motionLabel.x = 0
 motionLabel.y = 0
 
--- X Axis
+-- XY Axis
 
-local axisLabelX = axisMotionPanel:Label("AxisLabelX")
-axisLabelX.text = "X"
-axisLabelX.tooltip = "Settings for the x-axis (horizontal)"
-axisLabelX.textColour = labelBackgoundColour
-axisLabelX.backgroundColour = labelTextColour
-axisLabelX.fontSize = 22
-axisLabelX.height = 40
-axisLabelX.width = 24
-axisLabelX.x = 5
-axisLabelX.y = motionLabel.y + motionLabel.height + 10
-
-local gridOffsetX = axisMotionPanel:Slider("GridOffsetX", gridXY[xAxis].offset, 0, gridXY[xAxis].max - 1)
-gridOffsetX.displayName = "Offset"
-gridOffsetX.tooltip = "Offset of x axis (can be adjusted by the top XY controller)"
-gridOffsetX.backgroundColour = menuBackgroundColour
-gridOffsetX.textColour = menuTextColour
-gridOffsetX.height = 45
-gridOffsetX.width = 60
-gridOffsetX.x = axisLabelX.x + axisLabelX.width + xSpacing
-gridOffsetX.y = axisLabelX.y - 5
-gridOffsetX.changed = function(self)
-  local offset = gem.round(self.value)
-  if offset ~= gridXY[xAxis].offset then
-    gridXY[xAxis].offset = offset
-    gridXY[xAxis].mustAdvance = true
-    setSelectedGrid()
-  end
-end
-
-local gridLengthX = axisMotionPanel:Slider("GridSizeX", gridXY[xAxis].size, 1, gridXY[xAxis].max)
-gridLengthX.displayName = "Length"
-gridLengthX.tooltip = "Length of x axis (can be adjusted by the bottom XY controller)"
-gridLengthX.backgroundColour = menuBackgroundColour
-gridLengthX.textColour = menuTextColour
-gridLengthX.height = gridOffsetX.height
-gridLengthX.width = gridOffsetX.width
-gridLengthX.x = gridOffsetX.x + gridOffsetX.width + xSpacing
-gridLengthX.y = gridOffsetX.y
-gridLengthX.changed = function(self)
-  local size = gem.round(self.value)
-  if size ~= gridXY[xAxis].size then
-    gridXY[xAxis].size = size
-    gridXY[xAxis].mustAdvance = true
-    setSelectedGrid()
-  end
-end
-
-local seqPlayModeX = axisMotionPanel:Menu("SequencerPlayModeX", playModes)
-seqPlayModeX.displayName = "Mode"
-seqPlayModeX.tooltip = "The sequencer play mode for the x axis (horizontal)"
-seqPlayModeX.x = gridLengthX.x + gridLengthX.width + xSpacing
-seqPlayModeX.y = gridLengthX.y
-seqPlayModeX.height = gridLengthX.height
-seqPlayModeX.width = 75
-seqPlayModeX.backgroundColour = menuBackgroundColour
-seqPlayModeX.textColour = menuTextColour
-seqPlayModeX.arrowColour = menuArrowColour
-seqPlayModeX.outlineColour = menuOutlineColour
-seqPlayModeX.changed = function(self)
-  setDirectionFromPlaymode(xAxis, self.text)
-end
-seqPlayModeX:changed()
-
-local chordNotesX = axisMotionPanel:NumBox("ChordNotesX", gridXY[xAxis].chordNotes, 2, gridXY[xAxis].max, true)
-local chordNoteIncrementX = axisMotionPanel:NumBox("ChordNoteIncrementX", gridXY[xAxis].chordNotesIncrement, 1, 4, true)
-local randomChordButtonX = axisMotionPanel:OnOffButton("RandomChordButtonX", gridXY[xAxis].randomChord)
-
-local chordButtonX = axisMotionPanel:OnOffButton("ChordButtonX", gridXY[xAxis].chord)
-chordButtonX.backgroundColourOff = backgroundColourOff
-chordButtonX.backgroundColourOn = backgroundColourOn
-chordButtonX.textColourOff = textColourOff
-chordButtonX.textColourOn = textColourOn
-chordButtonX.displayName = "Polymode"
-chordButtonX.tooltip = "In polymode, mutiple notes are played along the x axis"
-chordButtonX.size = {100,20}
-chordButtonX.x = seqPlayModeX.x + seqPlayModeX.width + xSpacing
-chordButtonX.y = seqPlayModeX.y + 3
-chordButtonX.changed = function(self)
-  gridXY[xAxis].chord = self.value
-  if self.value then
-    gridXY[xAxis].chordNotes = chordNotesX.value
+for axis=xAxis,yAxis do
+  local axisLabel = axisMotionPanel:Label("AxisLabel" .. axis)
+  axisLabel.height = 40
+  axisLabel.width = 24
+  if axis == xAxis then
+    axisLabel.text = "X"
+    axisLabel.y = motionLabel.y + motionLabel.height + 10
   else
-    gridXY[xAxis].chordNotes = 1
+    axisLabel.text = "Y"
+    axisLabel.y = motionLabel.y + motionLabel.height + 63
   end
-  chordNotesX.enabled = self.value
-  chordNoteIncrementX.enabled = self.value
-  randomChordButtonX.enabled = self.value
-end
-chordButtonX:changed()
+  axisLabel.tooltip = "Settings for the current axis"
+  axisLabel.textColour = labelBackgoundColour
+  axisLabel.backgroundColour = labelTextColour
+  axisLabel.fontSize = 22
+  axisLabel.x = 5
 
-chordNotesX.enabled = false
-chordNotesX.showLabel = false
-chordNotesX.displayName = "Notes"
-chordNotesX.tooltip = "Number of notes to play in polymode"
-chordNotesX.backgroundColour = menuBackgroundColour
-chordNotesX.textColour = menuTextColour
-chordNotesX.size = {30,20}
-chordNotesX.x = chordButtonX.x + chordButtonX.width + 1
-chordNotesX.y = chordButtonX.y-- + chordButtonX.height + 2
-chordNotesX.changed = function(self)
-  gridXY[xAxis].chordNotes = self.value
-end
-
-chordNoteIncrementX.enabled = false
-chordNoteIncrementX.displayName = "Increment"
-chordNoteIncrementX.tooltip = "The increment between notes in polymode"
-chordNoteIncrementX.backgroundColour = menuBackgroundColour
-chordNoteIncrementX.textColour = menuTextColour
-chordNoteIncrementX.size = {81,20}
-chordNoteIncrementX.x = chordButtonX.x
-chordNoteIncrementX.y = chordButtonX.y + chordButtonX.height + 2
-chordNoteIncrementX.changed = function(self)
-  gridXY[xAxis].chordNotesIncrement = self.value
-end
-
-randomChordButtonX.enabled = false
-randomChordButtonX.backgroundColourOff = backgroundColourOff
-randomChordButtonX.backgroundColourOn = backgroundColourOn
-randomChordButtonX.textColourOff = textColourOff
-randomChordButtonX.textColourOn = textColourOn
-randomChordButtonX.displayName = "Random"
-randomChordButtonX.tooltip = "Select chord notes by chance from within the active x axis (only when numer of notes as > 1)"
-randomChordButtonX.size = {48,chordNotesX.height}
-randomChordButtonX.x = chordNoteIncrementX.x + chordNoteIncrementX.width + 2
-randomChordButtonX.y = chordNoteIncrementX.y
-randomChordButtonX.changed = function(self)
-  gridXY[xAxis].randomChord = self.value
-end
-
-local incrementX = axisMotionPanel:Knob("IncrementX", gridXY[xAxis].increment, .1, 3.)
-incrementX.displayName = "Increment"
-incrementX.tooltip = "Set the increment amount per step on the x axis (horizontal)."
-incrementX.backgroundColour = widgetBackgroundColour
-incrementX.fillColour = knobFillColour
-incrementX.outlineColour = labelBackgoundColour
-incrementX.showPopupDisplay = true
-incrementX.height = 39
-incrementX.width = 100
-incrementX.y = seqPlayModeX.y + 8
-incrementX.x = randomChordButtonX.x + randomChordButtonX.width + xSpacing
-incrementX.changed = function(self)
-  gridXY[xAxis].increment = self.value
-  setDirectionFromPlaymode(xAxis, seqPlayModeX.text)
-end
-
-local advanceProbabilityX = axisMotionPanel:Knob("AdvanceProbabilityX", gridXY[xAxis].advanceProbability, 0, 100, true)
-advanceProbabilityX.unit = Unit.Percent
-advanceProbabilityX.displayName = "Advance"
-advanceProbabilityX.tooltip = "Set the probability that the position will advance on the x axis (horizontal)."
-advanceProbabilityX.backgroundColour = widgetBackgroundColour
-advanceProbabilityX.fillColour = knobFillColour
-advanceProbabilityX.outlineColour = labelBackgoundColour
-advanceProbabilityX.showPopupDisplay = true
-advanceProbabilityX.height = incrementX.height
-advanceProbabilityX.width = incrementX.width
-advanceProbabilityX.y = incrementX.y
-advanceProbabilityX.x = incrementX.x + incrementX.width + xSpacing
-advanceProbabilityX.changed = function(self)
-  gridXY[xAxis].advanceProbability = self.value
-end
-
-local randomProbabilityX = axisMotionPanel:Knob("RandomProbabilityX", gridXY[xAxis].randomProbability , 0, 100, true)
-randomProbabilityX.unit = Unit.Percent
-randomProbabilityX.displayName = "Random"
-randomProbabilityX.tooltip = "Set the probability that the position on the x axis (horizontal) will be selected by chance."
-randomProbabilityX.backgroundColour = widgetBackgroundColour
-randomProbabilityX.fillColour = knobFillColour
-randomProbabilityX.outlineColour = labelBackgoundColour
-randomProbabilityX.showPopupDisplay = true
-randomProbabilityX.height = advanceProbabilityX.height
-randomProbabilityX.width = advanceProbabilityX.width
-randomProbabilityX.y = advanceProbabilityX.y
-randomProbabilityX.x = advanceProbabilityX.x + advanceProbabilityX.width
-randomProbabilityX.changed = function(self)
-  gridXY[xAxis].randomProbability = self.value
-end
-
--- Y Axis
-
-local axisLabelY = axisMotionPanel:Label("AxisLabelY")
-axisLabelY.text = "Y"
-axisLabelY.tooltip = "Settings for the y-axis (vertical)"
-axisLabelY.fontSize = axisLabelX.fontSize
-axisLabelY.textColour = labelBackgoundColour
-axisLabelY.backgroundColour = labelTextColour
-axisLabelY.height = axisLabelX.height
-axisLabelY.width = axisLabelX.width
-axisLabelY.x = axisLabelX.x
-axisLabelY.y = axisLabelX.y + axisLabelX.height + 15
-
-local gridOffsetY = axisMotionPanel:Slider("GridOffsetY", gridXY[yAxis].offset, 0, gridXY[yAxis].max - 1)
-gridOffsetY.displayName = "Offset"
-gridOffsetY.tooltip = "Offset of y axis (can be adjusted by the top XY controller)"
-gridOffsetY.backgroundColour = menuBackgroundColour
-gridOffsetY.textColour = menuTextColour
-gridOffsetY.height = gridOffsetX.height
-gridOffsetY.width = gridOffsetX.width
-gridOffsetY.x = gridOffsetX.x
-gridOffsetY.y = gridOffsetX.y + gridOffsetX.height + 10
-gridOffsetY.changed = function(self)
-  local offset = gem.round(self.value)
-  if offset ~= gridXY[yAxis].offset then
-    gridXY[yAxis].offset = offset
-    gridXY[yAxis].mustAdvance = true
-    setSelectedGrid()
+  local gridOffset = axisMotionPanel:Slider("GridOffset" .. axis, gridXY[axis].offset, 0, gridXY[axis].max - 1)
+  gridOffset.displayName = "Offset"
+  gridOffset.tooltip = "Offset of the current axis (can be adjusted by the top XY controller)"
+  gridOffset.backgroundColour = menuBackgroundColour
+  gridOffset.textColour = menuTextColour
+  gridOffset.height = 45
+  gridOffset.width = 60
+  gridOffset.x = axisLabel.x + axisLabel.width + xSpacing
+  gridOffset.y = axisLabel.y - 5
+  gridOffset.changed = function(self)
+    local offset = gem.round(self.value)
+    if offset ~= gridXY[axis].offset then
+      gridXY[axis].offset = offset
+      gridXY[axis].mustAdvance = true
+      setSelectedGrid()
+    end
   end
-end
 
-local gridLengthY = axisMotionPanel:Slider("GridSizeY", gridXY[yAxis].size, 1, gridXY[yAxis].max)
-gridLengthY.displayName = "Length"
-gridLengthY.tooltip = "Length of y axis (can be adjusted by the bottom XY controller)"
-gridLengthY.backgroundColour = menuBackgroundColour
-gridLengthY.textColour = menuTextColour
-gridLengthY.height = gridLengthX.height
-gridLengthY.width = gridLengthX.width
-gridLengthY.x = gridLengthX.x
-gridLengthY.y = gridOffsetY.y
-gridLengthY.changed = function(self)
-  local size = gem.round(self.value)
-  if size ~= gridXY[yAxis].size then
-    gridXY[yAxis].size = size
-    gridXY[yAxis].mustAdvance = true
-    setSelectedGrid()
+  local gridLength = axisMotionPanel:Slider("GridSize" .. axis, gridXY[axis].size, 1, gridXY[axis].max)
+  gridLength.displayName = "Length"
+  gridLength.tooltip = "Length of current axis (can be adjusted by the bottom XY controller)"
+  gridLength.backgroundColour = menuBackgroundColour
+  gridLength.textColour = menuTextColour
+  gridLength.height = gridOffset.height
+  gridLength.width = gridOffset.width
+  gridLength.x = gridOffset.x + gridOffset.width + xSpacing
+  gridLength.y = gridOffset.y
+  gridLength.changed = function(self)
+    local size = gem.round(self.value)
+    if size ~= gridXY[axis].size then
+      gridXY[axis].size = size
+      gridXY[axis].mustAdvance = true
+      setSelectedGrid()
+    end
   end
-end
 
-local seqPlayModeY = axisMotionPanel:Menu("SequencerPlayModeY", playModes)
-seqPlayModeY.displayName = "Mode"
-seqPlayModeY.tooltip = "The sequencer play mode for the y axis (vertical)"
-seqPlayModeY.x = seqPlayModeX.x
-seqPlayModeY.y = gridLengthY.y
-seqPlayModeY.height = gridLengthY.height
-seqPlayModeY.width = seqPlayModeX.width
-seqPlayModeY.backgroundColour = menuBackgroundColour
-seqPlayModeY.textColour = menuTextColour
-seqPlayModeY.arrowColour = menuArrowColour
-seqPlayModeY.outlineColour = menuOutlineColour
-seqPlayModeY.changed = function(self)
-  setDirectionFromPlaymode(yAxis, self.text)
-end
-seqPlayModeY:changed()
-
-local chordNotesY = axisMotionPanel:NumBox("ChordNotesY", gridXY[yAxis].chordNotes, 2, gridXY[yAxis].max, true)
-local chordNoteIncrementY = axisMotionPanel:NumBox("ChordNoteIncrementY", gridXY[yAxis].chordNotesIncrement, 1, 4, true)
-local randomChordButtonY = axisMotionPanel:OnOffButton("RandomChordButtonY", gridXY[yAxis].randomChord)
-
-local chordButtonY = axisMotionPanel:OnOffButton("ChordButtonY", gridXY[yAxis].chord)
-chordButtonY.backgroundColourOff = backgroundColourOff
-chordButtonY.backgroundColourOn = backgroundColourOn
-chordButtonY.textColourOff = textColourOff
-chordButtonY.textColourOn = textColourOn
-chordButtonY.displayName = "Polymode"
-chordButtonY.tooltip = "In polymode, mutiple notes are played along the y axis"
-chordButtonY.size = chordButtonX.size
-chordButtonY.x = chordButtonX.x
-chordButtonY.y = seqPlayModeY.y + 3
-chordButtonY.changed = function(self)
-  gridXY[yAxis].chord = self.value
-  if self.value then
-    gridXY[yAxis].chordNotes = chordNotesY.value
-  else
-    gridXY[yAxis].chordNotes = 1
+  local seqPlayMode = axisMotionPanel:Menu("SequencerPlayMode" .. axis, playModes)
+  seqPlayMode.displayName = "Mode"
+  seqPlayMode.tooltip = "The sequencer play mode for the current axis"
+  seqPlayMode.x = gridLength.x + gridLength.width + xSpacing
+  seqPlayMode.y = gridLength.y
+  seqPlayMode.height = gridLength.height
+  seqPlayMode.width = 75
+  seqPlayMode.backgroundColour = menuBackgroundColour
+  seqPlayMode.textColour = menuTextColour
+  seqPlayMode.arrowColour = menuArrowColour
+  seqPlayMode.outlineColour = menuOutlineColour
+  seqPlayMode.changed = function(self)
+    setDirectionFromPlaymode(axis, self.text)
   end
-  chordNotesY.enabled = self.value
-  chordNoteIncrementY.enabled = self.value
-  randomChordButtonY.enabled = self.value
-end
-chordButtonY:changed()
+  seqPlayMode:changed()
 
-chordNotesY.enabled = false
-chordNotesY.showLabel = false
-chordNotesY.displayName = "Notes"
-chordNotesY.tooltip = "Number of notes to play in polymode"
-chordNotesY.backgroundColour = menuBackgroundColour
-chordNotesY.textColour = menuTextColour
-chordNotesY.size = chordNotesX.size
-chordNotesY.x = chordNotesX.x
-chordNotesY.y = chordButtonY.y
-chordNotesY.changed = function(self)
-  gridXY[yAxis].chordNotes = self.value
-end
+  local chordNotes = axisMotionPanel:NumBox("ChordNotes" .. axis, gridXY[axis].chordNotes, 2, gridXY[axis].max, true)
+  local chordNoteIncrement = axisMotionPanel:NumBox("ChordNoteIncrement" .. axis, gridXY[axis].chordNotesIncrement, 1, 4, true)
+  local randomChordButton = axisMotionPanel:OnOffButton("RandomChordButton" .. axis, gridXY[axis].randomChord)
 
-chordNoteIncrementY.enabled = false
-chordNoteIncrementY.displayName = chordNoteIncrementX.displayName
-chordNoteIncrementY.tooltip = chordNoteIncrementX.tooltip
-chordNoteIncrementY.backgroundColour = menuBackgroundColour
-chordNoteIncrementY.textColour = menuTextColour
-chordNoteIncrementY.size = chordNoteIncrementX.size
-chordNoteIncrementY.x = chordNoteIncrementX.x
-chordNoteIncrementY.y = chordButtonY.y + chordButtonY.height + 2
-chordNoteIncrementY.changed = function(self)
-  gridXY[yAxis].chordNotesIncrement = self.value
-end
+  local chordButton = axisMotionPanel:OnOffButton("ChordButton" .. axis, gridXY[axis].chord)
+  chordButton.backgroundColourOff = backgroundColourOff
+  chordButton.backgroundColourOn = backgroundColourOn
+  chordButton.textColourOff = textColourOff
+  chordButton.textColourOn = textColourOn
+  chordButton.displayName = "Polymode"
+  chordButton.tooltip = "In polymode, mutiple notes are played along the current axis"
+  chordButton.size = {100,20}
+  chordButton.x = seqPlayMode.x + seqPlayMode.width + xSpacing
+  chordButton.y = seqPlayMode.y + 3
+  chordButton.changed = function(self)
+    gridXY[axis].chord = self.value
+    if self.value then
+      gridXY[axis].chordNotes = chordNotes.value
+    else
+      gridXY[axis].chordNotes = 1
+    end
+    chordNotes.enabled = self.value
+    chordNoteIncrement.enabled = self.value and randomChordButton.value == false
+    randomChordButton.enabled = self.value
+  end
+  chordButton:changed()
 
-randomChordButtonY.enabled = false
-randomChordButtonY.backgroundColourOff = backgroundColourOff
-randomChordButtonY.backgroundColourOn = backgroundColourOn
-randomChordButtonY.textColourOff = textColourOff
-randomChordButtonY.textColourOn = textColourOn
-randomChordButtonY.displayName = "Random"
-randomChordButtonY.tooltip = "Select chord notes by chance from within the active x axis (only when numer of notes as > 1)"
-randomChordButtonY.size = randomChordButtonX.size
-randomChordButtonY.x = randomChordButtonX.x
-randomChordButtonY.y = chordNoteIncrementY.y
-randomChordButtonY.changed = function(self)
-  gridXY[yAxis].randomChord = self.value
-end
+  chordNotes.enabled = false
+  chordNotes.showLabel = false
+  chordNotes.displayName = "Notes"
+  chordNotes.tooltip = "Number of notes to play in polymode"
+  chordNotes.backgroundColour = menuBackgroundColour
+  chordNotes.textColour = menuTextColour
+  chordNotes.size = {30,20}
+  chordNotes.x = chordButton.x + chordButton.width + 1
+  chordNotes.y = chordButton.y
+  chordNotes.changed = function(self)
+    gridXY[axis].chordNotes = self.value
+  end
 
-local incrementY = axisMotionPanel:Knob("IncrementY", gridXY[yAxis].increment, .1, 3.)
-incrementY.displayName = "Increment"
-incrementY.tooltip = "Set the increment amount per step on the y axis (vertical)."
-incrementY.backgroundColour = widgetBackgroundColour
-incrementY.fillColour = knobFillColour
-incrementY.outlineColour = labelBackgoundColour
-incrementY.showPopupDisplay = true
-incrementY.height = incrementX.height
-incrementY.width = incrementX.width
-incrementY.y = incrementX.y + incrementX.height + 15
-incrementY.x = incrementX.x
-incrementY.changed = function(self)
-  gridXY[yAxis].increment = self.value
-  setDirectionFromPlaymode(yAxis, seqPlayModeY.text)
-end
+  chordNoteIncrement.enabled = false
+  chordNoteIncrement.displayName = "Increment"
+  chordNoteIncrement.tooltip = "The increment between notes in polymode"
+  chordNoteIncrement.backgroundColour = menuBackgroundColour
+  chordNoteIncrement.textColour = menuTextColour
+  chordNoteIncrement.size = {81,20}
+  chordNoteIncrement.x = chordButton.x
+  chordNoteIncrement.y = chordButton.y + chordButton.height + 2
+  chordNoteIncrement.changed = function(self)
+    gridXY[axis].chordNotesIncrement = self.value
+  end
 
-local advanceProbabilityY = axisMotionPanel:Knob("AdvanceProbabilityY", gridXY[yAxis].advanceProbability, 0, 100, true)
-advanceProbabilityY.unit = Unit.Percent
---advanceProbabilityY.showLabel = false
---advanceProbabilityY.showValue = false
-advanceProbabilityY.displayName = "Advance"
-advanceProbabilityY.tooltip = "Set the probability that the position will advance on the y axis (vertical)."
-advanceProbabilityY.backgroundColour = widgetBackgroundColour
-advanceProbabilityY.fillColour = knobFillColour
-advanceProbabilityY.outlineColour = labelBackgoundColour
-advanceProbabilityY.showPopupDisplay = true
-advanceProbabilityY.height = advanceProbabilityX.height
-advanceProbabilityY.width = advanceProbabilityX.width
-advanceProbabilityY.y = incrementY.y
-advanceProbabilityY.x = advanceProbabilityX.x
-advanceProbabilityY.changed = function(self)
-  gridXY[yAxis].advanceProbability = self.value
-end
+  randomChordButton.enabled = false
+  randomChordButton.backgroundColourOff = backgroundColourOff
+  randomChordButton.backgroundColourOn = backgroundColourOn
+  randomChordButton.textColourOff = textColourOff
+  randomChordButton.textColourOn = textColourOn
+  randomChordButton.displayName = "Random"
+  randomChordButton.tooltip = "Select chord notes by chance from within the active axis"
+  randomChordButton.size = {48,chordNotes.height}
+  randomChordButton.x = chordNoteIncrement.x + chordNoteIncrement.width + 2
+  randomChordButton.y = chordNoteIncrement.y
+  randomChordButton.changed = function(self)
+    gridXY[axis].randomChord = self.value
+    chordNoteIncrement.enabled = self.value == false
+  end
 
-local randomProbabilityY = axisMotionPanel:Knob("RandomProbabilityY", gridXY[yAxis].randomProbability, 0, 100, true)
-randomProbabilityY.unit = Unit.Percent
---randomProbabilityY.showLabel = false
---randomProbabilityY.showValue = false
-randomProbabilityY.displayName = "Random"
-randomProbabilityY.tooltip = "Set the probability that the position on the y axis (verical) will be selected by chance."
-randomProbabilityY.backgroundColour = widgetBackgroundColour
-randomProbabilityY.fillColour = knobFillColour
-randomProbabilityY.outlineColour = labelBackgoundColour
-randomProbabilityY.showPopupDisplay = true
-randomProbabilityY.height = randomProbabilityX.height
-randomProbabilityY.width = randomProbabilityX.width
-randomProbabilityY.y = advanceProbabilityY.y
-randomProbabilityY.x = randomProbabilityX.x
-randomProbabilityY.changed = function(self)
-  gridXY[yAxis].randomProbability = self.value
+  local increment = axisMotionPanel:Knob("Increment" .. axis, gridXY[axis].increment, .1, 3.)
+  increment.displayName = "Increment"
+  increment.tooltip = "Set the increment amount per step on the current axis"
+  increment.backgroundColour = widgetBackgroundColour
+  increment.fillColour = knobFillColour
+  increment.outlineColour = labelBackgoundColour
+  increment.showPopupDisplay = true
+  increment.height = 39
+  increment.width = 100
+  increment.y = seqPlayMode.y + 8
+  increment.x = randomChordButton.x + randomChordButton.width + xSpacing
+  increment.changed = function(self)
+    gridXY[axis].increment = self.value
+    setDirectionFromPlaymode(axis, seqPlayMode.text)
+  end
+
+  local advanceProbability = axisMotionPanel:Knob("AdvanceProbability" .. axis, gridXY[axis].advanceProbability, 0, 100, true)
+  advanceProbability.unit = Unit.Percent
+  advanceProbability.displayName = "Advance"
+  advanceProbability.tooltip = "Set the probability that the position will advance on the current axis"
+  advanceProbability.backgroundColour = widgetBackgroundColour
+  advanceProbability.fillColour = knobFillColour
+  advanceProbability.outlineColour = labelBackgoundColour
+  advanceProbability.showPopupDisplay = true
+  advanceProbability.height = increment.height
+  advanceProbability.width = increment.width
+  advanceProbability.y = increment.y
+  advanceProbability.x = increment.x + increment.width + xSpacing
+  advanceProbability.changed = function(self)
+    gridXY[axis].advanceProbability = self.value
+  end
+
+  local randomProbability = axisMotionPanel:Knob("RandomProbability" .. axis, gridXY[axis].randomProbability , 0, 100, true)
+  randomProbability.unit = Unit.Percent
+  randomProbability.displayName = "Random"
+  randomProbability.tooltip = "Set the probability that the position on the current axis will be selected by chance"
+  randomProbability.backgroundColour = widgetBackgroundColour
+  randomProbability.fillColour = knobFillColour
+  randomProbability.outlineColour = labelBackgoundColour
+  randomProbability.showPopupDisplay = true
+  randomProbability.height = advanceProbability.height
+  randomProbability.width = advanceProbability.width
+  randomProbability.y = advanceProbability.y
+  randomProbability.x = advanceProbability.x + advanceProbability.width
+  randomProbability.changed = function(self)
+    gridXY[axis].randomProbability = self.value
+  end
 end
 
 --------------------------------------------------------------------------------
