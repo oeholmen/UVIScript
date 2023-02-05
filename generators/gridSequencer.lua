@@ -234,8 +234,8 @@ local function setDirectionFromPlaymode(axis, playMode)
 end
 
 local function handleFollow(axis)
-  if gridXY[axis].hasAdvanced then
-    -- Skip follow if the axis has already advanced
+  if gridXY[axis].hasAdvanced or gem.getRandomBoolean(gridXY[axis].advanceProbability) == false then
+    -- Skip follow if the axis has already advanced or advance probability does not hit
     return
   end
   gridXY[axis].pos = gem.inc(gridXY[axis].pos, gridXY[axis].increment)
@@ -1087,8 +1087,8 @@ for axis=xAxis,yAxis do
   end
 
   chordNoteIncrement.enabled = false
-  chordNoteIncrement.displayName = "Increment"
-  chordNoteIncrement.tooltip = "The increment between notes in polymode"
+  chordNoteIncrement.displayName = "Distance"
+  chordNoteIncrement.tooltip = "The distance in steps up the scale between notes in polymode"
   chordNoteIncrement.backgroundColour = menuBackgroundColour
   chordNoteIncrement.textColour = menuTextColour
   chordNoteIncrement.size = {81,20}
