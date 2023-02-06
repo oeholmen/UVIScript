@@ -56,7 +56,7 @@ local sequencerResolution = 0.25 -- Fallback value
 local paramsPerFragment = {} -- Holds the rythmic fragments
 local scaleIncrementDefinition = {} -- Holds the increment definition for scales
 local degreeDefinition = {} -- Holds the definition for degrees on the y-axis
-local grid = {} -- Holds the note inputs
+local noteInputs = {} -- Holds the note inputs
 local listeners = {} -- Holds the note listeners
 local gridXY = {} -- Holds x and y axis positon and other settings
 local xAxis = 1 -- Hold the index for the x axis in the gridXY table
@@ -119,7 +119,7 @@ table.insert(gridXY, {
 -- Sequencer Functions
 --------------------------------------------------------------------------------
 
-local function getCell(x, y, prefix, table)
+local function getCell(x, y)
   --print("Get grid cell: x, y, floor(x), floor(y)", x, y, math.floor(x), math.floor(y))
   -- Not < 1
   x = math.max(1, math.floor(x))
@@ -134,8 +134,8 @@ local function getCell(x, y, prefix, table)
     y = gridXY[yAxis].max
   end
   -- Get cell name
-  local cellName = prefix .. x .. '_' .. y
-  for _,v in ipairs(table) do
+  local cellName = 'Note' .. x .. '_' .. y
+  for _,v in ipairs(noteInputs) do
     if v.name == cellName then
       return v
     end
@@ -143,13 +143,13 @@ local function getCell(x, y, prefix, table)
 end
 
 local function toggleNoteInputs(enabled)
-  for i,v in ipairs(grid) do
+  for i,v in ipairs(noteInputs) do
     v.enabled = enabled
   end
 end
 
 local function showListeners(show)
-  for i,v in ipairs(grid) do
+  for i,v in ipairs(noteInputs) do
     if show then
       v.width = 30
       v.x = listeners[i].x + listeners[i].width
@@ -169,14 +169,16 @@ local function isWithinSelectedGrid(x, y)
   return isPosWithinSelectedAxis(x, xAxis) and isPosWithinSelectedAxis(y, yAxis)
 end
 
+-- Returns the (reset) position before any increments are made
 local function getStartPos(axis)
-  --print("getStartPos for axis", axis)
+  local startPos = gridXY[axis].offset + 1
   if gridXY[axis].increment < 1 or string.sub(gridXY[axis].playMode, 1, 6) == "Follow" then
-    return gridXY[axis].offset + 1
+    return startPos
   end
 
+  -- When the increment is > 1 we must advance, and compensate for the first increment
   gridXY[axis].mustAdvance = true
-  return gridXY[axis].offset
+  return startPos - math.floor(gridXY[axis].increment)
 end
 
 local function setPos()
@@ -199,15 +201,16 @@ local function setSelectedGrid()
   for y=1,gridXY[yAxis].max do
     for x=1,gridXY[xAxis].max do
       if isWithinSelectedGrid(x, y) then
-        grid[i].textColour = noteSelectedTextColour
-        grid[i].backgroundColour = menuSelectedBackgroundColour
+        noteInputs[i].textColour = noteSelectedTextColour
+        noteInputs[i].backgroundColour = menuSelectedBackgroundColour
       else
-        grid[i].textColour = menuTextColour
-        grid[i].backgroundColour = menuBackgroundColour
+        noteInputs[i].textColour = menuTextColour
+        noteInputs[i].backgroundColour = menuBackgroundColour
       end
       i = gem.inc(i)
     end
   end
+  setPos()
 end
 
 local function flashNote(noteInput, duration)
@@ -310,6 +313,7 @@ local function advanceByPlayMode(v, axis)
     end
   elseif v.direction == -1 and axisIsFollow == false then
     v.pos = gem.inc(v.pos, v.increment)
+    --print("axis, v.pos, v.increment, v.offset", axis, v.pos, v.increment, v.offset)
     if v.pos - extra <= v.offset then
       v.pos = v.offset + v.size + extra
       --print("v.pos, extra", v.pos, extra)
@@ -323,13 +327,13 @@ end
 local function getCellForAxis(axis, pos)
   if axis == xAxis then
     local yPos = gridXY[yAxis].pos
-    --print("getCell @ axis, pos, yPos", i, pos, yPos)
-    return getCell(pos, yPos, "Note", grid)
+    --print("getCell @ axis, pos, yPos", axis, pos, yPos)
+    return getCell(pos, yPos)
   end
 
   local xPos = gridXY[xAxis].pos
-  --print("getCell @ axis, xPos, pos", i, xPos, pos)
-  return getCell(xPos, pos, "Note", grid)
+  --print("getCell @ axis, xPos, pos", axis, xPos, pos)
+  return getCell(xPos, pos)
 end
 
 local function getCellsForAxis(axis, v)
@@ -386,7 +390,7 @@ local function getNotes()
 
   -- If no cells were found using polymode, we return the cell at the current pos
   if #cells == 0 then
-    table.insert(cells, getCellForAxis(gridXY[xAxis].pos, gridXY[yAxis].pos))
+    table.insert(cells, getCell(gridXY[xAxis].pos, gridXY[yAxis].pos))
   end
 
   --print("Returning cells", #cells)
@@ -427,7 +431,7 @@ local function sequenceRunner()
   isPlaying = true
   --print("Seq runner starting")
   while isPlaying do
-    local noteInputs = getNotes() -- The notes to play
+    local notes = getNotes() -- The notes to play
     local notesPlaying = {} -- Holds the playing notes, to avoid duplicates
     velocity, velocityPos = getVelocity(velocityPos)
     gate, gatePos = getGate(gatePos)
@@ -437,8 +441,8 @@ local function sequenceRunner()
       -- Fallback to the default resolution if not found in fragment
       duration = sequencerResolution
     end
-    if #noteInputs > 0 and rest == false and gate > 0 then
-      for _,noteInput in ipairs(noteInputs) do
+    if #notes > 0 and rest == false and gate > 0 then
+      for _,noteInput in ipairs(notes) do
         local playDuration = rythmicFragments.resolutions.getPlayDuration(duration, randomizeGate(gate))
         local note = noteInput.value
         if gem.tableIncludes(notesPlaying, note) == false then
@@ -508,7 +512,7 @@ local function setScale()
   print("Max note is", maxNote)
   print("Degree definition", #degreeDefinition)
   print("#scale", #scale)
-  for i,v in ipairs(grid) do
+  for i,v in ipairs(noteInputs) do
     -- Check if we have a degree definition
     -- Check if we are at the start of the x axis
     if #degreeDefinition > 0 and (i - 1) % gridXY[xAxis].max == 0 then
@@ -701,19 +705,19 @@ for y=1,gridXY[yAxis].max do
     end
     table.insert(listeners, listen)
 
-    local gridCell = notePanel:NumBox("Note" .. x .. '_' .. y, noteIndex + 12, 0, 127, true)
-    gridCell.enabled = false
-    gridCell.showLabel = false
-    gridCell.displayName = "Note"
-    gridCell.tooltip = "The note to trigger in cell x:" .. x .. ', y:' .. y
-    gridCell.unit = Unit.MidiKey
-    gridCell.backgroundColour = menuBackgroundColour
-    gridCell.textColour = menuTextColour
-    gridCell.height = 24
-    gridCell.width = 42
-    gridCell.x = listen.x
-    gridCell.y = listen.y
-    table.insert(grid, gridCell)
+    local noteInput = notePanel:NumBox("Note" .. x .. '_' .. y, noteIndex + 12, 0, 127, true)
+    noteInput.enabled = false
+    noteInput.showLabel = false
+    noteInput.displayName = "Note"
+    noteInput.tooltip = "The note to trigger in cell x:" .. x .. ', y:' .. y
+    noteInput.unit = Unit.MidiKey
+    noteInput.backgroundColour = menuBackgroundColour
+    noteInput.textColour = menuTextColour
+    noteInput.height = 24
+    noteInput.width = 42
+    noteInput.x = listen.x
+    noteInput.y = listen.y
+    table.insert(noteInputs, noteInput)
 
     noteIndex = gem.inc(noteIndex)
     columnCounter = gem.inc(columnCounter)
@@ -1113,7 +1117,7 @@ for axis=xAxis,yAxis do
     chordNoteIncrement.enabled = self.value == false
   end
 
-  local increment = axisMotionPanel:Knob("Increment" .. axis, gridXY[axis].increment, .1, 3.)
+  local increment = axisMotionPanel:Knob("Increment" .. axis, gridXY[axis].increment, .1, (gridXY[axis].max / 3))
   increment.displayName = "Increment"
   increment.tooltip = "Set the increment amount per step on the current axis"
   increment.backgroundColour = widgetBackgroundColour
@@ -1273,7 +1277,7 @@ end
 
 function onNote(e)
   if noteListen then
-    for i,v in ipairs(grid) do
+    for i,v in ipairs(noteInputs) do
       if listeners[i].value then
         v:setValue(e.note)
         listeners[i]:setValue(false)
