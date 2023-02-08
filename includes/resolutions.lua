@@ -10,8 +10,8 @@ local function getTriplet(value)
   return value / 3
 end
 
--- NOTE: Make sure resolutions and resolutionNames are in sync
-local resolutions = {
+-- NOTE: Make sure resolutionValues and resolutionNames are in sync
+local resolutionValues = {
   128, -- "32x" -- 1
   64, -- "16x" -- 2
   32, -- "8x" -- 3
@@ -81,7 +81,7 @@ local resolutionNames = {
   "1/128" -- 32
 }
 
-return {
+return {--resolutions--
   getDotted = getDotted,
   
   getTriplet = getTriplet,
@@ -95,11 +95,11 @@ return {
   end,
   
   getResolution = function(i)
-    return resolutions[i]
+    return resolutionValues[i]
   end,
   
   getResolutions = function()
-    return resolutions
+    return resolutionValues
   end,
   
   getResolutionName = function(i)
@@ -132,7 +132,7 @@ return {
   
   getResolutionsByType = function(maxResolutionIndex)
     if type(maxResolutionIndex) == "nil" then
-      maxResolutionIndex = #resolutions
+      maxResolutionIndex = #resolutionValues
     end
     local startPosIndex = 11
     local resOptions = {}
@@ -150,7 +150,7 @@ return {
     end
     -- Add the resolutions that are whole numbers (1,2,3,4...)
     local slowResolutions = {}
-    for i,resolution in ipairs(resolutions) do
+    for i,resolution in ipairs(resolutionValues) do
       if resolution % 1 == 0 then
         table.insert(slowResolutions, i)
         --print("getResolutionsByType - included slow resolution", resolution)
@@ -166,7 +166,7 @@ return {
     if type(gate) == "nil" then
       gate = 100
     end
-    local maxResolution = resolutions[#resolutions]
+    local maxResolution = resolutionValues[#resolutionValues]
     return math.max(maxResolution, duration * (gate / 100)) -- Never shorter than the system max resolution
   end  
 }

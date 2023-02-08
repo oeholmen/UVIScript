@@ -5,6 +5,7 @@
 local gem = require "includes.common"
 local notes = require "includes.notes"
 local scales = require "includes.scales"
+local resolutions = require "includes.resolutions"
 local rythmicFragments = require "includes.rythmicFragments"
 
 local voices = 1
@@ -435,7 +436,7 @@ minResLabel.height = adjustBias.height
 minResLabel.x = adjustBias.x + adjustBias.width + 10
 minResLabel.y = adjustBias.y
 
-local minResolution = rythmPanel:Menu("MinResolution", rythmicFragments.resolutions.getResolutionNames())
+local minResolution = rythmPanel:Menu("MinResolution", resolutions.getResolutionNames())
 minResolution.displayName = minResLabel.text
 minResolution.tooltip = "The highest allowed resolution for evolve adjustments"
 minResolution.selected = 26
@@ -453,7 +454,7 @@ minResolution.changed = function(self)
 end
 minResolution:changed()
 
-local paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, rythmLabel, colours)
+paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, rythmLabel, colours)
 
 --------------------------------------------------------------------------------
 -- Functions
@@ -591,7 +592,7 @@ function play(voice)
       if isFragmentStart and #activeFragment.f > 1 then
         velocity = velocityAccent.value
       end
-      playNote(note, velocity, beat2ms(rythmicFragments.resolutions.getPlayDuration(duration, gate)), nil, channel)
+      playNote(note, velocity, beat2ms(resolutions.getPlayDuration(duration, gate)), nil, channel)
       table.insert(notesPlaying, note) -- Register
       for i,v in ipairs(paramsPerFragment) do
         if activeFragment.i == i then

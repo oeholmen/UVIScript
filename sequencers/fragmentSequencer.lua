@@ -3,6 +3,7 @@
 -------------------------------------------------------------------------------
 
 local gem = require "includes.common"
+local resolutions = require "includes.resolutions"
 local rythmicFragments = require "includes.rythmicFragments"
 
 local isPlaying = false
@@ -223,7 +224,7 @@ minResLabel.height = adjustBias.height
 minResLabel.x = adjustBias.x + adjustBias.width + 10
 minResLabel.y = adjustBias.y
 
-local minResolution = rythmPanel:Menu("MinResolution", rythmicFragments.resolutions.getResolutionNames())
+local minResolution = rythmPanel:Menu("MinResolution", resolutions.getResolutionNames())
 minResolution.displayName = minResLabel.text
 minResolution.tooltip = "The highest allowed resolution for evolve adjustments"
 minResolution.selected = 26
@@ -241,7 +242,7 @@ minResolution.changed = function(self)
 end
 minResolution:changed()
 
-local paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, rythmLabel, colours)
+paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, rythmLabel, colours)
 
 --------------------------------------------------------------------------------
 -- Functions
@@ -345,7 +346,7 @@ function play()
       end
       velocity = velocity + heldNotes[heldNoteIndex].velocity / 2 -- 50% between played velocity and sequencer velocity
       for _,note in ipairs(notes) do
-        playNote(note, velocity, beat2ms(rythmicFragments.resolutions.getPlayDuration(duration, gate)) - offset)
+        playNote(note, velocity, beat2ms(resolutions.getPlayDuration(duration, gate)) - offset)
       end
     end
     if type(duration) == "nil" then

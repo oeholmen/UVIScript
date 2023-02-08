@@ -209,7 +209,7 @@ local function createResolutionSelector(resolutionPanel, colours, numResolutions
   return rowCount
 end
 
-return {
+return {--resolutionSelector--
   resolutionInputs = resolutionInputs,
   toggleResolutionInputs = toggleResolutionInputs,
   getNoteDuration = getNoteDuration,

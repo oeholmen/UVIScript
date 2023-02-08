@@ -1,14 +1,10 @@
 --------------------------------------------------------------------------------
--- Include Reqired Functions
+-- Note and Scale Parameters
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
 local scales = require "includes.scales"
 local notes = require "includes.notes"
-
---------------------------------------------------------------------------------
--- Note and Scale Parameters
---------------------------------------------------------------------------------
 
 local octaves = 9
 local scaleDefinitions = scales.getScaleDefinitions()
@@ -189,7 +185,7 @@ local function createNoteAndOctaveSelector(notePanel, colours, noteLabel)
   end
 end
 
-return {
+return {--noteSelector--
   createNoteAndOctaveSelector = createNoteAndOctaveSelector,
   getActiveNotes = getActiveNotes,
   getSelectedNotes = getSelectedNotes,

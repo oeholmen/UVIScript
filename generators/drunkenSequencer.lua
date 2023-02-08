@@ -3,6 +3,7 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
+local resolutions = require "includes.resolutions"
 local noteSelector = require "includes.noteSelector"
 local rythmicFragments = require "includes.rythmicFragments"
 
@@ -313,7 +314,7 @@ rythmLabel.alpha = 0.75
 rythmLabel.fontSize = 15
 rythmLabel.width = 153
 
-local paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, rythmLabel, colours)
+paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, rythmLabel, colours)
 
 --------------------------------------------------------------------------------
 -- Functions
@@ -436,7 +437,7 @@ function play(voice)
       if isFragmentStart and #activeFragment.f > 1 then
         velocity = velocityAccent.value
       end
-      playNote(note, velocity, beat2ms(rythmicFragments.resolutions.getPlayDuration(duration, gate)), nil, channel)
+      playNote(note, velocity, beat2ms(resolutions.getPlayDuration(duration, gate)), nil, channel)
       table.insert(notesPlaying, note) -- Register
       for i,v in ipairs(paramsPerFragment) do
         if activeFragment.i == i then

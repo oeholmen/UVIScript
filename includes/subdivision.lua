@@ -129,7 +129,7 @@ local function getSubdivisionSteps(subdivision, subDivPos, subdivisionTieProbabi
   return subdivisionSteps, stop
 end
 
-return {
+return {--subdivision--
   setNotesOnNodes = setNotesOnNodes,
   getSubdivisionSteps = getSubdivisionSteps,
   getSubdivision = getSubdivision,

@@ -4,7 +4,7 @@
 
 local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
 
-return {
+return {--notes--
   getNoteNames = function()
     return notenames
   end,

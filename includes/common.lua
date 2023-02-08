@@ -105,7 +105,7 @@ local function inc(val, inc, max, reset)
   return val
 end
 
-return {  
+return {--gem--
   inc = inc,
   round = round,
   getRandom = getRandom,

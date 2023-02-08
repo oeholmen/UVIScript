@@ -2,6 +2,12 @@
 -- Grid Sequencer
 --------------------------------------------------------------------------------
 
+local gem = require "includes.common"
+local scales = require "includes.scales"
+local notes = require "includes.notes"
+local resolutions = require "includes.resolutions"
+local rythmicFragments = require "includes.rythmicFragments"
+
 local textColourOff = "ff22FFFF"
 local textColourOn = "efFFFFFF"
 local backgroundColourOff = "ff084486"
@@ -36,15 +42,6 @@ local colours = {
 }
 
 setBackgroundColour(backgroundColour)
-
---------------------------------------------------------------------------------
--- Includes
---------------------------------------------------------------------------------
-
-local gem = require "includes.common"
-local scales = require "includes.scales"
-local notes = require "includes.notes"
-local rythmicFragments = require "includes.rythmicFragments"
 
 --------------------------------------------------------------------------------
 -- Variables
@@ -122,8 +119,8 @@ table.insert(gridXY, {
 local function getCell(x, y)
   --print("Get grid cell: x, y, floor(x), floor(y)", x, y, math.floor(x), math.floor(y))
   -- Not < 1
-  x = math.max(1, math.floor(x))
-  y = math.max(1, math.floor(y))
+  x = math.max(1, math.ceil(x))
+  y = math.max(1, math.ceil(y))
   -- Not > max
   if x > gridXY[xAxis].max then
     print("x > gridXY[xAxis].max")
@@ -171,27 +168,35 @@ end
 
 -- Returns the (reset) position before any increments are made
 local function getStartPos(axis)
-  local startPos = gridXY[axis].offset + 1
-  if gridXY[axis].increment < 1 or string.sub(gridXY[axis].playMode, 1, 6) == "Follow" then
+  local startPos = gridXY[axis].offset
+
+  if string.sub(gridXY[axis].playMode, 1, 6) == "Follow" then
+    return startPos + 1
+  end
+
+  gridXY[axis].mustAdvance = true
+
+  if gridXY[axis].increment < 1 then
     return startPos
   end
 
-  -- When the increment is > 1 we must advance, and compensate for the first increment
-  gridXY[axis].mustAdvance = true
-  return startPos - math.floor(gridXY[axis].increment)
+  return startPos + 1 - math.floor(gridXY[axis].increment)
 end
 
 local function setPos()
   for axis=xAxis,yAxis do
+    -- When direction is forward, we set the start pos
     if gridXY[axis].direction == 1 then
       gridXY[axis].pos = getStartPos(axis)
-      --print("setPos on direction == 1: axis/pos", axis, gridXY[axis].pos)
-    elseif string.sub(gridXY[axis].playMode, 1, 6) == "Follow" then
-      gridXY[axis].pos = gridXY[axis].offset + gridXY[axis].size
-      --print("setPos on direction == -1 and playMode=follow: axis/pos", axis, gridXY[axis].pos)
     else
-      gridXY[axis].pos = gridXY[axis].offset + gridXY[axis].size + 1
-      --print("setPos on direction == -1: axis/pos", axis, gridXY[axis].pos)
+      -- When direction is backward, we set the end pos
+      local endPos = gridXY[axis].offset + gridXY[axis].size
+      if gridXY[axis].playMode == "Follow <-" then
+        gridXY[axis].pos = endPos
+      else
+        gridXY[axis].mustAdvance = true
+        gridXY[axis].pos = endPos - gridXY[axis].increment
+      end
     end
   end
 end
@@ -255,11 +260,6 @@ local function advanceByPlayMode(v, axis)
   if axis == otherAxis then
     otherAxis = yAxis
   end
-  local extra = math.abs(v.increment)
-  if extra >= 1 then
-    extra = 0
-  end
-  --print("advanceByPlayMode: extra", extra)
   local axisIsFollow = string.sub(v.playMode, 1, 6) == "Follow"
   local otherAxisIsFollow = string.sub(gridXY[otherAxis].playMode, 1, 6) == "Follow"
   local bothAxisAreFollow = axisIsFollow and otherAxisIsFollow
@@ -303,7 +303,7 @@ local function advanceByPlayMode(v, axis)
     --print("advanceByPlayMode: direction == 1")
     v.pos = gem.inc(v.pos, v.increment)
     --print("advanceByPlayMode: axis, pos", axis, v.pos)
-    if v.pos > v.offset + v.size + extra or v.pos > v.max + extra then
+    if v.pos > v.offset + v.size or v.pos > v.max then
       --v.pos = gem.inc(v.offset, v.increment)
       v.pos = getStartPos(axis) + v.increment
       --print("advanceByPlayMode: reset axis, pos", axis, v.pos)
@@ -314,9 +314,8 @@ local function advanceByPlayMode(v, axis)
   elseif v.direction == -1 and axisIsFollow == false then
     v.pos = gem.inc(v.pos, v.increment)
     --print("axis, v.pos, v.increment, v.offset", axis, v.pos, v.increment, v.offset)
-    if v.pos - extra <= v.offset then
-      v.pos = v.offset + v.size + extra
-      --print("v.pos, extra", v.pos, extra)
+    if v.pos <= v.offset then
+      v.pos = v.offset + v.size
       if otherAxisIsFollow then
         handleFollow(otherAxis)
       end
@@ -431,7 +430,7 @@ local function sequenceRunner()
   isPlaying = true
   --print("Seq runner starting")
   while isPlaying do
-    local notes = getNotes() -- The notes to play
+    local notesForPlaying = getNotes() -- The selected note inputs to play
     local notesPlaying = {} -- Holds the playing notes, to avoid duplicates
     velocity, velocityPos = getVelocity(velocityPos)
     gate, gatePos = getGate(gatePos)
@@ -441,9 +440,9 @@ local function sequenceRunner()
       -- Fallback to the default resolution if not found in fragment
       duration = sequencerResolution
     end
-    if #notes > 0 and rest == false and gate > 0 then
-      for _,noteInput in ipairs(notes) do
-        local playDuration = rythmicFragments.resolutions.getPlayDuration(duration, randomizeGate(gate))
+    if #notesForPlaying > 0 and rest == false and gate > 0 then
+      for _,noteInput in ipairs(notesForPlaying) do
+        local playDuration = resolutions.getPlayDuration(duration, randomizeGate(gate))
         local note = noteInput.value
         if gem.tableIncludes(notesPlaying, note) == false then
           playNote(note, randomizeVelocity(velocity), beat2ms(playDuration))
@@ -1245,7 +1244,7 @@ minResLabel.height = adjustBiasInput.height
 minResLabel.x = adjustBiasInput.x + adjustBiasInput.width + 10
 minResLabel.y = adjustBiasInput.y
 
-local minResolution = rythmPanel:Menu("MinResolution", rythmicFragments.resolutions.getResolutionNames())
+local minResolution = rythmPanel:Menu("MinResolution", resolutions.getResolutionNames())
 minResolution.displayName = minResLabel.text
 minResolution.tooltip = "The highest allowed resolution for evolve adjustments"
 minResolution.selected = 26
@@ -1312,21 +1311,47 @@ end
 
 function onSave()
   local fragmentInputData = {}
+  local velocityTableData = {}
+  local gateTableData = {}
 
   for _,v in ipairs(paramsPerFragment) do
     table.insert(fragmentInputData, v.fragmentInput.text)
   end
 
-  return {fragmentInputData, scaleIncrementInput.text, degreeInput.text}
+  for i=1, velocityTableLength.value do
+    table.insert(velocityTableData, seqVelTable:getValue(i))
+  end
+
+  for i=1, gateTableLength.value do
+    table.insert(gateTableData, seqGateTable:getValue(i))
+  end
+
+  return {fragmentInputData, scaleIncrementInput.text, degreeInput.text, velocityTableData, gateTableData}
 end
 
 function onLoad(data)
   local fragmentInputData = data[1]
   scaleIncrementInput.text = data[2]
   degreeInput.text = data[3]
+  velocityTableData = data[4]
+  gateTableData = data[5]
   degreeInput:changed()
 
   for i,v in ipairs(fragmentInputData) do
     paramsPerFragment[i].fragmentInput.text = v
+  end
+
+  if type(velocityTableData) == "table" then
+    velocityTableLength:setValue(#velocityTableData)
+    for i,v in ipairs(velocityTableData) do
+      seqVelTable:setValue(i,v)
+    end
+  end
+
+  if type(gateTableData) == "table" then
+    gateTableLength:setValue(#gateTableData)
+    for i,v in ipairs(gateTableData) do
+      seqGateTable:setValue(i,v)
+    end
   end
 end

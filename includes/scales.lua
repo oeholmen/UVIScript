@@ -40,7 +40,7 @@ local scaleNames = {
   "Chomatic",
 }
 
-return {
+return {--scales--
   getScaleDefinitions = function()
     return scaleDefinitions
   end,

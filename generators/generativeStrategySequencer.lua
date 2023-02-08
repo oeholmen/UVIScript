@@ -3,6 +3,7 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
+local resolutions = require "includes.resolutions"
 local noteSelector = require "includes.noteSelector"
 local rythmicFragments = require "includes.rythmicFragments"
 
@@ -103,7 +104,7 @@ end
 function getRandomFragment(definitionNumber)
   local fragmentDefinition = {}
   if definitionNumber == 2 then
-    fragmentDefinition = {rythmicFragments.resolutions.getResolution(gem.getRandomFromTable(rythmicFragments.getSelectedResolutions()))} -- Single
+    fragmentDefinition = {resolutions.getResolution(gem.getRandomFromTable(rythmicFragments.getSelectedResolutions()))} -- Single
   else
     fragmentDefinition = rythmicFragments.createFragmentDefinition(definitionNumber)
   end
@@ -382,7 +383,7 @@ resLabel.height = boxSize[2]
 resLabel.x = strategyRestart.x
 resLabel.y = strategyRestart.y + strategyRestart.height + 5
 
-local baseResolution = strategyPanel:Menu("BaseResolution", rythmicFragments.resolutions.getResolutionNames())
+local baseResolution = strategyPanel:Menu("BaseResolution", resolutions.getResolutionNames())
 baseResolution.displayName = resLabel.text
 baseResolution.tooltip = resLabel.tooltip
 baseResolution.selected = 11
@@ -396,7 +397,7 @@ baseResolution.outlineColour = menuOutlineColour
 baseResolution.x = resLabel.x + resLabel.width
 baseResolution.y = resLabel.y
 baseResolution.changed = function(self)
-  baseDuration = rythmicFragments.resolutions.getResolution(self.value)
+  baseDuration = resolutions.getResolution(self.value)
 end
 baseResolution:changed()
 
@@ -593,7 +594,7 @@ rythmLabel.alpha = 0.75
 rythmLabel.fontSize = 15
 rythmLabel.width = 120
 
-local paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, rythmLabel, colours, voicesInput.max)
+paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, rythmLabel, colours, voicesInput.max)
 
 local templates = {
   "Action...",
@@ -879,7 +880,7 @@ minResLabel.height = adjustBias.height
 minResLabel.x = adjustBias.x + adjustBias.width + 10
 minResLabel.y = adjustBias.y
 
-local minResolution = rythmPanel:Menu("MinResolution", rythmicFragments.resolutions.getResolutionNames())
+local minResolution = rythmPanel:Menu("MinResolution", resolutions.getResolutionNames())
 minResolution.displayName = minResLabel.text
 minResolution.tooltip = "The highest allowed resolution for evolve adjustments"
 minResolution.selected = 26
