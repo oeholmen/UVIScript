@@ -1323,6 +1323,7 @@ local function getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelector
 end
 
 local rythmicFragments = {
+  resolutions = resolutions,
   getParamsPerFragment = getParamsPerFragment,
   getDuration = getDuration,
   evolveFragments = evolveFragments,

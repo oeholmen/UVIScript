@@ -2,6 +2,10 @@
 -- A sequencer sending midi control change values
 --------------------------------------------------------------------------------
 
+local gem = require "includes.common"
+local modseq = require "includes.modseq"
+local resolutions = require "includes.resolutions"
+
 outlineColour = "#FFB5FF"
 menuBackgroundColour = "#bf01011F"
 menuTextColour = "#9f02ACFE"
@@ -22,14 +26,6 @@ if type(title) == "nil" then
 end
 
 setBackgroundColour(pageBackgoundColour)
-
---------------------------------------------------------------------------------
--- Include common functions and widgets
---------------------------------------------------------------------------------
-
-local modseq = require "includes.modseq"
-local gem = require "includes.common"
-local r = require "includes.resolutions"
 
 --------------------------------------------------------------------------------
 -- Sequencer
@@ -126,7 +122,7 @@ for page=1,maxPages do
       modseq.setPageDuration(page)
     end
 
-    local stepResolution = sequencerPanel:Menu("StepResolution" .. i, r.getResolutionNames())
+    local stepResolution = sequencerPanel:Menu("StepResolution" .. i, resolutions.getResolutionNames())
     stepResolution.tooltip = "Set the step resolution"
     stepResolution.showLabel = false
     stepResolution.visible = isVisible
@@ -272,7 +268,7 @@ function arpeg(part)
     local currentPosition = (index % numStepsInPart) + 1
     local smooth = paramsPerPart[partIndex].smoothButton.value
     local step = paramsPerPart[partIndex].stepButton.value
-    local duration = r.getResolution(paramsPerPart[partIndex].stepResolution.value)
+    local duration = resolutions.getResolution(paramsPerPart[partIndex].stepResolution.value)
     local seqValueTable = paramsPerPart[partIndex].seqValueTable
     local controlChangeNumber = paramsPerPart[partIndex].midiControlNumber.value
     local channel = paramsPerPart[partIndex].channelBox.value

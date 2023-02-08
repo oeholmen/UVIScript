@@ -3,7 +3,7 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
-local r = require "includes.resolutions"
+local resolutions = require "includes.resolutions"
 
 defaultActions = {"Actions...", "Randomize", "Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Reduce 50%"}
 numPages = 1
@@ -80,7 +80,7 @@ local function setPageDuration(page)
   for part=1,numParts do
     local partIndex = getPartIndex(part, page)
     print("getResolution for partIndex", partIndex)
-    local partResolution = r.getResolution(paramsPerPart[partIndex].stepResolution.value)
+    local partResolution = resolutions.getResolution(paramsPerPart[partIndex].stepResolution.value)
     if paramsPerPart[partIndex].stepButton.value then
       partResolution = partResolution * paramsPerPart[partIndex].numStepsBox.value
     end
@@ -458,7 +458,7 @@ end
 -- Return Module
 --------------------------------------------------------------------------------
 
-return {
+return {--modseq--
   headerPanel = headerPanel,
   footerPanel = footerPanel,
   actionMenu = actionMenu,

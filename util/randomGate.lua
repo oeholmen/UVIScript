@@ -3,7 +3,7 @@
 ----------------------------------------------
 
 local gem = require "includes.common"
-local r = require "includes.resolutions"
+local resolutions = require "includes.resolutions"
 
 local isRunning = false
 
@@ -45,7 +45,7 @@ probability.outlineColour = labelBackgoundColour
 probability.x = label.x + label.width + 30
 probability.width = 120
 
-local waitResolution = panel:Menu("WaitResolution", r.getResolutionNames())
+local waitResolution = panel:Menu("WaitResolution", resolutions.getResolutionNames())
 waitResolution.displayName = "Open Duration"
 waitResolution.tooltip = "The duration of open gate"
 waitResolution.selected = 11
@@ -56,7 +56,7 @@ waitResolution.textColour = widgetTextColour
 waitResolution.arrowColour = menuArrowColour
 waitResolution.outlineColour = menuOutlineColour
 
-local waitResolutionClosed = panel:Menu("WaitResolutionClosed", r.getResolutionNames())
+local waitResolutionClosed = panel:Menu("WaitResolutionClosed", resolutions.getResolutionNames())
 waitResolutionClosed.displayName = "Closed Duration"
 waitResolutionClosed.tooltip = "The duration closed gate"
 waitResolutionClosed.selected = 11
@@ -95,9 +95,9 @@ function arpeg()
       gateButton:setValue(gateButton.value == false)
     end
     if gateButton.value == true then
-      waitTime = beat2ms(r.getResolution(waitResolution.value))
+      waitTime = beat2ms(resolutions.getResolution(waitResolution.value))
     else
-      waitTime = beat2ms(r.getResolution(waitResolutionClosed.value))
+      waitTime = beat2ms(resolutions.getResolution(waitResolutionClosed.value))
     end
     if round == 1 then
       waitTime = waitTime - 50

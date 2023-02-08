@@ -1,9 +1,9 @@
 --------------------------------------------------------------------------------
--- Stochastic Drum Sequencer
+-- Note Trigger
 --------------------------------------------------------------------------------
 
-local gem = require "includes.common"
-local resolutions = require "includes.resolutions"
+
+
 
 local outlineColour = "#FFB5FF"
 local menuBackgroundColour = "#bf01011F"
@@ -17,9 +17,9 @@ local paramsPerPart = {}
 local paramsPerPage = {}
 local isPlaying = false
 local numPages = 1
-local numParts = 4
-local maxPages = 8
-local title = "Stochastic Drum Sequencer"
+local numParts = 1
+local maxPages = 1
+local title = "Note Trigger"
 
 setBackgroundColour("#2c2c2c")
 
