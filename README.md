@@ -11,8 +11,8 @@ The sequencers are a lot of fun! I recommend checking them out.
 ## Usage
 To use these scripts, download the code (Code->Download Zip), and load the script you want to use with the default script processor in UVI Falcon.
 
-*NOTE:* It is recommended to use the scripts from the "compiled" folder, as they do not depend on any other files.
-To use scripts that are not in the "compiled" folder, the "includes" folder must be placed in your "Falcon/UVIScripts" folder for the includes to load correctly.
+*NOTE:* It is recommended to use the scripts in the "compiled" folder, as they do not depend on any other files.
+To use scripts that are _not_ in the "compiled" folder, you must place the "includes" folder in your "Falcon/UVIScripts" folder for the includes to load correctly.
 ### Effects
 Effects for incoming note events.
 ### Generators
