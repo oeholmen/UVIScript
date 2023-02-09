@@ -28,4 +28,4 @@ Images and other common resources for the scripts.
 ### Sequencers
 Sequencers are scripts that receive note events, and arpeggiates and/or sequences the incoming notes. They can be put after a generator, to respond to events created by the generator, or be used as any old arpeggiator/sequencer by playing notes on the keyboard.
 ### Synths
-There is actually just one synth that comes in differen flavors, depending on the patch it is used with. See docs in the folder. Note that this requires a program patch to work. They are included in the "programs" subfolder. As a bonus, if you own a Korg Minilogue, there is hardware integration, so you can control the softsynth from the minilogue.
+There is actually just one synth that comes in differen flavors, depending on the patch it is used with. See docs in the folder. Note that this requires a program patch to work. They are included in the "compiled/synths/programs" subfolder. As a bonus, if you own a Korg Minilogue, there is hardware integration, so you can control the softsynth from the minilogue.

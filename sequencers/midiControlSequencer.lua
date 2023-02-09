@@ -3,27 +3,10 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
-local modseq = require "includes.modseq"
 local resolutions = require "includes.resolutions"
+local modseq = require "includes.modseq"
 
-outlineColour = "#FFB5FF"
-menuBackgroundColour = "#bf01011F"
-menuTextColour = "#9f02ACFE"
-menuArrowColour = "#9f09A3F4"
-menuOutlineColour = "#00000000"
-pageBackgoundColour = "222222"
-
-if type(numParts) == "nil" then
-  numParts = 1
-end
-
-if type(maxPages) == "nil" then
-  maxPages = 8
-end
-
-if type(title) == "nil" then
-  title = "Midi CC Sequencer"
-end
+modseq.setTitle("Midi CC Sequencer")
 
 setBackgroundColour(pageBackgoundColour)
 
@@ -39,7 +22,6 @@ for page=1,maxPages do
   local tableHeight = 64
   local buttonRowHeight = 36
   local buttonSpacing = 10
-  --local inputWidgetSize = {75,20}
   local defaultSteps = 16
 
   if numParts == 1 then

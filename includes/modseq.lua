@@ -5,11 +5,17 @@
 local gem = require "includes.common"
 local resolutions = require "includes.resolutions"
 
-defaultActions = {"Actions...", "Randomize", "Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Reduce 50%"}
+outlineColour = "#FFB5FF"
+menuBackgroundColour = "#bf01011F"
+menuTextColour = "#9f02ACFE"
+menuArrowColour = "#9f09A3F4"
+menuOutlineColour = "#00000000"
+pageBackgoundColour = "222222"
+numParts = 1
 numPages = 1
+maxPages = 8
 activePage = 1
 nextUp = 1
-pageButtons = {}
 paramsPerPart = {}
 paramsPerPage = {}
 isPlaying = false
@@ -18,9 +24,10 @@ isPlaying = false
 -- Define widgets
 --------------------------------------------------------------------------------
 
+local pageButtons = {}
 local headerPanel = Panel("Header")
 local footerPanel = Panel("Footer")
-
+local defaultActions = {"Actions...", "Randomize", "Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Reduce 50%"}
 local actionMenu = footerPanel:Menu("ActionMenu", defaultActions)
 local cyclePagesButton = footerPanel:OnOffButton("CyclePagesButton")
 local changePageProbability = footerPanel:NumBox("ChangePageProbability", 0, 0, 100, true)
@@ -159,10 +166,6 @@ headerPanel.width = 700
 headerPanel.height = 30
 
 local label = headerPanel:Label("Label")
-label.text = title
-if type(tooltip) == "string" then
-  label.tooltip = tooltip
-end
 label.backgroundColour = "808080"
 label.textColour = pageBackgoundColour
 label.fontSize = 22
@@ -454,6 +457,14 @@ actionMenu.changed = function(self)
   self.selected = 1
 end
 
+local function setTitle(title)
+  label.text = title
+end
+
+local function setTitleTooltip(tooltip)
+  label.tooltip = tooltip
+end
+
 --------------------------------------------------------------------------------
 -- Return Module
 --------------------------------------------------------------------------------
@@ -468,4 +479,6 @@ return {--modseq--
   getPartIndex = getPartIndex,
   setPageDuration = setPageDuration,
   setNumSteps = setNumSteps,
+  setTitle = setTitle,
+  setTitleTooltip = setTitleTooltip,
 }

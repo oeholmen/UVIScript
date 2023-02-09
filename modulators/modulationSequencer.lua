@@ -4,40 +4,15 @@
 
 local gem = require "includes.common"
 local resolutions = require "includes.resolutions"
+local modseq = require "includes.modseq"
 
 local isAutoPlayActive = false
 local heldNotes = {}
 
-outlineColour = "#FFB5FF"
-menuBackgroundColour = "#bf01011F"
-menuTextColour = "#9f02ACFE"
-menuArrowColour = "#9f09A3F4"
-menuOutlineColour = "#00000000"
-pageBackgoundColour = "222222"
-
-if type(numParts) == "nil" then
-  numParts = 1
-end
-
-if type(maxPages) == "nil" then
-  maxPages = 8
-end
-
-if type(title) == "nil" then
-  title = "Modulation Sequencer"
-end
-
-if type(tooltip) == "nil" then
-  tooltip = "A sequencer sending script event modulation in broadcast mode"
-end
+modseq.setTitle("Modulation Sequencer")
+modseq.setTitleTooltip("A sequencer sending script event modulation in broadcast mode")
 
 setBackgroundColour(pageBackgoundColour)
-
---------------------------------------------------------------------------------
--- Include common functions and widgets
---------------------------------------------------------------------------------
-
-local modseq = require "includes.modseq"
 
 --------------------------------------------------------------------------------
 -- Sequencer
