@@ -1288,7 +1288,8 @@ sequencerLabel.textColour = labelTextColour
 sequencerLabel.fontSize = 22
 sequencerLabel.width = 180
 
-local activeButton = sequencerPanel:OnOffButton("MuteOnOff", true)
+local activeButton = sequencerPanel:OnOffButton("Active", true)
+activeButton.tooltip = "Deactivate to bypass sequencer"
 activeButton.backgroundColourOff = "#ff084486"
 activeButton.backgroundColourOn = "#ff02ACFE"
 activeButton.textColourOff = "#ff22FFFF"
@@ -1300,6 +1301,7 @@ activeButton.x = sequencerPanel.width - (activeButton.width * 2) - 5
 activeButton.y = 5
 
 local holdButton = sequencerPanel:OnOffButton("HoldOnOff", false)
+holdButton.tooltip = "Activate to hold notes"
 holdButton.backgroundColourOff = "#ff084486"
 holdButton.backgroundColourOn = "#ff02ACFE"
 holdButton.textColourOff = "#ff22FFFF"

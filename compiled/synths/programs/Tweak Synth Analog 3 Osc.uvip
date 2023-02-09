@@ -320,31 +320,11 @@ That&apos;s it! Start creating, and hopefully you will discover some new sounds 
                 <ScriptData/>
                 <state><![CDATA[[[{"value":1,"index":1,"widget":"Osc1Wave"},{"value":0,"index":2,"widget":"Osc1StartPhase"},{"value":0,"index":3,"widget":"Osc1Oct"},{"value":1,"index":4,"widget":"Osc2Wave"},{"value":0,"index":5,"widget":"Osc2StartPhase"},{"value":0,"index":6,"widget":"Osc2Oct"},{"value":0,"index":7,"widget":"Osc2Pitch"},{"value":false,"index":8,"widget":"SyncOsc2ToOsc1"},{"value":1,"index":9,"widget":"Osc3Wave"},{"value":0,"index":10,"widget":"Osc3StartPhase"},{"value":0,"index":11,"widget":"Osc3Oct"},{"value":0,"index":12,"widget":"Osc3Pitch"},{"value":false,"index":13,"widget":"SyncOsc3ToOsc1"},{"value":0.75,"index":14,"widget":"Osc1Mix"},{"value":0,"index":15,"widget":"Osc2Mix"},{"value":0,"index":16,"widget":"Osc3Mix"},{"value":0,"index":17,"widget":"SubOscMix"},{"value":3,"index":18,"widget":"SubOscWaveform"},{"value":0,"index":19,"widget":"NoiseMix"},{"value":0,"index":20,"widget":"PanSpread"},{"value":0,"index":21,"widget":"RandomPhaseStart"},{"value":1,"index":22,"widget":"PlayModeMenu"},{"value":0.029999999329448,"index":23,"widget":"PortamentoTime"},{"value":0.10000000149012,"index":24,"widget":"UnisonDetune"},{"value":0,"index":25,"widget":"StereoSpread"},{"value":1,"index":26,"widget":"UnisonVoices"},{"value":1,"index":27,"widget":"FilterDb"},{"value":1,"index":28,"widget":"Cutoff"},{"value":0,"index":29,"widget":"Resonance"},{"value":0,"index":30,"widget":"KeyTracking"},{"value":0,"index":31,"widget":"WheelToCutoff"},{"value":0,"index":32,"widget":"AftertouchToCutoff"},{"value":0,"index":33,"widget":"HpfCutoff"},{"value":0,"index":34,"widget":"HpfResonance"},{"value":0,"index":35,"widget":"HpfKeyTracking"},{"value":0,"index":36,"widget":"WheelToHpfCutoff"},{"value":0,"index":37,"widget":"AftertouchToHpfCutoff"},{"value":0.0010000000474975,"index":38,"widget":"FAttack"},{"value":0.050000000745058,"index":39,"widget":"FDecay"},{"value":1,"index":40,"widget":"FSustain"},{"value":0.0099999997764826,"index":41,"widget":"FRelease"},{"value":10,"index":42,"widget":"VelocityToFilterEnv"},{"value":0,"index":43,"widget":"EnvelopeAmt"},{"value":0,"index":44,"widget":"HpfEnvelopeAmt"},{"value":0,"index":45,"widget":"FilterEnvToPitchOsc1"},{"value":0,"index":46,"widget":"FilterEnvToPitchOsc2"},{"value":0,"index":47,"widget":"FilterEnvToPitchOsc3"},{"value":1,"index":48,"widget":"WaveFormTypeMenu"},{"value":false,"index":49,"widget":"Lfo2Sync"},{"value":4.5,"index":50,"widget":"LfoFreq"},{"value":true,"index":51,"widget":"Lfo2Trigger"},{"value":0,"index":52,"widget":"LfoFreqKeyFollow"},{"value":0,"index":53,"widget":"LfoDelay"},{"value":0,"index":54,"widget":"LfoRise"},{"value":0,"index":55,"widget":"LfoSmooth"},{"value":true,"index":56,"widget":"LfoBipolar"},{"value":0,"index":57,"widget":"LfoToCutoff"},{"value":0,"index":58,"widget":"LfoToHpfCutoff"},{"value":0,"index":59,"widget":"LfoToAmplitude"},{"value":0,"index":60,"widget":"LfoToFilterEnvDecay"},{"value":0,"index":61,"widget":"WheelToLfo"},{"value":0,"index":62,"widget":"LfoToOsc1PWM"},{"value":0,"index":63,"widget":"LfoToOsc2PWM"},{"value":0,"index":64,"widget":"LfoToOsc3PWM"},{"value":0,"index":65,"widget":"LfoToPitchOsc1"},{"value":0,"index":66,"widget":"LfoToPitchOsc2"},{"value":0,"index":67,"widget":"LfoToPitchOsc3"},{"value":0.0010000000474975,"index":68,"widget":"Attack"},{"value":0.050000000745058,"index":69,"widget":"Decay"},{"value":1,"index":70,"widget":"Sustain"},{"value":0.0099999997764826,"index":71,"widget":"Release"},{"value":10,"index":72,"widget":"VelocityToAmpEnv"},{"value":0,"index":73,"widget":"Reverb"},{"value":0,"index":74,"widget":"Delay"},{"value":0,"index":75,"widget":"Phasor"},{"value":0,"index":76,"widget":"Chorus"},{"value":0,"index":77,"widget":"Drive"},{"value":false,"index":78,"widget":"Maximizer"},{"value":0,"index":79,"widget":"VibratoDepth"},{"value":0.69999998807907,"index":80,"widget":"VibratoRate"},{"value":0,"index":81,"widget":"VibratoRiseTime"},{"value":0,"index":82,"widget":"WheelToVibrato"},{"value":0,"index":83,"widget":"AftertouchToVibrato"}],[],[]]]]></state>
             </ScriptProcessor>
-            <ScriptProcessor Name="EventProcessor2" Bypass="0" TweakArpResolution="2" TweakArpLength="4" TweakArpOctave="3" TweakArpModeMenu="1" PitchOffsetProbability="0" API_version="21">
-                <Properties PresetPath="/Users/oystein/Documents/UVI/Falcon/User Presets/EventProcessors/Script Processor/Utilities/Arp Randomizer.preset" ScriptPath="./../../UVIScript/util/arpRandomizer.lua"/>
-                <script><![CDATA[--------------------------------------------------------------------------------
--- Arp Randomizer
+            <ScriptProcessor Name="EventProcessor2" Bypass="0" TweakArpResolution="2" TweakArpLength="4" TweakArpOctave="2" TweakArpModeMenu="1" PitchOffsetProbability="0" API_version="21">
+                <Properties PresetPath="/Users/oystein/Documents/UVI/Falcon/User Presets/EventProcessors/Script Processor/Utilities/Arp Randomizer.preset" ScriptPath="./../../UVIScript/compiled/util/arpRandomizerCompiled.lua"/>
+                <script><![CDATA[-- util/arpRandomizer -- 
 --------------------------------------------------------------------------------
--- Randomize the settings of the Falcon arpeggiator
---------------------------------------------------------------------------------
-
-local buttonAlpha = 0.9
-local buttonBackgroundColourOff = "#ff084486"
-local buttonBackgroundColourOn = "#ff02ACFE"
-local buttonTextColourOff = "#ff22FFFF"
-local buttonTextColourOn = "#efFFFFFF"
-local backgroundColour = "202020" -- Light or Dark
-local widgetBackgroundColour = "black" -- Dark
-local widgetTextColour = "F0FF42" -- Light
-local labelTextColour = widgetBackgroundColour
-local labelBackgoundColour = widgetTextColour
-local menuBackgroundColour = "01011F"
-local menuTextColour = "#9f02ACFE"
-local menuArrowColour = "66" .. labelTextColour
-local menuOutlineColour = "5f" .. widgetTextColour
-
---------------------------------------------------------------------------------
--- Common Functions
+-- Common methods
 --------------------------------------------------------------------------------
 
 local function getRandom(min, max, factor)
@@ -368,31 +348,134 @@ local function getRandomBoolean(probability)
   return getRandom(100) <= probability
 end
 
-local function getRandomFromTable(theTable)
-  return theTable[getRandom(#theTable)]
+local function getChangeMax(max, probabilityLevel)
+  return math.ceil(max * (probabilityLevel / 100))
+end
+
+local function getIndexFromValue(value, selection)
+  for i,v in ipairs(selection) do
+    if v == value then
+      return i
+    end
+  end
+  return nil
+end
+
+local function randomizeValue(value, limitMin, limitMax, randomizationAmount)
+  if randomizationAmount > 0 then
+    local limitRange = limitMax - limitMin
+    local changeMax = getChangeMax(limitRange, randomizationAmount)
+    local min = math.max(limitMin, (value - changeMax))
+    local max = math.min(limitMax, (value + changeMax))
+    --print("Before randomize value", value)
+    value = getRandom(min, max)
+    --print("After randomize value/changeMax/min/max", value, changeMax, min, max)
+  end
+  return value
+end
+
+local function round(value)
+  local int, frac = math.modf(value)
+  --print("int/frac", int, frac)
+  if math.abs(frac) < 0.5 then
+    value = int
+  elseif value < 0 then
+    value = int - 1
+  else
+    value = int + 1
+  end
+  return value
+end
+
+local function tableIncludes(theTable, theItem)
+  return type(getIndexFromValue(theItem, theTable)) == "number"
+end
+
+local function getRandomFromTable(theTable, except)
+  if #theTable == 0 then
+    return nil
+  end
+  if #theTable == 1 then
+    return theTable[1]
+  end
+  local index = getRandom(#theTable)
+  local value = theTable[index]
+  --print("getRandomFromTable index, value", index, value)
+  if type(except) ~= "nil" then
+    local maxRounds = 10
+    while value == except and maxRounds > 0 do
+      value = theTable[getRandom(#theTable)]
+      maxRounds = maxRounds - 1
+      --print("getRandomFromTable except, maxRounds", except, maxRounds)
+    end
+  end
+  return value
+end
+
+local function trimStartAndEnd(s)
+  return s:match("^%s*(.-)%s*$")
+end
+
+local function inc(val, inc, max, reset)
+  if type(inc) ~= "number" then
+    inc = 1
+  end
+  if type(reset) ~= "number" then
+    reset = 1
+  end
+  val = val + inc
+  if type(max) == "number" and val > max then
+    val = reset
+  end
+  return val
 end
 
 local gem = {
+  inc = inc,
+  round = round,
   getRandom = getRandom,
+  getChangeMax = getChangeMax,
+  tableIncludes = tableIncludes,
+  randomizeValue = randomizeValue,
+  trimStartAndEnd = trimStartAndEnd,
   getRandomBoolean = getRandomBoolean,
+  getIndexFromValue = getIndexFromValue,
   getRandomFromTable = getRandomFromTable,
 }
 
---local gem = require "includes.common"
+--------------------------------------------------------------------------------
+-- Arp Randomizer
+--------------------------------------------------------------------------------
+-- Randomize the settings of the Falcon arpeggiator
+--------------------------------------------------------------------------------
+
+
+
+local buttonAlpha = 0.9
+local buttonBackgroundColourOff = "#ff084486"
+local buttonBackgroundColourOn = "#ff02ACFE"
+local buttonTextColourOff = "#ff22FFFF"
+local buttonTextColourOn = "#efFFFFFF"
+local backgroundColour = "202020" -- Light or Dark
+local widgetBackgroundColour = "black" -- Dark
+local widgetTextColour = "F0FF42" -- Light
+local labelTextColour = widgetBackgroundColour
+local labelBackgoundColour = widgetTextColour
+local menuBackgroundColour = "01011F"
+local menuTextColour = "#9f02ACFE"
+local menuArrowColour = "66" .. labelTextColour
+local menuOutlineColour = "5f" .. widgetTextColour
 
 --------------------------------------------------------------------------------
 -- Arp Randomization Functions
 --------------------------------------------------------------------------------
 
---{"Auto", "0", "+/-1", "+/-2", "+/-4", "+/-5", "+/-6", "Off"}
+--{"Auto", "+/-1", "+/-2", "+/-4", "+/-5", "+/-6", "Off"}
 local function getArpOctave(octaveOption)
   if octaveOption == 1 then
     octaveOption = gem.getRandom(6) + 1
   end
-  octaveOption = octaveOption - 2
-  if octaveOption == 0 then
-    return 0 -- default
-  end
+  octaveOption = octaveOption - 1
   return gem.getRandom(-octaveOption,octaveOption)
 end
 
@@ -401,6 +484,25 @@ local function getArpNumStrike()
     return gem.getRandom(4)
   end
   return 1 -- default
+end
+
+local function getArpStepLength()
+  if gem.getRandomBoolean(75) then
+    return 1.0 -- default
+  end
+
+  local min = 60
+  local max = 110
+
+  if gem.getRandomBoolean() then
+    min = 75
+  end
+
+  if gem.getRandomBoolean() then
+    max = 100
+  end
+
+  return gem.getRandom(min, max) / 100
 end
 
 -- {"Auto", "Up, Down, Up & Down, Down & Up", "Off"}
@@ -538,11 +640,11 @@ local function doArpTweaks(resolutionOption, lengthOption, octaveOption, modeOpt
     arp:setParameter("Mode", getArpMode(modeOption))
   end
   arp:setParameter("NumStrike", getArpNumStrike())
-  if octaveOption < 8 then
+  arp:setParameter("StepLength", getArpStepLength())
+  if octaveOption < 7 then
     arp:setParameter("Octave", getArpOctave(octaveOption))
   end
   arp:setParameter("ArpVelocityBlend", gem.getRandom())
-  arp:setParameter("StepLength", 1)
   for i=0,arpNumSteps do
     if i > 0 and gem.getRandomBoolean(30) then
       arp:setParameter("Step"..i.."State", gem.getRandom(0,3)) -- 0-3 def 0
@@ -620,8 +722,8 @@ tweakArpLengthMenu.tooltip = "Set step randomization - Use Off to leave the step
 tweakArpLengthMenu.width = tweakArpResMenu.width
 tweakArpLengthMenu.x = tweakArpResMenu.x + tweakArpResMenu.width + spacing
 
-local tweakArpOctaveMenu = panel:Menu("TweakArpOctave", {"Auto", "0", "+/-1", "+/-2", "+/-4", "+/-5", "+/-6", "Off"})
-tweakArpOctaveMenu.selected = 3
+local tweakArpOctaveMenu = panel:Menu("TweakArpOctave", {"Auto", "+/-1", "+/-2", "+/-4", "+/-5", "+/-6", "Off"})
+tweakArpOctaveMenu.selected = 2
 tweakArpOctaveMenu.backgroundColour = menuBackgroundColour
 tweakArpOctaveMenu.textColour = menuTextColour
 tweakArpOctaveMenu.arrowColour = menuArrowColour

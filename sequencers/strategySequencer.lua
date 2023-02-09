@@ -4,8 +4,8 @@
 
 local gem = require "includes.common"
 local notes = require "includes.notes"
-local resolutions = require "includes.resolutions"
 local scales = require "includes.scales"
+local resolutions = require "includes.resolutions"
 local subdivision = require "includes.subdivision"
 
 local backgroundColour = "4c4c4c" -- Light or Dark
@@ -261,7 +261,7 @@ for j=1,16 do
 end
 
 local channelInput = sequencerPanel:Menu("ChannelInput", channels)
-channelInput.tooltip = "Only listen to notes on this channel"
+channelInput.tooltip = "Only listen to incoming notes on this channel"
 channelInput.arrowColour = menuArrowColour
 channelInput.showLabel = false
 channelInput.backgroundColour = menuBackgroundColour
@@ -744,7 +744,7 @@ for i=1,numPartsBox.max do
     subdivisionSelect.width = 33
     subdivisionSelect.x = subdivisionProbabilityLabel.x + ((j-1) * (subdivisionSelect.width+4))
     subdivisionSelect.y = subdivisionProbabilityLabel.y + subdivisionProbabilityLabel.height + 5
-    table.insert(subdivisions, subdivision)
+    table.insert(subdivisions, subdivisionSelect)
   end
 
   local subdivisionProbability = sequencerPanel:NumBox("SubdivisionProbability" .. i, 25, 0, 100, true)
@@ -1191,22 +1191,22 @@ function arpeg()
           currentDepth = 0
         end
 
-        local subdivision, subDivDuration, remainderDuration, stop = subdivision.getSubdivision(stepDuration, steps, minResolution, subdivisionProbability, subdivisions, stop, subdivisionDotProbability)
-        print("Got subdivision/currentDepth", subdivision, currentDepth)
+        local subdivisionValue, subDivDuration, remainderDuration, stop = subdivision.getSubdivision(stepDuration, steps, minResolution, subdivisionProbability, subdivisions, stop, subdivisionDotProbability)
+        print("Got subdivisionValue/currentDepth", subdivisionValue, currentDepth)
 
         -- Check for minimum duration
         local subdivisionStructures = {}
-        if subdivision > 1 then
+        if subdivisionValue > 1 then
           currentDepth = currentDepth + 1
           print("Incrementing depth/stepDuration/subDivDuration", currentDepth, stepDuration, subDivDuration)
           local dotted = subDivDuration > remainderDuration
           local subDivPos = 1
-          while subDivPos <= subdivision do
+          while subDivPos <= subdivisionValue do
             local subdivisionSteps = 1 -- Set default
             if dotted == false then
-              subdivisionSteps, stop = subdivision.getSubdivisionSteps(subdivision, subDivPos, subdivisionTieProbability)
-            elseif subDivPos == subdivision then
-              -- Use the remainder on the last step when dotted subdivision
+              subdivisionSteps, stop = subdivision.getSubdivisionSteps(subdivisionValue, subDivPos, subdivisionTieProbability)
+            elseif subDivPos == subdivisionValue then
+              -- Use the remainder on the last step when dotted subdivisionValue
               subDivDuration = remainderDuration
             end
             -- Create the recursive structure tree
@@ -1220,7 +1220,7 @@ function arpeg()
         return {
           steps = steps,
           stepDuration = stepDuration,
-          subdivision = subdivision,
+          subdivisionValue = subdivisionValue,
           children = subdivisionStructures,
         }
       end
@@ -1243,13 +1243,13 @@ function arpeg()
       else
         local function parseTree(structureTree)
           -- Traverse the tree until we find the levels with no child nodes
-          for i=1,structureTree.subdivision do
+          for i=1,structureTree.subdivisionValue do
             if #structureTree.children == 0 then
               local nodeDuration = structureTree.stepDuration*structureTree.steps
               table.insert(nodes, {duration=nodeDuration})
               print("Added node duration", nodeDuration)
             else
-              print("Parsing further down the tree #children/subdvision", #structureTree.children, structureTree.subdivision)
+              print("Parsing further down the tree #children/subdvision", #structureTree.children, structureTree.subdivisionValue)
               if type(structureTree.children[i]) == "table" then
                 parseTree(structureTree.children[i]) -- Parse next level
               end

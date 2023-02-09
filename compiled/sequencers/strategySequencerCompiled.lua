@@ -120,6 +120,66 @@ local gem = {
 }
 
 --------------------------------------------------------------------------------
+-- Common functions for notes
+--------------------------------------------------------------------------------
+
+local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
+
+local notes = {
+  getNoteNames = function()
+    return notenames
+  end,
+  
+  -- Used for mapping - does not include octave, only name of note (C, C#...)
+  getNoteMapping = function()
+    local noteNumberToNoteName = {}
+    local notenamePos = 1
+    for i=0,127 do
+      table.insert(noteNumberToNoteName, notenames[notenamePos])
+      notenamePos = notenamePos + 1
+      if notenamePos > #notenames then
+        notenamePos = 1
+      end
+    end
+    return noteNumberToNoteName
+  end,
+  
+  transpose = function(note, min, max)
+    --print("Check transpose", note)
+    if note < min then
+      print("note < min", note, min)
+      while note < min do
+        note = note + 12
+        print("transpose note up", note)
+      end
+    elseif note > max then
+      print("note > max", note, max)
+      while note > max do
+        note = note - 12
+        print("transpose note down", note)
+      end
+    end
+    return note
+  end,
+  
+  getSemitonesBetweenNotes = function(note1, note2)
+    return math.max(note1, note2) - math.min(note1, note1)
+  end,
+  
+  getNoteAccordingToScale = function(scale, noteToPlay)
+    for _,note in ipairs(scale) do
+      if note == noteToPlay then
+        return noteToPlay
+      elseif note > noteToPlay then
+        print("Change from noteToPlay to note", noteToPlay, note)
+        return note
+      end
+    end
+    return noteToPlay
+  end,
+}
+
+--------------------------------------------------------------------------------
 -- Common Scales
 --------------------------------------------------------------------------------
 
@@ -187,66 +247,6 @@ local scales = {
     end
     return scale
   end
-}
-
---------------------------------------------------------------------------------
--- Common functions for notes
---------------------------------------------------------------------------------
-
-local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
-
-local notes = {
-  getNoteNames = function()
-    return notenames
-  end,
-  
-  -- Used for mapping - does not include octave, only name of note (C, C#...)
-  getNoteMapping = function()
-    local noteNumberToNoteName = {}
-    local notenamePos = 1
-    for i=0,127 do
-      table.insert(noteNumberToNoteName, notenames[notenamePos])
-      notenamePos = notenamePos + 1
-      if notenamePos > #notenames then
-        notenamePos = 1
-      end
-    end
-    return noteNumberToNoteName
-  end,
-  
-  transpose = function(note, min, max)
-    --print("Check transpose", note)
-    if note < min then
-      print("note < min", note, min)
-      while note < min do
-        note = note + 12
-        print("transpose note up", note)
-      end
-    elseif note > max then
-      print("note > max", note, max)
-      while note > max do
-        note = note - 12
-        print("transpose note down", note)
-      end
-    end
-    return note
-  end,
-  
-  getSemitonesBetweenNotes = function(note1, note2)
-    return math.max(note1, note2) - math.min(note1, note1)
-  end,
-  
-  getNoteAccordingToScale = function(scale, noteToPlay)
-    for _,note in ipairs(scale) do
-      if note == noteToPlay then
-        return noteToPlay
-      elseif note > noteToPlay then
-        print("Change from noteToPlay to note", noteToPlay, note)
-        return note
-      end
-    end
-    return noteToPlay
-  end,
 }
 
 --------------------------------------------------------------------------------
@@ -822,7 +822,7 @@ for j=1,16 do
 end
 
 local channelInput = sequencerPanel:Menu("ChannelInput", channels)
-channelInput.tooltip = "Only listen to notes on this channel"
+channelInput.tooltip = "Only listen to incoming notes on this channel"
 channelInput.arrowColour = menuArrowColour
 channelInput.showLabel = false
 channelInput.backgroundColour = menuBackgroundColour
@@ -1305,7 +1305,7 @@ for i=1,numPartsBox.max do
     subdivisionSelect.width = 33
     subdivisionSelect.x = subdivisionProbabilityLabel.x + ((j-1) * (subdivisionSelect.width+4))
     subdivisionSelect.y = subdivisionProbabilityLabel.y + subdivisionProbabilityLabel.height + 5
-    table.insert(subdivisions, subdivision)
+    table.insert(subdivisions, subdivisionSelect)
   end
 
   local subdivisionProbability = sequencerPanel:NumBox("SubdivisionProbability" .. i, 25, 0, 100, true)
@@ -1752,22 +1752,22 @@ function arpeg()
           currentDepth = 0
         end
 
-        local subdivision, subDivDuration, remainderDuration, stop = subdivision.getSubdivision(stepDuration, steps, minResolution, subdivisionProbability, subdivisions, stop, subdivisionDotProbability)
-        print("Got subdivision/currentDepth", subdivision, currentDepth)
+        local subdivisionValue, subDivDuration, remainderDuration, stop = subdivision.getSubdivision(stepDuration, steps, minResolution, subdivisionProbability, subdivisions, stop, subdivisionDotProbability)
+        print("Got subdivisionValue/currentDepth", subdivisionValue, currentDepth)
 
         -- Check for minimum duration
         local subdivisionStructures = {}
-        if subdivision > 1 then
+        if subdivisionValue > 1 then
           currentDepth = currentDepth + 1
           print("Incrementing depth/stepDuration/subDivDuration", currentDepth, stepDuration, subDivDuration)
           local dotted = subDivDuration > remainderDuration
           local subDivPos = 1
-          while subDivPos <= subdivision do
+          while subDivPos <= subdivisionValue do
             local subdivisionSteps = 1 -- Set default
             if dotted == false then
-              subdivisionSteps, stop = subdivision.getSubdivisionSteps(subdivision, subDivPos, subdivisionTieProbability)
-            elseif subDivPos == subdivision then
-              -- Use the remainder on the last step when dotted subdivision
+              subdivisionSteps, stop = subdivision.getSubdivisionSteps(subdivisionValue, subDivPos, subdivisionTieProbability)
+            elseif subDivPos == subdivisionValue then
+              -- Use the remainder on the last step when dotted subdivisionValue
               subDivDuration = remainderDuration
             end
             -- Create the recursive structure tree
@@ -1781,7 +1781,7 @@ function arpeg()
         return {
           steps = steps,
           stepDuration = stepDuration,
-          subdivision = subdivision,
+          subdivisionValue = subdivisionValue,
           children = subdivisionStructures,
         }
       end
@@ -1804,13 +1804,13 @@ function arpeg()
       else
         local function parseTree(structureTree)
           -- Traverse the tree until we find the levels with no child nodes
-          for i=1,structureTree.subdivision do
+          for i=1,structureTree.subdivisionValue do
             if #structureTree.children == 0 then
               local nodeDuration = structureTree.stepDuration*structureTree.steps
               table.insert(nodes, {duration=nodeDuration})
               print("Added node duration", nodeDuration)
             else
-              print("Parsing further down the tree #children/subdvision", #structureTree.children, structureTree.subdivision)
+              print("Parsing further down the tree #children/subdvision", #structureTree.children, structureTree.subdivisionValue)
               if type(structureTree.children[i]) == "table" then
                 parseTree(structureTree.children[i]) -- Parse next level
               end

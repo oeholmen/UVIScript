@@ -310,6 +310,7 @@ local heldNoteIndex = 0 -- Counter for held notes (used by "As Played" seq mode)
 local numParts = 3
 local isPlaying = false
 local title = "Jumping Sequencer"
+local tooltip = "A sequencer that jumps between three different sequences by chance"
 
 setBackgroundColour("#2c2c2c")
 
@@ -330,6 +331,7 @@ sequencerPanel.height = numParts * (tableHeight + 25) + 50
 
 local label = sequencerPanel:Label("Label")
 label.text = title
+label.tooltip = tooltip
 label.align = "left"
 label.backgroundColour = "#272727"
 label.fontSize = 22

@@ -117,15 +117,15 @@ for luaScript in "${luaScripts[@]}"; do
   if [ $luaScript == 'generators/beatbox' ] || [ $luaScript == 'sequencers/fragmentSequencer' ]; then
     includes=(common resolutions rythmicFragments)
   elif [ $luaScript == 'generators/drunkenSequencer' ] || [ $luaScript == 'generators/generativeStrategySequencer' ]; then
-    includes=(common scales notes resolutions noteSelector rythmicFragments)
+    includes=(common notes scales resolutions noteSelector rythmicFragments)
   elif [ $luaScript == 'generators/generativeChorder' ]; then
-    includes=(common scales notes resolutions noteSelector)
+    includes=(common notes scales resolutions noteSelector)
   elif [ $luaScript == 'modulators/randomEnveloper' ]; then
     includes=(common resolutions resolutionSelector)
   elif [ $luaScript == 'modulators/randomGateModulator' ]; then
     includes=(common resolutions subdivision)
   elif [ $luaScript == 'sequencers/strategySequencer' ]; then
-    includes=(common scales notes resolutions subdivision)
+    includes=(common notes scales resolutions subdivision)
   elif [ $luaScript == 'util/noteLimiter' ]; then
     includes=(common notes)
   elif [ $luaScript == 'synths/tweaksynth' ] || [ $luaScript == 'sequencers/jumpingSequencer' ] || [ $luaScript == 'sequencers/polyphonicSequencer' ] || [ $luaScript == 'sequencers/stochasticDrumSequencer' ] || [ $luaScript == 'sequencers/stochasticSequencer' ] || [ $luaScript == 'util/randomGate' ] || [ $luaScript == 'modulators/bouncer' ] || [ $luaScript == 'modulators/randomChange' ] || [ $luaScript == 'effects/noteBouncer' ]; then
@@ -133,7 +133,7 @@ for luaScript in "${luaScripts[@]}"; do
   elif [ $luaScript == 'sequencers/midiControlSequencer' ] || [ $luaScript == 'modulators/modulationSequencer' ]; then
     includes=(common resolutions modseq)
   elif [ $luaScript == 'generators/noteFragmentGenerator' ] || [ $luaScript == 'generators/gridSequencer' ]; then
-    includes=(common scales notes resolutions rythmicFragments)
+    includes=(common notes scales resolutions rythmicFragments)
   else
     includes=(common)
   fi
