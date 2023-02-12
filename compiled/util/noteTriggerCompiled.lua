@@ -92,6 +92,10 @@ local function trimStartAndEnd(s)
   return s:match("^%s*(.-)%s*$")
 end
 
+local function getChangePerStep(valueRange, numSteps)
+  return valueRange / (numSteps - 1)
+end
+
 local function inc(val, inc, max, reset)
   if type(inc) ~= "number" then
     inc = 1
@@ -106,9 +110,57 @@ local function inc(val, inc, max, reset)
   return val
 end
 
+local function triangle(minValue, maxValue, numSteps)
+  local rising = true
+  local numStepsUpDown = round(numSteps / 2)
+  local valueRange = maxValue - minValue
+  local changePerStep = valueRange / numStepsUpDown
+  local startValue = minValue
+  local tri = {}
+  for i=1,numSteps do
+    table.insert(tri, startValue)
+    if rising then
+      startValue = startValue + changePerStep
+      if startValue >= maxValue then
+        rising = false
+      end
+    else
+      startValue = startValue - changePerStep
+    end
+  end
+  return tri
+end
+
+local function rampUp(minValue, maxValue, numSteps)
+  local valueRange = maxValue - minValue
+  local changePerStep = getChangePerStep(valueRange, numSteps)
+  local startValue = minValue
+  local ramp = {}
+  for i=1,numSteps do
+    table.insert(ramp, startValue)
+    startValue = inc(startValue, changePerStep)
+  end
+  return ramp
+end
+
+local function rampDown(minValue, maxValue, numSteps)
+  local valueRange = maxValue - minValue
+  local changePerStep = getChangePerStep(valueRange, numSteps)
+  local startValue = maxValue
+  local ramp = {}
+  for i=1,numSteps do
+    table.insert(ramp, startValue)
+    startValue = inc(startValue, -changePerStep)
+  end
+  return ramp
+end
+
 local gem = {
   inc = inc,
   round = round,
+  triangle = triangle,
+  rampUp = rampUp,
+  rampDown = rampDown,
   getRandom = getRandom,
   getChangeMax = getChangeMax,
   tableIncludes = tableIncludes,
@@ -296,9 +348,6 @@ local resolutions = {
 -- Note Trigger
 --------------------------------------------------------------------------------
 
-
-
-
 local outlineColour = "#FFB5FF"
 local menuBackgroundColour = "#bf01011F"
 local menuTextColour = "#9f02ACFE"
@@ -422,12 +471,7 @@ headerPanel.backgroundColour = menuOutlineColour
 headerPanel.x = 10
 headerPanel.y = 10
 headerPanel.width = 700
---[[ if numParts == 1 then
-  headerPanel.height = numParts * (tableHeight + 25) + 60
-else ]]
-  --headerPanel.height = numParts * (tableHeight + 25) + 60
-  headerPanel.height = 30
---end
+headerPanel.height = 30
 
 local label = headerPanel:Label("Label")
 label.text = title
@@ -1152,26 +1196,6 @@ function arpeg(part)
 
     -- Play subdivision
     for ratchetIndex=1, ratchet do
-      -- Randomize trigger probability
-      --[[ if gem.getRandomBoolean(triggerRandomizationAmount) then
-        local changeMax = math.ceil(seqTriggerProbabilityTable.max * (triggerRandomizationAmount/100))
-        local min = triggerProbability - changeMax
-        local max = triggerProbability + changeMax
-        if min < seqTriggerProbabilityTable.min then
-          min = seqTriggerProbabilityTable.min
-        end
-        if max > seqTriggerProbabilityTable.max then
-          max = seqTriggerProbabilityTable.max
-        end
-        triggerProbability = gem.getRandom(min, max)
-        if evolve == true then
-          seqTriggerProbabilityTable:setValue(currentPosition, triggerProbability)
-        end
-      end
-
-      -- Check if step should trigger
-      local shouldTrigger = gem.getRandomBoolean(triggerProbability) ]]
-
       -- Randomize velocity
       if velocityRandomizationAmount > 0 then
         local changeMax = gem.getChangeMax(seqVelTable.max, velocityRandomizationAmount)

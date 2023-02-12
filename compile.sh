@@ -77,6 +77,7 @@ luaScripts=(
   generators/generativeChorder
   generators/generativeStrategySequencer
   generators/gridSequencer
+  generators/motionSequencer
   generators/noteFragmentGenerator
   modulators/bouncer
   modulators/modulationSequencer
@@ -132,6 +133,8 @@ for luaScript in "${luaScripts[@]}"; do
     includes=(common resolutions)
   elif [ $luaScript == 'sequencers/midiControlSequencer' ] || [ $luaScript == 'modulators/modulationSequencer' ]; then
     includes=(common resolutions modseq)
+  elif [ $luaScript == 'generators/motionSequencer' ]; then
+    includes=(common scales resolutions rythmicFragments)
   elif [ $luaScript == 'generators/noteFragmentGenerator' ] || [ $luaScript == 'generators/gridSequencer' ]; then
     includes=(common notes scales resolutions rythmicFragments)
   else
@@ -141,7 +144,7 @@ for luaScript in "${luaScripts[@]}"; do
   # Write all the includes to the compiled file
   echo "-- $luaScript -- " > $output_file
   for include in "${includes[@]}"; do
-    echo "include $include"
+    echo "Adding includes/$include"
     file_contents=$(cat ./includes/"$include".lua)
     file_contents=$(echo "$file_contents" | sed 's/local \(.*\) = require "includes.\(.*\)"//g')
     file_contents=$(echo "$file_contents" | sed 's/return {--\(.*\)--/local \1 = {/g')
@@ -149,15 +152,18 @@ for luaScript in "${luaScripts[@]}"; do
     echo "" >> $output_file
   done
 
-  # Write the lua script file to the output file
+  # Write the main lua script file to the output file
   input_file=$(cat "$input_file")
   input_file=$(echo "$input_file" | sed 's/local \(.*\) = require "includes.\(.*\)"//g')
-
   echo "$input_file" >> $output_file
-  echo "Including $luaScript"
+  echo "Adding $luaScript"
+
+  # Remove multiple newlines from the output file
+  echo "$(cat -s "$output_file")" > $output_file
+
   echo "Done!"
 
-  # Create note trigger util
+  # Create note trigger util from stochasticDrumSequencer
   if [ $luaScript == 'sequencers/stochasticDrumSequencer' ]; then
     input_file=$(cat "$output_file")
     input_file=$(echo "$input_file" | sed 's/local numParts = 4/local numParts = 1/g')
@@ -167,11 +173,11 @@ for luaScript in "${luaScripts[@]}"; do
     output_file=./compiled/util/noteTriggerCompiled.lua
     echo "$input_file" > $output_file
     echo
-    echo "Including $output_file"
+    echo "Compiling $luaScript to $output_file"
     echo "Done!"
   fi
 
-  # Create multipart midi cc sequencer file
+  # Create multipart midi cc sequencer file from midiControlSequencer
   if [ $luaScript == 'sequencers/midiControlSequencer' ]; then
     input_file=$(cat "$output_file")
     input_file=$(echo "$input_file" | sed 's/numParts = 1/numParts = 4/g')
@@ -179,7 +185,7 @@ for luaScript in "${luaScripts[@]}"; do
     output_file=./compiled/sequencers/midiControlSequencerMultipartCompiled.lua
     echo "$input_file" > $output_file
     echo
-    echo "Including $output_file"
+    echo "Compiling $luaScript to $output_file"
     echo "Done!"
   fi
 

@@ -128,12 +128,7 @@ headerPanel.backgroundColour = menuOutlineColour
 headerPanel.x = 10
 headerPanel.y = 10
 headerPanel.width = 700
---[[ if numParts == 1 then
-  headerPanel.height = numParts * (tableHeight + 25) + 60
-else ]]
-  --headerPanel.height = numParts * (tableHeight + 25) + 60
-  headerPanel.height = 30
---end
+headerPanel.height = 30
 
 local label = headerPanel:Label("Label")
 label.text = title
@@ -858,26 +853,6 @@ function arpeg(part)
 
     -- Play subdivision
     for ratchetIndex=1, ratchet do
-      -- Randomize trigger probability
-      --[[ if gem.getRandomBoolean(triggerRandomizationAmount) then
-        local changeMax = math.ceil(seqTriggerProbabilityTable.max * (triggerRandomizationAmount/100))
-        local min = triggerProbability - changeMax
-        local max = triggerProbability + changeMax
-        if min < seqTriggerProbabilityTable.min then
-          min = seqTriggerProbabilityTable.min
-        end
-        if max > seqTriggerProbabilityTable.max then
-          max = seqTriggerProbabilityTable.max
-        end
-        triggerProbability = gem.getRandom(min, max)
-        if evolve == true then
-          seqTriggerProbabilityTable:setValue(currentPosition, triggerProbability)
-        end
-      end
-
-      -- Check if step should trigger
-      local shouldTrigger = gem.getRandomBoolean(triggerProbability) ]]
-
       -- Randomize velocity
       if velocityRandomizationAmount > 0 then
         local changeMax = gem.getChangeMax(seqVelTable.max, velocityRandomizationAmount)

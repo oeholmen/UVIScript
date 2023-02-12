@@ -1271,6 +1271,7 @@ paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, rythmLabel
 function onInit()
   print("Init grid sequencer")
   setSelectedGrid()
+  scaleIncrementInput:changed()
   degreeInput:changed()
 end
 
@@ -1335,6 +1336,7 @@ function onLoad(data)
   degreeInput.text = data[3]
   velocityTableData = data[4]
   gateTableData = data[5]
+  scaleIncrementInput:changed()
   degreeInput:changed()
 
   for i,v in ipairs(fragmentInputData) do

@@ -92,6 +92,10 @@ local function trimStartAndEnd(s)
   return s:match("^%s*(.-)%s*$")
 end
 
+local function getChangePerStep(valueRange, numSteps)
+  return valueRange / (numSteps - 1)
+end
+
 local function inc(val, inc, max, reset)
   if type(inc) ~= "number" then
     inc = 1
@@ -106,9 +110,57 @@ local function inc(val, inc, max, reset)
   return val
 end
 
+local function triangle(minValue, maxValue, numSteps)
+  local rising = true
+  local numStepsUpDown = round(numSteps / 2)
+  local valueRange = maxValue - minValue
+  local changePerStep = valueRange / numStepsUpDown
+  local startValue = minValue
+  local tri = {}
+  for i=1,numSteps do
+    table.insert(tri, startValue)
+    if rising then
+      startValue = startValue + changePerStep
+      if startValue >= maxValue then
+        rising = false
+      end
+    else
+      startValue = startValue - changePerStep
+    end
+  end
+  return tri
+end
+
+local function rampUp(minValue, maxValue, numSteps)
+  local valueRange = maxValue - minValue
+  local changePerStep = getChangePerStep(valueRange, numSteps)
+  local startValue = minValue
+  local ramp = {}
+  for i=1,numSteps do
+    table.insert(ramp, startValue)
+    startValue = inc(startValue, changePerStep)
+  end
+  return ramp
+end
+
+local function rampDown(minValue, maxValue, numSteps)
+  local valueRange = maxValue - minValue
+  local changePerStep = getChangePerStep(valueRange, numSteps)
+  local startValue = maxValue
+  local ramp = {}
+  for i=1,numSteps do
+    table.insert(ramp, startValue)
+    startValue = inc(startValue, -changePerStep)
+  end
+  return ramp
+end
+
 local gem = {
   inc = inc,
   round = round,
+  triangle = triangle,
+  rampUp = rampUp,
+  rampDown = rampDown,
   getRandom = getRandom,
   getChangeMax = getChangeMax,
   tableIncludes = tableIncludes,
@@ -426,10 +478,6 @@ local resolutions = {
 -- Note and Scale Parameters
 --------------------------------------------------------------------------------
 
-
-
-
-
 local octaves = 9
 local scaleDefinitions = scales.getScaleDefinitions()
 local scaleNames = scales.getScaleNames()
@@ -618,8 +666,6 @@ local noteSelector = {
 --------------------------------------------------------------------------------
 -- Common functions for working with rythmic fragments
 --------------------------------------------------------------------------------
-
-
 
 local paramsPerFragment = {}
 
@@ -1535,11 +1581,6 @@ local rythmicFragments = {
 --------------------------------------------------------------------------------
 -- Drunken Sequencer
 --------------------------------------------------------------------------------
-
-
-
-
-
 
 local backgroundColour = "303030" -- Light or Dark
 local widgetBackgroundColour = "01011F" -- Dark

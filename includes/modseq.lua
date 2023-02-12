@@ -338,13 +338,16 @@ actionMenu.changed = function(self)
       local minValue = paramsPerPart[partIndex].seqValueTable.min
       local maxValue = paramsPerPart[partIndex].seqValueTable.max
       local numSteps = paramsPerPart[partIndex].numStepsBox.value
-      local valueRange = maxValue - minValue
+      for i,v in ipairs(gem.rampUp(minValue, maxValue, numSteps)) do
+        paramsPerPart[partIndex].seqValueTable:setValue(i, v)
+      end
+      --[[ local valueRange = maxValue - minValue
       local changePerStep = valueRange / (numSteps - 1)
       local startValue = minValue
       for i=1,numSteps do
         paramsPerPart[partIndex].seqValueTable:setValue(i, startValue)
         startValue = startValue + changePerStep
-      end
+      end ]]
     end
   elseif self.value == 4 then
     -- Ramp Down
@@ -353,22 +356,28 @@ actionMenu.changed = function(self)
       local minValue = paramsPerPart[partIndex].seqValueTable.min
       local maxValue = paramsPerPart[partIndex].seqValueTable.max
       local numSteps = paramsPerPart[partIndex].numStepsBox.value
-      local valueRange = maxValue - minValue
+      for i,v in ipairs(gem.rampDown(minValue, maxValue, numSteps)) do
+        paramsPerPart[partIndex].seqValueTable:setValue(i, v)
+      end
+      --[[ local valueRange = maxValue - minValue
       local changePerStep = valueRange / (numSteps - 1)
       local startValue = maxValue
       for i=1,numSteps do
         paramsPerPart[partIndex].seqValueTable:setValue(i, startValue)
         startValue = startValue - changePerStep
-      end
+      end ]]
     end
   elseif self.value == 5 then
     -- Triangle
     for part=1,numParts do
-      local rising = true
       local partIndex = getPartIndex(part)
       local minValue = paramsPerPart[partIndex].seqValueTable.min
       local maxValue = paramsPerPart[partIndex].seqValueTable.max
       local numSteps = paramsPerPart[partIndex].numStepsBox.value
+      for i,v in ipairs(gem.triangle(minValue, maxValue, numSteps)) do
+        paramsPerPart[partIndex].seqValueTable:setValue(i, v)
+      end
+      --[[ local rising = true
       local numStepsUpDown = gem.round(numSteps / 2)
       local valueRange = maxValue - minValue
       local changePerStep = valueRange / numStepsUpDown
@@ -383,7 +392,7 @@ actionMenu.changed = function(self)
         else
           startValue = startValue - changePerStep
         end
-      end
+      end ]]
     end
   elseif self.value == 6 then
     -- Even

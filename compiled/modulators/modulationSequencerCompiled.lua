@@ -92,6 +92,10 @@ local function trimStartAndEnd(s)
   return s:match("^%s*(.-)%s*$")
 end
 
+local function getChangePerStep(valueRange, numSteps)
+  return valueRange / (numSteps - 1)
+end
+
 local function inc(val, inc, max, reset)
   if type(inc) ~= "number" then
     inc = 1
@@ -106,9 +110,57 @@ local function inc(val, inc, max, reset)
   return val
 end
 
+local function triangle(minValue, maxValue, numSteps)
+  local rising = true
+  local numStepsUpDown = round(numSteps / 2)
+  local valueRange = maxValue - minValue
+  local changePerStep = valueRange / numStepsUpDown
+  local startValue = minValue
+  local tri = {}
+  for i=1,numSteps do
+    table.insert(tri, startValue)
+    if rising then
+      startValue = startValue + changePerStep
+      if startValue >= maxValue then
+        rising = false
+      end
+    else
+      startValue = startValue - changePerStep
+    end
+  end
+  return tri
+end
+
+local function rampUp(minValue, maxValue, numSteps)
+  local valueRange = maxValue - minValue
+  local changePerStep = getChangePerStep(valueRange, numSteps)
+  local startValue = minValue
+  local ramp = {}
+  for i=1,numSteps do
+    table.insert(ramp, startValue)
+    startValue = inc(startValue, changePerStep)
+  end
+  return ramp
+end
+
+local function rampDown(minValue, maxValue, numSteps)
+  local valueRange = maxValue - minValue
+  local changePerStep = getChangePerStep(valueRange, numSteps)
+  local startValue = maxValue
+  local ramp = {}
+  for i=1,numSteps do
+    table.insert(ramp, startValue)
+    startValue = inc(startValue, -changePerStep)
+  end
+  return ramp
+end
+
 local gem = {
   inc = inc,
   round = round,
+  triangle = triangle,
+  rampUp = rampUp,
+  rampDown = rampDown,
   getRandom = getRandom,
   getChangeMax = getChangeMax,
   tableIncludes = tableIncludes,
@@ -295,9 +347,6 @@ local resolutions = {
 --------------------------------------------------------------------------------
 -- Common functions and widgets that are shared for the modulation sequencers
 --------------------------------------------------------------------------------
-
-
-
 
 outlineColour = "#FFB5FF"
 menuBackgroundColour = "#bf01011F"
@@ -632,13 +681,16 @@ actionMenu.changed = function(self)
       local minValue = paramsPerPart[partIndex].seqValueTable.min
       local maxValue = paramsPerPart[partIndex].seqValueTable.max
       local numSteps = paramsPerPart[partIndex].numStepsBox.value
-      local valueRange = maxValue - minValue
+      for i,v in ipairs(gem.rampUp(minValue, maxValue, numSteps)) do
+        paramsPerPart[partIndex].seqValueTable:setValue(i, v)
+      end
+      --[[ local valueRange = maxValue - minValue
       local changePerStep = valueRange / (numSteps - 1)
       local startValue = minValue
       for i=1,numSteps do
         paramsPerPart[partIndex].seqValueTable:setValue(i, startValue)
         startValue = startValue + changePerStep
-      end
+      end ]]
     end
   elseif self.value == 4 then
     -- Ramp Down
@@ -647,22 +699,28 @@ actionMenu.changed = function(self)
       local minValue = paramsPerPart[partIndex].seqValueTable.min
       local maxValue = paramsPerPart[partIndex].seqValueTable.max
       local numSteps = paramsPerPart[partIndex].numStepsBox.value
-      local valueRange = maxValue - minValue
+      for i,v in ipairs(gem.rampDown(minValue, maxValue, numSteps)) do
+        paramsPerPart[partIndex].seqValueTable:setValue(i, v)
+      end
+      --[[ local valueRange = maxValue - minValue
       local changePerStep = valueRange / (numSteps - 1)
       local startValue = maxValue
       for i=1,numSteps do
         paramsPerPart[partIndex].seqValueTable:setValue(i, startValue)
         startValue = startValue - changePerStep
-      end
+      end ]]
     end
   elseif self.value == 5 then
     -- Triangle
     for part=1,numParts do
-      local rising = true
       local partIndex = getPartIndex(part)
       local minValue = paramsPerPart[partIndex].seqValueTable.min
       local maxValue = paramsPerPart[partIndex].seqValueTable.max
       local numSteps = paramsPerPart[partIndex].numStepsBox.value
+      for i,v in ipairs(gem.triangle(minValue, maxValue, numSteps)) do
+        paramsPerPart[partIndex].seqValueTable:setValue(i, v)
+      end
+      --[[ local rising = true
       local numStepsUpDown = gem.round(numSteps / 2)
       local valueRange = maxValue - minValue
       local changePerStep = valueRange / numStepsUpDown
@@ -677,7 +735,7 @@ actionMenu.changed = function(self)
         else
           startValue = startValue - changePerStep
         end
-      end
+      end ]]
     end
   elseif self.value == 6 then
     -- Even
@@ -780,10 +838,6 @@ local modseq = {
 --------------------------------------------------------------------------------
 -- A sequencer sending script event modulation in broadcast mode
 --------------------------------------------------------------------------------
-
-
-
-
 
 local isAutoPlayActive = false
 local heldNotes = {}
