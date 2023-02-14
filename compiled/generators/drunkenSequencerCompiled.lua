@@ -482,6 +482,7 @@ local octaves = 9
 local scaleDefinitions = scales.getScaleDefinitions()
 local scaleNames = scales.getScaleNames()
 local noteNames = notes.getNoteNames()
+local selectedKey = 1
 
 notesPlaying = {}
 noteInputs = {}
@@ -650,6 +651,7 @@ local function createNoteAndOctaveSelector(notePanel, colours, noteLabel)
 
   generateKey.changed = function(self)
     setScale(generateScale.value, self.value)
+    selectedKey = self.value
   end
 
   generateScale.changed = function(self)
@@ -657,10 +659,15 @@ local function createNoteAndOctaveSelector(notePanel, colours, noteLabel)
   end
 end
 
+local function getKey()
+  return selectedKey
+end
+
 local noteSelector = {
   createNoteAndOctaveSelector = createNoteAndOctaveSelector,
   getActiveNotes = getActiveNotes,
   getSelectedNotes = getSelectedNotes,
+  getKey = getKey,
 }
 
 --------------------------------------------------------------------------------

@@ -892,6 +892,7 @@ local function noteIsPlaying(note)
   end
   return false
 end
+
 local function isTrigger(e)
   local channel = channelInput.value - 1
   local isListeningForEvent = channel == 0 or channel == e.channel

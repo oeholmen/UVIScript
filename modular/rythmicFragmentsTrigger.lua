@@ -49,8 +49,8 @@ local evolveFragmentProbability = 0
 local randomizeCurrentResolutionProbability = 0
 local adjustBias = 50
 local channel = 1
-local seqVelTable
-local velocityRandomization
+--local seqVelTable
+--local velocityRandomization
 local seqGateTable
 local gateRandomization
 local numVoices = 1
@@ -66,14 +66,6 @@ local partOrder = {} -- Holds the playing order of the parts
 --------------------------------------------------------------------------------
 -- Sequencer Functions
 --------------------------------------------------------------------------------
-
-local function getVelocity(pos)
-  return seqVelTable:getValue(pos), gem.inc(pos, 1, seqVelTable.length)
-end
-
-local function randomizeVelocity(velocity)
-  return gem.randomizeValue(velocity, seqVelTable.min, seqVelTable.max, velocityRandomization.value)
-end
 
 local function randomizeGate(gate)
   return gem.randomizeValue(gate, seqGateTable.min, seqGateTable.max, gateRandomization.value)
@@ -114,15 +106,15 @@ local function play(voice, uniqueId, partDuration)
   local fragmentRepeatProbability = 0
   local reverseFragment = false
   local fragmentRepeatCount = 0
-  local velocityPos = 1
-  local velocity = seqVelTable:getValue(velocityPos)
+  --local velocityPos = 1
+  local velocity = 64--seqVelTable:getValue(velocityPos)
   local gatePos = 1
   local gate = seqGateTable:getValue(gatePos)
   -- Start loop
   while playingIndex[voice] == uniqueId do
     roundCounterPerVoice[voice] = roundCounterPerVoice[voice] + 1
 
-    velocity, velocityPos = getVelocity(velocityPos)
+    --velocity, velocityPos = getVelocity(velocityPos)
     gate, gatePos = getGate(gatePos)
     duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = rythmicFragments.getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
 
@@ -143,7 +135,7 @@ local function play(voice, uniqueId, partDuration)
     if rest == false and gate > 0 then
       local noteDuration = resolutions.getPlayDuration(duration, randomizeGate(gate))
       remainingDuration = duration - noteDuration
-      local id = playNote(0, randomizeVelocity(velocity), -1, nil, (voice + channel - 1))
+      local id = playNote(0, velocity, -1, nil, (voice + channel - 1))
       --print("Play velocity/gate/duration", velocity, gate, noteDuration)
       waitBeat(noteDuration)
       releaseVoice(id)
@@ -289,7 +281,7 @@ rythmPanel.backgroundColour = "404040"
 rythmPanel.x = sequencerPanel.x
 rythmPanel.y = sequencerPanel.y + sequencerPanel.height + 0
 rythmPanel.width = sequencerPanel.width
-rythmPanel.height = 310
+rythmPanel.height = 264
 
 --------------------------------------------------------------------------------
 -- Sequencer Options
@@ -365,57 +357,23 @@ end
 
 paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, nil, colours, 4, 18, 12)
 
-seqVelTable = rythmPanel:Table("Velocity", 8, 90, 1, 127, true)
-seqVelTable.tooltip = "Set the velocity pattern"
-seqVelTable.showPopupDisplay = true
-seqVelTable.fillStyle = "solid"
-seqVelTable.sliderColour = sliderColour
-seqVelTable.width = rythmPanel.width - 140
-seqVelTable.height = 42
-seqVelTable.x = 10
-seqVelTable.y = 210
-
-local velocityTableLength = rythmPanel:NumBox("VelocityTableLength", 8, 1, 64, true)
-velocityTableLength.displayName = "Vel Len"
-velocityTableLength.tooltip = "Length of velocity pattern table"
-velocityTableLength.width = 120
-velocityTableLength.height = 20
-velocityTableLength.x = seqVelTable.x + seqVelTable.width + 1
-velocityTableLength.y = seqVelTable.y
-velocityTableLength.backgroundColour = menuBackgroundColour
-velocityTableLength.textColour = menuTextColour
-velocityTableLength.changed = function(self)
-  seqVelTable.length = self.value
-end
-
-velocityRandomization = rythmPanel:NumBox("VelocityRandomization", 15, 0, 100, true)
-velocityRandomization.unit = Unit.Percent
-velocityRandomization.displayName = "Vel Rand"
-velocityRandomization.tooltip = "Amount of radomization applied to note velocity"
-velocityRandomization.width = velocityTableLength.width
-velocityRandomization.height = velocityTableLength.height
-velocityRandomization.x = velocityTableLength.x
-velocityRandomization.y = velocityTableLength.y + velocityTableLength.height + 1
-velocityRandomization.backgroundColour = menuBackgroundColour
-velocityRandomization.textColour = menuTextColour
-
 seqGateTable = rythmPanel:Table("Velocity", 8, 90, 0, 100, true)
 seqGateTable.unit = Unit.Percent
 seqGateTable.tooltip = "Set gate pattern. If a gate step is set to zero, that step is muted."
 seqGateTable.showPopupDisplay = true
 seqGateTable.fillStyle = "solid"
 seqGateTable.sliderColour = sliderColour
-seqGateTable.width = seqVelTable.width
-seqGateTable.height = seqVelTable.height
-seqGateTable.x = seqVelTable.x
-seqGateTable.y = seqVelTable.y + seqVelTable.height + 1
+seqGateTable.width = rythmPanel.width - 140
+seqGateTable.height = 45
+seqGateTable.x = 10
+seqGateTable.y = 210
 
 local gateTableLength = rythmPanel:NumBox("GateTableLength", 8, 1, 64, true)
 gateTableLength.displayName = "Gate Len"
 gateTableLength.tooltip = "Length of gate pattern table"
-gateTableLength.width = velocityTableLength.width
+gateTableLength.width = 120
 gateTableLength.height = seqGateTable.height / 2
-gateTableLength.x = velocityTableLength.x
+gateTableLength.x = seqGateTable.x + seqGateTable.width + 1
 gateTableLength.y = seqGateTable.y
 gateTableLength.backgroundColour = menuBackgroundColour
 gateTableLength.textColour = menuTextColour
