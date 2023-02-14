@@ -79,6 +79,10 @@ luaScripts=(
   generators/gridSequencer
   generators/motionSequencer
   generators/noteFragmentGenerator
+  modular/gridSequencerInput
+  modular/motionSequencerInput
+  modular/rythmicMotionsTrigger
+  modular/rythmicFragmentsTrigger
   modulators/bouncer
   modulators/modulationSequencer
   modulators/randomChange
@@ -101,6 +105,7 @@ luaScripts=(
   util/sieve
   util/velocityLimiter
   util/velocityRandomization
+  util/velocitySequencer
 )
 
 # TODO Fix scripts that use modseq include
@@ -115,7 +120,7 @@ for luaScript in "${luaScripts[@]}"; do
   echo "Compiling $input_file to $output_file"
 
   # NOTE: Set the correct includes for the script here
-  if [ $luaScript == 'generators/beatbox' ] || [ $luaScript == 'sequencers/fragmentSequencer' ]; then
+  if [ $luaScript == 'modular/rythmicFragmentsTrigger' ] || [ $luaScript == 'generators/beatbox' ] || [ $luaScript == 'sequencers/fragmentSequencer' ]; then
     includes=(common resolutions rythmicFragments)
   elif [ $luaScript == 'generators/drunkenSequencer' ] || [ $luaScript == 'generators/generativeStrategySequencer' ]; then
     includes=(common notes scales resolutions noteSelector rythmicFragments)
@@ -129,7 +134,11 @@ for luaScript in "${luaScripts[@]}"; do
     includes=(common notes scales resolutions subdivision)
   elif [ $luaScript == 'util/noteLimiter' ]; then
     includes=(common notes)
-  elif [ $luaScript == 'synths/tweaksynth' ] || [ $luaScript == 'sequencers/jumpingSequencer' ] || [ $luaScript == 'sequencers/polyphonicSequencer' ] || [ $luaScript == 'sequencers/stochasticDrumSequencer' ] || [ $luaScript == 'sequencers/stochasticSequencer' ] || [ $luaScript == 'util/randomGate' ] || [ $luaScript == 'modulators/bouncer' ] || [ $luaScript == 'modulators/randomChange' ] || [ $luaScript == 'effects/noteBouncer' ]; then
+  elif [ $luaScript == 'modular/gridSequencerInput' ]; then
+    includes=(common scales notes resolutions)
+  elif [ $luaScript == 'modular/motionSequencerInput' ]; then
+    includes=(common scales resolutions)
+  elif [ $luaScript == 'modular/rythmicMotionsTrigger' ] || [ $luaScript == 'synths/tweaksynth' ] || [ $luaScript == 'sequencers/jumpingSequencer' ] || [ $luaScript == 'sequencers/polyphonicSequencer' ] || [ $luaScript == 'sequencers/stochasticDrumSequencer' ] || [ $luaScript == 'sequencers/stochasticSequencer' ] || [ $luaScript == 'util/randomGate' ] || [ $luaScript == 'modulators/bouncer' ] || [ $luaScript == 'modulators/randomChange' ] || [ $luaScript == 'effects/noteBouncer' ]; then
     includes=(common resolutions)
   elif [ $luaScript == 'sequencers/midiControlSequencer' ] || [ $luaScript == 'modulators/modulationSequencer' ]; then
     includes=(common resolutions modseq)

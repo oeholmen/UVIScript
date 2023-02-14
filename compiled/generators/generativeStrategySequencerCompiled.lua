@@ -1292,8 +1292,13 @@ local function getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelector
     fragmentActive.displayName = "" .. i
     fragmentActive.tooltip = "Toggle fragment on/off"
     fragmentActive.size = {24,24}
-    fragmentActive.x = rythmLabel.x + offsetX
-    fragmentActive.y = rythmLabel.y + rythmLabel.height + offsetY
+    if type(rythmLabel) == "nil" then
+      fragmentActive.x = offsetX
+      fragmentActive.y = offsetY
+    else
+      fragmentActive.x = rythmLabel.x + offsetX
+      fragmentActive.y = rythmLabel.y + rythmLabel.height + offsetY
+    end
 
     local lockedForEvolve = rythmPanel:OnOffButton("LockedForEvolve" .. i, false)
     lockedForEvolve.backgroundColourOff = colours.backgroundColourOff

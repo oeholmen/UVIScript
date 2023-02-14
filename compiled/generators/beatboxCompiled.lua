@@ -973,8 +973,13 @@ local function getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelector
     fragmentActive.displayName = "" .. i
     fragmentActive.tooltip = "Toggle fragment on/off"
     fragmentActive.size = {24,24}
-    fragmentActive.x = rythmLabel.x + offsetX
-    fragmentActive.y = rythmLabel.y + rythmLabel.height + offsetY
+    if type(rythmLabel) == "nil" then
+      fragmentActive.x = offsetX
+      fragmentActive.y = offsetY
+    else
+      fragmentActive.x = rythmLabel.x + offsetX
+      fragmentActive.y = rythmLabel.y + rythmLabel.height + offsetY
+    end
 
     local lockedForEvolve = rythmPanel:OnOffButton("LockedForEvolve" .. i, false)
     lockedForEvolve.backgroundColourOff = colours.backgroundColourOff
@@ -2637,7 +2642,7 @@ function playVoices(partDuration)
         print("Play voice", voice)
         playingIndex[voice] = playIndex
         spawn(play, voice, playIndex, partDuration)
-        playIndex = playIndex + 1
+        playIndex = gem.inc(playIndex)
       end
     end
   end
@@ -2763,18 +2768,8 @@ function play(voice, uniqueId, partDuration)
 
     duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = rythmicFragments.getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount, getSources(voice))
 
-    if voice == 2 then
-      if isFragmentStart then
-        print("Fragment start!")
-      end
-      print("From rythmicFragments.getDuration: rest, duration, isRepeat", rest, duration, isRepeat)
-    end
-
     if type(duration) == "nil" or activeFragment.i == 0 or isNoteActive(voice) == false then
       -- Return voice to sequence runner
-      if voice == 2 then
-        print("BEFORE: Breaking loop for voice, isNoteActive(voice), duration", "voice " .. voice, isNoteActive(voice), duration)
-      end
       setSourceActive(voice)
       playingVoices[voice] = false
       break
@@ -2785,43 +2780,27 @@ function play(voice, uniqueId, partDuration)
 
     -- Check rest at start of downbeat
     if isDownBeat and rest == false and gem.getRandomBoolean(paramsPerNote[voice].restDownBeatProbability.value) then
-      if voice == 2 then
-        print("REST isDownBeat, voice", isDownBeat, voice)
-      end
       rest = true
     end
 
     -- Check rest at start of upbeat
     if isUpBeat and rest == false and gem.getRandomBoolean(paramsPerNote[voice].restUpBeatProbability.value) then
-      if voice == 2 then
-        print("REST isUpBeat, voice", isUpBeat, voice)
-      end
       rest = true
     end
 
     -- Check rest at start of fragment - only if fragment has more than one item
     if isFragmentStart and rest == false and (#activeFragment.f > 1 or (activeFragment.m > 1 and mustRepeat == false)) and gem.getRandomBoolean(paramsPerNote[voice].restFirstInFragmentProbability.value) then
-      if voice == 2 then
-        print("REST isFragmentStart, voice", isFragmentStart, voice)
-      end
       rest = true
     end
 
     if type(partDuration) == "number" and (playDuration + duration) > partDuration then
       duration = partDuration - playDuration -- Remaining
-      if voice == 2 then
-        print("duration changed to remaining", duration, "voice " .. voice)
-      end
     end
 
     -- Update total play duration
     playDuration = playDuration + duration
 
     local note = getNote(voice)
-    if voice == 2 then
-      print("playDuration", playDuration)
-      print("Playing note, rest, duration, playDuration, voice", note, rest, duration, playDuration, "voice " .. voice)
-    end
     local doPlayNote = rest == false and type(note) == "number"
     if doPlayNote then
       local velocity = velocityInput.value
@@ -2833,9 +2812,6 @@ function play(voice, uniqueId, partDuration)
       end
       if useAccent(voice, activeFragment, isFragmentStart, mustRepeat, isDownBeat, isUpBeat) then
         velocity = velocityAccent.value
-      end
-      if voice == 2 then
-        print("play: note, velocity, duration, isDownBeat", note, velocity, duration, isDownBeat, "voice " .. voice)
       end
       playNote(note, velocity, beat2ms(resolutions.getPlayDuration(duration)), nil, getChannel())
 

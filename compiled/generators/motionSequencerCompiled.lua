@@ -1043,8 +1043,13 @@ local function getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelector
     fragmentActive.displayName = "" .. i
     fragmentActive.tooltip = "Toggle fragment on/off"
     fragmentActive.size = {24,24}
-    fragmentActive.x = rythmLabel.x + offsetX
-    fragmentActive.y = rythmLabel.y + rythmLabel.height + offsetY
+    if type(rythmLabel) == "nil" then
+      fragmentActive.x = offsetX
+      fragmentActive.y = offsetY
+    else
+      fragmentActive.x = rythmLabel.x + offsetX
+      fragmentActive.y = rythmLabel.y + rythmLabel.height + offsetY
+    end
 
     local lockedForEvolve = rythmPanel:OnOffButton("LockedForEvolve" .. i, false)
     lockedForEvolve.backgroundColourOff = colours.backgroundColourOff
@@ -1343,10 +1348,7 @@ local widgetTextColour = "CFFFFE" -- Light
 local labelTextColour = widgetBackgroundColour
 local labelBackgoundColour = widgetTextColour
 local menuBackgroundColour = "01011F"
-local menuSelectedBackgroundColour = "052525"
 local menuTextColour = "#9f02ACFE"
-local noteSelectedTextColour = "green"
-local notePlayingTextColour = "yellow"
 local menuArrowColour = "66" .. labelTextColour
 local menuOutlineColour = "5f" .. widgetTextColour
 local knobFillColour = "E6D5B8" -- Light
@@ -1402,91 +1404,6 @@ local startMode = startModes[6]
 --------------------------------------------------------------------------------
 -- Sequencer Functions
 --------------------------------------------------------------------------------
-
-local function setScale()
-  local scaleDefinition = scaleDefinitions[scaleDefinitionIndex]
-  local oneOctScale = scales.createScale(scaleDefinition, 0, 12)
-  print("#oneOctScale", #oneOctScale)
-  -- TODO Check octave range / bipolar before setting the table range
-  local tableRange = #oneOctScale * octaveRange
-  print("tableRange", tableRange)
-  if bipolar then
-    pitchOffsetTable:setRange(-tableRange, tableRange)
-  else
-    pitchOffsetTable:setRange(0, tableRange)
-  end
-  local startNote = baseNote
-  if bipolar then
-    startNote = startNote - (octaveRange * 12)
-  end
-  local maxNote = baseNote + (octaveRange * 12) + 1
-  activeScale = scales.createScale(scaleDefinition, math.max(0, startNote), math.min(128, maxNote))
-  print("#activeScale, startNote, maxNote", #activeScale, startNote, maxNote)
-end
-
-local function move(i)
-  local middle = math.floor(pitchOffsetTableLength / 2)
-  local direction = 1
-  local value = pitchOffsetTable:getValue(i)
-  print("i, duration", i, duration)
-  while isPlaying do
-    local amount = i
-    if (i > middle and amountType == "Triangle") or amountType == "Ramp Down" then
-      amount = (pitchOffsetTableLength - i) + 1
-    elseif amountType == "Random" then
-      amount = gem.getRandom(pitchOffsetTableLength)
-    elseif amountType == "Zero" or (amountType == "Even" and i % 2 == 0) or (amountType == "Odd" and i % 2 > 0) then
-      amount = 0
-    end
-    local min = pitchOffsetTable.min
-    local max = pitchOffsetTable.max
-    local duration = moveSpeed + (amount * factor) -- TODO Param for operator?
-    pitchOffsetTable:setValue(i, value)
-    value = gem.inc(value, direction)
-    if value < min then
-      if true or gem.getRandomBoolean() then
-        value = min
-        direction = 1
-        --print("Change direction", direction)
-      else
-        value = max
-      end
-      --print("Reset value", value)
-    elseif value > max then
-      if true or gem.getRandomBoolean() then
-        value = max
-        direction = -1
-        --print("Change direction", direction)
-      else
-        value = min
-      end
-      --print("Reset value", value)
-    end
-    wait(duration)
-  end
-end
-
-local function getNote()
-  -- TODO Find pitch offset
-  --pitchOffsetPos = gem.getRandom(1, pitchOffsetTableLength)
-  print("pitchOffsetTable:getValue(pitchOffsetPos), pitchOffsetPos", pitchOffsetTable:getValue(pitchOffsetPos), pitchOffsetPos)
-  for i=1,pitchOffsetTableLength do
-    local val = 0
-    if i == pitchOffsetPos then
-      val = 1
-    end
-    positionTable:setValue(i, val)
-  end
-  local scalePos = pitchOffsetTable:getValue(pitchOffsetPos) + 1
-  if pitchOffsetTable.min < 0 then
-    scalePos = scalePos + math.abs(pitchOffsetTable.min)
-  end
-  print("#activeScale, scalePos", #activeScale, scalePos)
-  local note = activeScale[scalePos]
-  pitchOffsetPos = gem.inc(pitchOffsetPos, 1, pitchOffsetTableLength)
-  print("pitchOffsetPos", pitchOffsetPos)
-  return note
-end
 
 local function resetPitches()
   -- Reset position
@@ -1546,6 +1463,97 @@ local function resetPitches()
       pitchOffsetTable:setValue(i, 0)
     end
   end
+end
+
+local function setScale()
+  local scaleDefinition = scaleDefinitions[scaleDefinitionIndex]
+  local oneOctScale = scales.createScale(scaleDefinition, 0, 12)
+  print("#oneOctScale", #oneOctScale)
+  -- TODO Check octave range / bipolar before setting the table range
+  local tableRange = #oneOctScale * octaveRange
+  print("tableRange", tableRange)
+  if bipolar then
+    pitchOffsetTable:setRange(-tableRange, tableRange)
+  else
+    pitchOffsetTable:setRange(0, tableRange)
+  end
+  local startNote = baseNote
+  if bipolar then
+    startNote = startNote - (octaveRange * 12)
+  end
+  local maxNote = baseNote + (octaveRange * 12) + 1
+  activeScale = scales.createScale(scaleDefinition, math.max(0, startNote), math.min(128, maxNote))
+  print("#activeScale, startNote, maxNote", #activeScale, startNote, maxNote)
+  resetPitches()
+end
+
+local function move(i)
+  local middle = math.floor(pitchOffsetTableLength / 2)
+  local direction = 1 -- TODO Param for setting start direction?
+  local value = pitchOffsetTable:getValue(i)
+  print("i, duration", i, duration)
+  while isPlaying do
+    local amount = i - 1
+    if (i > middle and amountType == "Triangle") or amountType == "Ramp Down" then
+      amount = (pitchOffsetTableLength - i)-- + 1
+    elseif amountType == "Random" then
+      amount = gem.getRandom(pitchOffsetTableLength) - 1
+    elseif amountType == "Zero" or (amountType == "Even" and i % 2 == 0) or (amountType == "Odd" and i % 2 > 0) then
+      amount = 0
+    end
+    local min = pitchOffsetTable.min
+    local max = pitchOffsetTable.max
+    local duration = moveSpeed + (amount * factor) -- TODO Param for operator?
+    pitchOffsetTable:setValue(i, value)
+    value = gem.inc(value, direction)
+    if value < min then
+      if true or gem.getRandomBoolean() then
+        value = min
+        direction = 1
+        --print("Change direction", direction)
+      else
+        value = max
+      end
+      --print("Reset value", value)
+    elseif value > max then
+      if true or gem.getRandomBoolean() then
+        value = max
+        direction = -1
+        --print("Change direction", direction)
+      else
+        value = min
+      end
+      --print("Reset value", value)
+    end
+    local valueBeforeWait = pitchOffsetTable:getValue(i)
+    wait(duration)
+    -- If value has been manually changed during the wait, we continue from that value
+    if valueBeforeWait ~= pitchOffsetTable:getValue(i) then
+      value = pitchOffsetTable:getValue(i)
+    end
+  end
+end
+
+local function getNote()
+  -- TODO Find pitch offset
+  --pitchOffsetPos = gem.getRandom(1, pitchOffsetTableLength)
+  print("pitchOffsetTable:getValue(pitchOffsetPos), pitchOffsetPos", pitchOffsetTable:getValue(pitchOffsetPos), pitchOffsetPos)
+  for i=1,pitchOffsetTableLength do
+    local val = 0
+    if i == pitchOffsetPos then
+      val = 1
+    end
+    positionTable:setValue(i, val)
+  end
+  local scalePos = pitchOffsetTable:getValue(pitchOffsetPos) + 1
+  if pitchOffsetTable.min < 0 then
+    scalePos = scalePos + math.abs(pitchOffsetTable.min)
+  end
+  print("#activeScale, scalePos", #activeScale, scalePos)
+  local note = activeScale[scalePos]
+  pitchOffsetPos = gem.inc(pitchOffsetPos, 1, pitchOffsetTableLength)
+  print("pitchOffsetPos", pitchOffsetPos)
+  return note
 end
 
 local function sequenceRunner()
@@ -1872,7 +1880,7 @@ moveSpeedInput.changed = function(self)
   moveSpeed = self.value
 end
 
-local factorInput = notePanel:NumBox("Factor", factor, 0., 10., false)
+local factorInput = notePanel:NumBox("Factor", factor, 0., 30., false)
 factorInput.displayName = "Speed Factor"
 factorInput.tooltip = "Set the factor of slowdown or spedup per step"
 factorInput.backgroundColour = menuBackgroundColour

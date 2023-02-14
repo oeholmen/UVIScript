@@ -1,4 +1,4 @@
--- generators/drunkenSequencer -- 
+-- modular/rythmicFragmentsTrigger -- 
 --------------------------------------------------------------------------------
 -- Common methods
 --------------------------------------------------------------------------------
@@ -172,136 +172,6 @@ local gem = {
 }
 
 --------------------------------------------------------------------------------
--- Common functions for notes
---------------------------------------------------------------------------------
-
-local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
-
-local notes = {
-  getNoteNames = function()
-    return notenames
-  end,
-  
-  -- Used for mapping - does not include octave, only name of note (C, C#...)
-  getNoteMapping = function()
-    local noteNumberToNoteName = {}
-    local notenamePos = 1
-    for i=0,127 do
-      table.insert(noteNumberToNoteName, notenames[notenamePos])
-      notenamePos = notenamePos + 1
-      if notenamePos > #notenames then
-        notenamePos = 1
-      end
-    end
-    return noteNumberToNoteName
-  end,
-  
-  transpose = function(note, min, max)
-    --print("Check transpose", note)
-    if note < min then
-      print("note < min", note, min)
-      while note < min do
-        note = note + 12
-        print("transpose note up", note)
-      end
-    elseif note > max then
-      print("note > max", note, max)
-      while note > max do
-        note = note - 12
-        print("transpose note down", note)
-      end
-    end
-    return note
-  end,
-  
-  getSemitonesBetweenNotes = function(note1, note2)
-    return math.max(note1, note2) - math.min(note1, note1)
-  end,
-  
-  getNoteAccordingToScale = function(scale, noteToPlay)
-    for _,note in ipairs(scale) do
-      if note == noteToPlay then
-        return noteToPlay
-      elseif note > noteToPlay then
-        print("Change from noteToPlay to note", noteToPlay, note)
-        return note
-      end
-    end
-    return noteToPlay
-  end,
-}
-
---------------------------------------------------------------------------------
--- Common Scales
---------------------------------------------------------------------------------
-
--- Make sure these are in sync with the scale names
--- Scales are defined by distance to the next step
-local scaleDefinitions = {
-  {2,2,1,2,2,2,1}, -- Major (Ionian mode)
-  {2,1,2,2,1,2,2}, -- Minor (Aeolian mode)
-  {2,1,2,2,2,1,2}, -- Dorian mode
-  {1,2,2,2,1,2,2}, -- Phrygian mode
-  {2,2,2,1,2,2,1}, -- Lydian mode
-  {2,2,1,2,2,1,2}, -- Mixolydian mode
-  {1,2,2,1,2,2,2}, -- Locrian mode
-  {2,2,2,1,2,1,2}, -- Acoustic
-  {2,1,2,1,1,3,2}, -- Blues
-  {1,2,1,3,1,2,2}, -- Alterated
-  {2,2,3,2,3}, -- Major Pentatonic
-  {3,2,2,3,2}, -- Minor Pentatonic
-  {3}, -- Diminished
-  {2}, -- Whole tone scale
-  {1}, -- Chomatic
-}
-
-local scaleNames = {
-  "Major (Ionian)",
-  "Minor (Aeolian)",
-  "Dorian",
-  "Phrygian",
-  "Lydian",
-  "Mixolydian",
-  "Locrian",
-  "Acoustic",
-  "Blues",
-  "Alterated",
-  "Major Pentatonic",
-  "Minor Pentatonic",
-  "Diminished",
-  "Whole tone",
-  "Chomatic",
-}
-
-local scales = {
-  getScaleDefinitions = function()
-    return scaleDefinitions
-  end,
-
-  getScaleNames = function()
-    return scaleNames
-  end,
-
-  createScale = function(scaleDefinition, rootNote, maxNote)
-    if type(maxNote) ~= "number" then
-      maxNote = 128
-    end
-    local scale = {}
-    -- Find notes for scale
-    local pos = 1
-    while rootNote < maxNote do
-      table.insert(scale, rootNote)
-      rootNote = rootNote + scaleDefinition[pos]
-      pos = pos + 1
-      if pos > #scaleDefinition then
-        pos = 1
-      end
-    end
-    return scale
-  end
-}
-
---------------------------------------------------------------------------------
 -- Common Resolutions
 --------------------------------------------------------------------------------
 
@@ -472,195 +342,6 @@ local resolutions = {
     local maxResolution = resolutionValues[#resolutionValues]
     return math.max(maxResolution, duration * (gate / 100)) -- Never shorter than the system max resolution
   end  
-}
-
---------------------------------------------------------------------------------
--- Note and Scale Parameters
---------------------------------------------------------------------------------
-
-local octaves = 9
-local scaleDefinitions = scales.getScaleDefinitions()
-local scaleNames = scales.getScaleNames()
-local noteNames = notes.getNoteNames()
-
-notesPlaying = {}
-noteInputs = {}
-noteProbabilityInputs = {}
-octaveInputs = {}
-octaveProbabilityInputs = {}
-
---------------------------------------------------------------------------------
--- Functions
---------------------------------------------------------------------------------
-
-local function getScale(scaleIndex, keyIndex)
-  local scaleDefinition = scaleDefinitions[scaleIndex]
-  local rootNote = keyIndex - 1 -- Root note
-  return scales.createScale(scaleDefinition, rootNote)
-end
-
-local function setScale(scaleIndex, keyIndex)
-  local scale = getScale(scaleIndex, keyIndex)
-  for i,v in ipairs(noteInputs) do
-    local noteNumber = i + 11 -- Check note in octave above
-    v:setValue(gem.tableIncludes(scale, noteNumber))
-  end
-end
-
--- Get notes that are activated in selected octaves, filtered by probability
--- If getAllNotes is true, the filter for playing notes is disabled
-local function getSelectedNotes(getAllNotes)
-  local selectedNotes = {} -- Holds note numbers that are available
-  for octaveIndex,octave in ipairs(octaveInputs) do
-    local octaveProbability = octaveProbabilityInputs[octaveIndex].value
-    --print("octaveProbability octaveOnOff", octaveProbability, octave.value)
-    if octave.value and octaveProbability > 0 then
-      for i,v in ipairs(noteInputs) do
-        -- Check if note should be added for this octave
-        local noteProbability = noteProbabilityInputs[i].value
-        --print("noteProbability, octaveProbability, noteOnOff", noteProbability, octaveProbability, v.value)
-        if v.value and gem.getRandomBoolean(noteProbability) and gem.getRandomBoolean(octaveProbability) then
-          local noteNumber = i - 1 -- Base note
-          noteNumber = noteNumber + (12 * octaveIndex) -- Set octave
-          if getAllNotes == true or gem.tableIncludes(notesPlaying, noteNumber) == false then
-            table.insert(selectedNotes, noteNumber)
-            --print("Note added: noteNumber", noteNumber)
-          end
-        end
-      end
-    end
-  end
-  --print("#selectedNotes", #selectedNotes)
-  return selectedNotes
-end
-
--- Get all notes that are activated in all octaves (full scale)
-local function getActiveNotes()
-  local notes = {}
-  for octaveIndex=1, #octaveInputs do
-    for i,v in ipairs(noteInputs) do
-      if v.value then
-        local noteNumber = i - 1 -- Base note
-        noteNumber = noteNumber + (12 * octaveIndex) -- Set octave
-        table.insert(notes, noteNumber)
-      end
-    end
-  end
-  return notes
-end
-
-local function createNoteAndOctaveSelector(notePanel, colours, noteLabel)
-  local columnCount = 0
-  for i=1,#noteNames do
-    local note = notePanel:OnOffButton("Note" .. i, true)
-    note.backgroundColourOff = "#ff084486"
-    note.backgroundColourOn = "#ff02ACFE"
-    note.textColourOff = "#ff22FFFF"
-    note.textColourOn = "#efFFFFFF"
-    note.displayName = noteNames[i]
-    note.tooltip = "Toggle note on/off"
-    note.size = {51,30}
-    note.x = (columnCount * (note.width + 6.6)) + 5
-    note.y = noteLabel.y + noteLabel.height + 5
-  
-    local noteProbability = notePanel:NumBox("NoteProbability" .. i, 100, 0, 100, true)
-    noteProbability.unit = Unit.Percent
-    noteProbability.textColour = colours.widgetTextColour
-    noteProbability.backgroundColour = colours.widgetBackgroundColour
-    noteProbability.showLabel = false
-    noteProbability.tooltip = "Set the probability that '" .. noteNames[i] .. "' will be available when generating notes to play"
-    noteProbability.width = note.width
-    noteProbability.height = 22
-    noteProbability.x = note.x
-    noteProbability.y = note.y + note.height + 1
-  
-    table.insert(noteInputs, note)
-    table.insert(noteProbabilityInputs, noteProbability)
-  
-    columnCount = columnCount + 1
-  end
-  
-  columnCount = 0
-  
-  local rising = true
-  local numStepsUpDown = math.floor(octaves / 2)
-  local changePerStep = 100 / numStepsUpDown
-  local startValue = 0
-  for i=1,octaves do
-    local octave = notePanel:OnOffButton("Octave" .. i, (startValue > 50))
-    octave.backgroundColourOff = "#ff084486"
-    octave.backgroundColourOn = "#ff02ACFE"
-    octave.textColourOff = "#ff22FFFF"
-    octave.textColourOn = "#efFFFFFF"
-    octave.displayName = "Oct " .. i - 2
-    octave.tooltip = "Toggle octave on/off"
-    octave.width = (636 / octaves)
-    octave.height = 30
-    octave.x = (columnCount * (octave.width + 6.9)) + 5
-    octave.y = 90
-  
-    local octaveProbabilityInput = notePanel:NumBox("OctaveProbability" .. i, 100, 0, 100, true)
-    octaveProbabilityInput.unit = Unit.Percent
-    octaveProbabilityInput.textColour = colours.widgetTextColour
-    octaveProbabilityInput.backgroundColour = colours.widgetBackgroundColour
-    octaveProbabilityInput.showLabel = false
-    octaveProbabilityInput.tooltip = "Set the probability that octave " .. i - 2 .. " will be available when generating notes to play"
-    octaveProbabilityInput.width = octave.width
-    octaveProbabilityInput.height = 22
-    octaveProbabilityInput.x = octave.x
-    octaveProbabilityInput.y = octave.y + octave.height
-  
-    table.insert(octaveInputs, octave)
-    table.insert(octaveProbabilityInputs, octaveProbabilityInput)
-  
-    if rising then
-      startValue = startValue + changePerStep
-      if startValue >= 100 then
-        rising = false
-      end
-    else
-      startValue = startValue - changePerStep
-    end
-  
-    columnCount = columnCount + 1
-  end
-
-  local generateKey = notePanel:Menu("GenerateKey", noteNames)
-  generateKey.tooltip = "Set selected notes from key"
-  generateKey.showLabel = false
-  generateKey.backgroundColour = colours.menuBackgroundColour
-  generateKey.textColour = colours.widgetTextColour
-  generateKey.arrowColour = colours.menuArrowColour
-  generateKey.outlineColour = colours.menuOutlineColour
-  generateKey.size = {60,20}
-  generateKey.x = noteLabel.x + noteLabel.width + 10
-  generateKey.y = noteLabel.y
-
-  local generateScale = notePanel:Menu("GenerateScale", scaleNames)
-  generateScale.selected = #scaleNames
-  generateScale.tooltip = "Set selected notes from scale"
-  generateScale.showLabel = false
-  generateScale.backgroundColour = colours.menuBackgroundColour
-  generateScale.textColour = colours.widgetTextColour
-  generateScale.arrowColour = colours.menuArrowColour
-  generateScale.outlineColour = colours.menuOutlineColour
-  generateScale.size = {144,20}
-  generateScale.x = generateKey.x + generateKey.width + 10
-  generateScale.y = generateKey.y
-
-  generateKey.changed = function(self)
-    setScale(generateScale.value, self.value)
-  end
-
-  generateScale.changed = function(self)
-    setScale(self.value, generateKey.value)
-  end
-end
-
-local noteSelector = {
-  createNoteAndOctaveSelector = createNoteAndOctaveSelector,
-  getActiveNotes = getActiveNotes,
-  getSelectedNotes = getSelectedNotes,
 }
 
 --------------------------------------------------------------------------------
@@ -1584,21 +1265,24 @@ local rythmicFragments = {
 }
 
 --------------------------------------------------------------------------------
--- Drunken Sequencer
+-- Rythmic Fragments - Sends note events using note 0 as trigger
 --------------------------------------------------------------------------------
 
-local backgroundColour = "303030" -- Light or Dark
-local widgetBackgroundColour = "01011F" -- Dark
-local widgetTextColour = "66ff99" -- Light
-local labelTextColour = "black"
-local labelBackgoundColour = "white"
-local menuBackgroundColour = "01011F"
-local menuArrowColour = "66" .. labelTextColour
-local menuOutlineColour = "5f" .. widgetTextColour
-local backgroundColourOff = "ff084486"
-local backgroundColourOn = "ff02ACFE"
 local textColourOff = "ff22FFFF"
 local textColourOn = "efFFFFFF"
+local backgroundColourOff = "ff084486"
+local backgroundColourOn = "ff02ACFE"
+local backgroundColour = "202020" -- Light or Dark
+local widgetBackgroundColour = "black" -- Dark
+local widgetTextColour = "CFFFFE" -- Light
+local labelTextColour = widgetBackgroundColour
+local labelBackgoundColour = widgetTextColour
+local menuBackgroundColour = "01011F"
+local menuTextColour = "#9f02ACFE"
+local menuArrowColour = "66" .. labelTextColour
+local menuOutlineColour = "5f" .. widgetTextColour
+local knobFillColour = "E6D5B8" -- Light
+local sliderColour = "5FB5FF"
 
 local colours = {
   backgroundColour = backgroundColour,
@@ -1614,113 +1298,321 @@ local colours = {
   textColourOn = textColourOn,
 }
 
-local voices = 1
-local notesPlaying = {}
-local isPlaying = {}
+--setKeyColour(24, "FF0000")
+setBackgroundColour(backgroundColour)
+
+--------------------------------------------------------------------------------
+-- Variables
+--------------------------------------------------------------------------------
+
+local isPlaying = false
+local playIndex = 1
+local evolveFragmentProbability = 0
+local randomizeCurrentResolutionProbability = 0
+local adjustBias = 50
+local channel = 1
+local seqVelTable
+local velocityRandomization
+local seqGateTable
+local gateRandomization
+local numVoices = 1
+local playingVoices = {}
+local playingIndex = {}
+local roundCounterPerVoice = {}
+local beatBase = 4
+local beatResolution = 1
+local recallStoredState = nil -- Holds the index of the stored fragment state to recall
+local storedFragments = {} -- Holds stored fragment states
+local partOrder = {} -- Holds the playing order of the parts
+
+--------------------------------------------------------------------------------
+-- Sequencer Functions
+--------------------------------------------------------------------------------
+
+local function getVelocity(pos)
+  return seqVelTable:getValue(pos), gem.inc(pos, 1, seqVelTable.length)
+end
+
+local function randomizeVelocity(velocity)
+  return gem.randomizeValue(velocity, seqVelTable.min, seqVelTable.max, velocityRandomization.value)
+end
+
+local function randomizeGate(gate)
+  return gem.randomizeValue(gate, seqGateTable.min, seqGateTable.max, gateRandomization.value)
+end
+
+local function getGate(pos)
+  return seqGateTable:getValue(pos), gem.inc(pos, 1, seqGateTable.length)
+end
+
+local function initVoices()
+  playingVoices = {}
+  playingIndex = {}
+  roundCounterPerVoice = {}
+  rythmicFragments.clearResolutionsForEvolve()
+  for voice=1,numVoices do
+    table.insert(playingVoices, false) -- Init voices
+    table.insert(playingIndex, nil) -- Init index
+    table.insert(roundCounterPerVoice, 0) -- Init rounds
+  end
+  for _,v in ipairs(paramsPerFragment) do
+    v.fragmentActive.textColourOn = "black"
+  end
+  for _,v in ipairs(paramsPerFragment) do
+    v.fragmentInputDirty = false
+  end
+end
+
+local function play(voice, uniqueId, partDuration)
+  --print("voice, uniqueId, partDuration", voice, uniqueId, partDuration)
+  local playDuration = 0 -- Keep track of the played duration
+  local duration = nil
+  local isFragmentStart = false
+  local isRepeat = false
+  local mustRepeat = false
+  local rest = false
+  local activeFragment = nil
+  local fragmentPos = 0
+  local fragmentRepeatProbability = 0
+  local reverseFragment = false
+  local fragmentRepeatCount = 0
+  local velocityPos = 1
+  local velocity = seqVelTable:getValue(velocityPos)
+  local gatePos = 1
+  local gate = seqGateTable:getValue(gatePos)
+  -- Start loop
+  while playingIndex[voice] == uniqueId do
+    roundCounterPerVoice[voice] = roundCounterPerVoice[voice] + 1
+
+    velocity, velocityPos = getVelocity(velocityPos)
+    gate, gatePos = getGate(gatePos)
+    duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = rythmicFragments.getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
+
+    if type(duration) == "nil" or activeFragment.i == 0 then-- or isNoteActive(voice) == false then
+      -- Return voice to sequence runner
+      playingVoices[voice] = false
+      break
+    end
+
+    if type(partDuration) == "number" and (playDuration + duration) > partDuration then
+      duration = partDuration - playDuration -- Remaining
+    end
+
+    -- Update total play duration
+    playDuration = playDuration + duration
+
+    local remainingDuration = duration
+    if rest == false and gate > 0 then
+      local noteDuration = resolutions.getPlayDuration(duration, randomizeGate(gate))
+      remainingDuration = duration - noteDuration
+      local id = playNote(0, randomizeVelocity(velocity), -1, nil, (voice + channel - 1))
+      --print("Play velocity/gate/duration", velocity, gate, noteDuration)
+      waitBeat(noteDuration)
+      releaseVoice(id)
+      if type(activeFragment) == "table" then
+        for i,v in ipairs(paramsPerFragment) do
+          if activeFragment.i == i then
+            spawn(rythmicFragments.flashFragmentActive, v.fragmentActive, duration)
+          end
+        end
+      end
+    end
+
+    if type(partDuration) == "number" and playDuration == partDuration then
+      print("playDuration == partDuration", playDuration, "voice " .. voice)
+      playingVoices[voice] = false -- Break loop
+      break
+    end
+
+    if activeFragment.i > 0 and paramsPerFragment[activeFragment.i].fragmentInputDirty then
+      paramsPerFragment[activeFragment.i].fragmentInputDirty = false
+      playingVoices[voice] = false -- Restart voice next bar to reload fragment input
+      print("fragmentInputDirty", "voice " .. voice)
+    end
+
+    if remainingDuration > 0 then
+      waitBeat(remainingDuration)
+    end
+  end
+end
+
+local function playVoices(partDuration)
+  for voice=1,numVoices do
+    if playingVoices[voice] == false then
+      playingVoices[voice] = true--isNoteActive(voice)
+      if playingVoices[voice] then
+        print("Play voice", voice)
+        playingIndex[voice] = playIndex
+        spawn(play, voice, playIndex, partDuration)
+        playIndex = playIndex + 1
+      end
+    end
+  end
+end
+
+local function sequenceRunner()
+  local previous = nil -- Previous resolution when using evolve
+  local partOrderPos = 1 -- Position in the part order
+  local partOrderRepeatCounter = 0 -- Counter for part repeats
+  local slotIndex = nil -- The currently selected slot
+  local remainingDuration = 0
+  local partDuration = nil -- When using part order, this is the duration of the parts with repeats
+  local partInfo = nil
+  local startEvolve = false -- Can be set by part order
+  local beatCounter = 1 -- Holds the beat count
+  playIndex = 1 -- Reset play index
+  isPlaying = true
+  initVoices()
+  while isPlaying do
+    print("Playing beat", beatCounter)
+    if beatCounter == 1 then
+      --[[ if partOrderButton.value and #partOrder > 0 then
+        if partOrderRepeatCounter == 0 then
+          -- Start new part
+          partInfo = partOrder[partOrderPos]
+          slotIndex = partInfo.part
+          partOrderRepeatCounter = partInfo.repeats
+          startEvolve = partInfo.evolve
+          --print("startEvolve, slotIndex, partOrderPos", startEvolve, slotIndex, partOrderPos)
+          partDuration = partOrderRepeatCounter * beatBase * beatResolution
+          remainingDuration = partDuration
+          -- If slot is already selected, deactivate so we can select it again
+          if slotIndex > 0 then
+            if fragmentSlots[slotIndex].value == true then
+              fragmentSlots[slotIndex]:setValue(false)
+            end
+            fragmentSlots[slotIndex]:setValue(true)
+          end
+          -- Increment part order position
+          partOrderPos = gem.inc(partOrderPos, 1, #partOrder)
+        end
+
+        partOrderRepeatCounter = partOrderRepeatCounter - 1 -- Decrement repeat counter
+        --print("Decrementing partOrderRepeatCounter", partOrderRepeatCounter)
+      end ]]
+
+      --[[ if type(recallStoredState) == "number" then
+        --initVoices()
+        recall()
+        evolveButton:setValue(startEvolve)
+      end ]]
+
+      --print("beatCounter, remainingDuration, partDuration", beatCounter, remainingDuration, partDuration)
+      if type(partDuration) == "nil" or remainingDuration == partDuration or remainingDuration == 0 then
+        playVoices(partDuration)
+      end
+    end
+
+    waitBeat(beatResolution)
+
+    if remainingDuration > 0 then
+      remainingDuration = remainingDuration - beatResolution
+      --print("SequenceRunner remainingDuration", remainingDuration)
+    end
+
+    beatCounter = gem.inc(beatCounter) -- Increment counter
+    if beatCounter > beatBase then
+      beatCounter = 1 -- Reset counter
+      --[[ if evolveButton.value and gem.getRandomBoolean(evolveFragmentProbability.value) then
+        previous = rythmicFragments.evolveFragments(previous, randomizeCurrentResolutionProbability.value, adjustBias.value)
+      end ]]
+    end
+  end
+end
+
+local function startPlaying()
+  if isPlaying then
+    return
+  end
+  run(sequenceRunner)
+end
+
+local function stopPlaying()
+  if isPlaying == false then
+    return
+  end
+  isPlaying = false
+  initVoices()
+end
 
 --------------------------------------------------------------------------------
 -- Panel Definitions
 --------------------------------------------------------------------------------
 
-setBackgroundColour(backgroundColour)
-
-local sequencerPanel = Panel("Sequencer")
+local sequencerPanel = Panel("MotionSequencer")
 sequencerPanel.backgroundColour = backgroundColour
-sequencerPanel.x = 10
-sequencerPanel.y = 10
-sequencerPanel.width = 700
+sequencerPanel.x = 0
+sequencerPanel.y = 0
+sequencerPanel.width = 720
 sequencerPanel.height = 30
-
-local settingsPanel = Panel("Settings")
-settingsPanel.backgroundColour = "404040"
-settingsPanel.x = sequencerPanel.x
-settingsPanel.y = sequencerPanel.y + sequencerPanel.height + 5
-settingsPanel.width = 700
-settingsPanel.height = 85
-
-local notePanel = Panel("Notes")
-notePanel.backgroundColour = "404040"
-notePanel.x = settingsPanel.x
-notePanel.y = settingsPanel.y + settingsPanel.height + 5
-notePanel.width = 700
-notePanel.height = 150
 
 local rythmPanel = Panel("Rythm")
 rythmPanel.backgroundColour = "404040"
-rythmPanel.x = notePanel.x
-rythmPanel.y = notePanel.y + notePanel.height + 5
-rythmPanel.width = 700
-rythmPanel.height = 215
+rythmPanel.x = sequencerPanel.x
+rythmPanel.y = sequencerPanel.y + sequencerPanel.height + 0
+rythmPanel.width = sequencerPanel.width
+rythmPanel.height = 310
 
 --------------------------------------------------------------------------------
--- Sequencer Panel
+-- Sequencer Options
 --------------------------------------------------------------------------------
 
 local sequencerLabel = sequencerPanel:Label("Label")
-sequencerLabel.text = "Drunken Sequencer"
+sequencerLabel.text = "Rythmic Fragments Trigger"
+sequencerLabel.tooltip = "A sequencer that triggers rythmic pulses (using note 0) that note inputs can listen to"
 sequencerLabel.alpha = 0.5
 sequencerLabel.backgroundColour = labelBackgoundColour
 sequencerLabel.textColour = labelTextColour
 sequencerLabel.fontSize = 22
-sequencerLabel.width = 170
-sequencerLabel.x = 0
+sequencerLabel.position = {0,0}
+sequencerLabel.size = {sequencerPanel.width,30}
 
-meter = sequencerPanel:AudioMeter("OutputLevel", Part, false, 0, true)
-meter.height = sequencerLabel.height
-meter.width = sequencerLabel.width
-meter.x = sequencerLabel.x + sequencerLabel.width + 15
-meter.y = sequencerLabel.y
-meter["0dBColour"] = "red"
-meter["3dBColour"] = "orange"
-meter["6dBColour"] = "yellow"
-meter["10dBColour"] = "green"
+local numVoicesInput = sequencerPanel:NumBox("NumVoices", numVoices, 1, 16, true)
+numVoicesInput.displayName = "Voices"
+numVoicesInput.tooltip = "Number of voices"
+numVoicesInput.size = {90,22}
+numVoicesInput.x = sequencerPanel.width - (numVoicesInput.width * 4) - 42
+numVoicesInput.y = 5
+numVoicesInput.backgroundColour = menuBackgroundColour
+numVoicesInput.textColour = menuTextColour
+numVoicesInput.changed = function(self)
+  numVoices = self.value
+  initVoices()
+end
 
-local channelOffset = sequencerPanel:NumBox("ChannelOffset", 1, 1, 16, true)
-channelOffset.textColour = widgetTextColour
-channelOffset.backgroundColour = widgetBackgroundColour
-channelOffset.enabled = false
-channelOffset.showLabel = false
-channelOffset.displayName = "Offset"
-channelOffset.tooltip = "When multichannel is enabled, each voice is assigned to separate channels starting from this channel"
-channelOffset.size = {22,22}
-channelOffset.x = sequencerPanel.width - 337
-channelOffset.y = 5
-
-local channelButton = sequencerPanel:OnOffButton("ChannelButton", false)
-channelButton.backgroundColourOff = "#ff084486"
-channelButton.backgroundColourOn = "#ff02ACFE"
-channelButton.textColourOff = "#ff22FFFF"
-channelButton.textColourOn = "#efFFFFFF"
-channelButton.displayName = "Multichannel"
-channelButton.tooltip = "When multichannel mode is enabled, each voice is sent to a separate channel"
-channelButton.size = {100,22}
-channelButton.x = channelOffset.x + channelOffset.width + 5
-channelButton.y = channelOffset.y
-channelButton.changed = function(self)
-  channelOffset.enabled = self.value
+local channelInput = sequencerPanel:NumBox("Channel", channel, 1, 16, true)
+channelInput.displayName = "Channel"
+channelInput.tooltip = "Send note events starting on this channel"
+channelInput.size = numVoicesInput.size
+channelInput.x = numVoicesInput.x + numVoicesInput.width + 5
+channelInput.y = numVoicesInput.y
+channelInput.backgroundColour = menuBackgroundColour
+channelInput.textColour = menuTextColour
+channelInput.changed = function(self)
+  channel = self.value
 end
 
 local autoplayButton = sequencerPanel:OnOffButton("AutoPlay", true)
-autoplayButton.backgroundColourOff = "#ff084486"
-autoplayButton.backgroundColourOn = "#ff02ACFE"
-autoplayButton.textColourOff = "#ff22FFFF"
-autoplayButton.textColourOn = "#efFFFFFF"
+autoplayButton.backgroundColourOff = backgroundColourOff
+autoplayButton.backgroundColourOn = backgroundColourOn
+autoplayButton.textColourOff = textColourOff
+autoplayButton.textColourOn = textColourOn
 autoplayButton.displayName = "Auto Play"
 autoplayButton.tooltip = "Play automatically on transport"
-autoplayButton.size = channelButton.size
-autoplayButton.x = channelButton.x + channelButton.width + 5
-autoplayButton.y = channelButton.y
+autoplayButton.size = {100,22}
+autoplayButton.x = channelInput.x + channelInput.width + 5
+autoplayButton.y = channelInput.y
 
 local playButton = sequencerPanel:OnOffButton("Play", false)
 playButton.persistent = false
-playButton.backgroundColourOff = "#ff084486"
-playButton.backgroundColourOn = "#ff02ACFE"
-playButton.textColourOff = "#ff22FFFF"
-playButton.textColourOn = "#efFFFFFF"
+playButton.backgroundColourOff = backgroundColourOff
+playButton.backgroundColourOn = backgroundColourOn
+playButton.textColourOff = textColourOff
+playButton.textColourOn = textColourOn
 playButton.displayName = "Play"
 playButton.size = autoplayButton.size
 playButton.x = autoplayButton.x + autoplayButton.width + 5
-playButton.y = channelButton.y
+playButton.y = autoplayButton.y
 playButton.changed = function(self)
   if self.value == true then
     startPlaying()
@@ -1730,313 +1622,82 @@ playButton.changed = function(self)
 end
 
 --------------------------------------------------------------------------------
--- Settings Panel
---------------------------------------------------------------------------------
-
-local settingsLabel = settingsPanel:Label("SettingsLabel")
-settingsLabel.text = "Settings"
-settingsLabel.alpha = 0.75
-settingsLabel.fontSize = 15
-settingsLabel.width = 350
-
---- First row ---
-
-local noteRandomization = settingsPanel:NumBox("NoteRandomization", 25, 0, 100, true)
-noteRandomization.unit = Unit.Percent
-noteRandomization.textColour = widgetTextColour
-noteRandomization.backgroundColour = widgetBackgroundColour
-noteRandomization.displayName = "Note Movement"
-noteRandomization.tooltip = "Random note movement amount - a small amount gives small steps between notes"
-noteRandomization.size = {163,20}
-noteRandomization.x = 5
-noteRandomization.y = settingsLabel.y + settingsLabel.height + 5
-
-local noteDirection = settingsPanel:NumBox("NoteDirection", 50, 0, 100, true)
-noteDirection.unit = Unit.Percent
-noteDirection.textColour = widgetTextColour
-noteDirection.backgroundColour = widgetBackgroundColour
-noteDirection.displayName = "Direction"
-noteDirection.tooltip = "Affect the random note movement by specifying the probability of direction. <50% = more down, >50% = more up, 50% = equal chance"
-noteDirection.size = noteRandomization.size
-noteDirection.x = noteRandomization.x + noteRandomization.width + 10
-noteDirection.y = noteRandomization.y
-
-local randomReset = settingsPanel:OnOffButton("RandomReset", true)
-randomReset.enabled = false
-randomReset.backgroundColourOff = "#ff084486"
-randomReset.backgroundColourOn = "#ff02ACFE"
-randomReset.textColourOff = "#ff22FFFF"
-randomReset.textColourOn = "#efFFFFFF"
-randomReset.displayName = "Random Reset"
-randomReset.tooltip = "When direction is biased (above or below 50%), use random reset to start from a random note when highest or lowest note is reached"
-randomReset.size = noteDirection.size
-randomReset.x = noteDirection.x + noteDirection.width + 10
-randomReset.y = noteDirection.y
-
-local voicesInput = settingsPanel:NumBox("Voices", voices, 1, 4, true)
-voicesInput.textColour = widgetTextColour
-voicesInput.backgroundColour = widgetBackgroundColour
-voicesInput.displayName = "Voices"
-voicesInput.tooltip = "Number of voices playing"
-voicesInput.size = noteDirection.size
-voicesInput.x = randomReset.x + randomReset.width + 10
-voicesInput.y = randomReset.y
-voicesInput.changed = function(self)
-  voices = self.value
-end
-
-noteDirection.changed = function(self)
-  randomReset.enabled = self.value ~= 50
-end
-
---- Second row ---
-
-local gateInput = settingsPanel:NumBox("Gate", 90, 0, 100, true)
-gateInput.unit = Unit.Percent
-gateInput.textColour = widgetTextColour
-gateInput.backgroundColour = widgetBackgroundColour
-gateInput.displayName = "Gate"
-gateInput.tooltip = "Default gate"
-gateInput.size = noteDirection.size
-gateInput.x = noteRandomization.x
-gateInput.y = noteDirection.y + noteDirection.height + 5
-
-local gateRandomization = settingsPanel:NumBox("GateRandomization", 25, 0, 100, true)
-gateRandomization.unit = Unit.Percent
-gateRandomization.textColour = widgetTextColour
-gateRandomization.backgroundColour = widgetBackgroundColour
-gateRandomization.displayName = "Gate Rand"
-gateRandomization.tooltip = "Gate randomization amount"
-gateRandomization.size = gateInput.size
-gateRandomization.x = gateInput.x + gateInput.width + 10
-gateRandomization.y = gateInput.y
-
-local velocityInput = settingsPanel:NumBox("Velocity", 64, 1, 127, true)
-velocityInput.textColour = widgetTextColour
-velocityInput.backgroundColour = widgetBackgroundColour
-velocityInput.displayName = "Velocity"
-velocityInput.tooltip = "Default velocity"
-velocityInput.size = gateRandomization.size
-velocityInput.x = gateRandomization.x + gateRandomization.width + 10
-velocityInput.y = gateInput.y
-
-local velocityAccent = settingsPanel:NumBox("VelocityAccent", 64, 1, 127, true)
-velocityAccent.textColour = widgetTextColour
-velocityAccent.backgroundColour = widgetBackgroundColour
-velocityAccent.displayName = "Accent"
-velocityAccent.tooltip = "Velocity accent amount triggered at the start of a fragment"
-velocityAccent.size = velocityInput.size
-velocityAccent.x = velocityInput.x + velocityInput.width + 10
-velocityAccent.y = velocityInput.y
-
---------------------------------------------------------------------------------
--- Notes Panel
---------------------------------------------------------------------------------
-
-local noteLabel = notePanel:Label("NotesLabel")
-noteLabel.text = "Notes"
-noteLabel.tooltip = "Set the probability that notes will be included when generating new notes"
-noteLabel.alpha = 0.75
-noteLabel.fontSize = 15
-noteLabel.width = 50
-
-local clearNotes = notePanel:Button("ClearNotes")
-clearNotes.displayName = "Clear notes"
-clearNotes.tooltip = "Deselect all notes"
-clearNotes.persistent = false
-clearNotes.height = noteLabel.height
-clearNotes.width = 90
-clearNotes.x = notePanel.width - (clearNotes.width * 3) - 30
-clearNotes.y = 5
-clearNotes.changed = function()
-  for _,v in ipairs(noteInputs) do
-    v:setValue(false)
-  end
-end
-
-local addNotes = notePanel:Button("AddNotes")
-addNotes.displayName = "All notes"
-addNotes.tooltip = "Select all notes"
-addNotes.persistent = false
-addNotes.height = noteLabel.height
-addNotes.width = 90
-addNotes.x = clearNotes.x + clearNotes.width + 10
-addNotes.y = 5
-addNotes.changed = function()
-  for _,v in ipairs(noteInputs) do
-    v:setValue(true)
-  end
-end
-
-local randomizeNotes = notePanel:Button("RandomizeNotes")
-randomizeNotes.displayName = "Randomize notes"
-randomizeNotes.tooltip = "Randomize all notes"
-randomizeNotes.persistent = false
-randomizeNotes.height = noteLabel.height
-randomizeNotes.width = 90
-randomizeNotes.x = addNotes.x + addNotes.width + 10
-randomizeNotes.y = 5
-randomizeNotes.changed = function()
-  for _,v in ipairs(noteInputs) do
-    v:setValue(gem.getRandomBoolean())
-  end
-end
-
-noteSelector.createNoteAndOctaveSelector(notePanel, colours, noteLabel)
-
---------------------------------------------------------------------------------
 -- Rythm Panel
 --------------------------------------------------------------------------------
 
-local rythmLabel = rythmPanel:Label("RythmLabel")
-rythmLabel.text = "Rythmic fragments"
-rythmLabel.alpha = 0.75
-rythmLabel.fontSize = 15
-rythmLabel.width = 153
+paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, nil, colours, 4, 18, 12)
 
-paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, rythmLabel, colours)
+seqVelTable = rythmPanel:Table("Velocity", 8, 90, 1, 127, true)
+seqVelTable.tooltip = "Set the velocity pattern"
+seqVelTable.showPopupDisplay = true
+seqVelTable.fillStyle = "solid"
+seqVelTable.sliderColour = sliderColour
+seqVelTable.width = rythmPanel.width - 140
+seqVelTable.height = 42
+seqVelTable.x = 10
+seqVelTable.y = 210
+
+local velocityTableLength = rythmPanel:NumBox("VelocityTableLength", 8, 1, 64, true)
+velocityTableLength.displayName = "Vel Len"
+velocityTableLength.tooltip = "Length of velocity pattern table"
+velocityTableLength.width = 120
+velocityTableLength.height = 20
+velocityTableLength.x = seqVelTable.x + seqVelTable.width + 1
+velocityTableLength.y = seqVelTable.y
+velocityTableLength.backgroundColour = menuBackgroundColour
+velocityTableLength.textColour = menuTextColour
+velocityTableLength.changed = function(self)
+  seqVelTable.length = self.value
+end
+
+velocityRandomization = rythmPanel:NumBox("VelocityRandomization", 15, 0, 100, true)
+velocityRandomization.unit = Unit.Percent
+velocityRandomization.displayName = "Vel Rand"
+velocityRandomization.tooltip = "Amount of radomization applied to note velocity"
+velocityRandomization.width = velocityTableLength.width
+velocityRandomization.height = velocityTableLength.height
+velocityRandomization.x = velocityTableLength.x
+velocityRandomization.y = velocityTableLength.y + velocityTableLength.height + 1
+velocityRandomization.backgroundColour = menuBackgroundColour
+velocityRandomization.textColour = menuTextColour
+
+seqGateTable = rythmPanel:Table("Velocity", 8, 90, 0, 100, true)
+seqGateTable.unit = Unit.Percent
+seqGateTable.tooltip = "Set gate pattern. If a gate step is set to zero, that step is muted."
+seqGateTable.showPopupDisplay = true
+seqGateTable.fillStyle = "solid"
+seqGateTable.sliderColour = sliderColour
+seqGateTable.width = seqVelTable.width
+seqGateTable.height = seqVelTable.height
+seqGateTable.x = seqVelTable.x
+seqGateTable.y = seqVelTable.y + seqVelTable.height + 1
+
+local gateTableLength = rythmPanel:NumBox("GateTableLength", 8, 1, 64, true)
+gateTableLength.displayName = "Gate Len"
+gateTableLength.tooltip = "Length of gate pattern table"
+gateTableLength.width = velocityTableLength.width
+gateTableLength.height = seqGateTable.height / 2
+gateTableLength.x = velocityTableLength.x
+gateTableLength.y = seqGateTable.y
+gateTableLength.backgroundColour = menuBackgroundColour
+gateTableLength.textColour = menuTextColour
+gateTableLength.changed = function(self)
+  seqGateTable.length = self.value
+end
+
+gateRandomization = rythmPanel:NumBox("GateRandomization", 15, 0, 100, true)
+gateRandomization.unit = Unit.Percent
+gateRandomization.displayName = "Gate Rand"
+gateRandomization.tooltip = "Amount of radomization applied to note gate"
+gateRandomization.backgroundColour = menuBackgroundColour
+gateRandomization.textColour = menuTextColour
+gateRandomization.width = gateTableLength.width
+gateRandomization.height = gateTableLength.height
+gateRandomization.x = gateTableLength.x
+gateRandomization.y = gateTableLength.y + gateTableLength.height + 1
 
 --------------------------------------------------------------------------------
--- Functions
---------------------------------------------------------------------------------
-
-function generateNote(currentNote)
-  local selectedNotes = noteSelector.getSelectedNotes() -- Holds note numbers that are available
-
-  if #selectedNotes == 0 then
-    return nil
-  end
-
-  if #selectedNotes == 1 then
-    return selectedNotes[1]
-  end
-
-  local noteIndex = 1
-  local currentIndex = gem.getIndexFromValue(currentNote, selectedNotes)
-
-  if type(currentNote) == "nil" or type(currentIndex) == "nil" then
-    noteIndex = gem.getRandom(#selectedNotes)
-    --print("Get random note index", noteIndex)
-  else
-    local noteDirectionProbability = noteDirection.value
-    local goUp = gem.getRandomBoolean(noteDirectionProbability)
-    local resetFull = randomReset.value == false
-    if noteDirectionProbability == 50 then
-      -- Equal up/down
-      noteIndex = gem.randomizeValue(currentIndex, 1, #selectedNotes, noteRandomization.value)
-      --print("Equal up/down noteIndex/currentIndex", noteIndex, currentIndex)
-    elseif goUp and (currentIndex < #selectedNotes or resetFull) then
-      if currentIndex == #selectedNotes then
-        noteIndex = 1 -- Reset to lowest index
-      else
-        noteIndex = gem.randomizeValue(currentIndex, currentIndex, #selectedNotes, noteRandomization.value)
-      end
-      print("Up noteIndex/currentIndex", noteIndex, currentIndex)
-    elseif currentIndex > 1 or resetFull then
-      if currentIndex == 1 then
-        noteIndex = #selectedNotes -- Reset to max index
-      else
-        noteIndex = gem.randomizeValue(currentIndex, 1, currentIndex, noteRandomization.value)
-      end
-      print("Down noteIndex/currentIndex", noteIndex, currentIndex)
-    else
-      noteIndex = gem.getRandom(#selectedNotes)
-      print("Random note index", noteIndex)
-    end
-  end
-
-  return selectedNotes[noteIndex]
-end
-
-function getGate()
-  return gem.randomizeValue(gateInput.value, gateInput.min, gateInput.max, gateRandomization.value)
-end
-
-function startPlaying()
-  if #isPlaying > 1 then
-    return
-  end
-  run(sequenceRunner)
-end
-
-function stopPlaying()
-  if #isPlaying == 0 then
-    return
-  end
-  isPlaying = {}
-  notesPlaying = {}
-  for _,v in ipairs(paramsPerFragment) do
-    v.fragmentActive.textColourOn = "black"
-  end
-end
-
---------------------------------------------------------------------------------
--- Sequencer
---------------------------------------------------------------------------------
-
-function sequenceRunner()
-  --local previous = nil
-  local currentVoices = 0
-  repeat
-    if currentVoices ~= voices then
-      isPlaying = {}
-      for i=1,voices do
-        table.insert(isPlaying, i)
-        if i > currentVoices then
-          spawn(play, i)
-        end
-      end
-      currentVoices = #isPlaying
-    end
-    local baseDuration = 4
-    waitBeat(baseDuration)
-  until #isPlaying == 0
-end
-
-function play(voice)
-  local note = nil
-  local activeFragment = nil -- The fragment currently playing
-  local fragmentPos = 0 -- Position in the active fragment
-  local fragmentRepeatCount = 0
-  local fragmentRepeatProbability = 0
-  local duration = nil
-  local rest = false
-  local reverseFragment = false
-  while isPlaying[voice] == voice do
-    local channel = nil
-    if channelButton.value then
-      channel = voice + channelOffset.value - 1
-    end
-    note = generateNote(note)
-    duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = rythmicFragments.getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
-    local doPlayNote = rest == false and type(note) == "number" and type(duration) == "number"
-    if doPlayNote then
-      local gate = getGate()
-      local velocity = velocityInput.value
-      -- Use accent value in fragment start, if there is more than one resolution defined in the fragment
-      if isFragmentStart and #activeFragment.f > 1 then
-        velocity = velocityAccent.value
-      end
-      playNote(note, velocity, beat2ms(resolutions.getPlayDuration(duration, gate)), nil, channel)
-      table.insert(notesPlaying, note) -- Register
-      for i,v in ipairs(paramsPerFragment) do
-        if activeFragment.i == i then
-          spawn(rythmicFragments.flashFragmentActive, v.fragmentActive, duration)
-        end
-      end
-    end
-    if type(duration) == "nil" then
-      duration = 1 -- Failsafe
-    end
-    waitBeat(duration)
-    if doPlayNote then
-      table.remove(notesPlaying, gem.getIndexFromValue(note, notesPlaying)) -- Remove
-    end
-  end
-end
-
---------------------------------------------------------------------------------
--- Handle note events
+-- Handle events
 --------------------------------------------------------------------------------
 
 function onNote(e)

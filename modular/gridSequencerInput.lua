@@ -1,12 +1,11 @@
 --------------------------------------------------------------------------------
--- Grid Sequencer
+-- Grid Sequencer - Listens for incoming note events (rythm) on note number 0
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
 local scales = require "includes.scales"
 local notes = require "includes.notes"
 local resolutions = require "includes.resolutions"
-local rythmicFragments = require "includes.rythmicFragments"
 
 local textColourOff = "ff22FFFF"
 local textColourOn = "efFFFFFF"
@@ -25,21 +24,6 @@ local notePlayingTextColour = "yellow"
 local menuArrowColour = "66" .. labelTextColour
 local menuOutlineColour = "5f" .. widgetTextColour
 local knobFillColour = "E6D5B8" -- Light
-local sliderColour = "5FB5FF"
-
-local colours = {
-  backgroundColour = backgroundColour,
-  widgetBackgroundColour = widgetBackgroundColour,
-  widgetTextColour = widgetTextColour,
-  labelTextColour = labelTextColour,
-  menuBackgroundColour = menuBackgroundColour,
-  menuArrowColour = menuArrowColour,
-  menuOutlineColour = menuOutlineColour,
-  backgroundColourOff = backgroundColourOff,
-  backgroundColourOn = backgroundColourOn,
-  textColourOff = textColourOff,
-  textColourOn = textColourOn,
-}
 
 setBackgroundColour(backgroundColour)
 
@@ -48,9 +32,6 @@ setBackgroundColour(backgroundColour)
 --------------------------------------------------------------------------------
 
 local playModes = {"->", "<-", "-><-", "<-->", "Follow ->", "Follow <-"}
-local isPlaying = false
-local sequencerResolution = 0.25 -- Fallback value
-local paramsPerFragment = {} -- Holds the rythmic fragments
 local scaleIncrementDefinition = {} -- Holds the increment definition for scales
 local degreeDefinition = {} -- Holds the definition for degrees on the y-axis
 local noteInputs = {} -- Holds the note inputs
@@ -60,19 +41,13 @@ local xAxis = 1 -- Hold the index for the x axis in the gridXY table
 local yAxis = 2 -- Hold the index for the y axis in the gridXY table
 local scalesNames = scales.getScaleNames()
 local scaleDefinitions = scales.getScaleDefinitions()
-local seqVelTable
-local velocityRandomization
-local seqGateTable
-local gateRandomization
 local rootNote = 1 -- Holds the current root note (key)
 local scaleDefinitionIndex = #scalesNames -- Holds the scale definition index
 local startOctave = -1 -- Holds the start octave when creating the scale
 local octaves = 9 -- Holds the octave range
 local noteRandomizationProbability = 0
 local manualInput = false
-local evolveFragmentProbability = 0
-local randomizeCurrentResolutionProbability = 0
-local adjustBias = 50
+local activeVoices = {}
 
 -- X Axis (index 1)
 table.insert(gridXY, {
@@ -216,16 +191,6 @@ local function setSelectedGrid()
     end
   end
   setPos()
-end
-
-local function flashNote(noteInput, duration)
-  noteInput.textColour = notePlayingTextColour
-  waitBeat(duration)
-  if noteInput.backgroundColour == menuSelectedBackgroundColour then
-    noteInput.textColour = noteSelectedTextColour
-  else
-    noteInput.textColour = menuTextColour
-  end
 end
 
 local function setDirectionFromPlaymode(axis, playMode)
@@ -396,91 +361,18 @@ local function getNotes()
   return cells
 end
 
-local function getVelocity(pos)
-  return seqVelTable:getValue(pos), gem.inc(pos, 1, seqVelTable.length)
-end
-
-local function randomizeVelocity(velocity)
-  return gem.randomizeValue(velocity, seqVelTable.min, seqVelTable.max, velocityRandomization.value)
-end
-
-local function randomizeGate(gate)
-  return gem.randomizeValue(gate, seqGateTable.min, seqGateTable.max, gateRandomization.value)
-end
-
-local function getGate(pos)
-  return seqGateTable:getValue(pos), gem.inc(pos, 1, seqGateTable.length)
-end
-
-local function sequenceRunner()
+local function releaseVoices()
+  for i,v in ipairs(activeVoices) do
+    releaseVoice(v.id)
+    print("Release active voice on channel", v.event.channel)
+    if v.noteInput.backgroundColour == menuSelectedBackgroundColour then
+      v.noteInput.textColour = noteSelectedTextColour
+    else
+      v.noteInput.textColour = menuTextColour
+    end
+  end
+  activeVoices = {}
   setPos()
-  local previous = nil
-  local activeFragment = nil -- The fragment currently playing
-  local fragmentPos = 0 -- Position in the active fragment
-  local fragmentRepeatCount = 0
-  local fragmentRepeatProbability = 0
-  local duration = nil
-  local reverseFragment = false
-  local rest = false
-  local durationCounter = 0
-  local velocityPos = 1
-  local velocity = seqVelTable:getValue(velocityPos)
-  local gatePos = 1
-  local gate = seqGateTable:getValue(gatePos)
-  isPlaying = true
-  --print("Seq runner starting")
-  while isPlaying do
-    local notesForPlaying = getNotes() -- The selected note inputs to play
-    local notesPlaying = {} -- Holds the playing notes, to avoid duplicates
-    velocity, velocityPos = getVelocity(velocityPos)
-    gate, gatePos = getGate(gatePos)
-    -- Get resolution from fragments
-    duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = rythmicFragments.getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
-    if type(duration) == "nil" then
-      -- Fallback to the default resolution if not found in fragment
-      duration = sequencerResolution
-    end
-    if #notesForPlaying > 0 and rest == false and gate > 0 then
-      for _,noteInput in ipairs(notesForPlaying) do
-        local playDuration = resolutions.getPlayDuration(duration, randomizeGate(gate))
-        local note = noteInput.value
-        if gem.tableIncludes(notesPlaying, note) == false then
-          playNote(note, randomizeVelocity(velocity), beat2ms(playDuration))
-          table.insert(notesPlaying, note)
-          --print("Play note/duration", note, playDuration)
-        end
-        spawn(flashNote, noteInput, math.min(playDuration, duration))
-      end
-      if type(activeFragment) == "table" then
-        for i,v in ipairs(paramsPerFragment) do
-          if activeFragment.i == i then
-            spawn(rythmicFragments.flashFragmentActive, v.fragmentActive, duration)
-          end
-        end
-      end
-    end
-    waitBeat(duration)
-    local beatBase = 4 -- TODO Param?
-    durationCounter = durationCounter + duration
-    if durationCounter >= beatBase and gem.getRandomBoolean(evolveFragmentProbability) then
-      durationCounter = 0
-      previous = rythmicFragments.evolveFragments(previous, randomizeCurrentResolutionProbability, adjustBias)
-    end
-  end
-end
-
-local function startPlaying()
-  if isPlaying then
-    return
-  end
-  run(sequenceRunner)
-end
-
-local function stopPlaying()
-  if isPlaying == false then
-    return
-  end
-  isPlaying = false
 end
 
 local function createTableFromText(text)
@@ -569,7 +461,7 @@ notePanel.backgroundColour = "black"
 notePanel.x = sequencerPanel.x
 notePanel.y = sequencerPanel.y + sequencerPanel.height
 notePanel.width = sequencerPanel.width
-notePanel.height = 300
+notePanel.height = 240
 
 local settingsPanel = Panel("Scale")
 settingsPanel.backgroundColour = "404040"
@@ -585,22 +477,20 @@ axisMotionPanel.y = settingsPanel.y + settingsPanel.height + 0
 axisMotionPanel.width = sequencerPanel.width
 axisMotionPanel.height = 132
 
-local rythmPanel = Panel("Rythm")
-rythmPanel.backgroundColour = "404040"
-rythmPanel.x = axisMotionPanel.x
-rythmPanel.y = axisMotionPanel.y + axisMotionPanel.height + 0
-rythmPanel.width = sequencerPanel.width
-rythmPanel.height = 220
-
 --------------------------------------------------------------------------------
 -- Grid Sequencer
 --------------------------------------------------------------------------------
 
 local xSpacing = 5
 
+local channels = {"Omni"}
+for j=1,16 do
+  table.insert(channels, "" .. j)
+end
+
 local sequencerLabel = sequencerPanel:Label("Label")
-sequencerLabel.text = "Grid Sequencer"
-sequencerLabel.tooltip = "This sequencer plays notes along the x and y axis of a grid"
+sequencerLabel.text = "Grid Sequencer Input"
+sequencerLabel.tooltip = "This sequencer listens to incoming pulses from a rythmic sequencer (Sent as note 0) and generates notes in response"
 sequencerLabel.alpha = 0.5
 sequencerLabel.backgroundColour = labelBackgoundColour
 sequencerLabel.textColour = labelTextColour
@@ -610,8 +500,7 @@ sequencerLabel.size = {sequencerPanel.width,30}
 
 local manualInputButton = sequencerPanel:OnOffButton("ManualInputButton", manualInput)
 local showListenersButton = sequencerPanel:OnOffButton("ShowListeners", false)
-local autoplayButton = sequencerPanel:OnOffButton("AutoPlay", true)
-local playButton = sequencerPanel:OnOffButton("Play", false)
+local channelInput = sequencerPanel:Menu("ChannelInput", channels)
 
 manualInputButton.backgroundColourOff = backgroundColourOff
 manualInputButton.backgroundColourOn = backgroundColourOn
@@ -620,7 +509,7 @@ manualInputButton.textColourOn = textColourOn
 manualInputButton.displayName = "Manual Input"
 manualInputButton.tooltip = "Make all note inputs available for direct edit or note listen"
 manualInputButton.size = {100,22}
-manualInputButton.x = sequencerPanel.width - (manualInputButton.width * 4) - 21
+manualInputButton.x = sequencerPanel.width - (manualInputButton.width * 3) - 5
 manualInputButton.y = 5
 manualInputButton.changed = function(self)
   manualInput = self.value
@@ -646,32 +535,14 @@ showListenersButton.changed = function(self)
   showListeners(self.value)
 end
 
-autoplayButton.backgroundColourOff = backgroundColourOff
-autoplayButton.backgroundColourOn = backgroundColourOn
-autoplayButton.textColourOff = textColourOff
-autoplayButton.textColourOn = textColourOn
-autoplayButton.displayName = "Auto Play"
-autoplayButton.tooltip = "Play automatically on transport"
-autoplayButton.size = showListenersButton.size
-autoplayButton.x = showListenersButton.x + showListenersButton.width + xSpacing
-autoplayButton.y = showListenersButton.y
-
-playButton.persistent = false
-playButton.backgroundColourOff = backgroundColourOff
-playButton.backgroundColourOn = backgroundColourOn
-playButton.textColourOff = textColourOff
-playButton.textColourOn = textColourOn
-playButton.displayName = "Play"
-playButton.size = autoplayButton.size
-playButton.x = autoplayButton.x + autoplayButton.width + xSpacing
-playButton.y = autoplayButton.y
-playButton.changed = function(self)
-  if self.value == true then
-    startPlaying()
-  else
-    stopPlaying()
-  end
-end
+channelInput.tooltip = "Listen to note events on this channel - if a note event is not being listened to, it will be pass through"
+channelInput.arrowColour = menuArrowColour
+channelInput.showLabel = false
+channelInput.backgroundColour = menuBackgroundColour
+channelInput.textColour = widgetTextColour
+channelInput.size = {90,22}
+channelInput.x = showListenersButton.x + showListenersButton.width + xSpacing
+channelInput.y = showListenersButton.y
 
 --------------------------------------------------------------------------------
 -- Note Grid
@@ -732,85 +603,6 @@ xyOffset.bounds = {546, 6, 168, 112}
 
 local xySize = notePanel:XY('GridSize1', 'GridSize2')
 xySize.bounds = {xyOffset.x, xyOffset.y+xyOffset.height+4, xyOffset.width, xyOffset.height}
-
-seqVelTable = notePanel:Table("Velocity", 8, 90, 1, 127, true)
-seqVelTable.tooltip = "Set the velocity pattern"
-seqVelTable.showPopupDisplay = true
-seqVelTable.fillStyle = "solid"
-seqVelTable.sliderColour = sliderColour
-seqVelTable.width = notePanel.width - xySize.width - 84
-seqVelTable.height = 32
-seqVelTable.x = 0
-seqVelTable.y = xySize.y + xySize.height + 1
-
-local velocityTableLength = notePanel:NumBox("VelocityTableLength", 8, 1, 64, true)
-velocityTableLength.displayName = "Vel"
-velocityTableLength.fontSize = 22
-velocityTableLength.tooltip = "Length of velocity table"
-velocityTableLength.width = 75
-velocityTableLength.height = seqVelTable.height
-velocityTableLength.x = seqVelTable.x + seqVelTable.width + 1
-velocityTableLength.y = seqVelTable.y
-velocityTableLength.backgroundColour = menuBackgroundColour
-velocityTableLength.textColour = menuTextColour
-velocityTableLength.changed = function(self)
-  seqVelTable.length = self.value
-end
-
-seqGateTable = notePanel:Table("Velocity", 8, 90, 0, 110, true)
-seqGateTable.unit = Unit.Percent
-seqGateTable.tooltip = "Set gate pattern. If a gate step is set to zero, that step is muted."
-seqGateTable.showPopupDisplay = true
-seqGateTable.fillStyle = "solid"
-seqGateTable.sliderColour = sliderColour
-seqGateTable.width = seqVelTable.width
-seqGateTable.height = seqVelTable.height
-seqGateTable.x = seqVelTable.x
-seqGateTable.y = seqVelTable.y + seqVelTable.height + 1
-
-local gateTableLength = notePanel:NumBox("GateTableLength", 8, 1, 64, true)
-gateTableLength.displayName = "Gate"
-gateTableLength.fontSize = velocityTableLength.fontSize
-gateTableLength.tooltip = "Length of gate table"
-gateTableLength.width = velocityTableLength.width
-gateTableLength.height = seqGateTable.height
-gateTableLength.x = seqGateTable.x + seqGateTable.width + 1
-gateTableLength.y = seqGateTable.y
-gateTableLength.backgroundColour = menuBackgroundColour
-gateTableLength.textColour = menuTextColour
-gateTableLength.changed = function(self)
-  seqGateTable.length = self.value
-end
-
-meter = notePanel:AudioMeter("OutputLevel", Part, false, 0, true)
-meter.height = seqVelTable.height / 2
-meter.width = xySize.width
-meter.x = xySize.x
-meter.y = seqVelTable.y + 1
-meter["0dBColour"] = "red"
-meter["3dBColour"] = "orange"
-meter["6dBColour"] = "yellow"
-meter["10dBColour"] = "green"
-
-velocityRandomization = notePanel:NumBox("VelocityRandomization", 15, 0, 100, true)
-velocityRandomization.unit = Unit.Percent
-velocityRandomization.displayName = "Velocity Rand"
-velocityRandomization.tooltip = "Amount of radomization applied to note velocity"
-velocityRandomization.width = meter.width
-velocityRandomization.x = meter.x
-velocityRandomization.y = meter.y + meter.height + 4
-velocityRandomization.backgroundColour = menuBackgroundColour
-velocityRandomization.textColour = menuTextColour
-
-gateRandomization = notePanel:NumBox("GateRandomization", 15, 0, 100, true)
-gateRandomization.unit = Unit.Percent
-gateRandomization.displayName = "Gate Rand"
-gateRandomization.tooltip = "Amount of radomization applied to note gate"
-gateRandomization.backgroundColour = menuBackgroundColour
-gateRandomization.textColour = menuTextColour
-gateRandomization.size = velocityRandomization.size
-gateRandomization.x = velocityRandomization.x
-gateRandomization.y = velocityRandomization.y + velocityRandomization.height + 1
 
 --------------------------------------------------------------------------------
 -- Note Selection
@@ -903,10 +695,10 @@ local scaleIncrementInput = settingsPanel:Label("ScaleIncrementInput")
 scaleIncrementInput.text = "1"
 scaleIncrementInput.tooltip = "Set scale increments on the x axis - default is to increment by one step per cell. Increments are separated by comma, and will repeat until all cells are set."
 scaleIncrementInput.editable = true
-scaleIncrementInput.backgroundColour = colours.labelTextColour
+scaleIncrementInput.backgroundColour = labelTextColour
 scaleIncrementInput.backgroundColourWhenEditing = "white"
 scaleIncrementInput.textColour = "white"
-scaleIncrementInput.textColourWhenEditing = colours.labelTextColour
+scaleIncrementInput.textColourWhenEditing = labelTextColour
 scaleIncrementInput.height = startOctaveInput.height
 scaleIncrementInput.width = 165
 scaleIncrementInput.x = scaleIncrementInputLabel.x + scaleIncrementInputLabel.width
@@ -927,10 +719,10 @@ local degreeInput = settingsPanel:Label("DegreeInput")
 degreeInput.text = "1"
 degreeInput.tooltip = "Degree definition: if set, the scale increment input will reset at the start of each row (y-axis), setting the degree as the root note. 1 = root. Degrees are separated by comma."
 degreeInput.editable = true
-degreeInput.backgroundColour = colours.labelTextColour
+degreeInput.backgroundColour = labelTextColour
 degreeInput.backgroundColourWhenEditing = "white"
 degreeInput.textColour = "white"
-degreeInput.textColourWhenEditing = colours.labelTextColour
+degreeInput.textColourWhenEditing = labelTextColour
 degreeInput.height = scaleIncrementInput.height
 degreeInput.width = scaleIncrementInput.width
 degreeInput.x = degreeInputLabel.x + degreeInputLabel.width
@@ -1166,107 +958,54 @@ for axis=xAxis,yAxis do
 end
 
 --------------------------------------------------------------------------------
--- Rythm Panel
---------------------------------------------------------------------------------
-
-local rythmLabel = rythmPanel:Label("RythmLabel")
-rythmLabel.text = "Rythm"
-rythmLabel.tooltip = "Settings for rythm and gate"
-rythmLabel.alpha = noteSelectionLabel.alpha
-rythmLabel.fontSize = noteSelectionLabel.fontSize
-rythmLabel.backgroundColour = labelBackgoundColour
-rythmLabel.textColour = labelTextColour
-rythmLabel.width = rythmPanel.width
-rythmLabel.height = 18
-rythmLabel.x = 0
-rythmLabel.y = 0
-
-local evolveFragmentProbabilityInput = rythmPanel:NumBox("EvolveFragmentProbability", evolveFragmentProbability, 0, 100, true)
-evolveFragmentProbabilityInput.unit = Unit.Percent
-evolveFragmentProbabilityInput.textColour = widgetTextColour
-evolveFragmentProbabilityInput.backgroundColour = widgetBackgroundColour
-evolveFragmentProbabilityInput.displayName = "Evolve"
-evolveFragmentProbabilityInput.tooltip = "Set the probability that fragments will change over time, using the resolutions present in the fragments"
-evolveFragmentProbabilityInput.width = 100
-evolveFragmentProbabilityInput.height = 16
-evolveFragmentProbabilityInput.x = rythmLabel.x + 239
-evolveFragmentProbabilityInput.y = 1
-evolveFragmentProbabilityInput.changed = function(self)
-  evolveFragmentProbability = self.value
-end
-
-local randomizeCurrentResolutionProbabilityInput = rythmPanel:NumBox("RandomizeCurrentResolutionProbability", randomizeCurrentResolutionProbability, 0, 100, true)
-randomizeCurrentResolutionProbabilityInput.unit = Unit.Percent
-randomizeCurrentResolutionProbabilityInput.textColour = widgetTextColour
-randomizeCurrentResolutionProbabilityInput.backgroundColour = widgetBackgroundColour
-randomizeCurrentResolutionProbabilityInput.displayName = "Adjust"
-randomizeCurrentResolutionProbabilityInput.tooltip = "Set the probability that evolve will adjust resolutions, based on the resolutions present in the fragments"
-randomizeCurrentResolutionProbabilityInput.width = evolveFragmentProbabilityInput.width
-randomizeCurrentResolutionProbabilityInput.height = evolveFragmentProbabilityInput.height
-randomizeCurrentResolutionProbabilityInput.x = evolveFragmentProbabilityInput.x + evolveFragmentProbabilityInput.width + 5
-randomizeCurrentResolutionProbabilityInput.y = evolveFragmentProbabilityInput.y
-randomizeCurrentResolutionProbabilityInput.changed = function(self)
-  randomizeCurrentResolutionProbability = self.value
-end
-
-local biasLabel = rythmPanel:Label("BiasLabel")
-biasLabel.text = "Bias slow > fast"
-biasLabel.tooltip = "Adjust bias: <50=more slow resolutions, >50=more fast resolutions"
-biasLabel.alpha = 0.5
-biasLabel.fontSize = 15
-biasLabel.width = 90
-biasLabel.height = randomizeCurrentResolutionProbabilityInput.height
-biasLabel.x = randomizeCurrentResolutionProbabilityInput.x + randomizeCurrentResolutionProbabilityInput.width + 5
-biasLabel.y = randomizeCurrentResolutionProbabilityInput.y
-
-local adjustBiasInput = rythmPanel:Knob("Bias", adjustBias, 0, 100, true)
-adjustBiasInput.showLabel = false
-adjustBiasInput.showValue = false
-adjustBiasInput.displayName = "Bias"
-adjustBiasInput.tooltip = biasLabel.tooltip
-adjustBiasInput.backgroundColour = widgetBackgroundColour
-adjustBiasInput.fillColour = knobFillColour
-adjustBiasInput.outlineColour = widgetTextColour
-adjustBiasInput.width = 18
-adjustBiasInput.height = biasLabel.height
-adjustBiasInput.x = biasLabel.x + biasLabel.width
-adjustBiasInput.y = biasLabel.y
-adjustBiasInput.changed = function(self)
-  adjustBias = self.value
-end
-
-local minResLabel = rythmPanel:Label("MinResolutionsLabel")
-minResLabel.text = "Min resolution"
-minResLabel.alpha = 0.5
-minResLabel.fontSize = 15
-minResLabel.width = 90
-minResLabel.height = adjustBiasInput.height
-minResLabel.x = adjustBiasInput.x + adjustBiasInput.width + 10
-minResLabel.y = adjustBiasInput.y
-
-local minResolution = rythmPanel:Menu("MinResolution", resolutions.getResolutionNames())
-minResolution.displayName = minResLabel.text
-minResolution.tooltip = "The highest allowed resolution for evolve adjustments"
-minResolution.selected = 26
-minResolution.showLabel = false
-minResolution.width = 60
-minResolution.height = adjustBiasInput.height
-minResolution.backgroundColour = widgetBackgroundColour
-minResolution.textColour = widgetTextColour
-minResolution.arrowColour = menuArrowColour
-minResolution.outlineColour = menuOutlineColour
-minResolution.x = minResLabel.x + minResLabel.width
-minResolution.y = minResLabel.y
-minResolution.changed = function(self)
-  rythmicFragments.setMaxResolutionIndex(self.value)
-end
-minResolution:changed()
-
-paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, rythmLabel, colours, 4, 15, 5)
-
---------------------------------------------------------------------------------
 -- Handle events
 --------------------------------------------------------------------------------
+
+local function noteIsPlaying(note)
+  for _,v in ipairs(activeVoices) do
+    if v.event.note == note then
+      return true
+    end
+  end
+  return false
+end
+
+local function isTrigger(e)
+  local channel = channelInput.value - 1
+  local isListeningForEvent = channel == 0 or channel == e.channel
+  local isTrigger = e.note == 0 -- Note 0 is used as trigger
+  return isTrigger and isListeningForEvent
+end
+
+local function handleTrigger(e)
+  local notesForPlaying = getNotes() -- The selected note inputs to play
+  if #notesForPlaying > 0 then
+    for _,noteInput in ipairs(notesForPlaying) do
+      local note = noteInput.value
+      if noteIsPlaying(note) == false then
+        local id = playNote(note, e.velocity)
+        e.note = note
+        table.insert(activeVoices, {id=id,event=e,noteInput=noteInput})
+      end
+      noteInput.textColour = notePlayingTextColour
+    end
+  end
+end
+
+local function handleReleaseTrigger(e)
+  for i,v in ipairs(activeVoices) do
+    if v.event.channel == e.channel then
+      releaseVoice(v.id)
+      table.remove(activeVoices, i)
+      print("Release active voice on channel", v.event.channel)
+      if v.noteInput.backgroundColour == menuSelectedBackgroundColour then
+        v.noteInput.textColour = noteSelectedTextColour
+      else
+        v.noteInput.textColour = menuTextColour
+      end
+    end
+  end
+end
 
 function onInit()
   print("Init grid sequencer")
@@ -1285,24 +1024,24 @@ function onNote(e)
     end
     noteListen = false
   end
-  if autoplayButton.value == true then
-    postEvent(e)
+  if isTrigger(e) then
+    handleTrigger(e)
   else
-    playButton:setValue(true)
+    postEvent(e)
   end
 end
 
 function onRelease(e)
-  if autoplayButton.value == true then
-    postEvent(e)
+  if isTrigger(e) then
+    handleReleaseTrigger(e)
   else
-    playButton:setValue(false)
+    postEvent(e)
   end
 end
 
 function onTransport(start)
-  if autoplayButton.value == true then
-    playButton:setValue(start)
+  if start == false then
+    releaseVoices()
   end
 end
 
@@ -1311,49 +1050,12 @@ end
 --------------------------------------------------------------------------------
 
 function onSave()
-  local fragmentInputData = {}
-  local velocityTableData = {}
-  local gateTableData = {}
-
-  for _,v in ipairs(paramsPerFragment) do
-    table.insert(fragmentInputData, v.fragmentInput.text)
-  end
-
-  for i=1, velocityTableLength.value do
-    table.insert(velocityTableData, seqVelTable:getValue(i))
-  end
-
-  for i=1, gateTableLength.value do
-    table.insert(gateTableData, seqGateTable:getValue(i))
-  end
-
-  return {fragmentInputData, scaleIncrementInput.text, degreeInput.text, velocityTableData, gateTableData}
+  return {scaleIncrementInput.text, degreeInput.text}
 end
 
 function onLoad(data)
-  local fragmentInputData = data[1]
-  scaleIncrementInput.text = data[2]
-  degreeInput.text = data[3]
-  velocityTableData = data[4]
-  gateTableData = data[5]
+  scaleIncrementInput.text = data[1]
+  degreeInput.text = data[2]
   scaleIncrementInput:changed()
   degreeInput:changed()
-
-  for i,v in ipairs(fragmentInputData) do
-    paramsPerFragment[i].fragmentInput.text = v
-  end
-
-  if type(velocityTableData) == "table" then
-    velocityTableLength:setValue(#velocityTableData)
-    for i,v in ipairs(velocityTableData) do
-      seqVelTable:setValue(i,v)
-    end
-  end
-
-  if type(gateTableData) == "table" then
-    gateTableLength:setValue(#gateTableData)
-    for i,v in ipairs(gateTableData) do
-      seqGateTable:setValue(i,v)
-    end
-  end
 end

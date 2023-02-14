@@ -1103,8 +1103,13 @@ local function getParamsPerFragment(rythmPanel, rythmLabel, colours, numSelector
     fragmentActive.displayName = "" .. i
     fragmentActive.tooltip = "Toggle fragment on/off"
     fragmentActive.size = {24,24}
-    fragmentActive.x = rythmLabel.x + offsetX
-    fragmentActive.y = rythmLabel.y + rythmLabel.height + offsetY
+    if type(rythmLabel) == "nil" then
+      fragmentActive.x = offsetX
+      fragmentActive.y = offsetY
+    else
+      fragmentActive.x = rythmLabel.x + offsetX
+      fragmentActive.y = rythmLabel.y + rythmLabel.height + offsetY
+    end
 
     local lockedForEvolve = rythmPanel:OnOffButton("LockedForEvolve" .. i, false)
     lockedForEvolve.backgroundColourOff = colours.backgroundColourOff
@@ -1808,10 +1813,10 @@ local function sequenceRunner()
   local reverseFragment = false
   local rest = false
   local durationCounter = 0
-  local velocity = seqVelTable:getValue(1)
-  local velocityPos = 0
-  local gate = seqGateTable:getValue(1)
-  local gatePos = 0
+  local velocityPos = 1
+  local velocity = seqVelTable:getValue(velocityPos)
+  local gatePos = 1
+  local gate = seqGateTable:getValue(gatePos)
   isPlaying = true
   --print("Seq runner starting")
   while isPlaying do

@@ -1,11 +1,422 @@
+-- modular/motionSequencerInput -- 
 --------------------------------------------------------------------------------
--- Motion Sequencer
+-- Common methods
 --------------------------------------------------------------------------------
 
-local gem = require "includes.common"
-local scales = require "includes.scales"
-local resolutions = require "includes.resolutions"
-local rythmicFragments = require "includes.rythmicFragments"
+local function getRandom(min, max, factor)
+  if type(min) == "number" and type(max) == "number" and min < max then
+    return math.random(min, max)
+  elseif type(min) == "number" then
+    return math.random(min)
+  end
+  local value = math.random()
+  if type(factor) == "number" then
+    value = value * factor
+  end
+  return value
+end
+
+local function getRandomBoolean(probability)
+  -- Default probability of getting true is 50%
+  if type(probability) ~= "number" then
+    probability = 50
+  end
+  return getRandom(100) <= probability
+end
+
+local function getChangeMax(max, probabilityLevel)
+  return math.ceil(max * (probabilityLevel / 100))
+end
+
+local function getIndexFromValue(value, selection)
+  for i,v in ipairs(selection) do
+    if v == value then
+      return i
+    end
+  end
+  return nil
+end
+
+local function randomizeValue(value, limitMin, limitMax, randomizationAmount)
+  if randomizationAmount > 0 then
+    local limitRange = limitMax - limitMin
+    local changeMax = getChangeMax(limitRange, randomizationAmount)
+    local min = math.max(limitMin, (value - changeMax))
+    local max = math.min(limitMax, (value + changeMax))
+    --print("Before randomize value", value)
+    value = getRandom(min, max)
+    --print("After randomize value/changeMax/min/max", value, changeMax, min, max)
+  end
+  return value
+end
+
+local function round(value)
+  local int, frac = math.modf(value)
+  --print("int/frac", int, frac)
+  if math.abs(frac) < 0.5 then
+    value = int
+  elseif value < 0 then
+    value = int - 1
+  else
+    value = int + 1
+  end
+  return value
+end
+
+local function tableIncludes(theTable, theItem)
+  return type(getIndexFromValue(theItem, theTable)) == "number"
+end
+
+local function getRandomFromTable(theTable, except)
+  if #theTable == 0 then
+    return nil
+  end
+  if #theTable == 1 then
+    return theTable[1]
+  end
+  local index = getRandom(#theTable)
+  local value = theTable[index]
+  --print("getRandomFromTable index, value", index, value)
+  if type(except) ~= "nil" then
+    local maxRounds = 10
+    while value == except and maxRounds > 0 do
+      value = theTable[getRandom(#theTable)]
+      maxRounds = maxRounds - 1
+      --print("getRandomFromTable except, maxRounds", except, maxRounds)
+    end
+  end
+  return value
+end
+
+local function trimStartAndEnd(s)
+  return s:match("^%s*(.-)%s*$")
+end
+
+local function getChangePerStep(valueRange, numSteps)
+  return valueRange / (numSteps - 1)
+end
+
+local function inc(val, inc, max, reset)
+  if type(inc) ~= "number" then
+    inc = 1
+  end
+  if type(reset) ~= "number" then
+    reset = 1
+  end
+  val = val + inc
+  if type(max) == "number" and val > max then
+    val = reset
+  end
+  return val
+end
+
+local function triangle(minValue, maxValue, numSteps)
+  local rising = true
+  local numStepsUpDown = round(numSteps / 2)
+  local valueRange = maxValue - minValue
+  local changePerStep = valueRange / numStepsUpDown
+  local startValue = minValue
+  local tri = {}
+  for i=1,numSteps do
+    table.insert(tri, startValue)
+    if rising then
+      startValue = startValue + changePerStep
+      if startValue >= maxValue then
+        rising = false
+      end
+    else
+      startValue = startValue - changePerStep
+    end
+  end
+  return tri
+end
+
+local function rampUp(minValue, maxValue, numSteps)
+  local valueRange = maxValue - minValue
+  local changePerStep = getChangePerStep(valueRange, numSteps)
+  local startValue = minValue
+  local ramp = {}
+  for i=1,numSteps do
+    table.insert(ramp, startValue)
+    startValue = inc(startValue, changePerStep)
+  end
+  return ramp
+end
+
+local function rampDown(minValue, maxValue, numSteps)
+  local valueRange = maxValue - minValue
+  local changePerStep = getChangePerStep(valueRange, numSteps)
+  local startValue = maxValue
+  local ramp = {}
+  for i=1,numSteps do
+    table.insert(ramp, startValue)
+    startValue = inc(startValue, -changePerStep)
+  end
+  return ramp
+end
+
+local gem = {
+  inc = inc,
+  round = round,
+  triangle = triangle,
+  rampUp = rampUp,
+  rampDown = rampDown,
+  getRandom = getRandom,
+  getChangeMax = getChangeMax,
+  tableIncludes = tableIncludes,
+  randomizeValue = randomizeValue,
+  trimStartAndEnd = trimStartAndEnd,
+  getRandomBoolean = getRandomBoolean,
+  getIndexFromValue = getIndexFromValue,
+  getRandomFromTable = getRandomFromTable,
+}
+
+--------------------------------------------------------------------------------
+-- Common Scales
+--------------------------------------------------------------------------------
+
+-- Make sure these are in sync with the scale names
+-- Scales are defined by distance to the next step
+local scaleDefinitions = {
+  {2,2,1,2,2,2,1}, -- Major (Ionian mode)
+  {2,1,2,2,1,2,2}, -- Minor (Aeolian mode)
+  {2,1,2,2,2,1,2}, -- Dorian mode
+  {1,2,2,2,1,2,2}, -- Phrygian mode
+  {2,2,2,1,2,2,1}, -- Lydian mode
+  {2,2,1,2,2,1,2}, -- Mixolydian mode
+  {1,2,2,1,2,2,2}, -- Locrian mode
+  {2,2,2,1,2,1,2}, -- Acoustic
+  {2,1,2,1,1,3,2}, -- Blues
+  {1,2,1,3,1,2,2}, -- Alterated
+  {2,2,3,2,3}, -- Major Pentatonic
+  {3,2,2,3,2}, -- Minor Pentatonic
+  {3}, -- Diminished
+  {2}, -- Whole tone scale
+  {1}, -- Chomatic
+}
+
+local scaleNames = {
+  "Major (Ionian)",
+  "Minor (Aeolian)",
+  "Dorian",
+  "Phrygian",
+  "Lydian",
+  "Mixolydian",
+  "Locrian",
+  "Acoustic",
+  "Blues",
+  "Alterated",
+  "Major Pentatonic",
+  "Minor Pentatonic",
+  "Diminished",
+  "Whole tone",
+  "Chomatic",
+}
+
+local scales = {
+  getScaleDefinitions = function()
+    return scaleDefinitions
+  end,
+
+  getScaleNames = function()
+    return scaleNames
+  end,
+
+  createScale = function(scaleDefinition, rootNote, maxNote)
+    if type(maxNote) ~= "number" then
+      maxNote = 128
+    end
+    local scale = {}
+    -- Find notes for scale
+    local pos = 1
+    while rootNote < maxNote do
+      table.insert(scale, rootNote)
+      rootNote = rootNote + scaleDefinition[pos]
+      pos = pos + 1
+      if pos > #scaleDefinition then
+        pos = 1
+      end
+    end
+    return scale
+  end
+}
+
+--------------------------------------------------------------------------------
+-- Common Resolutions
+--------------------------------------------------------------------------------
+
+local function getDotted(value)
+  return value * 1.5
+end
+
+local function getTriplet(value)
+  return value / 3
+end
+
+-- NOTE: Make sure resolutionValues and resolutionNames are in sync
+local resolutionValues = {
+  128, -- "32x" -- 1
+  64, -- "16x" -- 2
+  32, -- "8x" -- 3
+  28, -- "7x" -- 4
+  24, -- "6x" -- 5
+  20, -- "5x" -- 6
+  16, -- "4x" -- 7
+  12, -- "3x" -- 8
+  8, -- "2x" -- 9
+  6, -- "1/1 dot" -- 10
+  4, -- "1/1" -- 11
+  3, -- "1/2 dot" -- 12
+  getTriplet(8), -- "1/1 tri" -- 13
+  2, -- "1/2" -- 14
+  getDotted(1), -- "1/4 dot", -- 15
+  getTriplet(4), -- "1/2 tri", -- 16
+  1, -- "1/4", -- 17
+  getDotted(0.5), -- "1/8 dot", -- 18
+  getTriplet(2), -- "1/4 tri", -- 19
+  0.5,  -- "1/8", -- 20
+  getDotted(0.25), -- "1/16 dot", -- 21
+  getTriplet(1), -- "1/8 tri", -- 22
+  0.25, -- "1/16", -- 23
+  getDotted(0.125), -- "1/32 dot", -- 24
+  getTriplet(0.5), -- "1/16 tri", -- 25
+  0.125, -- "1/32" -- 26
+  getDotted(0.0625), -- "1/64 dot", -- 27
+  getTriplet(0.25), -- "1/32 tri", -- 28
+  0.0625, -- "1/64", -- 29
+  getDotted(0.03125), -- "1/128 dot" -- 30
+  getTriplet(0.125), -- "1/64 tri" -- 31
+  0.03125 -- "1/128" -- 32
+}
+
+local resolutionNames = {
+  "32x", -- 1
+  "16x", -- 2
+  "8x", -- 3
+  "7x", -- 4
+  "6x", -- 5
+  "5x", -- 6
+  "4x", -- 7
+  "3x", -- 8
+  "2x", -- 9
+  "1/1 dot", -- 10
+  "1/1", -- 11
+  "1/2 dot", -- 12
+  "1/1 tri", -- 13
+  "1/2", -- 14
+  "1/4 dot", -- 15
+  "1/2 tri", -- 16
+  "1/4", -- 17
+  "1/8 dot", -- 18
+  "1/4 tri", -- 19
+  "1/8", -- 20
+  "1/16 dot", -- 21
+  "1/8 tri", -- 22
+  "1/16", -- 23
+  "1/32 dot", -- 24
+  "1/16 tri", -- 25
+  "1/32", -- 26
+  "1/64 dot", -- 27
+  "1/32 tri", -- 28
+  "1/64", -- 29
+  "1/128 dot", -- 30
+  "1/64 tri", -- 31
+  "1/128" -- 32
+}
+
+local resolutions = {
+  getDotted = getDotted,
+  
+  getTriplet = getTriplet,
+  
+  getEvenFromDotted = function(value)
+    return value / 1.5
+  end,
+  
+  getEvenFromTriplet = function(value)
+    return value * 3
+  end,
+  
+  getResolution = function(i)
+    return resolutionValues[i]
+  end,
+  
+  getResolutions = function()
+    return resolutionValues
+  end,
+  
+  getResolutionName = function(i)
+    return resolutionNames[i]
+  end,
+  
+  getResolutionNames = function(options, max)
+    if type(max) ~= "number" then
+      max = #resolutionNames
+    end
+  
+    local res = {}
+  
+    for _,r in ipairs(resolutionNames) do
+      table.insert(res, r)
+      if i == max then
+        break
+      end
+    end
+  
+    -- Add any options
+    if type(options) == "table" then
+      for _,o in ipairs(options) do
+        table.insert(res, o)
+      end
+    end
+  
+    return res
+  end,
+  
+  getResolutionsByType = function(maxResolutionIndex)
+    if type(maxResolutionIndex) == "nil" then
+      maxResolutionIndex = #resolutionValues
+    end
+    local startPosIndex = 11
+    local resOptions = {}
+    -- Create table of resolution indexes by type (1=even,2=dot,3=tri)
+    for i=startPosIndex,startPosIndex+2 do
+      local resolutionIndex = i
+      local resolutionsOfType = {}
+      while resolutionIndex <= maxResolutionIndex do
+        table.insert(resolutionsOfType, resolutionIndex) -- insert current index in resolution options table
+        --print("Insert resolutionIndex", resolutionIndex)
+        resolutionIndex = resolutionIndex + 3 -- increment index
+      end
+      --print("#resolutionsOfType, i", #resolutionsOfType, i)
+      table.insert(resOptions, resolutionsOfType)
+    end
+    -- Add the resolutions that are whole numbers (1,2,3,4...)
+    local slowResolutions = {}
+    for i,resolution in ipairs(resolutionValues) do
+      if resolution % 1 == 0 then
+        table.insert(slowResolutions, i)
+        --print("getResolutionsByType - included slow resolution", resolution)
+      end
+    end
+    --print("#slowResolutions", #slowResolutions)
+    table.insert(resOptions, slowResolutions) -- Add the "slow" x resolutions
+    --print("resOptions", #resOptions)
+    return resOptions
+  end,
+  
+  getPlayDuration = function(duration, gate)
+    if type(gate) == "nil" then
+      gate = 100
+    end
+    local maxResolution = resolutionValues[#resolutionValues]
+    return math.max(maxResolution, duration * (gate / 100)) -- Never shorter than the system max resolution
+  end  
+}
+
+----------------------------------------------------------------------------------
+-- Motion Sequencer - Listens for incoming note events (rythm) on note number 0
+----------------------------------------------------------------------------------
 
 local textColourOff = "ff22FFFF"
 local textColourOn = "efFFFFFF"
@@ -23,20 +434,6 @@ local menuOutlineColour = "5f" .. widgetTextColour
 local knobFillColour = "E6D5B8" -- Light
 local sliderColour = "5FB5FF"
 
-local colours = {
-  backgroundColour = backgroundColour,
-  widgetBackgroundColour = widgetBackgroundColour,
-  widgetTextColour = widgetTextColour,
-  labelTextColour = labelTextColour,
-  menuBackgroundColour = menuBackgroundColour,
-  menuArrowColour = menuArrowColour,
-  menuOutlineColour = menuOutlineColour,
-  backgroundColourOff = backgroundColourOff,
-  backgroundColourOn = backgroundColourOn,
-  textColourOff = textColourOff,
-  textColourOn = textColourOn,
-}
-
 setBackgroundColour(backgroundColour)
 
 --------------------------------------------------------------------------------
@@ -45,12 +442,6 @@ setBackgroundColour(backgroundColour)
 
 local isPlaying = false
 local sequencerResolution = 0.25 -- Fallback value
-local paramsPerFragment = {} -- Holds the rythmic fragments
-local evolveFragmentProbability = 0
-local randomizeCurrentResolutionProbability = 0
-local adjustBias = 50
---local seqVelTable
---local seqGateTable
 local baseNote = 60 -- Option
 local octaveRange = 2 -- Option
 local bipolar = true -- Option
@@ -58,7 +449,6 @@ local pitchOffsetPos = 1
 local positionTable
 local pitchOffsetTable
 local pitchOffsetTableLength = 32
---local paramsPerStep = {} -- Playmode, resolution, vel?, gate?
 local scalesNames = scales.getScaleNames()
 local scaleDefinitions = scales.getScaleDefinitions()
 local scaleDefinitionIndex = #scalesNames
@@ -69,6 +459,7 @@ local motionTypes = {"Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Zero", 
 local amountType = motionTypes[1]
 local startModes = {"Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Zero", "Min", "Max", "Keep State", "Random"}
 local startMode = startModes[6]
+local activeVoices = {}
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
@@ -76,6 +467,7 @@ local startMode = startModes[6]
 
 local function resetPitches()
   -- Reset position
+  pitchOffsetPos = 1
   for i=1,pitchOffsetTableLength do
     positionTable:setValue(i, 0)
   end
@@ -225,71 +617,14 @@ local function getNote()
   return note
 end
 
-local function sequenceRunner()
-  local previous = nil
-  local activeFragment = nil -- The fragment currently playing
-  local fragmentPos = 0 -- Position in the active fragment
-  local fragmentRepeatCount = 0
-  local fragmentRepeatProbability = 0
-  local duration = nil
-  local reverseFragment = false
-  local rest = false
-  local durationCounter = 0
-  local velocity = 64--seqVelTable:getValue(1)
-  --local velocityPos = 0
-  local gate = 90--seqGateTable:getValue(1)
-  --local gatePos = 0
-  pitchOffsetPos = 1 -- Reset pos
-  isPlaying = true
-  print("Seq runner starting")
-  for i=1,pitchOffsetTableLength do
-    spawn(move, i)
-  end
-  while isPlaying do
-    local note = getNote() -- The selected note inputs to play
-    --local notesForPlaying = getNotes() -- The selected note inputs to play
-    --local notesPlaying = {} -- Holds the playing notes, to avoid duplicates
-    --velocity, velocityPos = getVelocity(velocityPos)
-    --gate, gatePos = getGate(gatePos)
-    -- Get resolution from fragments
-    duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = rythmicFragments.getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
-    if type(duration) == "nil" then
-      -- Fallback to the default resolution if not found in fragment
-      duration = sequencerResolution
-    end
-    if rest == false and gate > 0 then
-      --for _,note in ipairs(notesForPlaying) do
-        local playDuration = resolutions.getPlayDuration(duration, gate)
-        --if gem.tableIncludes(notesPlaying, note) == false then
-          playNote(note, velocity, beat2ms(playDuration))
-          --table.insert(notesPlaying, note)
-          print("Play note/duration", note, playDuration)
-        --end
-        --spawn(flashNote, noteValue, math.min(playDuration, duration))
-      --end
-      if type(activeFragment) == "table" then
-        for i,v in ipairs(paramsPerFragment) do
-          if activeFragment.i == i then
-            spawn(rythmicFragments.flashFragmentActive, v.fragmentActive, duration)
-          end
-        end
-      end
-    end
-    waitBeat(duration)
-    local beatBase = 4 -- TODO Param?
-    durationCounter = durationCounter + duration
-    if durationCounter >= beatBase and gem.getRandomBoolean(evolveFragmentProbability) then
-      durationCounter = 0
-      previous = rythmicFragments.evolveFragments(previous, randomizeCurrentResolutionProbability, adjustBias)
-    end
-  end
-end
-
 local function startPlaying()
   if isPlaying then
     return
   end
-  run(sequenceRunner)
+  isPlaying = true
+  for i=1,pitchOffsetTableLength do
+    spawn(move, i)
+  end
 end
 
 local function stopPlaying()
@@ -318,22 +653,13 @@ notePanel.y = sequencerPanel.y + sequencerPanel.height
 notePanel.width = sequencerPanel.width
 notePanel.height = 270
 
-local rythmPanel = Panel("Rythm")
-rythmPanel.backgroundColour = "404040"
-rythmPanel.x = notePanel.x
-rythmPanel.y = notePanel.y + notePanel.height + 0
-rythmPanel.width = sequencerPanel.width
-rythmPanel.height = 220
-
 --------------------------------------------------------------------------------
 -- Motion Sequencer
 --------------------------------------------------------------------------------
 
-local xSpacing = 5
-
 local sequencerLabel = sequencerPanel:Label("Label")
-sequencerLabel.text = "Motion Sequencer"
-sequencerLabel.tooltip = "This sequencer plays notes"
+sequencerLabel.text = "Motion Sequencer Input"
+sequencerLabel.tooltip = "This sequencer listens to incoming pulses from a rythmic sequencer (Sent as note 0) and generates notes in response"
 sequencerLabel.alpha = 0.5
 sequencerLabel.backgroundColour = labelBackgoundColour
 sequencerLabel.textColour = labelTextColour
@@ -341,34 +667,20 @@ sequencerLabel.fontSize = 22
 sequencerLabel.position = {0,0}
 sequencerLabel.size = {sequencerPanel.width,30}
 
-local autoplayButton = sequencerPanel:OnOffButton("AutoPlay", true)
-autoplayButton.backgroundColourOff = backgroundColourOff
-autoplayButton.backgroundColourOn = backgroundColourOn
-autoplayButton.textColourOff = textColourOff
-autoplayButton.textColourOn = textColourOn
-autoplayButton.displayName = "Auto Play"
-autoplayButton.tooltip = "Play automatically on transport"
-autoplayButton.size = {100,22}
-autoplayButton.x = sequencerPanel.width - (autoplayButton.width * 2) - 15
-autoplayButton.y = 5
-
-local playButton = sequencerPanel:OnOffButton("Play", false)
-playButton.persistent = false
-playButton.backgroundColourOff = backgroundColourOff
-playButton.backgroundColourOn = backgroundColourOn
-playButton.textColourOff = textColourOff
-playButton.textColourOn = textColourOn
-playButton.displayName = "Play"
-playButton.size = autoplayButton.size
-playButton.x = autoplayButton.x + autoplayButton.width + xSpacing
-playButton.y = autoplayButton.y
-playButton.changed = function(self)
-  if self.value == true then
-    startPlaying()
-  else
-    stopPlaying()
-  end
+local channels = {"Omni"}
+for j=1,16 do
+  table.insert(channels, "" .. j)
 end
+
+local channelInput = sequencerPanel:Menu("ChannelInput", channels)
+channelInput.tooltip = "Listen to note events on this channel - if a note event is not being listened to, it will be pass through"
+channelInput.arrowColour = menuArrowColour
+channelInput.showLabel = false
+channelInput.backgroundColour = menuBackgroundColour
+channelInput.textColour = widgetTextColour
+channelInput.size = {90,22}
+channelInput.x = sequencerPanel.width - channelInput.width - 5
+channelInput.y = 5
 
 --------------------------------------------------------------------------------
 -- Notes Panel
@@ -381,7 +693,7 @@ noteLabel.alpha = 0.5
 noteLabel.fontSize = 16
 noteLabel.backgroundColour = labelBackgoundColour
 noteLabel.textColour = labelTextColour
-noteLabel.width = rythmPanel.width
+noteLabel.width = sequencerPanel.width
 noteLabel.height = 18
 noteLabel.x = 0
 noteLabel.y = 0
@@ -569,107 +881,43 @@ xySpeedFactor.width = noteWidgetWidth
 xySpeedFactor.height = (noteWidgetHeight * 3) + (noteWidgetRowSpacing * 2)
 
 --------------------------------------------------------------------------------
--- Rythm Panel
---------------------------------------------------------------------------------
-
-local rythmLabel = rythmPanel:Label("RythmLabel")
-rythmLabel.text = "Rythm"
-rythmLabel.tooltip = "Settings for rythm and gate"
-rythmLabel.alpha = 0.5
-rythmLabel.fontSize = 16
-rythmLabel.backgroundColour = labelBackgoundColour
-rythmLabel.textColour = labelTextColour
-rythmLabel.width = rythmPanel.width
-rythmLabel.height = 18
-rythmLabel.x = 0
-rythmLabel.y = 0
-
-local evolveFragmentProbabilityInput = rythmPanel:NumBox("EvolveFragmentProbability", evolveFragmentProbability, 0, 100, true)
-evolveFragmentProbabilityInput.unit = Unit.Percent
-evolveFragmentProbabilityInput.textColour = widgetTextColour
-evolveFragmentProbabilityInput.backgroundColour = widgetBackgroundColour
-evolveFragmentProbabilityInput.displayName = "Evolve"
-evolveFragmentProbabilityInput.tooltip = "Set the probability that fragments will change over time, using the resolutions present in the fragments"
-evolveFragmentProbabilityInput.width = 100
-evolveFragmentProbabilityInput.height = 16
-evolveFragmentProbabilityInput.x = rythmLabel.x + 239
-evolveFragmentProbabilityInput.y = 1
-evolveFragmentProbabilityInput.changed = function(self)
-  evolveFragmentProbability = self.value
-end
-
-local randomizeCurrentResolutionProbabilityInput = rythmPanel:NumBox("RandomizeCurrentResolutionProbability", randomizeCurrentResolutionProbability, 0, 100, true)
-randomizeCurrentResolutionProbabilityInput.unit = Unit.Percent
-randomizeCurrentResolutionProbabilityInput.textColour = widgetTextColour
-randomizeCurrentResolutionProbabilityInput.backgroundColour = widgetBackgroundColour
-randomizeCurrentResolutionProbabilityInput.displayName = "Adjust"
-randomizeCurrentResolutionProbabilityInput.tooltip = "Set the probability that evolve will adjust resolutions, based on the resolutions present in the fragments"
-randomizeCurrentResolutionProbabilityInput.width = evolveFragmentProbabilityInput.width
-randomizeCurrentResolutionProbabilityInput.height = evolveFragmentProbabilityInput.height
-randomizeCurrentResolutionProbabilityInput.x = evolveFragmentProbabilityInput.x + evolveFragmentProbabilityInput.width + 5
-randomizeCurrentResolutionProbabilityInput.y = evolveFragmentProbabilityInput.y
-randomizeCurrentResolutionProbabilityInput.changed = function(self)
-  randomizeCurrentResolutionProbability = self.value
-end
-
-local biasLabel = rythmPanel:Label("BiasLabel")
-biasLabel.text = "Bias slow > fast"
-biasLabel.tooltip = "Adjust bias: <50=more slow resolutions, >50=more fast resolutions"
-biasLabel.alpha = 0.5
-biasLabel.fontSize = 15
-biasLabel.width = 90
-biasLabel.height = randomizeCurrentResolutionProbabilityInput.height
-biasLabel.x = randomizeCurrentResolutionProbabilityInput.x + randomizeCurrentResolutionProbabilityInput.width + 5
-biasLabel.y = randomizeCurrentResolutionProbabilityInput.y
-
-local adjustBiasInput = rythmPanel:Knob("Bias", adjustBias, 0, 100, true)
-adjustBiasInput.showLabel = false
-adjustBiasInput.showValue = false
-adjustBiasInput.displayName = "Bias"
-adjustBiasInput.tooltip = biasLabel.tooltip
-adjustBiasInput.backgroundColour = widgetBackgroundColour
-adjustBiasInput.fillColour = knobFillColour
-adjustBiasInput.outlineColour = widgetTextColour
-adjustBiasInput.width = 18
-adjustBiasInput.height = biasLabel.height
-adjustBiasInput.x = biasLabel.x + biasLabel.width
-adjustBiasInput.y = biasLabel.y
-adjustBiasInput.changed = function(self)
-  adjustBias = self.value
-end
-
-local minResLabel = rythmPanel:Label("MinResolutionsLabel")
-minResLabel.text = "Min resolution"
-minResLabel.alpha = 0.5
-minResLabel.fontSize = 15
-minResLabel.width = 90
-minResLabel.height = adjustBiasInput.height
-minResLabel.x = adjustBiasInput.x + adjustBiasInput.width + 10
-minResLabel.y = adjustBiasInput.y
-
-local minResolution = rythmPanel:Menu("MinResolution", resolutions.getResolutionNames())
-minResolution.displayName = minResLabel.text
-minResolution.tooltip = "The highest allowed resolution for evolve adjustments"
-minResolution.selected = 26
-minResolution.showLabel = false
-minResolution.width = 60
-minResolution.height = adjustBiasInput.height
-minResolution.backgroundColour = widgetBackgroundColour
-minResolution.textColour = widgetTextColour
-minResolution.arrowColour = menuArrowColour
-minResolution.outlineColour = menuOutlineColour
-minResolution.x = minResLabel.x + minResLabel.width
-minResolution.y = minResLabel.y
-minResolution.changed = function(self)
-  rythmicFragments.setMaxResolutionIndex(self.value)
-end
-minResolution:changed()
-
-paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, rythmLabel, colours, 4, 15, 5)
-
---------------------------------------------------------------------------------
 -- Handle events
 --------------------------------------------------------------------------------
+
+local function noteIsPlaying(note)
+  for _,v in ipairs(activeVoices) do
+    if v.event.note == note then
+      return true
+    end
+  end
+  return false
+end
+local function isTrigger(e)
+  local channel = channelInput.value - 1
+  local isListeningForEvent = channel == 0 or channel == e.channel
+  local isTrigger = e.note == 0 -- Note 0 is used as trigger
+  return isTrigger and isListeningForEvent
+end
+
+local function handleTrigger(e)
+  e.note = getNote()
+  if noteIsPlaying(e.note) == false then
+    startPlaying()
+    local id = postEvent(e)
+    table.insert(activeVoices, {id=id,event=e})
+    print("Add active voice on note/channel", e.note, e.channel)
+  end
+end
+
+local function handleReleaseTrigger(e)
+  for i,v in ipairs(activeVoices) do
+    if v.event.channel == e.channel then
+      releaseVoice(v.id)
+      table.remove(activeVoices, i)
+      print("Release active voice on channel", v.event.channel)
+    end
+  end
+end
 
 function onInit()
   print("Init sequencer")
@@ -677,71 +925,25 @@ function onInit()
 end
 
 function onNote(e)
-  if autoplayButton.value == true then
-    postEvent(e)
+  if isTrigger(e) then
+    handleTrigger(e)
   else
-    playButton:setValue(true)
+    postEvent(e)
   end
 end
 
 function onRelease(e)
-  if autoplayButton.value == true then
-    postEvent(e)
+  if isTrigger(e) then
+    handleReleaseTrigger(e)
   else
-    playButton:setValue(false)
+    postEvent(e)
   end
 end
 
 function onTransport(start)
-  if autoplayButton.value == true then
-    playButton:setValue(start)
+  if start == true then
+    startPlaying()
+  else
+    stopPlaying()
   end
-end
-
---------------------------------------------------------------------------------
--- Save / Load
---------------------------------------------------------------------------------
-
-function onSave()
-  local fragmentInputData = {}
-  local velocityTableData = {}
-  local gateTableData = {}
-
-  for _,v in ipairs(paramsPerFragment) do
-    table.insert(fragmentInputData, v.fragmentInput.text)
-  end
-
-  --[[ for i=1, velocityTableLength.value do
-    table.insert(velocityTableData, seqVelTable:getValue(i))
-  end
-
-  for i=1, gateTableLength.value do
-    table.insert(gateTableData, seqGateTable:getValue(i))
-  end ]]
-
-  return {fragmentInputData, velocityTableData, gateTableData}
-end
-
-function onLoad(data)
-  local fragmentInputData = data[1]
-  velocityTableData = data[2]
-  gateTableData = data[3]
-
-  for i,v in ipairs(fragmentInputData) do
-    paramsPerFragment[i].fragmentInput.text = v
-  end
-
-  --[[ if type(velocityTableData) == "table" then
-    velocityTableLength:setValue(#velocityTableData)
-    for i,v in ipairs(velocityTableData) do
-      seqVelTable:setValue(i,v)
-    end
-  end
-
-  if type(gateTableData) == "table" then
-    gateTableLength:setValue(#gateTableData)
-    for i,v in ipairs(gateTableData) do
-      seqGateTable:setValue(i,v)
-    end
-  end ]]
 end
