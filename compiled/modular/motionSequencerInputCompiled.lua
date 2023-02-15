@@ -324,11 +324,37 @@ local resolutionNames = {
   "1/128" -- 32
 }
 
+local function quantizeToClosest(beat)
+  for i,v in ipairs(resolutionValues) do
+    local currentValue = v
+    local nextValue = resolutionValues[i+1]
+    --print("beat, currentValue, nextValue", beat, currentValue, nextValue)
+    if type(nextValue) == "nil" or beat == currentValue then
+      --print("beat == currentValue or nextValue == nil", beat, currentValue, nextValue)
+      return currentValue
+    end
+    if beat < currentValue and beat > nextValue then
+      local diffCurrent = currentValue - beat
+      local diffNext = beat - nextValue
+      if diffCurrent < diffNext then
+        --print("Return currentValue diffCurrent < diffNext", diffCurrent, diffNext)
+        return currentValue
+      else
+        --print("Return nextValue diffNext < diffCurrent", diffNext, diffCurrent)
+        return nextValue
+      end
+    end
+  end
+  return beat
+end
+
 local resolutions = {
+  quantizeToClosest = quantizeToClosest,
+
   getDotted = getDotted,
-  
+
   getTriplet = getTriplet,
-  
+
   getEvenFromDotted = function(value)
     return value / 1.5
   end,
@@ -454,9 +480,14 @@ local scaleDefinitions = scales.getScaleDefinitions()
 local scaleDefinitionIndex = #scalesNames
 local activeScale = {} -- Holds the active scale
 local factor = 2
-local moveSpeed = 50
-local motionTypes = {"Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Zero", "Random"}
-local amountType = motionTypes[1]
+local factorMin = 0
+local factorMax = 4
+local moveSpeed = 25
+local moveSpeedMin = 5
+local moveSpeedMax = 250
+local speedRandomizationAmount = 0
+local speedTypes = {"Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Random"}
+local speedType = speedTypes[1]
 local startModes = {"Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Zero", "Min", "Max", "Keep State", "Random"}
 local startMode = startModes[6]
 local activeVoices = {}
@@ -550,21 +581,21 @@ end
 
 local function move(i)
   local middle = math.floor(pitchOffsetTableLength / 2)
-  local direction = 1 -- TODO Param for setting start direction?
+  local direction = 1
   local value = pitchOffsetTable:getValue(i)
   print("i, duration", i, duration)
   while isPlaying do
     local amount = i - 1
-    if (i > middle and amountType == "Triangle") or amountType == "Ramp Down" then
+    if (i > middle and speedType == "Triangle") or speedType == "Ramp Down" then
       amount = (pitchOffsetTableLength - i)-- + 1
-    elseif amountType == "Random" then
+    elseif speedType == "Random" then
       amount = gem.getRandom(pitchOffsetTableLength) - 1
-    elseif amountType == "Zero" or (amountType == "Even" and i % 2 == 0) or (amountType == "Odd" and i % 2 > 0) then
+    elseif (speedType == "Even" and i % 2 == 0) or (speedType == "Odd" and i % 2 > 0) then
       amount = 0
     end
     local min = pitchOffsetTable.min
     local max = pitchOffsetTable.max
-    local duration = moveSpeed + (amount * factor) -- TODO Param for operator?
+    local duration = gem.randomizeValue(moveSpeed, moveSpeedMin, moveSpeedMax, speedRandomizationAmount) + (amount * factor) -- TODO Param for operator?
     pitchOffsetTable:setValue(i, value)
     value = gem.inc(value, direction)
     if value < min then
@@ -710,9 +741,6 @@ positionTable.x = 0
 positionTable.y = noteLabel.y + noteLabel.height
 
 pitchOffsetTable = notePanel:Table("PitchOffset", pitchOffsetTableLength, 0, -24, 24, true)
-pitchOffsetTable.persistent = false
---pitchOffsetTable.enabled = false
---pitchOffsetTable.drawInnerEdge = false
 pitchOffsetTable.tooltip = "Set pitch offset"
 pitchOffsetTable.showPopupDisplay = true
 pitchOffsetTable.fillStyle = "solid"
@@ -730,31 +758,28 @@ local firstRowY = pitchOffsetTable.y + pitchOffsetTable.height + 5
 local secondRowY = firstRowY + noteWidgetHeight + noteWidgetRowSpacing
 local thirdRowY = secondRowY + noteWidgetHeight + noteWidgetRowSpacing
 
-local amountTypeMenu = notePanel:Menu("AmountType", motionTypes)
-amountTypeMenu.displayName = "Amount Type"
-amountTypeMenu.tooltip = "Amount type - Ramp Up means slower for every step (depending on factor)"
---amountTypeMenu.showLabel = false
-amountTypeMenu.height = (noteWidgetHeight * 2) + noteWidgetRowSpacing
-amountTypeMenu.width = noteWidgetWidth
-amountTypeMenu.x = noteWidgetCellSpacing
-amountTypeMenu.y = firstRowY
-amountTypeMenu.backgroundColour = menuBackgroundColour
-amountTypeMenu.textColour = menuTextColour
-amountTypeMenu.arrowColour = menuArrowColour
-amountTypeMenu.outlineColour = menuOutlineColour
-amountTypeMenu.changed = function(self)
-  amountType = self.selectedText
-  --print("amountType", amountType)
+local speedTypeMenu = notePanel:Menu("SpeedType", speedTypes)
+speedTypeMenu.displayName = "Speed Type"
+speedTypeMenu.tooltip = "Set the speed type (depending on factor > 0) - Ramp Up = slower for every cell, Ramp Down = faster etc"
+speedTypeMenu.height = (noteWidgetHeight * 2) + noteWidgetRowSpacing
+speedTypeMenu.width = noteWidgetWidth
+speedTypeMenu.x = noteWidgetCellSpacing
+speedTypeMenu.y = firstRowY
+speedTypeMenu.backgroundColour = menuBackgroundColour
+speedTypeMenu.textColour = menuTextColour
+speedTypeMenu.arrowColour = menuArrowColour
+speedTypeMenu.outlineColour = menuOutlineColour
+speedTypeMenu.changed = function(self)
+  speedType = self.selectedText
 end
 
 local startModeMenu = notePanel:Menu("StartMode", startModes)
 startModeMenu.displayName = "Start Mode"
 startModeMenu.selected = gem.getIndexFromValue(startMode, startModes)
 startModeMenu.tooltip = "Start mode controls the table reset"
---startModeMenu.showLabel = false
 startModeMenu.height = (noteWidgetHeight * 2) + noteWidgetRowSpacing
 startModeMenu.width = noteWidgetWidth
-startModeMenu.x = amountTypeMenu.x + amountTypeMenu.width + 5
+startModeMenu.x = speedTypeMenu.x + speedTypeMenu.width + 5
 startModeMenu.y = firstRowY
 startModeMenu.backgroundColour = menuBackgroundColour
 startModeMenu.textColour = menuTextColour
@@ -762,7 +787,6 @@ startModeMenu.arrowColour = menuArrowColour
 startModeMenu.outlineColour = menuOutlineColour
 startModeMenu.changed = function(self)
   startMode = self.selectedText
-  --print("startMode", startMode)
   resetPitches()
 end
 
@@ -770,9 +794,8 @@ local scaleMenu = notePanel:Menu("Scale", scalesNames)
 scaleMenu.selected = #scalesNames
 scaleMenu.displayName = "Scale"
 scaleMenu.tooltip = "The scale to use for automatic motion"
---scaleMenu.showLabel = false
 scaleMenu.height = (noteWidgetHeight * 2) + noteWidgetRowSpacing
-scaleMenu.width = noteWidgetWidth
+scaleMenu.width = noteWidgetWidth - 36
 scaleMenu.x = startModeMenu.x + startModeMenu.width + noteWidgetCellSpacing
 scaleMenu.y = firstRowY
 scaleMenu.backgroundColour = menuBackgroundColour
@@ -786,16 +809,16 @@ end
 
 local noteInput = notePanel:NumBox("BaseNote", baseNote, 0, 127, true)
 --noteInput.enabled = false
---noteInput.showLabel = false
+noteInput.showLabel = false
 noteInput.displayName = "Base Note"
 noteInput.tooltip = "Set the root note"
 noteInput.unit = Unit.MidiKey
 noteInput.backgroundColour = menuBackgroundColour
 noteInput.textColour = menuTextColour
 noteInput.height = noteWidgetHeight
-noteInput.width = noteWidgetWidth
-noteInput.x = scaleMenu.x
-noteInput.y = thirdRowY
+noteInput.width = 36
+noteInput.x = scaleMenu.x + scaleMenu.width
+noteInput.y = secondRowY
 noteInput.changed = function(self)
   baseNote = self.value
   setScale()
@@ -808,8 +831,8 @@ octaveRangeInput.backgroundColour = menuBackgroundColour
 octaveRangeInput.textColour = menuTextColour
 octaveRangeInput.height = noteWidgetHeight
 octaveRangeInput.width = noteWidgetWidth
-octaveRangeInput.x = noteInput.x + noteInput.width + 5
-octaveRangeInput.y = secondRowY
+octaveRangeInput.x = scaleMenu.x-- + noteInput.width + 5
+octaveRangeInput.y = thirdRowY
 octaveRangeInput.changed = function(self)
   octaveRange = self.value
   setScale()
@@ -823,8 +846,8 @@ bipolarButton.textColourOn = textColourOn
 bipolarButton.displayName = "Bipolar"
 bipolarButton.width = noteWidgetWidth
 bipolarButton.height = noteWidgetHeight
-bipolarButton.x = scaleMenu.x + scaleMenu.width + 5
-bipolarButton.y = firstRowY
+bipolarButton.x = speedTypeMenu.x-- + scaleMenu.width + 5
+bipolarButton.y = thirdRowY
 bipolarButton.changed = function(self)
   bipolar = self.value
   setScale()
@@ -837,7 +860,7 @@ pitchOffsetTableLengthInput.backgroundColour = menuBackgroundColour
 pitchOffsetTableLengthInput.textColour = menuTextColour
 pitchOffsetTableLengthInput.height = noteWidgetHeight
 pitchOffsetTableLengthInput.width = noteWidgetWidth
-pitchOffsetTableLengthInput.x = noteInput.x + noteInput.width + 5
+pitchOffsetTableLengthInput.x = startModeMenu.x-- + noteInput.width + 5
 pitchOffsetTableLengthInput.y = thirdRowY
 pitchOffsetTableLengthInput.changed = function(self)
   pitchOffsetTableLength = self.value
@@ -847,36 +870,50 @@ pitchOffsetTableLengthInput.changed = function(self)
   resetPitches()
 end
 
-local moveSpeedInput = notePanel:NumBox("MoveSpeed", moveSpeed, 1., 500., false)
-moveSpeedInput.displayName = "Speed"
-moveSpeedInput.tooltip = "Set the move speed"
+local moveSpeedInput = notePanel:NumBox("MoveSpeed", moveSpeed, moveSpeedMin, moveSpeedMax, false)
+moveSpeedInput.displayName = "Motion Speed"
+moveSpeedInput.tooltip = "Set the speed of the up/down motion in each cell - Controlled by the X-axis on the XY controller"
 moveSpeedInput.unit = Unit.MilliSeconds
 moveSpeedInput.backgroundColour = menuBackgroundColour
 moveSpeedInput.textColour = menuTextColour
 moveSpeedInput.height = noteWidgetHeight
 moveSpeedInput.width = noteWidgetWidth
-moveSpeedInput.x = noteWidgetCellSpacing--scaleMenu.x + scaleMenu.width + noteWidgetCellSpacing
-moveSpeedInput.y = thirdRowY
+moveSpeedInput.x = noteInput.x + noteInput.width + noteWidgetCellSpacing
+moveSpeedInput.y = firstRowY
 moveSpeedInput.changed = function(self)
   moveSpeed = self.value
 end
 
-local factorInput = notePanel:NumBox("Factor", factor, 0., 30., false)
+local factorInput = notePanel:NumBox("Factor", factor, factorMin, factorMax, false)
 factorInput.displayName = "Speed Factor"
-factorInput.tooltip = "Set the factor of slowdown or spedup per step"
+factorInput.tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. Controlled by the Y-axis on the XY controller"
 factorInput.backgroundColour = menuBackgroundColour
 factorInput.textColour = menuTextColour
 factorInput.height = noteWidgetHeight
 factorInput.width = noteWidgetWidth
-factorInput.x = moveSpeedInput.x + moveSpeedInput.width + 5
-factorInput.y = thirdRowY
+factorInput.x = moveSpeedInput.x-- + moveSpeedInput.width + 5
+factorInput.y = secondRowY
 factorInput.changed = function(self)
   factor = self.value
 end
 
+local speedRandomizationAmountInput = notePanel:NumBox("SpeedRandomizationAmount", speedRandomizationAmount, 0, 100, true)
+speedRandomizationAmountInput.unit = Unit.Percent
+speedRandomizationAmountInput.displayName = "Speed Rand"
+speedRandomizationAmountInput.tooltip = "Set the radomization amount applied to speed"
+speedRandomizationAmountInput.backgroundColour = menuBackgroundColour
+speedRandomizationAmountInput.textColour = menuTextColour
+speedRandomizationAmountInput.height = noteWidgetHeight
+speedRandomizationAmountInput.width = noteWidgetWidth
+speedRandomizationAmountInput.x = factorInput.x
+speedRandomizationAmountInput.y = thirdRowY
+speedRandomizationAmountInput.changed = function(self)
+  speedRandomizationAmount = self.value
+end
+
 local xySpeedFactor = notePanel:XY('MoveSpeed', 'Factor')
 xySpeedFactor.y = firstRowY
-xySpeedFactor.x = bipolarButton.x + bipolarButton.width + noteWidgetCellSpacing
+xySpeedFactor.x = speedRandomizationAmountInput.x + speedRandomizationAmountInput.width + noteWidgetCellSpacing
 xySpeedFactor.width = noteWidgetWidth
 xySpeedFactor.height = (noteWidgetHeight * 3) + (noteWidgetRowSpacing * 2)
 
