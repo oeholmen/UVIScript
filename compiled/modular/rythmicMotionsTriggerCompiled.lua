@@ -178,13 +178,13 @@ local gem = {
 local widgetNameIndex = 1
 
 local widgetDefaults = {
-  panel = nil,
+  panel = Panel("DefaultPanel"),
   width = 100,
   height = 20,
   xOffset = 0,
   yOffset = 0,
-  xSpacing = 5,
-  ySpacing = 5,
+  xSpacing = 0,
+  ySpacing = 0,
 }
 
 local widgetColours = {
@@ -192,6 +192,8 @@ local widgetColours = {
   widgetBackgroundColour = "01011F", -- Dark
   menuBackgroundColour = "01011F", -- widgetBackgroundColour
   widgetTextColour = "9f02ACFE", -- Light
+  tableBackgroundColour = "202020",
+  sliderColour = "5FB5FF", -- Table slider colour
   labelTextColour = "black", -- Light
   labelBackgoundColour = "CFFFFE",
   menuArrowColour = "66AEFEFF", -- labelTextColour
@@ -208,10 +210,6 @@ local function getWidgetValue(value, default)
     return default
   end
   return value
-end
-
-local function setPanel(panel)
-  widgetDefaults.panel = panel
 end
 
 local function xOffset(val)
@@ -311,22 +309,17 @@ local function getWidgetBounds(options)
   return {x, y, w, h}
 end
 
-local function getWidgetOptions(displayName, default, col, row, options)
-  if type(default) == "table" then
-    options = default
-  else
-    if type(options) == "nil" then
-      options = {}
-    end
-    options.default = getWidgetValue(default, options.default)
-    options.col = getWidgetValue(col, options.col)
-    options.row = getWidgetValue(row, options.row)
+local function getWidgetOptions(options, col, row, displayName, default)
+  if type(options) ~= "table" then
+    options = {}
   end
+  options.default = getWidgetValue(default, options.default)
+  options.col = getWidgetValue(col, options.col)
+  options.row = getWidgetValue(row, options.row)
   options.name = getWidgetName(options.name)
   options.displayName = getWidgetValue(displayName, options.name)
-  options.unit = getWidgetValue(options.unit, Unit.Generic)
   options.tooltip = getWidgetValue(options.tooltip, options.displayName)
-  options.integer = getWidgetValue(options.integer, (unit == Unit.Percent))
+  options.integer = getWidgetValue(options.integer, (options.unit == Unit.Percent))
   options.min = getWidgetValue(options.min, 0)
   options.default = getWidgetValue(options.default, options.min)
   if options.unit == Unit.Percent then
@@ -347,73 +340,56 @@ local function setOptional(widget, options)
   if type(options.fontSize) == "number" then
     widget.fontSize = options.fontSize
   end
+  if type(options.unit) == "number" then
+    widget.unit = options.unit
+  end
   if type(options.showLabel) == "boolean" then
     widget.showLabel = options.showLabel
   end
   if type(options.persistent) == "boolean" then
     widget.persistent = options.persistent
   end
+  if type(options.enabled) == "boolean" then
+    widget.enabled = options.enabled
+  end
+  if type(options.showPopupDisplay) == "boolean" then
+    widget.showPopupDisplay = options.showPopupDisplay
+  end
+  if type(options.fillStyle) == "string" then
+    widget.fillStyle = options.fillStyle
+  end
+  if type(options.sliderColour) == "string" then
+    widget.sliderColour = options.sliderColour
+  end
 end
 
-local function numBox(displayName, default, col, row, options)
-  options = getWidgetOptions(displayName, default, col, row, options)
-  local widget = widgetDefaults.panel:NumBox(options.name, options.default, options.min, options.max, options.integer)
-  widget.displayName = options.displayName
-  widget.tooltip = options.tooltip
-  widget.unit = options.unit
-  widget.backgroundColour = widgetColours.widgetBackgroundColour
-  widget.textColour = widgetColours.widgetTextColour
-  widget.bounds = getWidgetBounds(options)
-  setOptional(widget, options)
-  return widget
+local function setPanel(panel)
+  widgetDefaults.panel = panel
 end
 
-local function menu(displayName, default, items, col, row, options)
-  options = getWidgetOptions(displayName, default, col, row, options)
-  local widget = widgetDefaults.panel:Menu(options.name, items)
-  widget.selected = options.default
-  widget.displayName = options.displayName
-  widget.tooltip = options.tooltip
-  widget.backgroundColour = widgetColours.menuBackgroundColour
-  widget.textColour = widgetColours.menuTextColour
-  widget.arrowColour = widgetColours.menuArrowColour
-  widget.outlineColour = widgetColours.menuOutlineColour
-  widget.bounds = getWidgetBounds(options)
-  setOptional(widget, options)
-  return widget
-end
-
-local function button(displayName, default, col, row, options)
-  options = getWidgetOptions(displayName, default, col, row, options)
-  local widget = widgetDefaults.panel:OnOffButton(options.name, (options.default == true))
-  widget.backgroundColourOff = widgetColours.backgroundColourOff
-  widget.backgroundColourOn = widgetColours.backgroundColourOn
-  widget.textColourOff = widgetColours.textColourOff
-  widget.textColourOn = widgetColours.textColourOn
-  widget.displayName = options.displayName
-  widget.tooltip = options.tooltip
-  widget.unit = options.unit
-  widget.bounds = getWidgetBounds(options)
-  setOptional(widget, options)
-  return widget
-end
-
-local function label(displayName, col, row, options)
-  options = getWidgetOptions(displayName, nil, col, row, options)
-  local widget = widgetDefaults.panel:Label("Label")
-  widget.text = options.displayName
-  widget.tooltip = options.tooltip
-  widget.backgroundColour = widgetColours.labelBackgoundColour
-  widget.textColour = widgetColours.labelTextColour
-  widget.bounds = getWidgetBounds(options)
-  setOptional(widget, options)
-  return widget
+local function getPanel(col, row, options, create)
+  if type(col) == "number" or type(row) == "number" or type(col) == "table" or type(options) == "table" or create == true then
+    if type(col) == "table" then
+      options = col
+      col = nil
+    end
+    options = getWidgetOptions(options, col, row)
+    if create == true then
+      widgetDefaults.panel = Panel(options.name)
+    end
+    widgetDefaults.panel.backgroundColour = widgetColours.backgroundColour
+    widgetDefaults.panel.bounds = getWidgetBounds(options)
+    setOptional(widgetDefaults.panel, options)
+  end
+  return widgetDefaults.panel
 end
 
 local widgets = {
+  colours = widgetColours,
   setColour = setColour,
   getColour = getColour,
   setPanel = setPanel,
+  getPanel = getPanel,
   setWidgetDefaults = setWidgetDefaults,
   xOffset = xOffset,
   yOffset = yOffset,
@@ -423,10 +399,68 @@ local widgets = {
   heightDefault = heightDefault,
   posSide = posSide,
   posUnder = posUnder,
-  button = button,
-  label = label,
-  menu = menu,
-  numBox = numBox,
+  panel = function(col, row, options)
+    return getPanel(col, row, options, true)
+  end,
+  button = function(displayName, default, col, row, options)
+    options = getWidgetOptions(options, col, row, displayName, default)
+    local widget = widgetDefaults.panel:OnOffButton(options.name, (options.default == true))
+    widget.backgroundColourOff = widgetColours.backgroundColourOff
+    widget.backgroundColourOn = widgetColours.backgroundColourOn
+    widget.textColourOff = widgetColours.textColourOff
+    widget.textColourOn = widgetColours.textColourOn
+    widget.displayName = options.displayName
+    widget.tooltip = options.tooltip
+    widget.bounds = getWidgetBounds(options)
+    setOptional(widget, options)
+    return widget
+  end,
+  label = function(displayName, col, row, options)
+    options = getWidgetOptions(options, col, row, displayName)
+    local widget = widgetDefaults.panel:Label("Label")
+    widget.text = options.displayName
+    widget.tooltip = options.tooltip
+    widget.backgroundColour = widgetColours.labelBackgoundColour
+    widget.textColour = widgetColours.labelTextColour
+    widget.bounds = getWidgetBounds(options)
+    setOptional(widget, options)
+    return widget
+  end,
+  menu = function(displayName, default, items, col, row, options)
+    options = getWidgetOptions(options, col, row, displayName, default)
+    local widget = widgetDefaults.panel:Menu(options.name, items)
+    widget.selected = options.default
+    widget.displayName = options.displayName
+    widget.tooltip = options.tooltip
+    widget.backgroundColour = widgetColours.menuBackgroundColour
+    widget.textColour = widgetColours.menuTextColour
+    widget.arrowColour = widgetColours.menuArrowColour
+    widget.outlineColour = widgetColours.menuOutlineColour
+    widget.bounds = getWidgetBounds(options)
+    setOptional(widget, options)
+    return widget
+  end,
+  numBox = function(displayName, default, col, row, options)
+    options = getWidgetOptions(options, col, row, displayName, default)
+    local widget = widgetDefaults.panel:NumBox(options.name, options.default, options.min, options.max, options.integer)
+    widget.displayName = options.displayName
+    widget.tooltip = options.tooltip
+    widget.backgroundColour = widgetColours.widgetBackgroundColour
+    widget.textColour = widgetColours.widgetTextColour
+    widget.bounds = getWidgetBounds(options)
+    setOptional(widget, options)
+    return widget
+  end,
+  table = function(size, default, col, row, options)
+    options = getWidgetOptions(options, col, row, nil, default)
+    local widget = widgetDefaults.panel:Table(options.name, size, options.default, options.min, options.max, options.integer)
+    widget.fillStyle = "solid"
+    widget.backgroundColour = widgetColours.tableBackgroundColour
+    widget.sliderColour = widgetColours.sliderColour
+    widget.bounds = getWidgetBounds(options)
+    setOptional(widget, options)
+    return widget
+  end,
 }
 
 --------------------------------------------------------------------------------
@@ -512,6 +546,7 @@ local resolutionNames = {
   "1/128" -- 32
 }
 
+-- Quantize the given beat to the closest recognized resolution value
 local function quantizeToClosest(beat)
   for i,v in ipairs(resolutionValues) do
     local currentValue = v
@@ -629,6 +664,147 @@ local resolutions = {
 }
 
 --------------------------------------------------------------------------------
+-- Common functions for processors using table motion
+--------------------------------------------------------------------------------
+
+local speedTypes = {"Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Random"}
+local startModes = {"Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Zero", "Min", "Max", "Keep State", "Random"}
+
+local motionOptions = {
+  factor = 2,
+  factorMin = 0,
+  factorMax = 4,
+  moveSpeed = 25,
+  moveSpeedMin = 5,
+  moveSpeedMax = 250,
+  speedType = speedTypes[1],
+  startMode = startModes[1],
+  speedRandomizationAmount = 0,
+  tableLength = 32,
+}
+
+local function setTableZero(theTable)
+    for i=1,theTable.length do
+      theTable:setValue(i, 0)
+    end  
+end
+
+local function setStartMode(theTable)
+  -- Reset table according to start mode
+  if motionOptions.startMode == "Keep State" then
+    return
+  elseif motionOptions.startMode == "Ramp Up" then
+    for i,v in ipairs(gem.rampUp(theTable.min, theTable.max, theTable.length)) do
+      theTable:setValue(i, v)
+    end
+  elseif motionOptions.startMode == "Ramp Down" then
+    for i,v in ipairs(gem.rampDown(theTable.min, theTable.max, theTable.length)) do
+      theTable:setValue(i, v)
+    end
+  elseif motionOptions.startMode == "Triangle" then
+    for i,v in ipairs(gem.triangle(theTable.min, theTable.max, theTable.length)) do
+      theTable:setValue(i, v)
+    end
+  elseif motionOptions.startMode == "Random" then
+    for i=1,theTable.length do
+      theTable:setValue(i, gem.getRandom(theTable.min, theTable.max))
+    end
+  elseif motionOptions.startMode == "Min" then
+    for i=1,theTable.length do
+      theTable:setValue(i, theTable.min)
+    end
+  elseif motionOptions.startMode == "Max" then
+    for i=1,theTable.length do
+      theTable:setValue(i, theTable.max)
+    end
+  elseif motionOptions.startMode == "Even" then
+    local minValue = theTable.min
+    local maxValue = theTable.max
+    for i=1,theTable.length do
+      local val = minValue
+      if i % 2 == 0 then
+        val = maxValue
+      end
+      theTable:setValue(i, val)
+    end
+  elseif motionOptions.startMode == "Odd" then
+    local minValue = theTable.min
+    local maxValue = theTable.max
+    for i=1,theTable.length do
+      local val = maxValue
+      if i % 2 == 0 then
+        val = minValue
+      end
+      theTable:setValue(i, val)
+    end
+  else
+    setTableZero(theTable)
+  end
+end
+
+local function moveTable(theTable, i, value, direction)
+  local middle = math.floor(theTable.length / 2)
+  -- Increment value
+  local amount = i - 1
+  if (i > middle and motionOptions.speedType == "Triangle") or motionOptions.speedType == "Ramp Down" then
+    amount = (theTable.length - i)
+  elseif motionOptions.speedType == "Random" then
+    amount = gem.getRandom(theTable.length) - 1
+  elseif (motionOptions.speedType == "Even" and i % 2 == 0) or (motionOptions.speedType == "Odd" and i % 2 > 0) then
+    amount = 0
+  elseif motionOptions.speedType == "Even" and i == 1 then
+    amount = i
+  end
+  local min = theTable.min
+  local max = theTable.max
+  local duration = gem.randomizeValue(motionOptions.moveSpeed, motionOptions.moveSpeedMin, motionOptions.moveSpeedMax, motionOptions.speedRandomizationAmount) + (amount * motionOptions.factor) -- TODO Param for operator?
+  theTable:setValue(i, value)
+  value = gem.inc(value, direction)
+  if value < min then
+    if true or gem.getRandomBoolean() then
+      value = min
+      direction = 1
+      --print("Change direction", direction)
+    else
+      value = max
+    end
+    --print("Reset value", value)
+  elseif value > max then
+    if true or gem.getRandomBoolean() then
+      value = max
+      direction = -1
+      --print("Change direction", direction)
+    else
+      value = min
+    end
+    --print("Reset value", value)
+  end
+  local valueBeforeWait = theTable:getValue(i)
+  wait(duration)
+  -- If value has been manually changed during the wait, we continue from that value
+  if valueBeforeWait ~= theTable:getValue(i) then
+    value = theTable:getValue(i)
+  end
+  return value, direction
+end
+
+local tableMotion = {
+  setRange = function(theTable, tableRange, bipolar)
+    if bipolar then
+      theTable:setRange(-tableRange, tableRange)
+    else
+      theTable:setRange(0, tableRange)
+    end
+  end,
+  moveTable = moveTable,
+  setStartMode = setStartMode,
+  setTableZero = setTableZero,
+  speedTypes = speedTypes,
+  startModes = startModes,
+  options = motionOptions
+}
+
+--------------------------------------------------------------------------------
 -- Rythmic Motions - Sends note events using note 0 as trigger
 --------------------------------------------------------------------------------
 
@@ -646,8 +822,9 @@ local menuTextColour = "#9f02ACFE"
 local menuArrowColour = "66" .. labelTextColour
 local menuOutlineColour = "5f" .. widgetTextColour
 local knobFillColour = "E6D5B8" -- Light
-local sliderColour = "pink"--"5FB5FF"
+local sliderColour = "pink"
 
+widgets.setColour('backgroundColour', backgroundColour)
 setBackgroundColour(backgroundColour)
 
 --------------------------------------------------------------------------------
@@ -659,19 +836,7 @@ local tableRange = 16
 local bipolar = true
 local positionTable
 local motionTable
-local motionTableLength = 32
 local channel = 1
-local factor = 2
-local factorMin = 0
-local factorMax = 4
-local moveSpeed = 25
-local moveSpeedMin = 5
-local moveSpeedMax = 250
-local speedRandomizationAmount = 0
-local speedTypes = {"Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Random"}
-local speedType = speedTypes[1]
-local startModes = {"Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Zero", "Min", "Max", "Keep State", "Random"}
-local startMode = startModes[1]
 local noteEventId = 0 -- Holds the index if the cell in the table that last triggered an event
 local resolutionNames = resolutions.getResolutionNames()
 local resolution = #resolutionNames
@@ -686,131 +851,34 @@ local voiceId = nil -- Holds the id of the created note event
 local function resetTableValues()
   -- Reset event id
   noteEventId = 0
+
   -- Reset position
-  for i=1,motionTableLength do
-    positionTable:setValue(i, 0)
-  end
-  -- Reset pitches according to start mode
-  if startMode == "Keep State" then
-    return
-  elseif startMode == "Ramp Up" then
-    for i,v in ipairs(gem.rampUp(motionTable.min, motionTable.max, motionTableLength)) do
-      motionTable:setValue(i, v)
-    end
-  elseif startMode == "Ramp Down" then
-    for i,v in ipairs(gem.rampDown(motionTable.min, motionTable.max, motionTableLength)) do
-      motionTable:setValue(i, v)
-    end
-  elseif startMode == "Triangle" then
-    for i,v in ipairs(gem.triangle(motionTable.min, motionTable.max, motionTableLength)) do
-      motionTable:setValue(i, v)
-    end
-  elseif startMode == "Random" then
-    for i=1,motionTableLength do
-      motionTable:setValue(i, gem.getRandom(motionTable.min, motionTable.max))
-    end
-  elseif startMode == "Min" then
-    for i=1,motionTableLength do
-      motionTable:setValue(i, motionTable.min)
-    end
-  elseif startMode == "Max" then
-    for i=1,motionTableLength do
-      motionTable:setValue(i, motionTable.max)
-    end
-  elseif startMode == "Even" then
-    local minValue = motionTable.min
-    local maxValue = motionTable.max
-    for i=1,motionTableLength do
-      local val = minValue
-      if i % 2 == 0 then
-        val = maxValue
-      end
-      motionTable:setValue(i, val)
-    end
-  elseif startMode == "Odd" then
-    local minValue = motionTable.min
-    local maxValue = motionTable.max
-    for i=1,motionTableLength do
-      local val = maxValue
-      if i % 2 == 0 then
-        val = minValue
-      end
-      motionTable:setValue(i, val)
-    end
-  else
-    for i=1,motionTableLength do
-      positionTable:setValue(i, 0)
-      motionTable:setValue(i, 0)
-    end
-  end
+  tableMotion.setTableZero(positionTable)
+
+  -- Set start mode
+  tableMotion.setStartMode(motionTable)
 end
 
 local function setRange()
-  if bipolar then
-    motionTable:setRange(-tableRange, tableRange)
-  else
-    motionTable:setRange(0, tableRange)
-  end
+  tableMotion.setRange(motionTable, tableRange, bipolar)
   resetTableValues()
 end
 
 local function move(i, uniqueId)
-  local middle = math.floor(motionTableLength / 2)
-  local direction = 1 -- TODO Param for setting start direction?
+  local direction = 1
   local value = motionTable:getValue(i)
   while isPlaying and movingCells[i] == uniqueId do
     -- Send note event if value is min or max
-    -- TODO Add params for triggers?
     if value == motionTable.min or value == motionTable.max then
       noteEventId = i
-    end
-    -- Increment value
-    local amount = i - 1
-    if (i > middle and speedType == "Triangle") or speedType == "Ramp Down" then
-      amount = (motionTableLength - i)
-    elseif speedType == "Random" then
-      amount = gem.getRandom(motionTableLength) - 1
-    elseif (speedType == "Even" and i % 2 == 0) or (speedType == "Odd" and i % 2 > 0) then
-      amount = 0
-    elseif speedType == "Even" and i == 1 then
-      amount = i
-    end
-    local min = motionTable.min
-    local max = motionTable.max
-    local duration = gem.randomizeValue(moveSpeed, moveSpeedMin, moveSpeedMax, speedRandomizationAmount) + (amount * factor) -- TODO Param for operator?
-    motionTable:setValue(i, value)
-    value = gem.inc(value, direction)
-    if value < min then
-      if true or gem.getRandomBoolean() then
-        value = min
-        direction = 1
-        --print("Change direction", direction)
-      else
-        value = max
-      end
-      --print("Reset value", value)
-    elseif value > max then
-      if true or gem.getRandomBoolean() then
-        value = max
-        direction = -1
-        --print("Change direction", direction)
-      else
-        value = min
-      end
-      --print("Reset value", value)
-    end
-    local valueBeforeWait = motionTable:getValue(i)
-    wait(duration)
-    -- If value has been manually changed during the wait, we continue from that value
-    if valueBeforeWait ~= motionTable:getValue(i) then
-      value = motionTable:getValue(i)
-    end
+    end  
+    value, direction = tableMotion.moveTable(motionTable, i, value, direction)
   end
 end
 
 local function startMoving()
   movingCells = {} -- Reset index to stop
-  for i=1,motionTableLength do
+  for i=1,motionTable.length do
     table.insert(movingCells, uniqueIndex)
     spawn(move, i, uniqueIndex)
     uniqueIndex = gem.inc(uniqueIndex)
@@ -831,7 +899,7 @@ local function sequenceRunner()
       voiceId = playNote(0, velocity, -1, nil, channel)
       --print("Creating trigger")
       -- Mark the position that initiated the event
-      for i=1,motionTableLength do
+      for i=1,motionTable.length do
         local value = 0
         if i == noteEventId then
           value = 1
@@ -866,42 +934,26 @@ local function stopPlaying()
 end
 
 --------------------------------------------------------------------------------
--- Panel Definitions
---------------------------------------------------------------------------------
-
-local sequencerPanel = Panel("MotionSequencer")
-sequencerPanel.backgroundColour = backgroundColour
-sequencerPanel.x = 0
-sequencerPanel.y = 0
-sequencerPanel.width = 720
-sequencerPanel.height = 30
-
-local notePanel = Panel("Notes")
-notePanel.backgroundColour = "606060"
-notePanel.x = sequencerPanel.x
-notePanel.y = sequencerPanel.y + sequencerPanel.height
-notePanel.width = sequencerPanel.width
-notePanel.height = 250
-
---------------------------------------------------------------------------------
 -- Motion Sequencer
 --------------------------------------------------------------------------------
 
-local sequencerLabel = sequencerPanel:Label("Label")
-sequencerLabel.text = "Rythmic Motions Trigger"
-sequencerLabel.tooltip = "A sequencer that triggers rythmic pulses (using note 0) that note inputs can listen to"
-sequencerLabel.alpha = 0.5
-sequencerLabel.backgroundColour = labelBackgoundColour
-sequencerLabel.textColour = labelTextColour
-sequencerLabel.fontSize = 22
-sequencerLabel.position = {0,0}
-sequencerLabel.size = {sequencerPanel.width,30}
+local sequencerPanel = widgets.getPanel(1, 1, {
+  width = 720,
+  height = 30,
+})
 
-widgets.setPanel(sequencerPanel)
-widgets.widthDefault(100)
-widgets.heightDefault(22)
+widgets.label("Rythmic Motions Trigger", 1, 1, {
+  tooltip = "A sequencer that triggers rythmic pulses (using note 0) that note inputs can listen to",
+  width = sequencerPanel.width,
+  height = 30,
+  alpha = 0.5,
+  fontSize = 22,
+})
+
 widgets.xOffset((sequencerPanel.width / 2) + 45)
 widgets.yOffset(5)
+widgets.xSpacing(5)
+widgets.ySpacing(5)
 
 local channelInput = widgets.numBox('Channel', channel, 1, 1, {
   tooltip = "Send note events starting on this channel",
@@ -930,34 +982,46 @@ end
 -- Notes Panel
 --------------------------------------------------------------------------------
 
-positionTable = notePanel:Table("Position", motionTableLength, 0, 0, 1, true)
-positionTable.enabled = false
-positionTable.persistent = false
-positionTable.fillStyle = "solid"
-positionTable.backgroundColour = widgetTextColour
-positionTable.sliderColour = "green"
-positionTable.width = notePanel.width
-positionTable.height = 6
-positionTable.x = 0
-positionTable.y = 0
+widgets.xSpacing(0)
+widgets.ySpacing(0)
+widgets.setColour('backgroundColour', "606060")
 
-motionTable = notePanel:Table("MotionTable", motionTableLength, 0, -tableRange, tableRange, true)
-motionTable.tooltip = "Events are triggered when the value hits max or min"
-motionTable.showPopupDisplay = true
-motionTable.fillStyle = "solid"
-motionTable.sliderColour = sliderColour
-motionTable.width = notePanel.width
-motionTable.height = 160
-motionTable.x = 0
-motionTable.y = positionTable.y + positionTable.height
+local notePanel = widgets.panel(1, 1, {
+  x = sequencerPanel.x,
+  y = widgets.posUnder(sequencerPanel),
+  width = sequencerPanel.width,
+  height = 250,
+})
+
+positionTable = widgets.table(tableMotion.options.tableLength, 0, 1, 1, {
+  enabled = false,
+  persistent = false,
+  sliderColour = "green",
+  width = sequencerPanel.width,
+  height = 6,
+  x = 0,
+  y = 0,
+})
+
+motionTable = widgets.table(tableMotion.options.tableLength, 0, 1, 1, {
+  tooltip = "Events are triggered when the value hits max or min",
+  showPopupDisplay = true,
+  min = -tableRange,
+  max = tableRange,
+  integer = true,
+  sliderColour = "pink",
+  width = sequencerPanel.width,
+  height = 160,
+  x = 0,
+  y = widgets.posUnder(positionTable),
+})
 
 local noteWidgetHeight = 20
 local noteWidgetWidth = 130
 local noteWidgetRowSpacing = 5
 local noteWidgetCellSpacing = 12
-local firstRowY = motionTable.y + motionTable.height + noteWidgetRowSpacing
-local secondRowY = firstRowY + noteWidgetHeight + noteWidgetRowSpacing
-local thirdRowY = secondRowY + noteWidgetHeight + noteWidgetRowSpacing
+local menuHeight = (noteWidgetHeight * 2) + noteWidgetRowSpacing
+local firstRowY = motionTable.y + motionTable.height + (noteWidgetRowSpacing * 1.5)
 
 widgets.setPanel(notePanel)
 widgets.widthDefault(noteWidgetWidth)
@@ -966,124 +1030,92 @@ widgets.yOffset(firstRowY)
 widgets.xSpacing(noteWidgetCellSpacing)
 widgets.ySpacing(noteWidgetRowSpacing)
 
-local speedTypeMenu = notePanel:Menu("SpeedType", speedTypes)
-speedTypeMenu.displayName = "Speed Type"
-speedTypeMenu.tooltip = "Set the speed type (depending on factor > 0) - Ramp Up = slower for every cell, Ramp Down = faster etc"
-speedTypeMenu.height = (noteWidgetHeight * 2) + noteWidgetRowSpacing
-speedTypeMenu.width = noteWidgetWidth
-speedTypeMenu.x = noteWidgetCellSpacing
-speedTypeMenu.y = firstRowY
-speedTypeMenu.backgroundColour = menuBackgroundColour
-speedTypeMenu.textColour = menuTextColour
-speedTypeMenu.arrowColour = menuArrowColour
-speedTypeMenu.outlineColour = menuOutlineColour
-speedTypeMenu.changed = function(self)
-  speedType = self.selectedText
-end
+widgets.menu("Speed Type", 1, tableMotion.speedTypes, 1, 1, {
+  height = menuHeight,
+  changed = function(self) tableMotion.options.speedType = self.selectedText end
+})
 
-local startModeMenu = notePanel:Menu("StartMode", startModes)
-startModeMenu.displayName = "Start Mode"
-startModeMenu.selected = gem.getIndexFromValue(startMode, startModes)
-startModeMenu.tooltip = "Start mode controls the table reset"
-startModeMenu.height = (noteWidgetHeight * 2) + noteWidgetRowSpacing
-startModeMenu.width = noteWidgetWidth
-startModeMenu.x = speedTypeMenu.x + speedTypeMenu.width + noteWidgetCellSpacing
-startModeMenu.y = firstRowY
-startModeMenu.backgroundColour = menuBackgroundColour
-startModeMenu.textColour = menuTextColour
-startModeMenu.arrowColour = menuArrowColour
-startModeMenu.outlineColour = menuOutlineColour
-startModeMenu.changed = function(self)
-  startMode = self.selectedText
-  resetTableValues()
-end
+widgets.menu("Start Mode", 1, tableMotion.startModes, 2, 1, {
+  height = menuHeight,
+  changed = function(self)
+    tableMotion.options.startMode = self.selectedText
+    resetTableValues()
+  end
+})
 
-local tableRangeInput = widgets.numBox("Range", tableRange, 1, 3, {
+widgets.numBox("Range", tableRange, 1, 3, {
   min = 8,
   max = 128,
   integer = true,
   tooltip = "Set the table range - high range = fewer events, low range = more events",
+  changed = function(self)
+    tableRange = self.value
+    setRange()
+  end
 })
-tableRangeInput.changed = function(self)
-  tableRange = self.value
-  setRange()
-end
 
-local resolutionInput = notePanel:Menu("Quantize", resolutionNames)
-resolutionInput.displayName = "Quantize"
-resolutionInput.tooltip = "Event triggers are quantized to this resolution"
-resolutionInput.selected = resolution
-resolutionInput.height = (noteWidgetHeight * 2) + noteWidgetRowSpacing
-resolutionInput.width = noteWidgetWidth
-resolutionInput.backgroundColour = widgetBackgroundColour
-resolutionInput.textColour = widgetTextColour
-resolutionInput.arrowColour = menuArrowColour
-resolutionInput.outlineColour = menuOutlineColour
-resolutionInput.x = startModeMenu.x + startModeMenu.width + noteWidgetCellSpacing
-resolutionInput.y = firstRowY
-resolutionInput.changed = function(self)
-  resolution = self.value
-end
+widgets.menu("Quantize", resolution, resolutionNames, 3, 1, {
+  height = menuHeight,
+  changed = function(self) resolution = self.value end
+})
 
-local bipolarButton = widgets.button("Bipolar", bipolar, 3, 3, {width = (noteWidgetWidth / 2) - (noteWidgetCellSpacing / 2)})
-bipolarButton.changed = function(self)
-  bipolar = self.value
-  setRange()
-end
+local bipolarButton = widgets.button("Bipolar", bipolar, 3, 3, {
+  width = (noteWidgetWidth / 2) - (noteWidgetCellSpacing / 2),
+  changed = function(self)
+    bipolar = self.value
+    setRange()
+  end
+})
 
-local resetButton = widgets.button("Reset", false, nil, 3, {width = bipolarButton.width, x = widgets.posSide(bipolarButton)})
-resetButton.changed = function(self)
-  resetTableValues()
-  startMoving()
-  self.value = false
-end
+widgets.button("Reset", false, nil, 3, {
+  width = bipolarButton.width, x = widgets.posSide(bipolarButton),
+  changed = function(self)
+    resetTableValues()
+    startMoving()
+    self.value = false
+  end
+})
 
-local motionTableLengthInput = widgets.numBox("Length", motionTableLength, 2, 3, {
+widgets.numBox("Length", tableMotion.options.tableLength, 2, 3, {
   min = 2,
   max = 128,
   integer = true,
   tooltip = "Set the table length",
+  changed = function(self)
+    tableMotion.options.tableLength = self.value
+    positionTable.length = tableMotion.options.tableLength
+    motionTable.length = tableMotion.options.tableLength
+    resetTableValues()
+    startMoving()
+  end
 })
-motionTableLengthInput.changed = function(self)
-  motionTableLength = self.value
-  positionTable.length = motionTableLength
-  motionTable.length = motionTableLength
-  resetTableValues()
-  startMoving()
-end
 
-local moveSpeedInput = widgets.numBox("Motion Speed", moveSpeed, 4, 1, {
+local moveSpeedInput = widgets.numBox("Motion Speed", tableMotion.options.moveSpeed, 4, 1, {
   name = "MoveSpeed",
-  min = moveSpeedMin,
-  max = moveSpeedMax,
+  min = tableMotion.options.moveSpeedMin,
+  max = tableMotion.options.moveSpeedMax,
   tooltip = "Set the speed of the up/down motion in each cell - Controlled by the X-axis on the XY controller",
   unit = Unit.MilliSeconds,
+  changed = function(self) tableMotion.options.moveSpeed = self.value end
 })
-moveSpeedInput.changed = function(self)
-  moveSpeed = self.value
-end
 
-local factorInput = widgets.numBox("Speed Factor", factor, 4, 2, {
+widgets.numBox("Speed Factor", tableMotion.options.factor, 4, 2, {
   name = "Factor",
-  min = factorMin,
-  max = factorMax,
+  min = tableMotion.options.factorMin,
+  max = tableMotion.options.factorMax,
   tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. Controlled by the Y-axis on the XY controller",
+  changed = function(self) tableMotion.options.factor = self.value end
 })
-factorInput.changed = function(self)
-  factor = self.value
-end
 
-local speedRandomizationAmountInput = widgets.numBox("Speed Rand", speedRandomizationAmount, 4, 3, {
+widgets.numBox("Speed Rand", tableMotion.options.speedRandomizationAmount, 4, 3, {
   unit = Unit.Percent,
   tooltip = "Set the radomization amount applied to speed",
+  changed = function(self) tableMotion.options.speedRandomizationAmount = self.value end
 })
-speedRandomizationAmountInput.changed = function(self)
-  speedRandomizationAmount = self.value
-end
 
 local xySpeedFactor = notePanel:XY('MoveSpeed', 'Factor')
 xySpeedFactor.y = firstRowY
-xySpeedFactor.x = moveSpeedInput.x + moveSpeedInput.width + noteWidgetCellSpacing
+xySpeedFactor.x = widgets.posSide(moveSpeedInput)
 xySpeedFactor.width = noteWidgetWidth
 xySpeedFactor.height = (noteWidgetHeight * 3) + (noteWidgetRowSpacing * 2)
 

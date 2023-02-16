@@ -1,4 +1,4 @@
--- effects/noteBouncer -- 
+-- modular/randomNoteInput -- 
 --------------------------------------------------------------------------------
 -- Common methods
 --------------------------------------------------------------------------------
@@ -464,366 +464,480 @@ local widgets = {
 }
 
 --------------------------------------------------------------------------------
--- Common Resolutions
+-- Common functions for notes
 --------------------------------------------------------------------------------
 
-local function getDotted(value)
-  return value * 1.5
-end
+local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
 
-local function getTriplet(value)
-  return value / 3
-end
-
--- NOTE: Make sure resolutionValues and resolutionNames are in sync
-local resolutionValues = {
-  128, -- "32x" -- 1
-  64, -- "16x" -- 2
-  32, -- "8x" -- 3
-  28, -- "7x" -- 4
-  24, -- "6x" -- 5
-  20, -- "5x" -- 6
-  16, -- "4x" -- 7
-  12, -- "3x" -- 8
-  8, -- "2x" -- 9
-  6, -- "1/1 dot" -- 10
-  4, -- "1/1" -- 11
-  3, -- "1/2 dot" -- 12
-  getTriplet(8), -- "1/1 tri" -- 13
-  2, -- "1/2" -- 14
-  getDotted(1), -- "1/4 dot", -- 15
-  getTriplet(4), -- "1/2 tri", -- 16
-  1, -- "1/4", -- 17
-  getDotted(0.5), -- "1/8 dot", -- 18
-  getTriplet(2), -- "1/4 tri", -- 19
-  0.5,  -- "1/8", -- 20
-  getDotted(0.25), -- "1/16 dot", -- 21
-  getTriplet(1), -- "1/8 tri", -- 22
-  0.25, -- "1/16", -- 23
-  getDotted(0.125), -- "1/32 dot", -- 24
-  getTriplet(0.5), -- "1/16 tri", -- 25
-  0.125, -- "1/32" -- 26
-  getDotted(0.0625), -- "1/64 dot", -- 27
-  getTriplet(0.25), -- "1/32 tri", -- 28
-  0.0625, -- "1/64", -- 29
-  getDotted(0.03125), -- "1/128 dot" -- 30
-  getTriplet(0.125), -- "1/64 tri" -- 31
-  0.03125 -- "1/128" -- 32
+local notes = {
+  getNoteNames = function()
+    return notenames
+  end,
+  
+  -- Used for mapping - does not include octave, only name of note (C, C#...)
+  getNoteMapping = function()
+    local noteNumberToNoteName = {}
+    local notenamePos = 1
+    for i=0,127 do
+      table.insert(noteNumberToNoteName, notenames[notenamePos])
+      notenamePos = notenamePos + 1
+      if notenamePos > #notenames then
+        notenamePos = 1
+      end
+    end
+    return noteNumberToNoteName
+  end,
+  
+  transpose = function(note, min, max)
+    --print("Check transpose", note)
+    if note < min then
+      print("note < min", note, min)
+      while note < min do
+        note = note + 12
+        print("transpose note up", note)
+      end
+    elseif note > max then
+      print("note > max", note, max)
+      while note > max do
+        note = note - 12
+        print("transpose note down", note)
+      end
+    end
+    return note
+  end,
+  
+  getSemitonesBetweenNotes = function(note1, note2)
+    return math.max(note1, note2) - math.min(note1, note1)
+  end,
+  
+  getNoteAccordingToScale = function(scale, noteToPlay)
+    for _,note in ipairs(scale) do
+      if note == noteToPlay then
+        return noteToPlay
+      elseif note > noteToPlay then
+        print("Change from noteToPlay to note", noteToPlay, note)
+        return note
+      end
+    end
+    return noteToPlay
+  end,
 }
 
-local resolutionNames = {
-  "32x", -- 1
-  "16x", -- 2
-  "8x", -- 3
-  "7x", -- 4
-  "6x", -- 5
-  "5x", -- 6
-  "4x", -- 7
-  "3x", -- 8
-  "2x", -- 9
-  "1/1 dot", -- 10
-  "1/1", -- 11
-  "1/2 dot", -- 12
-  "1/1 tri", -- 13
-  "1/2", -- 14
-  "1/4 dot", -- 15
-  "1/2 tri", -- 16
-  "1/4", -- 17
-  "1/8 dot", -- 18
-  "1/4 tri", -- 19
-  "1/8", -- 20
-  "1/16 dot", -- 21
-  "1/8 tri", -- 22
-  "1/16", -- 23
-  "1/32 dot", -- 24
-  "1/16 tri", -- 25
-  "1/32", -- 26
-  "1/64 dot", -- 27
-  "1/32 tri", -- 28
-  "1/64", -- 29
-  "1/128 dot", -- 30
-  "1/64 tri", -- 31
-  "1/128" -- 32
+--------------------------------------------------------------------------------
+-- Common Scales
+--------------------------------------------------------------------------------
+
+-- Make sure these are in sync with the scale names
+-- Scales are defined by distance to the next step
+local scaleDefinitions = {
+  {2,2,1,2,2,2,1}, -- Major (Ionian mode)
+  {2,1,2,2,1,2,2}, -- Minor (Aeolian mode)
+  {2,1,2,2,2,1,2}, -- Dorian mode
+  {1,2,2,2,1,2,2}, -- Phrygian mode
+  {2,2,2,1,2,2,1}, -- Lydian mode
+  {2,2,1,2,2,1,2}, -- Mixolydian mode
+  {1,2,2,1,2,2,2}, -- Locrian mode
+  {2,2,2,1,2,1,2}, -- Acoustic
+  {2,1,2,1,1,3,2}, -- Blues
+  {1,2,1,3,1,2,2}, -- Alterated
+  {2,2,3,2,3}, -- Major Pentatonic
+  {3,2,2,3,2}, -- Minor Pentatonic
+  {3}, -- Diminished
+  {2}, -- Whole tone scale
+  {1}, -- Chomatic
 }
 
--- Quantize the given beat to the closest recognized resolution value
-local function quantizeToClosest(beat)
-  for i,v in ipairs(resolutionValues) do
-    local currentValue = v
-    local nextValue = resolutionValues[i+1]
-    --print("beat, currentValue, nextValue", beat, currentValue, nextValue)
-    if type(nextValue) == "nil" or beat == currentValue then
-      --print("beat == currentValue or nextValue == nil", beat, currentValue, nextValue)
-      return currentValue
-    end
-    if beat < currentValue and beat > nextValue then
-      local diffCurrent = currentValue - beat
-      local diffNext = beat - nextValue
-      if diffCurrent < diffNext then
-        --print("Return currentValue diffCurrent < diffNext", diffCurrent, diffNext)
-        return currentValue
-      else
-        --print("Return nextValue diffNext < diffCurrent", diffNext, diffCurrent)
-        return nextValue
-      end
-    end
-  end
-  return beat
-end
-
-local resolutions = {
-  quantizeToClosest = quantizeToClosest,
-
-  getDotted = getDotted,
-
-  getTriplet = getTriplet,
-
-  getEvenFromDotted = function(value)
-    return value / 1.5
-  end,
-  
-  getEvenFromTriplet = function(value)
-    return value * 3
-  end,
-  
-  getResolution = function(i)
-    return resolutionValues[i]
-  end,
-  
-  getResolutions = function()
-    return resolutionValues
-  end,
-  
-  getResolutionName = function(i)
-    return resolutionNames[i]
-  end,
-  
-  getResolutionNames = function(options, max)
-    if type(max) ~= "number" then
-      max = #resolutionNames
-    end
-  
-    local res = {}
-  
-    for _,r in ipairs(resolutionNames) do
-      table.insert(res, r)
-      if i == max then
-        break
-      end
-    end
-  
-    -- Add any options
-    if type(options) == "table" then
-      for _,o in ipairs(options) do
-        table.insert(res, o)
-      end
-    end
-  
-    return res
-  end,
-  
-  getResolutionsByType = function(maxResolutionIndex)
-    if type(maxResolutionIndex) == "nil" then
-      maxResolutionIndex = #resolutionValues
-    end
-    local startPosIndex = 11
-    local resOptions = {}
-    -- Create table of resolution indexes by type (1=even,2=dot,3=tri)
-    for i=startPosIndex,startPosIndex+2 do
-      local resolutionIndex = i
-      local resolutionsOfType = {}
-      while resolutionIndex <= maxResolutionIndex do
-        table.insert(resolutionsOfType, resolutionIndex) -- insert current index in resolution options table
-        --print("Insert resolutionIndex", resolutionIndex)
-        resolutionIndex = resolutionIndex + 3 -- increment index
-      end
-      --print("#resolutionsOfType, i", #resolutionsOfType, i)
-      table.insert(resOptions, resolutionsOfType)
-    end
-    -- Add the resolutions that are whole numbers (1,2,3,4...)
-    local slowResolutions = {}
-    for i,resolution in ipairs(resolutionValues) do
-      if resolution % 1 == 0 then
-        table.insert(slowResolutions, i)
-        --print("getResolutionsByType - included slow resolution", resolution)
-      end
-    end
-    --print("#slowResolutions", #slowResolutions)
-    table.insert(resOptions, slowResolutions) -- Add the "slow" x resolutions
-    --print("resOptions", #resOptions)
-    return resOptions
-  end,
-  
-  getPlayDuration = function(duration, gate)
-    if type(gate) == "nil" then
-      gate = 100
-    end
-    local maxResolution = resolutionValues[#resolutionValues]
-    return math.max(maxResolution, duration * (gate / 100)) -- Never shorter than the system max resolution
-  end  
+local scaleNames = {
+  "Major (Ionian)",
+  "Minor (Aeolian)",
+  "Dorian",
+  "Phrygian",
+  "Lydian",
+  "Mixolydian",
+  "Locrian",
+  "Acoustic",
+  "Blues",
+  "Alterated",
+  "Major Pentatonic",
+  "Minor Pentatonic",
+  "Diminished",
+  "Whole tone",
+  "Chomatic",
 }
 
--------------------------------------------------------------------------------
--- Play note with a bouncing effect
--------------------------------------------------------------------------------
+local scales = {
+  getScaleDefinitions = function()
+    return scaleDefinitions
+  end,
 
-local backgroundColour = "595959" -- Light or Dark
-local widgetBackgroundColour = "01011F" -- Dark
-local widgetTextColour = "66ff99" -- Light
-local labelTextColour = "black"
-local labelBackgoundColour = "F637EC"
-local menuBackgroundColour = "01011F"
-local menuArrowColour = "66" .. labelTextColour
-local menuOutlineColour = "5f" .. widgetTextColour
-local knobFillColour = "E6D5B8" -- Light
+  getScaleNames = function()
+    return scaleNames
+  end,
 
-setBackgroundColour(backgroundColour)
+  createScale = function(scaleDefinition, rootNote, maxNote)
+    if type(maxNote) ~= "number" then
+      maxNote = 128
+    end
+    local scale = {}
+    -- Find notes for scale
+    local pos = 1
+    while rootNote < maxNote do
+      table.insert(scale, rootNote)
+      rootNote = rootNote + scaleDefinition[pos]
+      pos = pos + 1
+      if pos > #scaleDefinition then
+        pos = 1
+      end
+    end
+    return scale
+  end
+}
 
-local widgetWidth = 110
+--------------------------------------------------------------------------------
+-- Note and Scale Parameters
+--------------------------------------------------------------------------------
 
-local panel = Panel("Bouncer")
-panel.backgroundColour = backgroundColour
-panel.x = 10
-panel.y = 10
-panel.width = 700
-panel.height = 60
+local octaves = 9
+local scaleDefinitions = scales.getScaleDefinitions()
+local scaleNames = scales.getScaleNames()
+local noteNames = notes.getNoteNames()
+local selectedKey = 1
 
-local label = panel:Label("Label")
-label.text = "Note Bouncer"
-label.alpha = 0.5
-label.backgroundColour = labelBackgoundColour
-label.textColour = labelTextColour
-label.fontSize = 22
-label.width = 120
+-- TODO Check if they can be local
+local notesPlaying = {}
+local noteInputs = {}
+local noteProbabilityInputs = {}
+local octaveInputs = {}
+local octaveProbabilityInputs = {}
 
-local waitResolution = panel:Menu("WaitResolution", resolutions.getResolutionNames())
-waitResolution.displayName = "Start Duration"
-waitResolution.tooltip = "Start duration"
-waitResolution.selected = 17
-waitResolution.width = widgetWidth / 1.5
-waitResolution.x = label.x + label.width + 15
-waitResolution.backgroundColour = menuBackgroundColour
-waitResolution.textColour = widgetTextColour
-waitResolution.arrowColour = menuArrowColour
-waitResolution.outlineColour = menuOutlineColour
+--------------------------------------------------------------------------------
+-- Functions
+--------------------------------------------------------------------------------
 
-local waitResolutionMin = panel:Menu("WaitResolutionMin", resolutions.getResolutionNames())
-waitResolutionMin.displayName = "Stop Duration"
-waitResolutionMin.tooltip = "End duration"
-waitResolutionMin.selected = 26
-waitResolutionMin.width = widgetWidth / 1.5
-waitResolutionMin.x = waitResolution.x + waitResolution.width + 10
-waitResolutionMin.backgroundColour = menuBackgroundColour
-waitResolutionMin.textColour = widgetTextColour
-waitResolutionMin.arrowColour = menuArrowColour
-waitResolutionMin.outlineColour = menuOutlineColour
+local function getScale(scaleIndex, keyIndex)
+  local scaleDefinition = scaleDefinitions[scaleIndex]
+  local rootNote = keyIndex - 1 -- Root note
+  return scales.createScale(scaleDefinition, rootNote)
+end
 
-local probability = panel:NumBox("Probability", 100, 0, 100, true)
-probability.unit = Unit.Percent
-probability.displayName = "Probability"
-probability.tooltip = "Probability of bounce in incoming notes"
-probability.textColour = widgetTextColour
-probability.backgroundColour = widgetBackgroundColour
-probability.y = waitResolutionMin.y + 25
-probability.x = waitResolutionMin.x + waitResolutionMin.width + 10
-probability.width = widgetWidth
-probability.height = 20
-
-local noteRandomization = panel:NumBox("NoteRandomization", 0, 0, 100, true)
-noteRandomization.unit = Unit.Percent
-noteRandomization.textColour = widgetTextColour
-noteRandomization.backgroundColour = widgetBackgroundColour
-noteRandomization.displayName = "Note Move"
-noteRandomization.tooltip = "Random note movement amount - a small amount gives small steps between notes"
-noteRandomization.width = widgetWidth
-noteRandomization.x = probability.x + probability.width + 10
-noteRandomization.y = probability.y
-
-local octaveRange = panel:NumBox("OctaveRange", 1, 1, 4, true)
-octaveRange.textColour = widgetTextColour
-octaveRange.backgroundColour = widgetBackgroundColour
-octaveRange.displayName = "Octave"
-octaveRange.tooltip = "Octave range for note movement"
-octaveRange.width = widgetWidth / 1.5
-octaveRange.x = noteRandomization.x + noteRandomization.width + 10
-octaveRange.y = noteRandomization.y
-
-local loop = panel:OnOffButton("Loop")
-loop.displayName = "Loop"
-loop.backgroundColourOff = "#ff084486"
-loop.backgroundColourOn = "#ff02ACFE"
-loop.textColourOff = "#ff22FFFF"
-loop.textColourOn = "#efFFFFFF"
-loop.fillColour = "#dd000061"
-loop.width = widgetWidth / 2
-loop.x = octaveRange.x + octaveRange.width + 10
-loop.y = octaveRange.y
-
-function getStartResolutionIndex()
-  if waitResolution.value < waitResolutionMin.value then
-    return math.min(waitResolutionMin.value, waitResolution.value)
-  else
-    return math.max(waitResolutionMin.value, waitResolution.value)
+local function setScale(scaleIndex, keyIndex)
+  local scale = getScale(scaleIndex, keyIndex)
+  for i,v in ipairs(noteInputs) do
+    local noteNumber = i + 11 -- Check note in octave above
+    v:setValue(gem.tableIncludes(scale, noteNumber))
   end
 end
 
-function getDuration(isRising, currentResolutionIndex)
-  local minResolution = math.max(waitResolutionMin.value, waitResolution.value)
-  local maxResolution = math.min(waitResolutionMin.value, waitResolution.value)
-  if isRising == true then
-    currentResolutionIndex = currentResolutionIndex + 1
-    if currentResolutionIndex > minResolution then
-      currentResolutionIndex = minResolution
-      isRising = false
-    end
-  else
-    currentResolutionIndex = currentResolutionIndex - 1
-    if currentResolutionIndex < maxResolution then
-      currentResolutionIndex = maxResolution
-      isRising = true
+-- Get notes that are activated in selected octaves, filtered by probability
+-- If getAllNotes is true, the filter for playing notes is disabled
+local function getSelectedNotes(getAllNotes)
+  local selectedNotes = {} -- Holds note numbers that are available
+  for octaveIndex,octave in ipairs(octaveInputs) do
+    local octaveProbability = octaveProbabilityInputs[octaveIndex].value
+    --print("octaveProbability octaveOnOff", octaveProbability, octave.value)
+    if octave.value and octaveProbability > 0 then
+      for i,v in ipairs(noteInputs) do
+        -- Check if note should be added for this octave
+        local noteProbability = noteProbabilityInputs[i].value
+        --print("noteProbability, octaveProbability, noteOnOff", noteProbability, octaveProbability, v.value)
+        if v.value and gem.getRandomBoolean(noteProbability) and gem.getRandomBoolean(octaveProbability) then
+          local noteNumber = i - 1 -- Base note
+          noteNumber = noteNumber + (12 * octaveIndex) -- Set octave
+          if getAllNotes == true or gem.tableIncludes(notesPlaying, noteNumber) == false then
+            table.insert(selectedNotes, noteNumber)
+            --print("Note added: noteNumber", noteNumber)
+          end
+        end
+      end
     end
   end
-  return isRising, currentResolutionIndex
+  --print("#selectedNotes", #selectedNotes)
+  return selectedNotes
 end
 
-function generateNote(e)
-  local note = e.note
-  local range = octaveRange.value * 12
-  local min = math.max(0, (note-range))
-  local max = math.min(127, (note+range))
-  return gem.randomizeValue(note, min, max, noteRandomization.value)
-end
-
-function bounce(e)
-  local isRising = waitResolution.value < waitResolutionMin.value
-  local currentResolutionIndex = getStartResolutionIndex()
-  local duration = resolutions.getResolution(currentResolutionIndex)
-  local note = e.note
-  local round = 1
-  while isKeyDown(e.note) do
-    if round > 1 then
-      note = generateNote(e)
+-- Get all notes that are activated in all octaves (full scale)
+local function getActiveNotes()
+  local notes = {}
+  for octaveIndex=1, #octaveInputs do
+    for i,v in ipairs(noteInputs) do
+      if v.value then
+        local noteNumber = i - 1 -- Base note
+        noteNumber = noteNumber + (12 * octaveIndex) -- Set octave
+        table.insert(notes, noteNumber)
+      end
     end
-    local velocity = gem.randomizeValue(e.velocity, 1, 127, 9)
-    playNote(note, velocity, beat2ms(duration))
-    print("round, note, duration", round, note, duration)
-    waitBeat(duration)
-    isRising, currentResolutionIndex = getDuration(isRising, currentResolutionIndex)
-    if loop.value == false and (currentResolutionIndex == waitResolution.value or currentResolutionIndex == waitResolutionMin.value) then
-      postEvent(e)
-      print("Bounce complete")
-      break
-    end
-    duration = resolutions.getResolution(currentResolutionIndex)
-    round = round + 1
   end
+  return notes
+end
+
+local function createNoteAndOctaveSelector(notePanel, colours, noteLabel, offsetX, offsetY, generateKeyPos)
+  if type(offsetX) == "nil" then
+    offsetX = 5
+  end
+  if type(offsetY) == "nil" then
+    offsetY = 5
+  end
+  if type(generateKeyPos) == "nil" then
+    generateKeyPos = {
+      x = noteLabel.x + noteLabel.width + 10,
+      y = noteLabel.y
+    }
+  end
+  local columnCount = 0
+  for i=1,#noteNames do
+    local note = notePanel:OnOffButton("Note" .. i, true)
+    note.backgroundColourOff = "#ff084486"
+    note.backgroundColourOn = "#ff02ACFE"
+    note.textColourOff = "#ff22FFFF"
+    note.textColourOn = "#efFFFFFF"
+    note.displayName = noteNames[i]
+    note.tooltip = "Toggle note on/off"
+    note.size = {51,30}
+    note.x = (columnCount * (note.width + 6.6)) + offsetX
+    note.y = noteLabel.y + noteLabel.height + offsetY
+  
+    local noteProbability = notePanel:NumBox("NoteProbability" .. i, 100, 0, 100, true)
+    noteProbability.unit = Unit.Percent
+    noteProbability.textColour = colours.widgetTextColour
+    noteProbability.backgroundColour = colours.widgetBackgroundColour
+    noteProbability.showLabel = false
+    noteProbability.tooltip = "Set the probability that '" .. noteNames[i] .. "' will be available when generating notes to play"
+    noteProbability.width = note.width
+    noteProbability.height = 22
+    noteProbability.x = note.x
+    noteProbability.y = note.y + note.height + 1
+  
+    table.insert(noteInputs, note)
+    table.insert(noteProbabilityInputs, noteProbability)
+  
+    columnCount = columnCount + 1
+  end
+  
+  columnCount = 0
+  
+  local rising = true
+  local numStepsUpDown = math.floor(octaves / 2)
+  local changePerStep = 100 / numStepsUpDown
+  local startValue = 0
+  for i=1,octaves do
+    local octave = notePanel:OnOffButton("Octave" .. i, (startValue > 50))
+    octave.backgroundColourOff = "#ff084486"
+    octave.backgroundColourOn = "#ff02ACFE"
+    octave.textColourOff = "#ff22FFFF"
+    octave.textColourOn = "#efFFFFFF"
+    octave.displayName = "Oct " .. i - 2
+    octave.tooltip = "Toggle octave on/off"
+    octave.width = (636 / octaves)
+    octave.height = 30
+    octave.x = (columnCount * (octave.width + 6.9)) + offsetX
+    octave.y = 90 + offsetY
+  
+    local octaveProbabilityInput = notePanel:NumBox("OctaveProbability" .. i, 100, 0, 100, true)
+    octaveProbabilityInput.unit = Unit.Percent
+    octaveProbabilityInput.textColour = colours.widgetTextColour
+    octaveProbabilityInput.backgroundColour = colours.widgetBackgroundColour
+    octaveProbabilityInput.showLabel = false
+    octaveProbabilityInput.tooltip = "Set the probability that octave " .. i - 2 .. " will be available when generating notes to play"
+    octaveProbabilityInput.width = octave.width
+    octaveProbabilityInput.height = 22
+    octaveProbabilityInput.x = octave.x
+    octaveProbabilityInput.y = octave.y + octave.height
+  
+    table.insert(octaveInputs, octave)
+    table.insert(octaveProbabilityInputs, octaveProbabilityInput)
+  
+    if rising then
+      startValue = startValue + changePerStep
+      if startValue >= 100 then
+        rising = false
+      end
+    else
+      startValue = startValue - changePerStep
+    end
+  
+    columnCount = columnCount + 1
+  end
+
+  local generateKey = notePanel:Menu("GenerateKey", noteNames)
+  generateKey.tooltip = "Set selected notes from key"
+  generateKey.showLabel = false
+  generateKey.backgroundColour = colours.menuBackgroundColour
+  generateKey.textColour = colours.widgetTextColour
+  generateKey.arrowColour = colours.menuArrowColour
+  generateKey.outlineColour = colours.menuOutlineColour
+  generateKey.size = {60,20}
+  generateKey.x = generateKeyPos.x
+  generateKey.y = generateKeyPos.y
+
+  local generateScale = notePanel:Menu("GenerateScale", scaleNames)
+  generateScale.selected = #scaleNames
+  generateScale.tooltip = "Set selected notes from scale"
+  generateScale.showLabel = false
+  generateScale.backgroundColour = colours.menuBackgroundColour
+  generateScale.textColour = colours.widgetTextColour
+  generateScale.arrowColour = colours.menuArrowColour
+  generateScale.outlineColour = colours.menuOutlineColour
+  generateScale.size = {144,20}
+  generateScale.x = generateKey.x + generateKey.width + 10
+  generateScale.y = generateKey.y
+
+  generateKey.changed = function(self)
+    setScale(generateScale.value, self.value)
+    selectedKey = self.value
+  end
+
+  generateScale.changed = function(self)
+    setScale(self.value, generateKey.value)
+  end
+end
+
+local function getKey()
+  return selectedKey
+end
+
+local noteSelector = {
+  createNoteAndOctaveSelector = createNoteAndOctaveSelector,
+  getActiveNotes = getActiveNotes,
+  getSelectedNotes = getSelectedNotes,
+  getKey = getKey,
+}
+
+-----------------------------------------------------------------------------------------------------------------
+-- Random Notes - Replaces note 0 in incoming note events with a random note from the selected key and scale
+-----------------------------------------------------------------------------------------------------------------
+
+local activeVoices = {}
+
+local sequencerPanel = widgets.getPanel(1, 1, {
+  width = 720,
+  height = 30,
+})
+
+widgets.label("Random Note Input", 1, 1, {
+  tooltip = "This sequencer listens to incoming pulses from a rythmic sequencer (Sent as note 0) and generates notes in response",
+  width = sequencerPanel.width,
+  height = 30,
+  alpha = 0.5,
+  fontSize = 22,
+})
+
+local channels = {"Omni"}
+for j=1,16 do
+  table.insert(channels, "" .. j)
+end
+
+local channelInput = widgets.menu("Channel", 1, channels, 1, 1, {
+  tooltip = "Listen to note events on this channel - if a note event is not being listened to, it will be pass through",
+  showLabel = false,
+  width = 90,
+  x = sequencerPanel.width - 95,
+  y = 5
+})
+
+--------------------------------------------------------------------------------
+-- Notes
+--------------------------------------------------------------------------------
+
+local notePanel = widgets.panel(1, 1, {
+  x = sequencerPanel.x,
+  y = widgets.posUnder(sequencerPanel),
+  width = sequencerPanel.width,
+  height = 200,
+})
+
+local noteLabel = widgets.label("Notes", 1, 1, {
+  tooltip = "Set the probability that notes will be included when generating new notes",
+  alpha = 0.75,
+  width = sequencerPanel.width,
+})
+
+local inputButton = widgets.button(" ", false, 8, 1, {
+  tooltip = "Shows when notes are triggered",
+  persistent = false,
+  enabled = false,
+  height = 18,
+  width = channelInput.width,
+  y = 1,
+  x = channelInput.x,
+})
+inputButton.backgroundColourOff = "202020"
+ 
+noteSelector.createNoteAndOctaveSelector(notePanel, widgets.colours, noteLabel, 15, 42, {x = 15, y = widgets.posUnder(noteLabel) + 10})
+
+--------------------------------------------------------------------------------
+-- Handle Events
+--------------------------------------------------------------------------------
+
+local function flashInput()
+  inputButton.backgroundColourOff = "606060"
+  waitBeat(.125)
+  inputButton.backgroundColourOff = "202020"
+end
+
+local function getNote()
+  return gem.getRandomFromTable(noteSelector.getSelectedNotes())
+end
+
+local function noteIsPlaying(note)
+  for _,v in ipairs(activeVoices) do
+    if v.event.note == note then
+      return true
+    end
+  end
+  return false
+end
+
+local function isTrigger(e)
+  local channel = channelInput.value - 1
+  local isListeningForEvent = channel == 0 or channel == e.channel
+  local isTrigger = e.note == 0 -- Note 0 is used as trigger
+  return isTrigger and isListeningForEvent
+end
+
+local function handleTrigger(e)
+  e.note = getNote()
+  if noteIsPlaying(e.note) == false then
+    local id = postEvent(e)
+    table.insert(activeVoices, {id=id,event=e})
+    spawn(flashInput)
+  end
+end
+
+local function handleReleaseTrigger(e)
+  for i,v in ipairs(activeVoices) do
+    if v.event.channel == e.channel then
+      releaseVoice(v.id)
+      table.remove(activeVoices, i)
+    end
+  end
+end
+
+local function releaseVoices()
+  for i,v in ipairs(activeVoices) do
+    releaseVoice(v.id)
+    print("Release active voice on channel", v.event.channel)
+  end
+  activeVoices = {}
 end
 
 function onNote(e)
-  if gem.getRandomBoolean(probability.value) then
-    print("Start bounce")
-    spawn(bounce, e)
+  if isTrigger(e) then
+    handleTrigger(e)
   else
     postEvent(e)
+  end
+end
+
+function onRelease(e)
+  if isTrigger(e) then
+    handleReleaseTrigger(e)
+  else
+    postEvent(e)
+  end
+end
+
+function onTransport(start)
+  if start == false then
+    releaseVoices()
   end
 end

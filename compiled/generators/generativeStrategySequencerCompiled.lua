@@ -384,6 +384,7 @@ local resolutionNames = {
   "1/128" -- 32
 }
 
+-- Quantize the given beat to the closest recognized resolution value
 local function quantizeToClosest(beat)
   for i,v in ipairs(resolutionValues) do
     local currentValue = v
@@ -510,11 +511,12 @@ local scaleNames = scales.getScaleNames()
 local noteNames = notes.getNoteNames()
 local selectedKey = 1
 
-notesPlaying = {}
-noteInputs = {}
-noteProbabilityInputs = {}
-octaveInputs = {}
-octaveProbabilityInputs = {}
+-- TODO Check if they can be local
+local notesPlaying = {}
+local noteInputs = {}
+local noteProbabilityInputs = {}
+local octaveInputs = {}
+local octaveProbabilityInputs = {}
 
 --------------------------------------------------------------------------------
 -- Functions
@@ -576,7 +578,19 @@ local function getActiveNotes()
   return notes
 end
 
-local function createNoteAndOctaveSelector(notePanel, colours, noteLabel)
+local function createNoteAndOctaveSelector(notePanel, colours, noteLabel, offsetX, offsetY, generateKeyPos)
+  if type(offsetX) == "nil" then
+    offsetX = 5
+  end
+  if type(offsetY) == "nil" then
+    offsetY = 5
+  end
+  if type(generateKeyPos) == "nil" then
+    generateKeyPos = {
+      x = noteLabel.x + noteLabel.width + 10,
+      y = noteLabel.y
+    }
+  end
   local columnCount = 0
   for i=1,#noteNames do
     local note = notePanel:OnOffButton("Note" .. i, true)
@@ -587,8 +601,8 @@ local function createNoteAndOctaveSelector(notePanel, colours, noteLabel)
     note.displayName = noteNames[i]
     note.tooltip = "Toggle note on/off"
     note.size = {51,30}
-    note.x = (columnCount * (note.width + 6.6)) + 5
-    note.y = noteLabel.y + noteLabel.height + 5
+    note.x = (columnCount * (note.width + 6.6)) + offsetX
+    note.y = noteLabel.y + noteLabel.height + offsetY
   
     local noteProbability = notePanel:NumBox("NoteProbability" .. i, 100, 0, 100, true)
     noteProbability.unit = Unit.Percent
@@ -623,8 +637,8 @@ local function createNoteAndOctaveSelector(notePanel, colours, noteLabel)
     octave.tooltip = "Toggle octave on/off"
     octave.width = (636 / octaves)
     octave.height = 30
-    octave.x = (columnCount * (octave.width + 6.9)) + 5
-    octave.y = 90
+    octave.x = (columnCount * (octave.width + 6.9)) + offsetX
+    octave.y = 90 + offsetY
   
     local octaveProbabilityInput = notePanel:NumBox("OctaveProbability" .. i, 100, 0, 100, true)
     octaveProbabilityInput.unit = Unit.Percent
@@ -660,8 +674,8 @@ local function createNoteAndOctaveSelector(notePanel, colours, noteLabel)
   generateKey.arrowColour = colours.menuArrowColour
   generateKey.outlineColour = colours.menuOutlineColour
   generateKey.size = {60,20}
-  generateKey.x = noteLabel.x + noteLabel.width + 10
-  generateKey.y = noteLabel.y
+  generateKey.x = generateKeyPos.x
+  generateKey.y = generateKeyPos.y
 
   local generateScale = notePanel:Menu("GenerateScale", scaleNames)
   generateScale.selected = #scaleNames

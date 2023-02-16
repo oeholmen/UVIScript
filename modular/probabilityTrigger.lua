@@ -8,8 +8,9 @@ local resolutions = require "includes.resolutions"
 
 local backgroundColour = "101010"
 
-widgets.setColour('widgetBackgroundColour', backgroundColour)
+widgets.setColour('backgroundColour', backgroundColour)
 widgets.setColour('menuBackgroundColour', backgroundColour)
+widgets.setColour('widgetBackgroundColour', backgroundColour)
 
 setBackgroundColour(backgroundColour)
 
@@ -26,7 +27,7 @@ local probability = 50
 local velocity = 64
 local legato = false
 local beatFactor = .5
-local beatFactorMin = .1
+local beatFactorMin = .01
 local beatFactorMax = 4
 local beatFactorProbability = 50
 local beatFactorRandomizationAmount = 0
@@ -84,31 +85,14 @@ local function stopPlaying()
 end
 
 --------------------------------------------------------------------------------
--- Panel Definitions
+-- Sequencer Panel
 --------------------------------------------------------------------------------
 
-widgets.xSpacing(0)
-widgets.ySpacing(0)
+local sequencerPanel = widgets.getPanel(1, 1, {
+  width = 720,
+  height = 30,
+})
 
-local sequencerPanel = Panel("MotionSequencer")
-sequencerPanel.backgroundColour = backgroundColour
-sequencerPanel.x = 0
-sequencerPanel.y = 0
-sequencerPanel.width = 720
-sequencerPanel.height = 30
-
-local notePanel = Panel("Notes")
-notePanel.backgroundColour = "black"
-notePanel.x = sequencerPanel.x
-notePanel.y = widgets.posUnder(sequencerPanel)
-notePanel.width = sequencerPanel.width
-notePanel.height = 205
-
---------------------------------------------------------------------------------
--- Probability Sequencer
---------------------------------------------------------------------------------
-
-widgets.setPanel(sequencerPanel)
 widgets.xSpacing(5)
 widgets.ySpacing(5)
 
@@ -148,24 +132,38 @@ local playButton = widgets.button('Play', false, 3, 1, {
 })
 
 --------------------------------------------------------------------------------
--- Notes Panel
+-- Note Panel
 --------------------------------------------------------------------------------
 
-local noteWidgetRowSpacing = 5
-local noteWidgetColSpacing = 5
+widgets.setWidgetDefaults({
+  xSpacing = 0,
+  ySpacing = 0,
+})
+widgets.setColour('backgroundColour', "black")
 
-local xySpeedFactor = notePanel:XY('Probability', 'Velocity')
-xySpeedFactor.y = noteWidgetRowSpacing
+local notePanel = widgets.panel(1, 1, {
+  x = sequencerPanel.x,
+  y = widgets.posUnder(sequencerPanel),
+  width = sequencerPanel.width,
+  height = 205,
+})
+
+local noteWidgetColSpacing = 5
+local noteWidgetRowSpacing = 5
+
+local xySpeedFactor = notePanel:XY('Probability', 'BeatFactorProbability')
 xySpeedFactor.x = noteWidgetColSpacing
+xySpeedFactor.y = noteWidgetRowSpacing
 xySpeedFactor.width = 480
 xySpeedFactor.height = 200
 
-widgets.setPanel(notePanel)
-widgets.widthDefault(207)
-widgets.xOffset(widgets.posSide(xySpeedFactor) + 10)
-widgets.yOffset(10)
-widgets.xSpacing(noteWidgetColSpacing)
-widgets.ySpacing(noteWidgetRowSpacing)
+widgets.setWidgetDefaults({
+  width = 207,
+  xOffset = widgets.posSide(xySpeedFactor) + 10,
+  yOffset = 10,
+  xSpacing = noteWidgetColSpacing,
+  ySpacing = noteWidgetRowSpacing,
+})
 
 local resolutionInput = widgets.menu("Quantize", resolution, resolutionNames, 1, 1, {
   tooltip = "Event triggers are quantized to this resolution",
@@ -188,31 +186,33 @@ widgets.button("Quantize Closest", quantizeToClosest, 1, 2, {
   changed = function(self) quantizeToClosest = self.value end
 })
 
-widgets.numBox("Beat Factor", beatFactor, 1, 3, {
+widgets.numBox("Trigger Probability", probability, 1, 3, {
+  name = "Probability",
+  unit = Unit.Percent,
+  integer = false,
+  tooltip = "Set the probabilty that an event will be triggered - controlled by the x-axis of the XY controller",
+  changed = function(self) probability = self.value end
+})
+
+widgets.numBox("Beat Factor Probability", beatFactorProbability, 1, 4, {
+  name = "BeatFactorProbability",
+  unit = Unit.Percent,
+  integer = false,
+  tooltip = "Set the probabilty that the beat factor will be used - controlled by the y-axis of the XY controller",
+  changed = function(self) beatFactorProbability = self.value end
+})
+
+widgets.numBox("Beat Factor", beatFactor, 1, 5, {
   min = beatFactorMin,
   max = beatFactorMax,
   tooltip = "Set a factor to multiply the selected beat with",
   changed = function(self) beatFactor = self.value end
 })
 
-widgets.numBox("Beat Factor Probability", beatFactorProbability, 1, 4, {
-  unit = Unit.Percent,
-  tooltip = "Set the probabilty that the beat factor will be used",
-  changed = function(self) beatFactorProbability = self.value end
-})
-
-widgets.numBox("Beat Factor Randomization", beatFactorRandomizationAmount, 1, 5, {
+widgets.numBox("Beat Factor Randomization", beatFactorRandomizationAmount, 1, 6, {
   unit = Unit.Percent,
   tooltip = "Set the randomization amount for the beat factor",
   changed = function(self) beatFactorRandomizationAmount = self.value end
-})
-
-widgets.numBox("Trigger Probability", probability, 1, 6, {
-  name = "Probability",
-  unit = Unit.Percent,
-  integer = false,
-  tooltip = "Set the probabilty that an event will be triggered - controlled by the x-axis of the XY controller",
-  changed = function(self) probability = self.value end
 })
 
 widgets.numBox("Velocity", velocity, 1, 7, {

@@ -324,6 +324,7 @@ local resolutionNames = {
   "1/128" -- 32
 }
 
+-- Quantize the given beat to the closest recognized resolution value
 local function quantizeToClosest(beat)
   for i,v in ipairs(resolutionValues) do
     local currentValue = v
