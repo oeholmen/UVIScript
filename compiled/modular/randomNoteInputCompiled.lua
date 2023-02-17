@@ -845,7 +845,10 @@ local noteSelector = {
 -- Random Notes - Replaces note 0 in incoming note events with a random note from the selected key and scale
 -----------------------------------------------------------------------------------------------------------------
 
+-- TODO Add a button for deselecting all notes
+
 local activeVoices = {}
+local forward = false
 
 local sequencerPanel = widgets.panel({
   width = 720,
@@ -867,9 +870,16 @@ end
 
 widgets.setSection({
   width = 90,
-  xOffset = sequencerPanel.width - 95,
-  yOffset = 5
+  xOffset = sequencerPanel.width - 95, -- 531
+  yOffset = 5,
+  xSpacing = 5,
+  ySpacing = 5,
 })
+
+--[[ widgets.button("Forward", forward, {
+  tooltip = "Forward note events",
+  changed = function(self) forward = self.value end,
+}) ]]
 
 local channelInput = widgets.menu("Channel", 1, channels, {
   tooltip = "Listen to note events on this channel - if a note event is not being listened to, it will be pass through",
@@ -880,16 +890,18 @@ local channelInput = widgets.menu("Channel", 1, channels, {
 -- Notes
 --------------------------------------------------------------------------------
 
+widgets.setSection({
+  xOffset = 0,
+  yOffset = 0,
+  xSpacing = 0,
+  ySpacing = 0,
+})
+
 local notePanel = widgets.panel({
   x = sequencerPanel.x,
   y = widgets.posUnder(sequencerPanel),
   width = sequencerPanel.width,
   height = 200,
-})
-
-widgets.setSection({
-  xOffset = 0,
-  yOffset = 0,
 })
 
 local noteLabel = widgets.label("Notes", {
@@ -909,7 +921,7 @@ local inputButton = widgets.button(" ", false, {
   x = channelInput.x,
 })
 inputButton.backgroundColourOff = "202020"
- 
+
 noteSelector.createNoteAndOctaveSelector(notePanel, widgets.colours(), noteLabel, 15, 42, {x = 15, y = widgets.posUnder(noteLabel) + 10})
 
 --------------------------------------------------------------------------------
@@ -970,6 +982,9 @@ end
 
 function onNote(e)
   if isTrigger(e) then
+    --[[ if forward then
+      postEvent(e)
+    end ]]
     handleTrigger(e)
   else
     postEvent(e)
@@ -978,6 +993,9 @@ end
 
 function onRelease(e)
   if isTrigger(e) then
+    --[[ if forward then
+      postEvent(e)
+    end ]]
     handleReleaseTrigger(e)
   else
     postEvent(e)

@@ -22,6 +22,8 @@ local waitResolution = 17
 local waitResolutionMin = 26
 local bounceProbability = 100
 local skipProbability = 0
+local oneDirection = false -- TODO Make it possible to go only on direction before resetting
+local waitBetweenRounds = false -- TODO Make it possible to insert a wait between bounces
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
@@ -66,18 +68,15 @@ local function bounce()
   local currentResolutionIndex = getStartResolutionIndex()
   local duration = resolutions.getResolution(currentResolutionIndex)
   local note = 0
-  local round = 1
   while isPlaying do
     if gem.getRandomBoolean(skipProbability) == false then
       playNote(note, velocity, beat2ms(duration))
-      print("round, note, duration", round, note, duration)
     end
     waitBeat(duration)
     isRising, currentResolutionIndex = getDuration(isRising, currentResolutionIndex)
     if gem.getRandomBoolean(bounceProbability) then
       duration = resolutions.getResolution(currentResolutionIndex)
     end
-    round = round + 1
   end
 end
 

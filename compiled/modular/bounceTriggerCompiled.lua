@@ -1,4 +1,4 @@
--- modular/swarmTrigger -- 
+-- modular/bounceTrigger -- 
 --------------------------------------------------------------------------------
 -- Common methods
 --------------------------------------------------------------------------------
@@ -709,73 +709,69 @@ setBackgroundColour("101010")
 --------------------------------------------------------------------------------
 
 local isPlaying = false
-local channel = 1 -- Send trigger on this channel
+local channel = 1
+local resolutionNames = resolutions.getResolutionNames()
 local voiceId = nil -- Holds the id of the created note event
 local velocity = 64
-local legato = false
-local duration = 250
-local durationMin = 3
-local durationMax = 10000
-local durationRandomization = 50
 local quantizeToClosest = true
-local swarmProbability = 50
-local resolutionNames = resolutions.getResolutionNames()
-local resolution = 23
+local waitResolution = 17
+local waitResolutionMin = 26
+local bounceProbability = 100
+local skipProbability = 0
+local oneDirection = false -- TODO Make it possible to go only on direction before resetting
+local waitBetweenRounds = false -- TODO Make it possible to insert a wait between bounces
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
 --------------------------------------------------------------------------------
 
 local function release()
-  -- Release voice if still active
   if type(voiceId) == "userdata" then
     releaseVoice(voiceId)
     voiceId = nil
   end
 end
 
-local function sequencer()
-  local swarmActive = false
-  local swarmDuration = 0
+local function getStartResolutionIndex()
+  if waitResolution < waitResolutionMin then
+    return math.min(waitResolutionMin, waitResolution)
+  else
+    return math.max(waitResolutionMin, waitResolution)
+  end
+end
+
+local function getDuration(isRising, currentResolutionIndex)
+  local minResolution = math.max(waitResolutionMin, waitResolution)
+  local maxResolution = math.min(waitResolutionMin, waitResolution)
+  if isRising == true then
+    currentResolutionIndex = currentResolutionIndex + 1
+    if currentResolutionIndex > minResolution then
+      currentResolutionIndex = minResolution
+      isRising = false
+    end
+  else
+    currentResolutionIndex = currentResolutionIndex - 1
+    if currentResolutionIndex < maxResolution then
+      currentResolutionIndex = maxResolution
+      isRising = true
+    end
+  end
+  return isRising, currentResolutionIndex
+end
+
+local function bounce()
+  local isRising = waitResolution < waitResolutionMin
+  local currentResolutionIndex = getStartResolutionIndex()
+  local duration = resolutions.getResolution(currentResolutionIndex)
+  local note = 0
   while isPlaying do
-    local swarmNoteDuration = resolutions.getResolution(resolution)
-    if swarmActive or gem.getRandomBoolean(swarmProbability) then
-      release() -- Release voice if still active
-      voiceId = playNote(0, math.floor(gem.randomizeValue(velocity, 1, 127, 3)), -1, nil, channel)
-      if swarmActive == false then
-        swarmActive = true
-        local maxFactor = 8 -- TODO Param for max factor?
-        local swarmDurationBase = swarmNoteDuration * (gem.getRandom(maxFactor))
-        local randomizationAmount = 100 -- TODO Param for randomization amount?
-        local factor = 2 -- TODO Param?
-        swarmDuration = gem.randomizeValue(swarmDurationBase, (swarmDurationBase / factor), (swarmDurationBase * factor), randomizationAmount)
-        --print("Start swarm - duration", swarmDuration)
-      end
+    if gem.getRandomBoolean(skipProbability) == false then
+      playNote(note, velocity, beat2ms(duration))
     end
-    local playDuration = ms2beat(duration)
-    if swarmActive then
-      playDuration = swarmNoteDuration
-      if gem.getRandomBoolean(durationRandomization) then
-        local factor = gem.getRandomFromTable({.125,.25,.5,.75,1.5,2,3,4})
-        playDuration = playDuration * factor
-      end
-    elseif quantizeToClosest then
-      playDuration = resolutions.quantizeToClosest(playDuration)
-    end
-    playDuration = resolutions.getPlayDuration(playDuration)
-    waitBeat(playDuration)
-    if swarmActive then
-      swarmDuration = gem.inc(swarmDuration, -playDuration)
-      --print("Swarm active - duration", swarmDuration)
-      if swarmDuration < 0 then
-        --print("End swarm - duration", swarmDuration)
-        swarmActive = false
-        swarmDuration = 0
-      end
-    end
-    if legato == false or swarmActive == false then
-      -- Release if legato is off, or swarm is finished
-      release()
+    waitBeat(duration)
+    isRising, currentResolutionIndex = getDuration(isRising, currentResolutionIndex)
+    if gem.getRandomBoolean(bounceProbability) then
+      duration = resolutions.getResolution(currentResolutionIndex)
     end
   end
 end
@@ -785,7 +781,7 @@ local function startPlaying()
     return
   end
   isPlaying = true
-  run(sequencer)
+  run(bounce)
 end
 
 local function stopPlaying()
@@ -808,25 +804,28 @@ widgets.panel({
 widgets.setSection({
   xSpacing = 5,
   ySpacing = 5,
+})
+
+widgets.label("Bounce Trigger", {
+  tooltip = "A sequencer that triggers rythmic pulses (using note 0) that note inputs can listen to",
+  width = widgets.getPanel().width,
+  height = 30,
+  alpha = 0.5,
+  fontSize = 22,
+})
+
+widgets.setSection({
   width = 100,
   height = 22,
   xOffset = (widgets.getPanel().width / 2) + 45,
   yOffset = 5,
 })
 
-widgets.labelBackgoundColour = "red"
-
-widgets.label("Swarm Trigger", {
-  tooltip = "A sequencer that triggers rythmic pulses (using note 0) that note inputs can listen to",
-  width = widgets.getPanel().width,
-  x = 0, y = 0, height = 30,
-  alpha = 0.5, fontSize = 22,
-  increment = false,
-})
-
 widgets.numBox('Channel', channel, {
   tooltip = "Send note events starting on this channel",
-  min = 1, max = 16, integer = true,
+  min = 1,
+  max = 16,
+  integer = true,
   changed = function(self) channel = self.value end
 })
 
@@ -853,72 +852,53 @@ widgets.setSection({
   ySpacing = 0,
 })
 
+widgets.backgroundColour = "505050"
+
 widgets.panel({
   x = widgets.getPanel().x,
   y = widgets.posUnder(widgets.getPanel()),
   width = widgets.getPanel().width,
-  height = 210,
+  height = 66,
 })
-
-local noteWidgetColSpacing = 5
-local noteWidgetRowSpacing = 5
-
-local xySpeedFactor = widgets.getPanel():XY('Duration', 'Probability')
-xySpeedFactor.x = noteWidgetColSpacing
-xySpeedFactor.y = noteWidgetRowSpacing
-xySpeedFactor.width = 480
-xySpeedFactor.height = 200
 
 widgets.setSection({
-  width = 210,
-  xOffset = widgets.posSide(xySpeedFactor) + 12,
-  yOffset = 15,
-  xSpacing = noteWidgetColSpacing,
-  ySpacing = noteWidgetRowSpacing,
-  cols = 1,
+  width = 150,
+  height = 45,
+  xOffset = 10,
+  yOffset = 10,
+  xSpacing = 5,
+  ySpacing = 5,
 })
 
-widgets.menu("Swarm Base", resolution, resolutionNames, {
-  tooltip = "Set the base resolution of the swarm",
-  changed = function(self) resolution = self.value end
+local waitResolutionInput = widgets.menu("Start Duration", waitResolution, resolutionNames, {
+  tooltip = "Start the bounce from this resolution",
+  changed = function(self) waitResolution = self.value end
 })
 
-widgets.col()
+local waitResolutionMinInput = widgets.menu("Turn Duration", waitResolutionMin, resolutionNames, {
+  tooltip = "When this resolution is reached, the bounce turns",
+  changed = function(self) waitResolutionMin = self.value end
+})
 
-widgets.numBox("Duration Randomization", durationRandomization, {
+widgets.setSection({
+  width = 190,
+  height = 20,
+  xOffset = widgets.posSide(waitResolutionMinInput),
+  yOffset = waitResolutionMinInput.y + 24,
+})
+
+widgets.numBox("Bounce Probability", bounceProbability, {
+  name = "BounceProbability",
   unit = Unit.Percent,
-  tooltip = "Set the randomization amount for the duration",
-  changed = function(self) durationRandomization = self.value end
+  tooltip = "Probability that we advance to the next bounce resolution",
+  changed = function(self) bounceProbability = self.value end
 })
 
-widgets.numBox("Space", duration, {
-  name = "Duration",
-  tooltip = "Set the duration between swarms - controlled by the x-axis of the XY controller",
-  unit = Unit.MilliSeconds,
-  min = durationMin, max = durationMax, integer = false,
-  changed = function(self) duration = self.value end
-})
-
-widgets.numBox("Swarm Probability", swarmProbability, {
-  name = "Probability",
+widgets.numBox("Skip Probability", skipProbability, {
+  name = "SkipProbability",
   unit = Unit.Percent,
-  integer = false,
-  tooltip = "Set the probability that a swarm will be triggered - controlled by the y-axis of the XY controller",
-  changed = function(self) swarmProbability = self.value end
-})
-
-local q = widgets.button("Quantize Closest", quantizeToClosest, {
-  tooltip = "Quantize the space between swarms to the closest 'known' resolution",
-  width = (210 / 2) - 3,
-  increment = false,
-  changed = function(self) quantizeToClosest = self.value end
-})
-
-widgets.button("Legato", legato, {
-  tooltip = "In legato mode notes are held until the next note is played",
-  x = widgets.posSide(q) + 2,
-  width = q.width,
-  changed = function(self) legato = self.value end
+  tooltip = "Probability that a note is skipped (paused)",
+  changed = function(self) skipProbability = self.value end
 })
 
 --------------------------------------------------------------------------------

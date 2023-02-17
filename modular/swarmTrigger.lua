@@ -53,7 +53,7 @@ local function sequencer()
         local randomizationAmount = 100 -- TODO Param for randomization amount?
         local factor = 2 -- TODO Param?
         swarmDuration = gem.randomizeValue(swarmDurationBase, (swarmDurationBase / factor), (swarmDurationBase * factor), randomizationAmount)
-        print("Start swarm - duration", swarmDuration)
+        --print("Start swarm - duration", swarmDuration)
       end
     end
     local playDuration = ms2beat(duration)
@@ -70,9 +70,9 @@ local function sequencer()
     waitBeat(playDuration)
     if swarmActive then
       swarmDuration = gem.inc(swarmDuration, -playDuration)
-      print("Swarm active - duration", swarmDuration)
+      --print("Swarm active - duration", swarmDuration)
       if swarmDuration < 0 then
-        print("End swarm - duration", swarmDuration)
+        --print("End swarm - duration", swarmDuration)
         swarmActive = false
         swarmDuration = 0
       end
@@ -189,6 +189,12 @@ widgets.menu("Swarm Base", resolution, resolutionNames, {
 
 widgets.col()
 
+widgets.numBox("Duration Randomization", durationRandomization, {
+  unit = Unit.Percent,
+  tooltip = "Set the randomization amount for the duration",
+  changed = function(self) durationRandomization = self.value end
+})
+
 widgets.numBox("Space", duration, {
   name = "Duration",
   tooltip = "Set the duration between swarms - controlled by the x-axis of the XY controller",
@@ -205,19 +211,17 @@ widgets.numBox("Swarm Probability", swarmProbability, {
   changed = function(self) swarmProbability = self.value end
 })
 
-widgets.numBox("Duration Randomization", durationRandomization, {
-  unit = Unit.Percent,
-  tooltip = "Set the randomization amount for the duration",
-  changed = function(self) durationRandomization = self.value end
-})
-
-widgets.button("Quantize Closest", quantizeToClosest, {
+local q = widgets.button("Quantize Closest", quantizeToClosest, {
   tooltip = "Quantize the space between swarms to the closest 'known' resolution",
+  width = (210 / 2) - 3,
+  increment = false,
   changed = function(self) quantizeToClosest = self.value end
 })
 
 widgets.button("Legato", legato, {
   tooltip = "In legato mode notes are held until the next note is played",
+  x = widgets.posSide(q) + 2,
+  width = q.width,
   changed = function(self) legato = self.value end
 })
 

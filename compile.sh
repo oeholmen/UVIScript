@@ -12,12 +12,13 @@ luaScripts=(
   generators/gridSequencer
   generators/motionSequencer
   generators/noteFragmentGenerator
+  modular/bounceTrigger
   modular/gridSequencerInput
   modular/motionSequencerInput
   modular/probabilityTrigger
   modular/randomNoteInput
-  modular/rythmicMotionsTrigger
   modular/rythmicFragmentsTrigger
+  modular/rythmicMotionsTrigger
   modular/swarmTrigger
   modulators/bouncer
   modulators/modulationSequencer
@@ -141,7 +142,7 @@ for luaScript in "${luaScripts[@]}"; do
     includes=(common scales notes resolutions)
   elif [ $luaScript == 'modular/motionSequencerInput' ]; then
     includes=(common widgets scales resolutions tableMotion)
-  elif [ $luaScript == 'modular/probabilityTrigger' ] || [ $luaScript == 'modular/swarmTrigger' ] || [ $luaScript == 'synths/tweaksynth' ] || [ $luaScript == 'sequencers/jumpingSequencer' ] || [ $luaScript == 'sequencers/polyphonicSequencer' ] || [ $luaScript == 'sequencers/stochasticDrumSequencer' ] || [ $luaScript == 'sequencers/stochasticSequencer' ] || [ $luaScript == 'util/randomGate' ] || [ $luaScript == 'modulators/bouncer' ] || [ $luaScript == 'modulators/randomChange' ] || [ $luaScript == 'effects/noteBouncer' ]; then
+  elif [ $luaScript == 'modular/bounceTrigger' ] || [ $luaScript == 'modular/probabilityTrigger' ] || [ $luaScript == 'modular/swarmTrigger' ] || [ $luaScript == 'synths/tweaksynth' ] || [ $luaScript == 'sequencers/jumpingSequencer' ] || [ $luaScript == 'sequencers/polyphonicSequencer' ] || [ $luaScript == 'sequencers/stochasticDrumSequencer' ] || [ $luaScript == 'sequencers/stochasticSequencer' ] || [ $luaScript == 'util/randomGate' ] || [ $luaScript == 'modulators/bouncer' ] || [ $luaScript == 'modulators/randomChange' ] || [ $luaScript == 'effects/noteBouncer' ]; then
     includes=(common widgets resolutions)
   elif [ $luaScript == 'modular/rythmicMotionsTrigger' ] ; then
     includes=(common widgets resolutions tableMotion)

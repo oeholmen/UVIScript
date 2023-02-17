@@ -1021,7 +1021,7 @@ end
 
 widgets.xSpacing(0)
 widgets.ySpacing(0)
-widgets.setColour('backgroundColour', "606060")
+widgets.backgroundColour = "606060"
 
 local notePanel = widgets.panel({
   x = sequencerPanel.x,
