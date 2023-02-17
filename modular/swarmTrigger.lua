@@ -6,63 +6,79 @@ local gem = require "includes.common"
 local widgets = require "includes.widgets"
 local resolutions = require "includes.resolutions"
 
-local backgroundColour = "101010"
-
-widgets.backgroundColour = backgroundColour
-widgets.menuBackgroundColour = backgroundColour
-widgets.widgetBackgroundColour = backgroundColour
-
-setBackgroundColour(backgroundColour)
+setBackgroundColour("101010")
 
 --------------------------------------------------------------------------------
 -- Variables
 --------------------------------------------------------------------------------
 
 local isPlaying = false
-local channel = 1
-local resolutionNames = resolutions.getResolutionNames()
-local resolution = 23
+local channel = 1 -- Send trigger on this channel
 local voiceId = nil -- Holds the id of the created note event
-local probability = 50
 local velocity = 64
 local legato = false
-local beatFactor = .5
-local beatFactorMin = .01
-local beatFactorMax = 4
-local beatFactorProbability = 50
-local beatFactorRandomizationAmount = 0
+local duration = 250
+local durationMin = 3
+local durationMax = 10000
+local durationRandomization = 50
 local quantizeToClosest = true
+local swarmProbability = 50
+local resolutionNames = resolutions.getResolutionNames()
+local resolution = 23
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
 --------------------------------------------------------------------------------
 
 local function release()
+  -- Release voice if still active
   if type(voiceId) == "userdata" then
     releaseVoice(voiceId)
     voiceId = nil
   end
 end
 
-local function sequenceRunner()
+local function sequencer()
+  local swarmActive = false
+  local swarmDuration = 0
   while isPlaying do
-    local beat = resolutions.getResolution(resolution)
-    if gem.getRandomBoolean(probability) then
-      release()
+    local swarmNoteDuration = resolutions.getResolution(resolution)
+    if swarmActive or gem.getRandomBoolean(swarmProbability) then
+      release() -- Release voice if still active
       voiceId = playNote(0, math.floor(gem.randomizeValue(velocity, 1, 127, 3)), -1, nil, channel)
-      if gem.getRandomBoolean(beatFactorProbability) then
-        local factor = gem.randomizeValue(beatFactor*10, beatFactorMin*10, beatFactorMax*10, beatFactorRandomizationAmount) / 10
-        --print("beatFactor, factor", beatFactor, factor)
-        beat = beat * factor
-        --print("Beat factor was applied")
-        if factor ~= 1 and quantizeToClosest then
-          --print("quantizeToClosest")
-          beat = resolutions.quantizeToClosest(beat)
-        end
+      if swarmActive == false then
+        swarmActive = true
+        local maxFactor = 8 -- TODO Param for max factor?
+        local swarmDurationBase = swarmNoteDuration * (gem.getRandom(maxFactor))
+        local randomizationAmount = 100 -- TODO Param for randomization amount?
+        local factor = 2 -- TODO Param?
+        swarmDuration = gem.randomizeValue(swarmDurationBase, (swarmDurationBase / factor), (swarmDurationBase * factor), randomizationAmount)
+        print("Start swarm - duration", swarmDuration)
       end
     end
-    waitBeat(resolutions.getPlayDuration(beat))
-    if legato == false then
+    local playDuration = ms2beat(duration)
+    if swarmActive then
+      playDuration = swarmNoteDuration
+      if gem.getRandomBoolean(durationRandomization) then
+        local factor = gem.getRandomFromTable({.125,.25,.5,.75,1.5,2,3,4})
+        playDuration = playDuration * factor
+      end
+    elseif quantizeToClosest then
+      playDuration = resolutions.quantizeToClosest(playDuration)
+    end
+    playDuration = resolutions.getPlayDuration(playDuration)
+    waitBeat(playDuration)
+    if swarmActive then
+      swarmDuration = gem.inc(swarmDuration, -playDuration)
+      print("Swarm active - duration", swarmDuration)
+      if swarmDuration < 0 then
+        print("End swarm - duration", swarmDuration)
+        swarmActive = false
+        swarmDuration = 0
+      end
+    end
+    if legato == false or swarmActive == false then
+      -- Release if legato is off, or swarm is finished
       release()
     end
   end
@@ -73,7 +89,7 @@ local function startPlaying()
     return
   end
   isPlaying = true
-  run(sequenceRunner)
+  run(sequencer)
 end
 
 local function stopPlaying()
@@ -102,7 +118,9 @@ widgets.setSection({
   yOffset = 5,
 })
 
-widgets.label("Probability Trigger", {
+widgets.labelBackgoundColour = "red"
+
+widgets.label("Swarm Trigger", {
   tooltip = "A sequencer that triggers rythmic pulses (using note 0) that note inputs can listen to",
   width = widgets.getPanel().width,
   x = 0, y = 0, height = 30,
@@ -139,90 +157,68 @@ widgets.setSection({
   ySpacing = 0,
 })
 
-widgets.backgroundColour = "black"
-
 widgets.panel({
   x = widgets.getPanel().x,
   y = widgets.posUnder(widgets.getPanel()),
   width = widgets.getPanel().width,
-  height = 205,
+  height = 210,
 })
 
 local noteWidgetColSpacing = 5
 local noteWidgetRowSpacing = 5
 
-local xySpeedFactor = widgets.getPanel():XY('Probability', 'BeatFactorProbability')
+local xySpeedFactor = widgets.getPanel():XY('Duration', 'Probability')
 xySpeedFactor.x = noteWidgetColSpacing
 xySpeedFactor.y = noteWidgetRowSpacing
 xySpeedFactor.width = 480
 xySpeedFactor.height = 200
 
 widgets.setSection({
-  width = 207,
-  xOffset = widgets.posSide(xySpeedFactor) + 10,
-  yOffset = 10,
+  width = 210,
+  xOffset = widgets.posSide(xySpeedFactor) + 12,
+  yOffset = 15,
   xSpacing = noteWidgetColSpacing,
   ySpacing = noteWidgetRowSpacing,
   cols = 1,
 })
 
-local resolutionInput = widgets.menu("Quantize", resolution, resolutionNames, {
-  tooltip = "Event triggers are quantized to this resolution",
-  width = 99,
-  height = 48,
-  increment = false,
-  changed = function(self) resolution = self.value end,
+widgets.menu("Swarm Base", resolution, resolutionNames, {
+  tooltip = "Set the base resolution of the swarm",
+  changed = function(self) resolution = self.value end
+})
+
+widgets.col()
+
+widgets.numBox("Space", duration, {
+  name = "Duration",
+  tooltip = "Set the duration between swarms - controlled by the x-axis of the XY controller",
+  unit = Unit.MilliSeconds,
+  min = durationMin, max = durationMax, integer = false,
+  changed = function(self) duration = self.value end
+})
+
+widgets.numBox("Swarm Probability", swarmProbability, {
+  name = "Probability",
+  unit = Unit.Percent,
+  integer = false,
+  tooltip = "Set the probability that a swarm will be triggered - controlled by the y-axis of the XY controller",
+  changed = function(self) swarmProbability = self.value end
+})
+
+widgets.numBox("Duration Randomization", durationRandomization, {
+  unit = Unit.Percent,
+  tooltip = "Set the randomization amount for the duration",
+  changed = function(self) durationRandomization = self.value end
+})
+
+widgets.button("Quantize Closest", quantizeToClosest, {
+  tooltip = "Quantize the space between swarms to the closest 'known' resolution",
+  changed = function(self) quantizeToClosest = self.value end
 })
 
 widgets.button("Legato", legato, {
   tooltip = "In legato mode notes are held until the next note is played",
-  x = widgets.posSide(resolutionInput) + noteWidgetColSpacing,
-  width = resolutionInput.width,
   changed = function(self) legato = self.value end
-})
-
-widgets.button("Quantize Closest", quantizeToClosest, {
-  tooltip = "Quantize to closest resolution when using beat factor",
-  x = widgets.posSide(resolutionInput) + noteWidgetColSpacing,
-  width = resolutionInput.width,
-  changed = function(self) quantizeToClosest = self.value end
-})
-
-widgets.numBox("Trigger Probability", probability, {
-  name = "Probability",
-  unit = Unit.Percent,
-  integer = false,
-  tooltip = "Set the probabilty that an event will be triggered - controlled by the x-axis of the XY controller",
-  changed = function(self) probability = self.value end
-})
-
-widgets.numBox("Beat Factor Probability", beatFactorProbability, {
-  name = "BeatFactorProbability",
-  unit = Unit.Percent,
-  integer = false,
-  tooltip = "Set the probabilty that the beat factor will be used - controlled by the y-axis of the XY controller",
-  changed = function(self) beatFactorProbability = self.value end
-})
-
-widgets.numBox("Beat Factor", beatFactor, {
-  min = beatFactorMin,
-  max = beatFactorMax,
-  tooltip = "Set a factor to multiply the selected beat with",
-  changed = function(self) beatFactor = self.value end
-})
-
-widgets.numBox("Beat Factor Randomization", beatFactorRandomizationAmount, {
-  unit = Unit.Percent,
-  tooltip = "Set the randomization amount for the beat factor",
-  changed = function(self) beatFactorRandomizationAmount = self.value end
-})
-
-widgets.numBox("Velocity", velocity, {
-  name = "Velocity",
-  min = 1,
-  max = 127,
-  tooltip = "Set the velocity amount",
-  changed = function(self) velocity = self.value end
 })
 
 --------------------------------------------------------------------------------

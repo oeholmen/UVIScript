@@ -8,12 +8,12 @@ local noteSelector = require "includes.noteSelector"
 
 local activeVoices = {}
 
-local sequencerPanel = widgets.getPanel(1, 1, {
+local sequencerPanel = widgets.panel({
   width = 720,
   height = 30,
 })
 
-widgets.label("Random Note Input", 1, 1, {
+widgets.label("Random Note Input", {
   tooltip = "This sequencer listens to incoming pulses from a rythmic sequencer (Sent as note 0) and generates notes in response",
   width = sequencerPanel.width,
   height = 30,
@@ -26,43 +26,52 @@ for j=1,16 do
   table.insert(channels, "" .. j)
 end
 
-local channelInput = widgets.menu("Channel", 1, channels, 1, 1, {
+widgets.setSection({
+  width = 90,
+  xOffset = sequencerPanel.width - 95,
+  yOffset = 5
+})
+
+local channelInput = widgets.menu("Channel", 1, channels, {
   tooltip = "Listen to note events on this channel - if a note event is not being listened to, it will be pass through",
   showLabel = false,
-  width = 90,
-  x = sequencerPanel.width - 95,
-  y = 5
 })
 
 --------------------------------------------------------------------------------
 -- Notes
 --------------------------------------------------------------------------------
 
-local notePanel = widgets.panel(1, 1, {
+local notePanel = widgets.panel({
   x = sequencerPanel.x,
   y = widgets.posUnder(sequencerPanel),
   width = sequencerPanel.width,
   height = 200,
 })
 
-local noteLabel = widgets.label("Notes", 1, 1, {
+widgets.setSection({
+  xOffset = 0,
+  yOffset = 0,
+})
+
+local noteLabel = widgets.label("Notes", {
   tooltip = "Set the probability that notes will be included when generating new notes",
   alpha = 0.75,
   width = sequencerPanel.width,
+  height = 22,
 })
 
-local inputButton = widgets.button(" ", false, 8, 1, {
+local inputButton = widgets.button(" ", false, {
   tooltip = "Shows when notes are triggered",
   persistent = false,
   enabled = false,
-  height = 18,
   width = channelInput.width,
-  y = 1,
+  height = 18,
+  y = 2,
   x = channelInput.x,
 })
 inputButton.backgroundColourOff = "202020"
  
-noteSelector.createNoteAndOctaveSelector(notePanel, widgets.colours, noteLabel, 15, 42, {x = 15, y = widgets.posUnder(noteLabel) + 10})
+noteSelector.createNoteAndOctaveSelector(notePanel, widgets.colours(), noteLabel, 15, 42, {x = 15, y = widgets.posUnder(noteLabel) + 10})
 
 --------------------------------------------------------------------------------
 -- Handle Events

@@ -86,24 +86,20 @@ local function quantizeToClosest(beat)
   for i,v in ipairs(resolutionValues) do
     local currentValue = v
     local nextValue = resolutionValues[i+1]
-    --print("beat, currentValue, nextValue", beat, currentValue, nextValue)
-    if type(nextValue) == "nil" or beat == currentValue then
-      --print("beat == currentValue or nextValue == nil", beat, currentValue, nextValue)
+    if beat == currentValue or type(nextValue) == "nil" then
       return currentValue
     end
     if beat < currentValue and beat > nextValue then
       local diffCurrent = currentValue - beat
       local diffNext = beat - nextValue
       if diffCurrent < diffNext then
-        --print("Return currentValue diffCurrent < diffNext", diffCurrent, diffNext)
         return currentValue
       else
-        --print("Return nextValue diffNext < diffCurrent", diffNext, diffCurrent)
         return nextValue
       end
     end
   end
-  return beat
+  return resolutionValues[#resolutionValues]
 end
 
 return {--resolutions--

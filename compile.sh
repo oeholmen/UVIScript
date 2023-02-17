@@ -2,6 +2,48 @@
 
 # Make standalone versions of lua scripts and copy the necessary assets to the compiled folder
 
+# Add the lua scripts to compile (NOTE: The includes are set in the loop below)
+luaScripts=(
+  effects/noteBouncer
+  generators/beatbox
+  generators/drunkenSequencer
+  generators/generativeChorder
+  generators/generativeStrategySequencer
+  generators/gridSequencer
+  generators/motionSequencer
+  generators/noteFragmentGenerator
+  modular/gridSequencerInput
+  modular/motionSequencerInput
+  modular/probabilityTrigger
+  modular/randomNoteInput
+  modular/rythmicMotionsTrigger
+  modular/rythmicFragmentsTrigger
+  modular/swarmTrigger
+  modulators/bouncer
+  modulators/modulationSequencer
+  modulators/randomChange
+  modulators/randomEnveloper
+  modulators/randomGateModulator
+  sequencers/fragmentSequencer
+  sequencers/jumpingSequencer
+  sequencers/midiControlSequencer
+  sequencers/polyphonicSequencer
+  sequencers/stochasticDrumSequencer
+  sequencers/stochasticSequencer
+  sequencers/strategySequencer
+  synths/tweaksynth
+  util/arpRandomizer
+  util/humanizer
+  util/noteLimiter
+  util/noteVelocity
+  util/randomGate
+  util/randomOctave
+  util/sieve
+  util/velocityLimiter
+  util/velocityRandomization
+  util/velocitySequencer
+)
+
 # Copy resources
 input_folder=./resources
 output_folder=./compiled/resources
@@ -69,49 +111,6 @@ cp "$input_program" "$output_program"
 echo "Copied $input_program to $output_program"
 echo
 
-# Add the lua scripts to compile (NOTE: The includes are set in the loop below)
-luaScripts=(
-  effects/noteBouncer
-  generators/beatbox
-  generators/drunkenSequencer
-  generators/generativeChorder
-  generators/generativeStrategySequencer
-  generators/gridSequencer
-  generators/motionSequencer
-  generators/noteFragmentGenerator
-  modular/gridSequencerInput
-  modular/motionSequencerInput
-  modular/probabilityTrigger
-  modular/randomNoteInput
-  modular/rythmicMotionsTrigger
-  modular/rythmicFragmentsTrigger
-  modulators/bouncer
-  modulators/modulationSequencer
-  modulators/randomChange
-  modulators/randomEnveloper
-  modulators/randomGateModulator
-  sequencers/fragmentSequencer
-  sequencers/jumpingSequencer
-  sequencers/midiControlSequencer
-  sequencers/polyphonicSequencer
-  sequencers/stochasticDrumSequencer
-  sequencers/stochasticSequencer
-  sequencers/strategySequencer
-  synths/tweaksynth
-  util/arpRandomizer
-  util/humanizer
-  util/noteLimiter
-  util/noteVelocity
-  util/randomGate
-  util/randomOctave
-  util/sieve
-  util/velocityLimiter
-  util/velocityRandomization
-  util/velocitySequencer
-)
-
-# TODO Fix scripts that use modseq include
-
 for luaScript in "${luaScripts[@]}"; do 
   # Set the input and output files
   input_file=./"$luaScript".lua
@@ -142,7 +141,7 @@ for luaScript in "${luaScripts[@]}"; do
     includes=(common scales notes resolutions)
   elif [ $luaScript == 'modular/motionSequencerInput' ]; then
     includes=(common widgets scales resolutions tableMotion)
-  elif [ $luaScript == 'modular/probabilityTrigger' ] || [ $luaScript == 'synths/tweaksynth' ] || [ $luaScript == 'sequencers/jumpingSequencer' ] || [ $luaScript == 'sequencers/polyphonicSequencer' ] || [ $luaScript == 'sequencers/stochasticDrumSequencer' ] || [ $luaScript == 'sequencers/stochasticSequencer' ] || [ $luaScript == 'util/randomGate' ] || [ $luaScript == 'modulators/bouncer' ] || [ $luaScript == 'modulators/randomChange' ] || [ $luaScript == 'effects/noteBouncer' ]; then
+  elif [ $luaScript == 'modular/probabilityTrigger' ] || [ $luaScript == 'modular/swarmTrigger' ] || [ $luaScript == 'synths/tweaksynth' ] || [ $luaScript == 'sequencers/jumpingSequencer' ] || [ $luaScript == 'sequencers/polyphonicSequencer' ] || [ $luaScript == 'sequencers/stochasticDrumSequencer' ] || [ $luaScript == 'sequencers/stochasticSequencer' ] || [ $luaScript == 'util/randomGate' ] || [ $luaScript == 'modulators/bouncer' ] || [ $luaScript == 'modulators/randomChange' ] || [ $luaScript == 'effects/noteBouncer' ]; then
     includes=(common widgets resolutions)
   elif [ $luaScript == 'modular/rythmicMotionsTrigger' ] ; then
     includes=(common widgets resolutions tableMotion)

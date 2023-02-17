@@ -23,7 +23,7 @@ local menuOutlineColour = "5f" .. widgetTextColour
 local knobFillColour = "E6D5B8" -- Light
 local sliderColour = "pink"
 
-widgets.setColour('backgroundColour', backgroundColour)
+widgets.backgroundColour = backgroundColour
 setBackgroundColour(backgroundColour)
 
 --------------------------------------------------------------------------------
@@ -136,12 +136,12 @@ end
 -- Motion Sequencer
 --------------------------------------------------------------------------------
 
-local sequencerPanel = widgets.getPanel(1, 1, {
+local sequencerPanel = widgets.panel({
   width = 720,
   height = 30,
 })
 
-widgets.label("Rythmic Motions Trigger", 1, 1, {
+widgets.label("Rythmic Motions Trigger", {
   tooltip = "A sequencer that triggers rythmic pulses (using note 0) that note inputs can listen to",
   width = sequencerPanel.width,
   height = 30,
@@ -149,20 +149,22 @@ widgets.label("Rythmic Motions Trigger", 1, 1, {
   fontSize = 22,
 })
 
-widgets.xOffset((sequencerPanel.width / 2) + 45)
-widgets.yOffset(5)
-widgets.xSpacing(5)
-widgets.ySpacing(5)
+widgets.setSection({
+  width = 100,
+  height = 22,
+  xOffset = (widgets.getPanel().width / 2) + 45,
+  yOffset = 5,
+  xSpacing = 5,
+  ySpacing = 5,
+})
 
-local channelInput = widgets.numBox('Channel', channel, 1, 1, {
+local channelInput = widgets.numBox('Channel', channel, {
   tooltip = "Send note events starting on this channel",
   min = 1,
   max = 16,
   integer = true,
+  changed = function(self) channel = self.value end,
 })
-channelInput.changed = function(self)
-  channel = self.value
-end
 
 local autoplayButton = widgets.button('Auto Play', true, 2, 1, {
   tooltip = "Play automatically on transport",
@@ -181,18 +183,19 @@ end
 -- Notes Panel
 --------------------------------------------------------------------------------
 
+
 widgets.xSpacing(0)
 widgets.ySpacing(0)
 widgets.setColour('backgroundColour', "606060")
 
-local notePanel = widgets.panel(1, 1, {
+local notePanel = widgets.panel({
   x = sequencerPanel.x,
   y = widgets.posUnder(sequencerPanel),
   width = sequencerPanel.width,
   height = 250,
 })
 
-positionTable = widgets.table(tableMotion.options.tableLength, 0, 1, 1, {
+positionTable = widgets.table(tableMotion.options.tableLength, 0, {
   enabled = false,
   persistent = false,
   sliderColour = "green",
@@ -202,7 +205,7 @@ positionTable = widgets.table(tableMotion.options.tableLength, 0, 1, 1, {
   y = 0,
 })
 
-motionTable = widgets.table(tableMotion.options.tableLength, 0, 1, 1, {
+motionTable = widgets.table(tableMotion.options.tableLength, 0, {
   tooltip = "Events are triggered when the value hits max or min",
   showPopupDisplay = true,
   min = -tableRange,
@@ -219,30 +222,55 @@ local noteWidgetHeight = 20
 local noteWidgetWidth = 130
 local noteWidgetRowSpacing = 5
 local noteWidgetCellSpacing = 12
-local menuHeight = (noteWidgetHeight * 2) + noteWidgetRowSpacing
 local firstRowY = motionTable.y + motionTable.height + (noteWidgetRowSpacing * 1.5)
 
-widgets.setPanel(notePanel)
-widgets.widthDefault(noteWidgetWidth)
-widgets.xOffset(noteWidgetCellSpacing)
-widgets.yOffset(firstRowY)
-widgets.xSpacing(noteWidgetCellSpacing)
-widgets.ySpacing(noteWidgetRowSpacing)
+--widgets.setPanel(notePanel)
 
-widgets.menu("Speed Type", 1, tableMotion.speedTypes, 1, 1, {
-  height = menuHeight,
+widgets.setSection({
+  width = noteWidgetWidth,
+  height = noteWidgetHeight,
+  xOffset = noteWidgetCellSpacing,
+  yOffset = firstRowY,
+  xSpacing = noteWidgetCellSpacing,
+  ySpacing = noteWidgetRowSpacing,
+  cols = 4
+})
+
+widgets.menu("Speed Type", 1, tableMotion.speedTypes, {
   changed = function(self) tableMotion.options.speedType = self.selectedText end
 })
 
-widgets.menu("Start Mode", 1, tableMotion.startModes, 2, 1, {
-  height = menuHeight,
+widgets.menu("Start Mode", 1, tableMotion.startModes, {
   changed = function(self)
     tableMotion.options.startMode = self.selectedText
     resetTableValues()
   end
 })
 
-widgets.numBox("Range", tableRange, 1, 3, {
+widgets.menu("Quantize", resolution, resolutionNames, {
+  changed = function(self) resolution = self.value end
+})
+
+local moveSpeedInput = widgets.numBox("Motion Speed", tableMotion.options.moveSpeed, {
+  name = "MoveSpeed",
+  min = tableMotion.options.moveSpeedMin,
+  max = tableMotion.options.moveSpeedMax,
+  tooltip = "Set the speed of the up/down motion in each cell - Controlled by the X-axis on the XY controller",
+  unit = Unit.MilliSeconds,
+  changed = function(self) tableMotion.options.moveSpeed = self.value end
+})
+
+widgets.col(3)
+
+widgets.numBox("Speed Factor", tableMotion.options.factor, {
+  name = "Factor",
+  min = tableMotion.options.factorMin,
+  max = tableMotion.options.factorMax,
+  tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. Controlled by the Y-axis on the XY controller",
+  changed = function(self) tableMotion.options.factor = self.value end
+})
+
+widgets.numBox("Range", tableRange, {
   min = 8,
   max = 128,
   integer = true,
@@ -253,29 +281,7 @@ widgets.numBox("Range", tableRange, 1, 3, {
   end
 })
 
-widgets.menu("Quantize", resolution, resolutionNames, 3, 1, {
-  height = menuHeight,
-  changed = function(self) resolution = self.value end
-})
-
-local bipolarButton = widgets.button("Bipolar", bipolar, 3, 3, {
-  width = (noteWidgetWidth / 2) - (noteWidgetCellSpacing / 2),
-  changed = function(self)
-    bipolar = self.value
-    setRange()
-  end
-})
-
-widgets.button("Reset", false, nil, 3, {
-  width = bipolarButton.width, x = widgets.posSide(bipolarButton),
-  changed = function(self)
-    resetTableValues()
-    startMoving()
-    self.value = false
-  end
-})
-
-widgets.numBox("Length", tableMotion.options.tableLength, 2, 3, {
+widgets.numBox("Length", tableMotion.options.tableLength, {
   min = 2,
   max = 128,
   integer = true,
@@ -289,24 +295,26 @@ widgets.numBox("Length", tableMotion.options.tableLength, 2, 3, {
   end
 })
 
-local moveSpeedInput = widgets.numBox("Motion Speed", tableMotion.options.moveSpeed, 4, 1, {
-  name = "MoveSpeed",
-  min = tableMotion.options.moveSpeedMin,
-  max = tableMotion.options.moveSpeedMax,
-  tooltip = "Set the speed of the up/down motion in each cell - Controlled by the X-axis on the XY controller",
-  unit = Unit.MilliSeconds,
-  changed = function(self) tableMotion.options.moveSpeed = self.value end
+local bipolarButton = widgets.button("Bipolar", bipolar, {
+  width = (noteWidgetWidth / 2) - (noteWidgetCellSpacing / 2),
+  changed = function(self)
+    bipolar = self.value
+    setRange()
+  end
 })
 
-widgets.numBox("Speed Factor", tableMotion.options.factor, 4, 2, {
-  name = "Factor",
-  min = tableMotion.options.factorMin,
-  max = tableMotion.options.factorMax,
-  tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. Controlled by the Y-axis on the XY controller",
-  changed = function(self) tableMotion.options.factor = self.value end
+widgets.button("Reset", false, {
+  width = bipolarButton.width,
+  x = widgets.posSide(bipolarButton),
+  increment = false,
+  changed = function(self)
+    resetTableValues()
+    startMoving()
+    self.value = false
+  end
 })
 
-widgets.numBox("Speed Rand", tableMotion.options.speedRandomizationAmount, 4, 3, {
+widgets.numBox("Speed Rand", tableMotion.options.speedRandomizationAmount, {
   unit = Unit.Percent,
   tooltip = "Set the radomization amount applied to speed",
   changed = function(self) tableMotion.options.speedRandomizationAmount = self.value end

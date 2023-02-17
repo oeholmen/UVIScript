@@ -129,12 +129,12 @@ end
 -- Motion Sequencer
 --------------------------------------------------------------------------------
 
-local sequencerPanel = widgets.getPanel(1, 1, {
+local sequencerPanel = widgets.panel({
   width = 720,
   height = 30,
 })
 
-widgets.label("Motion Sequencer Input", 1, 1, {
+widgets.label("Motion Sequencer Input", {
   tooltip = "This sequencer listens to incoming pulses from a rythmic sequencer (Sent as note 0) and generates notes in response",
   width = sequencerPanel.width,
   height = 30,
@@ -147,7 +147,7 @@ for j=1,16 do
   table.insert(channels, "" .. j)
 end
 
-local channelInput = widgets.menu("Channel", 1, channels, 1, 1, {
+local channelInput = widgets.menu("Channel", 1, channels, {
   tooltip = "Listen to note events on this channel - if a note event is not being listened to, it will be pass through",
   showLabel = false,
   width = 90,
@@ -159,35 +159,38 @@ local channelInput = widgets.menu("Channel", 1, channels, 1, 1, {
 -- Notes Panel
 --------------------------------------------------------------------------------
 
-widgets.setColour('backgroundColour', "606060")
+widgets.backgroundColour = "606060"
 
-local notePanel = widgets.panel(1, 1, {
+local notePanel = widgets.panel({
   x = sequencerPanel.x,
   y = widgets.posUnder(sequencerPanel),
   width = sequencerPanel.width,
   height = 255,
 })
 
-positionTable = notePanel:Table("Position", tableMotion.options.tableLength, 0, 0, 1, true)
-positionTable.enabled = false
-positionTable.persistent = false
-positionTable.fillStyle = "solid"
-positionTable.backgroundColour = widgetTextColour
-positionTable.sliderColour = "green"
-positionTable.width = notePanel.width
-positionTable.height = 6
-positionTable.x = 0
-positionTable.y = 0
+positionTable = widgets.table(tableMotion.options.tableLength, 0, {
+  enabled = false,
+  persistent = false,
+  sliderColour = "green",
+  backgroundColour = "CFFFFE",
+  width = sequencerPanel.width,
+  height = 6,
+  x = 0,
+  y = 0,
+})
 
-motionTable = notePanel:Table("PitchOffset", tableMotion.options.tableLength, 0, -24, 24, true)
-motionTable.tooltip = "Set pitch offset"
-motionTable.showPopupDisplay = true
-motionTable.fillStyle = "solid"
-motionTable.sliderColour = sliderColour
-motionTable.width = notePanel.width
-motionTable.height = 160
-motionTable.x = 0
-motionTable.y = positionTable.y + positionTable.height
+motionTable = widgets.table(tableMotion.options.tableLength, 0, {
+  tooltip = "Events are triggered when the value hits max or min",
+  showPopupDisplay = true,
+  backgroundColour = "191E25",
+  min = -24,
+  max = 24,
+  integer = true,
+  width = sequencerPanel.width,
+  height = 160,
+  x = 0,
+  y = widgets.posUnder(positionTable),
+})
 
 local noteWidgetHeight = 20
 local noteWidgetWidth = 130
@@ -246,7 +249,6 @@ scaleMenu.changed = function(self)
 end
 
 local noteInput = notePanel:NumBox("BaseNote", baseNote, 0, 127, true)
---noteInput.enabled = false
 noteInput.showLabel = false
 noteInput.displayName = "Base Note"
 noteInput.tooltip = "Set the root note"
@@ -269,7 +271,7 @@ octaveRangeInput.backgroundColour = menuBackgroundColour
 octaveRangeInput.textColour = menuTextColour
 octaveRangeInput.height = noteWidgetHeight
 octaveRangeInput.width = noteWidgetWidth
-octaveRangeInput.x = scaleMenu.x-- + noteInput.width + 5
+octaveRangeInput.x = scaleMenu.x
 octaveRangeInput.y = thirdRowY
 octaveRangeInput.changed = function(self)
   octaveRange = self.value
@@ -284,7 +286,7 @@ bipolarButton.textColourOn = textColourOn
 bipolarButton.displayName = "Bipolar"
 bipolarButton.width = noteWidgetWidth
 bipolarButton.height = noteWidgetHeight
-bipolarButton.x = speedTypeMenu.x-- + scaleMenu.width + 5
+bipolarButton.x = speedTypeMenu.x
 bipolarButton.y = thirdRowY
 bipolarButton.changed = function(self)
   bipolar = self.value
@@ -298,7 +300,7 @@ motionTableLengthInput.backgroundColour = menuBackgroundColour
 motionTableLengthInput.textColour = menuTextColour
 motionTableLengthInput.height = noteWidgetHeight
 motionTableLengthInput.width = noteWidgetWidth
-motionTableLengthInput.x = startModeMenu.x-- + noteInput.width + 5
+motionTableLengthInput.x = startModeMenu.x
 motionTableLengthInput.y = thirdRowY
 motionTableLengthInput.changed = function(self)
   tableMotion.options.tableLength = self.value

@@ -1,4 +1,4 @@
--- modular/rythmicMotionsTrigger -- 
+-- modular/swarmTrigger -- 
 --------------------------------------------------------------------------------
 -- Common methods
 --------------------------------------------------------------------------------
@@ -699,251 +699,84 @@ local resolutions = {
 }
 
 --------------------------------------------------------------------------------
--- Common functions for processors using table motion
+-- Probability Trigger - Sends note events using note 0 as trigger
 --------------------------------------------------------------------------------
 
-local speedTypes = {"Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Random"}
-local startModes = {"Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Zero", "Min", "Max", "Keep State", "Random"}
-
-local motionOptions = {
-  factor = 2,
-  factorMin = 0,
-  factorMax = 4,
-  moveSpeed = 25,
-  moveSpeedMin = 5,
-  moveSpeedMax = 250,
-  speedType = speedTypes[1],
-  startMode = startModes[1],
-  speedRandomizationAmount = 0,
-  tableLength = 32,
-}
-
-local function setTableZero(theTable)
-    for i=1,theTable.length do
-      theTable:setValue(i, 0)
-    end  
-end
-
-local function setStartMode(theTable)
-  -- Reset table according to start mode
-  if motionOptions.startMode == "Keep State" then
-    return
-  elseif motionOptions.startMode == "Ramp Up" then
-    for i,v in ipairs(gem.rampUp(theTable.min, theTable.max, theTable.length)) do
-      theTable:setValue(i, v)
-    end
-  elseif motionOptions.startMode == "Ramp Down" then
-    for i,v in ipairs(gem.rampDown(theTable.min, theTable.max, theTable.length)) do
-      theTable:setValue(i, v)
-    end
-  elseif motionOptions.startMode == "Triangle" then
-    for i,v in ipairs(gem.triangle(theTable.min, theTable.max, theTable.length)) do
-      theTable:setValue(i, v)
-    end
-  elseif motionOptions.startMode == "Random" then
-    for i=1,theTable.length do
-      theTable:setValue(i, gem.getRandom(theTable.min, theTable.max))
-    end
-  elseif motionOptions.startMode == "Min" then
-    for i=1,theTable.length do
-      theTable:setValue(i, theTable.min)
-    end
-  elseif motionOptions.startMode == "Max" then
-    for i=1,theTable.length do
-      theTable:setValue(i, theTable.max)
-    end
-  elseif motionOptions.startMode == "Even" then
-    local minValue = theTable.min
-    local maxValue = theTable.max
-    for i=1,theTable.length do
-      local val = minValue
-      if i % 2 == 0 then
-        val = maxValue
-      end
-      theTable:setValue(i, val)
-    end
-  elseif motionOptions.startMode == "Odd" then
-    local minValue = theTable.min
-    local maxValue = theTable.max
-    for i=1,theTable.length do
-      local val = maxValue
-      if i % 2 == 0 then
-        val = minValue
-      end
-      theTable:setValue(i, val)
-    end
-  else
-    setTableZero(theTable)
-  end
-end
-
-local function moveTable(theTable, i, value, direction)
-  local middle = math.floor(theTable.length / 2)
-  -- Increment value
-  local amount = i - 1
-  if (i > middle and motionOptions.speedType == "Triangle") or motionOptions.speedType == "Ramp Down" then
-    amount = (theTable.length - i)
-  elseif motionOptions.speedType == "Random" then
-    amount = gem.getRandom(theTable.length) - 1
-  elseif (motionOptions.speedType == "Even" and i % 2 == 0) or (motionOptions.speedType == "Odd" and i % 2 > 0) then
-    amount = 0
-  elseif motionOptions.speedType == "Even" and i == 1 then
-    amount = i
-  end
-  local min = theTable.min
-  local max = theTable.max
-  local duration = gem.randomizeValue(motionOptions.moveSpeed, motionOptions.moveSpeedMin, motionOptions.moveSpeedMax, motionOptions.speedRandomizationAmount) + (amount * motionOptions.factor) -- TODO Param for operator?
-  theTable:setValue(i, value)
-  value = gem.inc(value, direction)
-  if value < min then
-    if true or gem.getRandomBoolean() then
-      value = min
-      direction = 1
-      --print("Change direction", direction)
-    else
-      value = max
-    end
-    --print("Reset value", value)
-  elseif value > max then
-    if true or gem.getRandomBoolean() then
-      value = max
-      direction = -1
-      --print("Change direction", direction)
-    else
-      value = min
-    end
-    --print("Reset value", value)
-  end
-  local valueBeforeWait = theTable:getValue(i)
-  wait(duration)
-  -- If value has been manually changed during the wait, we continue from that value
-  if valueBeforeWait ~= theTable:getValue(i) then
-    value = theTable:getValue(i)
-  end
-  return value, direction
-end
-
-local tableMotion = {
-  setRange = function(theTable, tableRange, bipolar)
-    if bipolar then
-      theTable:setRange(-tableRange, tableRange)
-    else
-      theTable:setRange(0, tableRange)
-    end
-  end,
-  moveTable = moveTable,
-  setStartMode = setStartMode,
-  setTableZero = setTableZero,
-  speedTypes = speedTypes,
-  startModes = startModes,
-  options = motionOptions
-}
-
---------------------------------------------------------------------------------
--- Rythmic Motions - Sends note events using note 0 as trigger
---------------------------------------------------------------------------------
-
-local textColourOff = "ff22FFFF"
-local textColourOn = "efFFFFFF"
-local backgroundColourOff = "ff084486"
-local backgroundColourOn = "ff02ACFE"
-local backgroundColour = "202020" -- Light or Dark
-local widgetBackgroundColour = "black" -- Dark
-local widgetTextColour = "CFFFFE" -- Light
-local labelTextColour = widgetBackgroundColour
-local labelBackgoundColour = widgetTextColour
-local menuBackgroundColour = "01011F"
-local menuTextColour = "#9f02ACFE"
-local menuArrowColour = "66" .. labelTextColour
-local menuOutlineColour = "5f" .. widgetTextColour
-local knobFillColour = "E6D5B8" -- Light
-local sliderColour = "pink"
-
-widgets.backgroundColour = backgroundColour
-setBackgroundColour(backgroundColour)
+setBackgroundColour("101010")
 
 --------------------------------------------------------------------------------
 -- Variables
 --------------------------------------------------------------------------------
 
 local isPlaying = false
-local tableRange = 16
-local bipolar = true
-local positionTable
-local motionTable
-local channel = 1
-local noteEventId = 0 -- Holds the index if the cell in the table that last triggered an event
-local resolutionNames = resolutions.getResolutionNames()
-local resolution = #resolutionNames
-local uniqueIndex = 1 -- Holds the unique id for each moving spawn
-local movingCells = {}
+local channel = 1 -- Send trigger on this channel
 local voiceId = nil -- Holds the id of the created note event
+local velocity = 64
+local legato = false
+local duration = 250
+local durationMin = 3
+local durationMax = 10000
+local durationRandomization = 50
+local quantizeToClosest = true
+local swarmProbability = 50
+local resolutionNames = resolutions.getResolutionNames()
+local resolution = 23
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
 --------------------------------------------------------------------------------
 
-local function resetTableValues()
-  -- Reset event id
-  noteEventId = 0
-
-  -- Reset position
-  tableMotion.setTableZero(positionTable)
-
-  -- Set start mode
-  tableMotion.setStartMode(motionTable)
-end
-
-local function setRange()
-  tableMotion.setRange(motionTable, tableRange, bipolar)
-  resetTableValues()
-end
-
-local function move(i, uniqueId)
-  local direction = 1
-  local value = motionTable:getValue(i)
-  while isPlaying and movingCells[i] == uniqueId do
-    -- Send note event if value is min or max
-    if value == motionTable.min or value == motionTable.max then
-      noteEventId = i
-    end  
-    value, direction = tableMotion.moveTable(motionTable, i, value, direction)
+local function release()
+  -- Release voice if still active
+  if type(voiceId) == "userdata" then
+    releaseVoice(voiceId)
+    voiceId = nil
   end
 end
 
-local function startMoving()
-  movingCells = {} -- Reset index to stop
-  for i=1,motionTable.length do
-    table.insert(movingCells, uniqueIndex)
-    spawn(move, i, uniqueIndex)
-    uniqueIndex = gem.inc(uniqueIndex)
-  end
-end
-
-local function sequenceRunner()
-  startMoving()
+local function sequencer()
+  local swarmActive = false
+  local swarmDuration = 0
   while isPlaying do
-    if noteEventId > 0 then
-      -- Release the voice if active
-      if type(voiceId) == "userdata" then
-        releaseVoice(voiceId)
-        voiceId = nil
-        --print("Releasing trigger")
+    local swarmNoteDuration = resolutions.getResolution(resolution)
+    if swarmActive or gem.getRandomBoolean(swarmProbability) then
+      release() -- Release voice if still active
+      voiceId = playNote(0, math.floor(gem.randomizeValue(velocity, 1, 127, 3)), -1, nil, channel)
+      if swarmActive == false then
+        swarmActive = true
+        local maxFactor = 8 -- TODO Param for max factor?
+        local swarmDurationBase = swarmNoteDuration * (gem.getRandom(maxFactor))
+        local randomizationAmount = 100 -- TODO Param for randomization amount?
+        local factor = 2 -- TODO Param?
+        swarmDuration = gem.randomizeValue(swarmDurationBase, (swarmDurationBase / factor), (swarmDurationBase * factor), randomizationAmount)
+        print("Start swarm - duration", swarmDuration)
       end
-      local velocity = 64
-      voiceId = playNote(0, velocity, -1, nil, channel)
-      --print("Creating trigger")
-      -- Mark the position that initiated the event
-      for i=1,motionTable.length do
-        local value = 0
-        if i == noteEventId then
-          value = 1
-        end
-        positionTable:setValue(i, value)
-      end
-      noteEventId = 0 -- Reset event id
     end
-    waitBeat(resolutions.getResolution(resolution))
+    local playDuration = ms2beat(duration)
+    if swarmActive then
+      playDuration = swarmNoteDuration
+      if gem.getRandomBoolean(durationRandomization) then
+        local factor = gem.getRandomFromTable({.125,.25,.5,.75,1.5,2,3,4})
+        playDuration = playDuration * factor
+      end
+    elseif quantizeToClosest then
+      playDuration = resolutions.quantizeToClosest(playDuration)
+    end
+    playDuration = resolutions.getPlayDuration(playDuration)
+    waitBeat(playDuration)
+    if swarmActive then
+      swarmDuration = gem.inc(swarmDuration, -playDuration)
+      print("Swarm active - duration", swarmDuration)
+      if swarmDuration < 0 then
+        print("End swarm - duration", swarmDuration)
+        swarmActive = false
+        swarmDuration = 0
+      end
+    end
+    if legato == false or swarmActive == false then
+      -- Release if legato is off, or swarm is finished
+      release()
+    end
   end
 end
 
@@ -952,7 +785,7 @@ local function startPlaying()
     return
   end
   isPlaying = true
-  run(sequenceRunner)
+  run(sequencer)
 end
 
 local function stopPlaying()
@@ -960,216 +793,133 @@ local function stopPlaying()
     return
   end
   isPlaying = false
-  resetTableValues()
-  if type(voiceId) == "userdata" then
-    releaseVoice(voiceId)
-    voiceId = nil
-    --print("Releasing trigger")
-  end
+  release()
 end
 
 --------------------------------------------------------------------------------
--- Motion Sequencer
+-- Header
 --------------------------------------------------------------------------------
 
-local sequencerPanel = widgets.panel({
+widgets.panel({
   width = 720,
   height = 30,
 })
 
-widgets.label("Rythmic Motions Trigger", {
-  tooltip = "A sequencer that triggers rythmic pulses (using note 0) that note inputs can listen to",
-  width = sequencerPanel.width,
-  height = 30,
-  alpha = 0.5,
-  fontSize = 22,
-})
-
 widgets.setSection({
+  xSpacing = 5,
+  ySpacing = 5,
   width = 100,
   height = 22,
   xOffset = (widgets.getPanel().width / 2) + 45,
   yOffset = 5,
-  xSpacing = 5,
-  ySpacing = 5,
 })
 
-local channelInput = widgets.numBox('Channel', channel, {
+widgets.labelBackgoundColour = "red"
+
+widgets.label("Swarm Trigger", {
+  tooltip = "A sequencer that triggers rythmic pulses (using note 0) that note inputs can listen to",
+  width = widgets.getPanel().width,
+  x = 0, y = 0, height = 30,
+  alpha = 0.5, fontSize = 22,
+  increment = false,
+})
+
+widgets.numBox('Channel', channel, {
   tooltip = "Send note events starting on this channel",
-  min = 1,
-  max = 16,
-  integer = true,
-  changed = function(self) channel = self.value end,
+  min = 1, max = 16, integer = true,
+  changed = function(self) channel = self.value end
 })
 
-local autoplayButton = widgets.button('Auto Play', true, 2, 1, {
+local autoplayButton = widgets.button('Auto Play', true, {
   tooltip = "Play automatically on transport",
 })
 
-local playButton = widgets.button('Play', false, 3, 1)
-playButton.changed = function(self)
-  if self.value == true then
-    startPlaying()
-  else
-    stopPlaying()
+local playButton = widgets.button('Play', false, {
+  changed = function(self)
+    if self.value == true then
+      startPlaying()
+    else
+      stopPlaying()
+    end
   end
-end
+})
 
 --------------------------------------------------------------------------------
--- Notes Panel
+-- Options
 --------------------------------------------------------------------------------
-
-widgets.xSpacing(0)
-widgets.ySpacing(0)
-widgets.setColour('backgroundColour', "606060")
-
-local notePanel = widgets.panel({
-  x = sequencerPanel.x,
-  y = widgets.posUnder(sequencerPanel),
-  width = sequencerPanel.width,
-  height = 250,
-})
-
-positionTable = widgets.table(tableMotion.options.tableLength, 0, {
-  enabled = false,
-  persistent = false,
-  sliderColour = "green",
-  width = sequencerPanel.width,
-  height = 6,
-  x = 0,
-  y = 0,
-})
-
-motionTable = widgets.table(tableMotion.options.tableLength, 0, {
-  tooltip = "Events are triggered when the value hits max or min",
-  showPopupDisplay = true,
-  min = -tableRange,
-  max = tableRange,
-  integer = true,
-  sliderColour = "pink",
-  width = sequencerPanel.width,
-  height = 160,
-  x = 0,
-  y = widgets.posUnder(positionTable),
-})
-
-local noteWidgetHeight = 20
-local noteWidgetWidth = 130
-local noteWidgetRowSpacing = 5
-local noteWidgetCellSpacing = 12
-local firstRowY = motionTable.y + motionTable.height + (noteWidgetRowSpacing * 1.5)
-
---widgets.setPanel(notePanel)
 
 widgets.setSection({
-  width = noteWidgetWidth,
-  height = noteWidgetHeight,
-  xOffset = noteWidgetCellSpacing,
-  yOffset = firstRowY,
-  xSpacing = noteWidgetCellSpacing,
+  xSpacing = 0,
+  ySpacing = 0,
+})
+
+widgets.panel({
+  x = widgets.getPanel().x,
+  y = widgets.posUnder(widgets.getPanel()),
+  width = widgets.getPanel().width,
+  height = 210,
+})
+
+local noteWidgetColSpacing = 5
+local noteWidgetRowSpacing = 5
+
+local xySpeedFactor = widgets.getPanel():XY('Duration', 'Probability')
+xySpeedFactor.x = noteWidgetColSpacing
+xySpeedFactor.y = noteWidgetRowSpacing
+xySpeedFactor.width = 480
+xySpeedFactor.height = 200
+
+widgets.setSection({
+  width = 210,
+  xOffset = widgets.posSide(xySpeedFactor) + 12,
+  yOffset = 15,
+  xSpacing = noteWidgetColSpacing,
   ySpacing = noteWidgetRowSpacing,
-  cols = 4
+  cols = 1,
 })
 
-widgets.menu("Speed Type", 1, tableMotion.speedTypes, {
-  changed = function(self) tableMotion.options.speedType = self.selectedText end
-})
-
-widgets.menu("Start Mode", 1, tableMotion.startModes, {
-  changed = function(self)
-    tableMotion.options.startMode = self.selectedText
-    resetTableValues()
-  end
-})
-
-widgets.menu("Quantize", resolution, resolutionNames, {
+widgets.menu("Swarm Base", resolution, resolutionNames, {
+  tooltip = "Set the base resolution of the swarm",
   changed = function(self) resolution = self.value end
 })
 
-local moveSpeedInput = widgets.numBox("Motion Speed", tableMotion.options.moveSpeed, {
-  name = "MoveSpeed",
-  min = tableMotion.options.moveSpeedMin,
-  max = tableMotion.options.moveSpeedMax,
-  tooltip = "Set the speed of the up/down motion in each cell - Controlled by the X-axis on the XY controller",
+widgets.col()
+
+widgets.numBox("Space", duration, {
+  name = "Duration",
+  tooltip = "Set the duration between swarms - controlled by the x-axis of the XY controller",
   unit = Unit.MilliSeconds,
-  changed = function(self) tableMotion.options.moveSpeed = self.value end
+  min = durationMin, max = durationMax, integer = false,
+  changed = function(self) duration = self.value end
 })
 
-widgets.col(3)
-
-widgets.numBox("Speed Factor", tableMotion.options.factor, {
-  name = "Factor",
-  min = tableMotion.options.factorMin,
-  max = tableMotion.options.factorMax,
-  tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. Controlled by the Y-axis on the XY controller",
-  changed = function(self) tableMotion.options.factor = self.value end
-})
-
-widgets.numBox("Range", tableRange, {
-  min = 8,
-  max = 128,
-  integer = true,
-  tooltip = "Set the table range - high range = fewer events, low range = more events",
-  changed = function(self)
-    tableRange = self.value
-    setRange()
-  end
-})
-
-widgets.numBox("Length", tableMotion.options.tableLength, {
-  min = 2,
-  max = 128,
-  integer = true,
-  tooltip = "Set the table length",
-  changed = function(self)
-    tableMotion.options.tableLength = self.value
-    positionTable.length = tableMotion.options.tableLength
-    motionTable.length = tableMotion.options.tableLength
-    resetTableValues()
-    startMoving()
-  end
-})
-
-local bipolarButton = widgets.button("Bipolar", bipolar, {
-  width = (noteWidgetWidth / 2) - (noteWidgetCellSpacing / 2),
-  changed = function(self)
-    bipolar = self.value
-    setRange()
-  end
-})
-
-widgets.button("Reset", false, {
-  width = bipolarButton.width,
-  x = widgets.posSide(bipolarButton),
-  increment = false,
-  changed = function(self)
-    resetTableValues()
-    startMoving()
-    self.value = false
-  end
-})
-
-widgets.numBox("Speed Rand", tableMotion.options.speedRandomizationAmount, {
+widgets.numBox("Swarm Probability", swarmProbability, {
+  name = "Probability",
   unit = Unit.Percent,
-  tooltip = "Set the radomization amount applied to speed",
-  changed = function(self) tableMotion.options.speedRandomizationAmount = self.value end
+  integer = false,
+  tooltip = "Set the probability that a swarm will be triggered - controlled by the y-axis of the XY controller",
+  changed = function(self) swarmProbability = self.value end
 })
 
-local xySpeedFactor = notePanel:XY('MoveSpeed', 'Factor')
-xySpeedFactor.y = firstRowY
-xySpeedFactor.x = widgets.posSide(moveSpeedInput)
-xySpeedFactor.width = noteWidgetWidth
-xySpeedFactor.height = (noteWidgetHeight * 3) + (noteWidgetRowSpacing * 2)
+widgets.numBox("Duration Randomization", durationRandomization, {
+  unit = Unit.Percent,
+  tooltip = "Set the randomization amount for the duration",
+  changed = function(self) durationRandomization = self.value end
+})
+
+widgets.button("Quantize Closest", quantizeToClosest, {
+  tooltip = "Quantize the space between swarms to the closest 'known' resolution",
+  changed = function(self) quantizeToClosest = self.value end
+})
+
+widgets.button("Legato", legato, {
+  tooltip = "In legato mode notes are held until the next note is played",
+  changed = function(self) legato = self.value end
+})
 
 --------------------------------------------------------------------------------
 -- Handle events
 --------------------------------------------------------------------------------
-
-function onInit()
-  print("Init sequencer")
-  uniqueIndex = 1
-  setRange()
-end
 
 function onNote(e)
   if autoplayButton.value == true then
