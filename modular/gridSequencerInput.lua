@@ -3,8 +3,10 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
+local widgets = require "includes.widgets"
 local scales = require "includes.scales"
 local notes = require "includes.notes"
+local modular = require "includes.modular"
 local resolutions = require "includes.resolutions"
 
 local textColourOff = "ff22FFFF"
@@ -47,7 +49,8 @@ local startOctave = -1 -- Holds the start octave when creating the scale
 local octaves = 9 -- Holds the octave range
 local noteRandomizationProbability = 0
 local manualInput = false
-local activeVoices = {}
+local channel = 0 -- 0 = Omni
+local forward = false
 
 -- X Axis (index 1)
 table.insert(gridXY, {
@@ -361,20 +364,6 @@ local function getNotes()
   return cells
 end
 
-local function releaseVoices()
-  for i,v in ipairs(activeVoices) do
-    releaseVoice(v.id)
-    print("Release active voice on channel", v.event.channel)
-    if v.noteInput.backgroundColour == menuSelectedBackgroundColour then
-      v.noteInput.textColour = noteSelectedTextColour
-    else
-      v.noteInput.textColour = menuTextColour
-    end
-  end
-  activeVoices = {}
-  setPos()
-end
-
 local function createTableFromText(text)
   local theTable = {}
   if string.len(text) > 0 then
@@ -481,12 +470,8 @@ axisMotionPanel.height = 132
 -- Grid Sequencer
 --------------------------------------------------------------------------------
 
+widgets.setPanel(sequencerPanel)
 local xSpacing = 5
-
-local channels = {"Omni"}
-for j=1,16 do
-  table.insert(channels, "" .. j)
-end
 
 local sequencerLabel = sequencerPanel:Label("Label")
 sequencerLabel.text = "Grid Sequencer Input"
@@ -500,7 +485,6 @@ sequencerLabel.size = {sequencerPanel.width,30}
 
 local manualInputButton = sequencerPanel:OnOffButton("ManualInputButton", manualInput)
 local showListenersButton = sequencerPanel:OnOffButton("ShowListeners", false)
-local channelInput = sequencerPanel:Menu("ChannelInput", channels)
 
 manualInputButton.backgroundColourOff = backgroundColourOff
 manualInputButton.backgroundColourOn = backgroundColourOn
@@ -509,7 +493,7 @@ manualInputButton.textColourOn = textColourOn
 manualInputButton.displayName = "Manual Input"
 manualInputButton.tooltip = "Make all note inputs available for direct edit or note listen"
 manualInputButton.size = {100,22}
-manualInputButton.x = sequencerPanel.width - (manualInputButton.width * 3) - 5
+manualInputButton.x = sequencerPanel.width - (manualInputButton.width * 4) - 20
 manualInputButton.y = 5
 manualInputButton.changed = function(self)
   manualInput = self.value
@@ -535,14 +519,37 @@ showListenersButton.changed = function(self)
   showListeners(self.value)
 end
 
+local forwardButton = widgets.button("Forward", forward, {
+  x = widgets.posSide(showListenersButton) + xSpacing,
+  y = showListenersButton.y,
+  width = 100,
+  height = 22,
+  tooltip = "Forward triggers (note=0 events) to the next processor",
+  changed = function(self) forward = self.value end,
+})
+
+local channelInput = widgets.menu("Channel", widgets.channels(), {
+  tooltip = "Listen to note events on this channel - if a note event is not being listened to, it will be pass through",
+  showLabel = false,
+  width = 100,
+  height = 22,
+  x = widgets.posSide(forwardButton) + xSpacing,
+  y = forwardButton.y,
+  changed = function(self) channel = self.value - 1 end
+})
+
+--[[ local channelInput = sequencerPanel:Menu("ChannelInput", widgets.channels())
 channelInput.tooltip = "Listen to note events on this channel - if a note event is not being listened to, it will be pass through"
 channelInput.arrowColour = menuArrowColour
 channelInput.showLabel = false
 channelInput.backgroundColour = menuBackgroundColour
 channelInput.textColour = widgetTextColour
 channelInput.size = {90,22}
-channelInput.x = showListenersButton.x + showListenersButton.width + xSpacing
-channelInput.y = showListenersButton.y
+channelInput.x = forwardButton.x + forwardButton.width + xSpacing
+channelInput.y = forwardButton.y
+channelInput.changed = function(self)
+  channel = self.value - 1
+end ]]
 
 --------------------------------------------------------------------------------
 -- Note Grid
@@ -961,50 +968,39 @@ end
 -- Handle events
 --------------------------------------------------------------------------------
 
-local function noteIsPlaying(note)
-  for _,v in ipairs(activeVoices) do
-    if v.event.note == note then
-      return true
+local function releaseVoices()
+  for i,v in ipairs(modular.getActiveVoices()) do
+    if v.data.backgroundColour == menuSelectedBackgroundColour then
+      v.data.textColour = noteSelectedTextColour
+    else
+      v.data.textColour = menuTextColour
     end
   end
-  return false
-end
-
-local function isTrigger(e)
-  local channel = channelInput.value - 1
-  local isListeningForEvent = channel == 0 or channel == e.channel
-  local isTrigger = e.note == 0 -- Note 0 is used as trigger
-  return isTrigger and isListeningForEvent
+  modular.releaseVoices()
+  setPos()
 end
 
 local function handleTrigger(e)
   local notesForPlaying = getNotes() -- The selected note inputs to play
   if #notesForPlaying > 0 then
     for _,noteInput in ipairs(notesForPlaying) do
-      local note = noteInput.value
-      if noteIsPlaying(note) == false then
-        local id = playNote(note, e.velocity)
-        e.note = note
-        table.insert(activeVoices, {id=id,event=e,noteInput=noteInput})
-      end
+      modular.handleTrigger(e, noteInput.value, noteInput)
       noteInput.textColour = notePlayingTextColour
     end
   end
 end
 
 local function handleReleaseTrigger(e)
-  for i,v in ipairs(activeVoices) do
-    if v.event.channel == e.channel then
-      releaseVoice(v.id)
-      table.remove(activeVoices, i)
-      print("Release active voice on channel", v.event.channel)
-      if v.noteInput.backgroundColour == menuSelectedBackgroundColour then
-        v.noteInput.textColour = noteSelectedTextColour
+  for i,v in ipairs(modular.getActiveVoices()) do
+    if v.channel == e.channel then
+      if v.data.backgroundColour == menuSelectedBackgroundColour then
+        v.data.textColour = noteSelectedTextColour
       else
-        v.noteInput.textColour = menuTextColour
+        v.data.textColour = menuTextColour
       end
     end
   end
+  modular.releaseVoices()
 end
 
 function onInit()
@@ -1024,7 +1020,10 @@ function onNote(e)
     end
     noteListen = false
   end
-  if isTrigger(e) then
+  if modular.isTrigger(e, channel) then
+    if forward then
+      postEvent(e)
+    end
     handleTrigger(e)
   else
     postEvent(e)
@@ -1032,7 +1031,10 @@ function onNote(e)
 end
 
 function onRelease(e)
-  if isTrigger(e) then
+  if modular.isTrigger(e, channel) then
+    if forward then
+      postEvent(e)
+    end
     handleReleaseTrigger(e)
   else
     postEvent(e)

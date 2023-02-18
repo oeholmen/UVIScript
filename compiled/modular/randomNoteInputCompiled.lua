@@ -182,7 +182,7 @@ local widgetDefaults = {
   panel = Panel("DefaultPanel"),
   width = 120,
   height = 20,
-  menuHeight = 48,
+  menuHeight = 45,
   xOffset = 0,
   yOffset = 0,
   xSpacing = 0,
@@ -192,41 +192,23 @@ local widgetDefaults = {
   cols = 6
 }
 
-local backgroundColour = "202020"
-local widgetBackgroundColour = "01011F" -- Dark
-local menuBackgroundColour = "01011F" -- widgetBackgroundColour
-local widgetTextColour = "9f02ACFE" -- Light
-local tableBackgroundColour = "191E25"
-local sliderColour = "5FB5FF" -- Table slider colour
-local labelTextColour = "black" -- Light
-local labelBackgoundColour = "CFFFFE"
-local menuArrowColour = "66AEFEFF" -- labelTextColour
-local menuOutlineColour = "5f9f02ACFE" -- widgetTextColour
-local menuTextColour = "9f02ACFE"
-local backgroundColourOff = "ff084486"
-local backgroundColourOn = "ff02ACFE"
-local textColourOff = "ff22FFFF"
-local textColourOn = "efFFFFFF"
-
-local function widgetColours()
-  return {
-    backgroundColour = backgroundColour,
-    widgetBackgroundColour = widgetBackgroundColour,
-    menuBackgroundColour = menuBackgroundColour,
-    widgetTextColour = widgetTextColour,
-    tableBackgroundColour = tableBackgroundColour,
-    sliderColour = sliderColour,
-    labelTextColour = labelTextColour,
-    labelBackgoundColour = labelBackgoundColour,
-    menuArrowColour = menuArrowColour,
-    menuOutlineColour = menuOutlineColour,
-    menuTextColour = menuTextColour,
-    backgroundColourOff = backgroundColourOff,
-    backgroundColourOn = backgroundColourOn,
-    textColourOff = textColourOff,
-    textColourOn = textColourOn,
-  }
-end
+local widgetColours = {
+  backgroundColour = "202020",
+  widgetBackgroundColour = "01011F", -- Dark
+  menuBackgroundColour = "01011F", -- widgetBackgroundColour
+  widgetTextColour = "9f02ACFE", -- Light
+  tableBackgroundColour = "191E25",
+  sliderColour = "5FB5FF", -- Table slider colour
+  labelTextColour = "black", -- Light
+  labelBackgoundColour = "CFFFFE",
+  menuArrowColour = "66AEFEFF", -- labelTextColour
+  menuOutlineColour = "5f9f02ACFE", -- widgetTextColour
+  menuTextColour = "9f02ACFE",
+  backgroundColourOff = "ff084486",
+  backgroundColourOn = "ff02ACFE",
+  textColourOff = "ff22FFFF",
+  textColourOn = "efFFFFFF",
+}
 
 local function getWidgetValue(value, default)
   if type(value) == "nil" then
@@ -235,12 +217,31 @@ local function getWidgetValue(value, default)
   return value
 end
 
+local function setColours(colours)
+  widgetColours.backgroundColour = getWidgetValue(colours.backgroundColour, widgetColours.backgroundColour)
+  widgetColours.widgetBackgroundColour = getWidgetValue(colours.widgetBackgroundColour, widgetColours.widgetBackgroundColour)
+  widgetColours.menuBackgroundColour = getWidgetValue(colours.menuBackgroundColour, widgetColours.menuBackgroundColour)
+  widgetColours.widgetTextColour = getWidgetValue(colours.widgetTextColour, widgetColours.widgetTextColour)
+  widgetColours.tableBackgroundColour = getWidgetValue(colours.tableBackgroundColour, widgetColours.tableBackgroundColour)
+  widgetColours.sliderColour = getWidgetValue(colours.sliderColour, widgetColours.sliderColour)
+  widgetColours.labelTextColour = getWidgetValue(colours.labelTextColour, widgetColours.labelTextColour)
+  widgetColours.labelBackgoundColour = getWidgetValue(colours.labelBackgoundColour, widgetColours.labelBackgoundColour)
+  widgetColours.menuArrowColour = getWidgetValue(colours.menuArrowColour, widgetColours.menuArrowColour)
+  widgetColours.menuOutlineColour = getWidgetValue(colours.menuOutlineColour, widgetColours.menuOutlineColour)
+  widgetColours.menuTextColour = getWidgetValue(colours.menuTextColour, widgetColours.menuTextColour)
+  widgetColours.backgroundColourOff = getWidgetValue(colours.backgroundColourOff, widgetColours.backgroundColourOff)
+  widgetColours.backgroundColourOn = getWidgetValue(colours.backgroundColourOn, widgetColours.backgroundColourOn)
+  widgetColours.textColourOff = getWidgetValue(colours.textColourOff, widgetColours.textColourOff)
+  widgetColours.textColourOn = getWidgetValue(colours.textColourOn, widgetColours.textColourOn)
+end
+
 local function setSection(settings)
   if type(settings) ~= "table" then
     settings = {}
   end
   widgetDefaults.width = getWidgetValue(settings.width, widgetDefaults.width)
   widgetDefaults.height = getWidgetValue(settings.height, widgetDefaults.height)
+  widgetDefaults.menuHeight = getWidgetValue(settings.menuHeight, widgetDefaults.menuHeight)
   widgetDefaults.xOffset = getWidgetValue(settings.xOffset, widgetDefaults.xOffset)
   widgetDefaults.yOffset = getWidgetValue(settings.yOffset, widgetDefaults.yOffset)
   widgetDefaults.xSpacing = getWidgetValue(settings.xSpacing, widgetDefaults.xSpacing)
@@ -326,10 +327,12 @@ local function getWidgetOptions(options, displayName, default, panel)
   options.name = getWidgetName(options.name, panel)
   options.displayName = getWidgetValue(displayName, options.name)
   options.tooltip = getWidgetValue(options.tooltip, options.displayName)
-  options.integer = getWidgetValue(options.integer, (options.unit == Unit.Percent))
+  options.integer = getWidgetValue(options.integer, (options.unit == Unit.Percent or options.unit == Unit.MidiKey))
   options.min = getWidgetValue(options.min, 0)
   options.default = getWidgetValue(options.default, options.min)
-  if options.unit == Unit.Percent then
+  if options.unit == Unit.MidiKey then
+    options.max = getWidgetValue(options.max, 127)
+  elseif options.unit == Unit.Percent then
     options.max = getWidgetValue(options.max, 100)
   else
     options.max = getWidgetValue(options.max, 1)
@@ -382,22 +385,15 @@ local function getPanel(options)
 end
 
 local widgets = {
-  colours = widgetColours,
-  backgroundColour = backgroundColour,
-  widgetBackgroundColour = widgetBackgroundColour,
-  menuBackgroundColour = menuBackgroundColour,
-  widgetTextColour = widgetTextColour,
-  tableBackgroundColour = tableBackgroundColour,
-  sliderColour = sliderColour,
-  labelTextColour = labelTextColour,
-  labelBackgoundColour = labelBackgoundColour,
-  menuArrowColour = menuArrowColour,
-  menuOutlineColour = menuOutlineColour,
-  menuTextColour = menuTextColour,
-  backgroundColourOff = backgroundColourOff,
-  backgroundColourOn = backgroundColourOn,
-  textColourOff = textColourOff,
-  textColourOn = textColourOn,
+  channels = function()
+    local channels = {"Omni"}
+    for j=1,16 do
+      table.insert(channels, "" .. j)
+    end
+    return channels
+  end,
+  getColours = function() return widgetColours end,
+  setColours = setColours,
   setPanel = setPanel,
   getPanel = getPanel,
   setSection = setSection,
@@ -413,8 +409,6 @@ local widgets = {
   yOffset = function(val) widgetDefaults.yOffset = val end,
   xSpacing = function(val) widgetDefaults.xSpacing = val end,
   ySpacing = function(val) widgetDefaults.ySpacing = val end,
-  --setColour = function(key, color) widgetColours[key] = color end,
-  --getColour = function(key) return widgetColours[key] end,
   posSide = function(widget) return widget.x + widget.width + widgetDefaults.xSpacing end,
   posUnder = function(widget) return widget.y + widget.height + widgetDefaults.ySpacing end,
   width = function(val) widgetDefaults.width = val end,
@@ -432,19 +426,18 @@ local widgets = {
       widgetDefaults.panel = Panel(options.name)
       --print("Created panel", options.name)
     end
-    widgetDefaults.panel.backgroundColour = backgroundColour
+    widgetDefaults.panel.backgroundColour = widgetColours.backgroundColour
     widgetDefaults.panel.bounds = getWidgetBounds(options, false)
     setOptional(widgetDefaults.panel, options)
-    --print("Get panel", widgetDefaults.panel.name)
     return widgetDefaults.panel
   end,
   button = function(displayName, default, options)
     options = getWidgetOptions(options, displayName, default)
     local widget = widgetDefaults.panel:OnOffButton(options.name, (options.default == true))
-    widget.backgroundColourOff = backgroundColourOff
-    widget.backgroundColourOn = backgroundColourOn
-    widget.textColourOff = textColourOff
-    widget.textColourOn = textColourOn
+    widget.backgroundColourOff = widgetColours.backgroundColourOff
+    widget.backgroundColourOn = widgetColours.backgroundColourOn
+    widget.textColourOff = widgetColours.textColourOff
+    widget.textColourOn = widgetColours.textColourOn
     widget.displayName = options.displayName
     widget.tooltip = options.tooltip
     widget.bounds = getWidgetBounds(options, true)
@@ -456,22 +449,27 @@ local widgets = {
     local widget = widgetDefaults.panel:Label("Label")
     widget.text = options.displayName
     widget.tooltip = options.tooltip
-    widget.backgroundColour = labelBackgoundColour
-    widget.textColour = labelTextColour
+    widget.backgroundColour = widgetColours.labelBackgoundColour
+    widget.textColour = widgetColours.labelTextColour
     widget.bounds = getWidgetBounds(options, true)
     setOptional(widget, options)
     return widget
   end,
   menu = function(displayName, default, items, options)
+    if type(default) == "table" then
+      options = items
+      items = default
+      default = nil
+    end
     options = getWidgetOptions(options, displayName, default)
     local widget = widgetDefaults.panel:Menu(options.name, items)
     widget.selected = options.default
     widget.displayName = options.displayName
     widget.tooltip = options.tooltip
-    widget.backgroundColour = menuBackgroundColour
-    widget.textColour = menuTextColour
-    widget.arrowColour = menuArrowColour
-    widget.outlineColour = menuOutlineColour
+    widget.backgroundColour = widgetColours.menuBackgroundColour
+    widget.textColour = widgetColours.menuTextColour
+    widget.arrowColour = widgetColours.menuArrowColour
+    widget.outlineColour = widgetColours.menuOutlineColour
     setOptional(widget, options)
     if widget.showLabel == true then
       options.height = getWidgetValue(options.height, widgetDefaults.menuHeight)
@@ -484,8 +482,8 @@ local widgets = {
     local widget = widgetDefaults.panel:NumBox(options.name, options.default, options.min, options.max, options.integer)
     widget.displayName = options.displayName
     widget.tooltip = options.tooltip
-    widget.backgroundColour = widgetBackgroundColour
-    widget.textColour = widgetTextColour
+    widget.backgroundColour = widgetColours.widgetBackgroundColour
+    widget.textColour = widgetColours.widgetTextColour
     widget.bounds = getWidgetBounds(options, true)
     setOptional(widget, options)
     return widget
@@ -494,8 +492,8 @@ local widgets = {
     options = getWidgetOptions(options, nil, default)
     local widget = widgetDefaults.panel:Table(options.name, size, options.default, options.min, options.max, options.integer)
     widget.fillStyle = "solid"
-    widget.backgroundColour = tableBackgroundColour
-    widget.sliderColour = sliderColour
+    widget.backgroundColour = widgetColours.tableBackgroundColour
+    widget.sliderColour = widgetColours.sliderColour
     widget.bounds = getWidgetBounds(options, true)
     setOptional(widget, options)
     return widget
@@ -542,7 +540,10 @@ local notes = {
         print("transpose note down", note)
       end
     end
-    return note
+    -- Ensure note is inside given min/max values
+    note = math.max(min, math.min(max, note))
+    -- Ensure note is inside valid values
+    return math.max(0, math.min(127, note))
   end,
   
   getSemitonesBetweenNotes = function(note1, note2)
@@ -630,6 +631,60 @@ local scales = {
     end
     return scale
   end
+}
+
+--------------------------------------------------------------------------------
+-- Common functions for working with event processor that act as modular inputs
+--------------------------------------------------------------------------------
+
+local activeVoices = {}
+
+local function isNoteInActiveVoices(note)
+  for _,v in ipairs(activeVoices) do
+    if v.note == note then
+      return true
+    end
+  end
+  return false
+end
+
+local function isTrigger(e, channel)
+  local isListeningForEvent = channel == 0 or channel == e.channel
+  local isTrigger = e.note == 0 -- Note 0 is used as trigger
+  return isTrigger and isListeningForEvent
+end
+
+local function handleTrigger(e, note, data)
+  if isNoteInActiveVoices(note) == false then
+    local id = playNote(note, e.velocity)
+    table.insert(activeVoices, {id=id,note=note,channel=e.channel,data=data})
+    return true
+  end
+  return false
+end
+
+local function handleReleaseTrigger(e)
+  for i,v in ipairs(activeVoices) do
+    if v.channel == e.channel then
+      releaseVoice(v.id)
+      table.remove(activeVoices, i)
+      return true
+    end
+  end
+  return false
+end
+
+local modular = {
+  releaseVoices = function()
+    for i,v in ipairs(activeVoices) do
+      releaseVoice(v.id)
+    end
+    activeVoices = {}
+  end,
+  isTrigger = isTrigger,
+  handleTrigger = handleTrigger,
+  handleReleaseTrigger = handleReleaseTrigger,
+  getActiveVoices = function() return activeVoices end,
 }
 
 --------------------------------------------------------------------------------
@@ -847,7 +902,7 @@ local noteSelector = {
 
 -- TODO Add a button for deselecting all notes
 
-local activeVoices = {}
+local channel = 0 -- 0 = Omni
 local forward = false
 
 local sequencerPanel = widgets.panel({
@@ -863,27 +918,23 @@ widgets.label("Random Note Input", {
   fontSize = 22,
 })
 
-local channels = {"Omni"}
-for j=1,16 do
-  table.insert(channels, "" .. j)
-end
-
 widgets.setSection({
   width = 90,
-  xOffset = sequencerPanel.width - 95, -- 531
+  xOffset = 531,
   yOffset = 5,
   xSpacing = 5,
   ySpacing = 5,
 })
 
---[[ widgets.button("Forward", forward, {
-  tooltip = "Forward note events",
+widgets.button("Forward", forward, {
+  tooltip = "Forward triggers (note=0 events) to the next processor",
   changed = function(self) forward = self.value end,
-}) ]]
+})
 
-local channelInput = widgets.menu("Channel", 1, channels, {
-  tooltip = "Listen to note events on this channel - if a note event is not being listened to, it will be pass through",
+local channelInput = widgets.menu("Channel", widgets.channels(), {
+  tooltip = "Listen to triggers (note=0 events) on this channel - if a note event is not being listened to, it will be pass through",
   showLabel = false,
+  changed = function(self) channel = self.value - 1 end
 })
 
 --------------------------------------------------------------------------------
@@ -922,7 +973,7 @@ local inputButton = widgets.button(" ", false, {
 })
 inputButton.backgroundColourOff = "202020"
 
-noteSelector.createNoteAndOctaveSelector(notePanel, widgets.colours(), noteLabel, 15, 42, {x = 15, y = widgets.posUnder(noteLabel) + 10})
+noteSelector.createNoteAndOctaveSelector(notePanel, widgets.getColours(), noteLabel, 15, 42, {x = 15, y = widgets.posUnder(noteLabel) + 10})
 
 --------------------------------------------------------------------------------
 -- Handle Events
@@ -938,65 +989,25 @@ local function getNote()
   return gem.getRandomFromTable(noteSelector.getSelectedNotes())
 end
 
-local function noteIsPlaying(note)
-  for _,v in ipairs(activeVoices) do
-    if v.event.note == note then
-      return true
-    end
-  end
-  return false
-end
-
-local function isTrigger(e)
-  local channel = channelInput.value - 1
-  local isListeningForEvent = channel == 0 or channel == e.channel
-  local isTrigger = e.note == 0 -- Note 0 is used as trigger
-  return isTrigger and isListeningForEvent
-end
-
-local function handleTrigger(e)
-  e.note = getNote()
-  if noteIsPlaying(e.note) == false then
-    local id = postEvent(e)
-    table.insert(activeVoices, {id=id,event=e})
-    spawn(flashInput)
-  end
-end
-
-local function handleReleaseTrigger(e)
-  for i,v in ipairs(activeVoices) do
-    if v.event.channel == e.channel then
-      releaseVoice(v.id)
-      table.remove(activeVoices, i)
-    end
-  end
-end
-
-local function releaseVoices()
-  for i,v in ipairs(activeVoices) do
-    releaseVoice(v.id)
-    print("Release active voice on channel", v.event.channel)
-  end
-  activeVoices = {}
-end
-
 function onNote(e)
-  if isTrigger(e) then
-    --[[ if forward then
+  if modular.isTrigger(e, channel) then
+    if forward then
       postEvent(e)
-    end ]]
-    handleTrigger(e)
+    end
+    if modular.handleTrigger(e, getNote()) then
+      spawn(flashInput)
+    end
   else
     postEvent(e)
   end
 end
 
 function onRelease(e)
-  if isTrigger(e) then
-    --[[ if forward then
+  if modular.isTrigger(e, channel) then
+    if forward then
       postEvent(e)
-    end ]]
-    handleReleaseTrigger(e)
+    end
+    modular.handleReleaseTrigger(e)
   else
     postEvent(e)
   end
@@ -1004,6 +1015,6 @@ end
 
 function onTransport(start)
   if start == false then
-    releaseVoices()
+    modular.releaseVoices()
   end
 end

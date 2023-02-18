@@ -6,7 +6,8 @@ local gem = require "includes.common"
 local widgets = require "includes.widgets"
 local resolutions = require "includes.resolutions"
 
-setBackgroundColour("101010")
+local backgroundColour = "404040"
+setBackgroundColour(backgroundColour)
 
 --------------------------------------------------------------------------------
 -- Variables
@@ -97,7 +98,7 @@ local function stopPlaying()
 end
 
 --------------------------------------------------------------------------------
--- Header
+-- Header Panel
 --------------------------------------------------------------------------------
 
 widgets.panel({
@@ -148,7 +149,7 @@ local playButton = widgets.button('Play', false, {
 })
 
 --------------------------------------------------------------------------------
--- Options
+-- Options Panel
 --------------------------------------------------------------------------------
 
 widgets.setSection({
@@ -156,20 +157,19 @@ widgets.setSection({
   ySpacing = 0,
 })
 
-widgets.backgroundColour = "505050"
-
 widgets.panel({
+  backgroundColour = backgroundColour,
   x = widgets.getPanel().x,
   y = widgets.posUnder(widgets.getPanel()),
   width = widgets.getPanel().width,
-  height = 66,
+  height = 60,
 })
 
 widgets.setSection({
   width = 150,
   height = 45,
   xOffset = 10,
-  yOffset = 10,
+  yOffset = 5,
   xSpacing = 5,
   ySpacing = 5,
 })

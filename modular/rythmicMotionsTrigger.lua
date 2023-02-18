@@ -7,23 +7,8 @@ local widgets = require "includes.widgets"
 local resolutions = require "includes.resolutions"
 local tableMotion = require "includes.tableMotion"
 
-local textColourOff = "ff22FFFF"
-local textColourOn = "efFFFFFF"
-local backgroundColourOff = "ff084486"
-local backgroundColourOn = "ff02ACFE"
 local backgroundColour = "202020" -- Light or Dark
-local widgetBackgroundColour = "black" -- Dark
-local widgetTextColour = "CFFFFE" -- Light
-local labelTextColour = widgetBackgroundColour
-local labelBackgoundColour = widgetTextColour
-local menuBackgroundColour = "01011F"
-local menuTextColour = "#9f02ACFE"
-local menuArrowColour = "66" .. labelTextColour
-local menuOutlineColour = "5f" .. widgetTextColour
-local knobFillColour = "E6D5B8" -- Light
-local sliderColour = "pink"
 
-widgets.backgroundColour = backgroundColour
 setBackgroundColour(backgroundColour)
 
 --------------------------------------------------------------------------------
@@ -188,6 +173,7 @@ widgets.ySpacing(0)
 widgets.backgroundColour = "606060"
 
 local notePanel = widgets.panel({
+  backgroundColour = backgroundColour,
   x = sequencerPanel.x,
   y = widgets.posUnder(sequencerPanel),
   width = sequencerPanel.width,
@@ -223,8 +209,6 @@ local noteWidgetRowSpacing = 5
 local noteWidgetCellSpacing = 12
 local firstRowY = motionTable.y + motionTable.height + (noteWidgetRowSpacing * 1.5)
 
---widgets.setPanel(notePanel)
-
 widgets.setSection({
   width = noteWidgetWidth,
   height = noteWidgetHeight,
@@ -235,11 +219,11 @@ widgets.setSection({
   cols = 4
 })
 
-widgets.menu("Speed Type", 1, tableMotion.speedTypes, {
+widgets.menu("Speed Type", tableMotion.speedTypes, {
   changed = function(self) tableMotion.options.speedType = self.selectedText end
 })
 
-widgets.menu("Start Mode", 1, tableMotion.startModes, {
+widgets.menu("Start Mode", tableMotion.startModes, {
   changed = function(self)
     tableMotion.options.startMode = self.selectedText
     resetTableValues()

@@ -182,7 +182,7 @@ local widgetDefaults = {
   panel = Panel("DefaultPanel"),
   width = 120,
   height = 20,
-  menuHeight = 48,
+  menuHeight = 45,
   xOffset = 0,
   yOffset = 0,
   xSpacing = 0,
@@ -192,41 +192,23 @@ local widgetDefaults = {
   cols = 6
 }
 
-local backgroundColour = "202020"
-local widgetBackgroundColour = "01011F" -- Dark
-local menuBackgroundColour = "01011F" -- widgetBackgroundColour
-local widgetTextColour = "9f02ACFE" -- Light
-local tableBackgroundColour = "191E25"
-local sliderColour = "5FB5FF" -- Table slider colour
-local labelTextColour = "black" -- Light
-local labelBackgoundColour = "CFFFFE"
-local menuArrowColour = "66AEFEFF" -- labelTextColour
-local menuOutlineColour = "5f9f02ACFE" -- widgetTextColour
-local menuTextColour = "9f02ACFE"
-local backgroundColourOff = "ff084486"
-local backgroundColourOn = "ff02ACFE"
-local textColourOff = "ff22FFFF"
-local textColourOn = "efFFFFFF"
-
-local function widgetColours()
-  return {
-    backgroundColour = backgroundColour,
-    widgetBackgroundColour = widgetBackgroundColour,
-    menuBackgroundColour = menuBackgroundColour,
-    widgetTextColour = widgetTextColour,
-    tableBackgroundColour = tableBackgroundColour,
-    sliderColour = sliderColour,
-    labelTextColour = labelTextColour,
-    labelBackgoundColour = labelBackgoundColour,
-    menuArrowColour = menuArrowColour,
-    menuOutlineColour = menuOutlineColour,
-    menuTextColour = menuTextColour,
-    backgroundColourOff = backgroundColourOff,
-    backgroundColourOn = backgroundColourOn,
-    textColourOff = textColourOff,
-    textColourOn = textColourOn,
-  }
-end
+local widgetColours = {
+  backgroundColour = "202020",
+  widgetBackgroundColour = "01011F", -- Dark
+  menuBackgroundColour = "01011F", -- widgetBackgroundColour
+  widgetTextColour = "9f02ACFE", -- Light
+  tableBackgroundColour = "191E25",
+  sliderColour = "5FB5FF", -- Table slider colour
+  labelTextColour = "black", -- Light
+  labelBackgoundColour = "CFFFFE",
+  menuArrowColour = "66AEFEFF", -- labelTextColour
+  menuOutlineColour = "5f9f02ACFE", -- widgetTextColour
+  menuTextColour = "9f02ACFE",
+  backgroundColourOff = "ff084486",
+  backgroundColourOn = "ff02ACFE",
+  textColourOff = "ff22FFFF",
+  textColourOn = "efFFFFFF",
+}
 
 local function getWidgetValue(value, default)
   if type(value) == "nil" then
@@ -235,12 +217,31 @@ local function getWidgetValue(value, default)
   return value
 end
 
+local function setColours(colours)
+  widgetColours.backgroundColour = getWidgetValue(colours.backgroundColour, widgetColours.backgroundColour)
+  widgetColours.widgetBackgroundColour = getWidgetValue(colours.widgetBackgroundColour, widgetColours.widgetBackgroundColour)
+  widgetColours.menuBackgroundColour = getWidgetValue(colours.menuBackgroundColour, widgetColours.menuBackgroundColour)
+  widgetColours.widgetTextColour = getWidgetValue(colours.widgetTextColour, widgetColours.widgetTextColour)
+  widgetColours.tableBackgroundColour = getWidgetValue(colours.tableBackgroundColour, widgetColours.tableBackgroundColour)
+  widgetColours.sliderColour = getWidgetValue(colours.sliderColour, widgetColours.sliderColour)
+  widgetColours.labelTextColour = getWidgetValue(colours.labelTextColour, widgetColours.labelTextColour)
+  widgetColours.labelBackgoundColour = getWidgetValue(colours.labelBackgoundColour, widgetColours.labelBackgoundColour)
+  widgetColours.menuArrowColour = getWidgetValue(colours.menuArrowColour, widgetColours.menuArrowColour)
+  widgetColours.menuOutlineColour = getWidgetValue(colours.menuOutlineColour, widgetColours.menuOutlineColour)
+  widgetColours.menuTextColour = getWidgetValue(colours.menuTextColour, widgetColours.menuTextColour)
+  widgetColours.backgroundColourOff = getWidgetValue(colours.backgroundColourOff, widgetColours.backgroundColourOff)
+  widgetColours.backgroundColourOn = getWidgetValue(colours.backgroundColourOn, widgetColours.backgroundColourOn)
+  widgetColours.textColourOff = getWidgetValue(colours.textColourOff, widgetColours.textColourOff)
+  widgetColours.textColourOn = getWidgetValue(colours.textColourOn, widgetColours.textColourOn)
+end
+
 local function setSection(settings)
   if type(settings) ~= "table" then
     settings = {}
   end
   widgetDefaults.width = getWidgetValue(settings.width, widgetDefaults.width)
   widgetDefaults.height = getWidgetValue(settings.height, widgetDefaults.height)
+  widgetDefaults.menuHeight = getWidgetValue(settings.menuHeight, widgetDefaults.menuHeight)
   widgetDefaults.xOffset = getWidgetValue(settings.xOffset, widgetDefaults.xOffset)
   widgetDefaults.yOffset = getWidgetValue(settings.yOffset, widgetDefaults.yOffset)
   widgetDefaults.xSpacing = getWidgetValue(settings.xSpacing, widgetDefaults.xSpacing)
@@ -326,10 +327,12 @@ local function getWidgetOptions(options, displayName, default, panel)
   options.name = getWidgetName(options.name, panel)
   options.displayName = getWidgetValue(displayName, options.name)
   options.tooltip = getWidgetValue(options.tooltip, options.displayName)
-  options.integer = getWidgetValue(options.integer, (options.unit == Unit.Percent))
+  options.integer = getWidgetValue(options.integer, (options.unit == Unit.Percent or options.unit == Unit.MidiKey))
   options.min = getWidgetValue(options.min, 0)
   options.default = getWidgetValue(options.default, options.min)
-  if options.unit == Unit.Percent then
+  if options.unit == Unit.MidiKey then
+    options.max = getWidgetValue(options.max, 127)
+  elseif options.unit == Unit.Percent then
     options.max = getWidgetValue(options.max, 100)
   else
     options.max = getWidgetValue(options.max, 1)
@@ -382,22 +385,15 @@ local function getPanel(options)
 end
 
 local widgets = {
-  colours = widgetColours,
-  backgroundColour = backgroundColour,
-  widgetBackgroundColour = widgetBackgroundColour,
-  menuBackgroundColour = menuBackgroundColour,
-  widgetTextColour = widgetTextColour,
-  tableBackgroundColour = tableBackgroundColour,
-  sliderColour = sliderColour,
-  labelTextColour = labelTextColour,
-  labelBackgoundColour = labelBackgoundColour,
-  menuArrowColour = menuArrowColour,
-  menuOutlineColour = menuOutlineColour,
-  menuTextColour = menuTextColour,
-  backgroundColourOff = backgroundColourOff,
-  backgroundColourOn = backgroundColourOn,
-  textColourOff = textColourOff,
-  textColourOn = textColourOn,
+  channels = function()
+    local channels = {"Omni"}
+    for j=1,16 do
+      table.insert(channels, "" .. j)
+    end
+    return channels
+  end,
+  getColours = function() return widgetColours end,
+  setColours = setColours,
   setPanel = setPanel,
   getPanel = getPanel,
   setSection = setSection,
@@ -413,8 +409,6 @@ local widgets = {
   yOffset = function(val) widgetDefaults.yOffset = val end,
   xSpacing = function(val) widgetDefaults.xSpacing = val end,
   ySpacing = function(val) widgetDefaults.ySpacing = val end,
-  --setColour = function(key, color) widgetColours[key] = color end,
-  --getColour = function(key) return widgetColours[key] end,
   posSide = function(widget) return widget.x + widget.width + widgetDefaults.xSpacing end,
   posUnder = function(widget) return widget.y + widget.height + widgetDefaults.ySpacing end,
   width = function(val) widgetDefaults.width = val end,
@@ -432,19 +426,18 @@ local widgets = {
       widgetDefaults.panel = Panel(options.name)
       --print("Created panel", options.name)
     end
-    widgetDefaults.panel.backgroundColour = backgroundColour
+    widgetDefaults.panel.backgroundColour = widgetColours.backgroundColour
     widgetDefaults.panel.bounds = getWidgetBounds(options, false)
     setOptional(widgetDefaults.panel, options)
-    --print("Get panel", widgetDefaults.panel.name)
     return widgetDefaults.panel
   end,
   button = function(displayName, default, options)
     options = getWidgetOptions(options, displayName, default)
     local widget = widgetDefaults.panel:OnOffButton(options.name, (options.default == true))
-    widget.backgroundColourOff = backgroundColourOff
-    widget.backgroundColourOn = backgroundColourOn
-    widget.textColourOff = textColourOff
-    widget.textColourOn = textColourOn
+    widget.backgroundColourOff = widgetColours.backgroundColourOff
+    widget.backgroundColourOn = widgetColours.backgroundColourOn
+    widget.textColourOff = widgetColours.textColourOff
+    widget.textColourOn = widgetColours.textColourOn
     widget.displayName = options.displayName
     widget.tooltip = options.tooltip
     widget.bounds = getWidgetBounds(options, true)
@@ -456,22 +449,27 @@ local widgets = {
     local widget = widgetDefaults.panel:Label("Label")
     widget.text = options.displayName
     widget.tooltip = options.tooltip
-    widget.backgroundColour = labelBackgoundColour
-    widget.textColour = labelTextColour
+    widget.backgroundColour = widgetColours.labelBackgoundColour
+    widget.textColour = widgetColours.labelTextColour
     widget.bounds = getWidgetBounds(options, true)
     setOptional(widget, options)
     return widget
   end,
   menu = function(displayName, default, items, options)
+    if type(default) == "table" then
+      options = items
+      items = default
+      default = nil
+    end
     options = getWidgetOptions(options, displayName, default)
     local widget = widgetDefaults.panel:Menu(options.name, items)
     widget.selected = options.default
     widget.displayName = options.displayName
     widget.tooltip = options.tooltip
-    widget.backgroundColour = menuBackgroundColour
-    widget.textColour = menuTextColour
-    widget.arrowColour = menuArrowColour
-    widget.outlineColour = menuOutlineColour
+    widget.backgroundColour = widgetColours.menuBackgroundColour
+    widget.textColour = widgetColours.menuTextColour
+    widget.arrowColour = widgetColours.menuArrowColour
+    widget.outlineColour = widgetColours.menuOutlineColour
     setOptional(widget, options)
     if widget.showLabel == true then
       options.height = getWidgetValue(options.height, widgetDefaults.menuHeight)
@@ -484,8 +482,8 @@ local widgets = {
     local widget = widgetDefaults.panel:NumBox(options.name, options.default, options.min, options.max, options.integer)
     widget.displayName = options.displayName
     widget.tooltip = options.tooltip
-    widget.backgroundColour = widgetBackgroundColour
-    widget.textColour = widgetTextColour
+    widget.backgroundColour = widgetColours.widgetBackgroundColour
+    widget.textColour = widgetColours.widgetTextColour
     widget.bounds = getWidgetBounds(options, true)
     setOptional(widget, options)
     return widget
@@ -494,8 +492,8 @@ local widgets = {
     options = getWidgetOptions(options, nil, default)
     local widget = widgetDefaults.panel:Table(options.name, size, options.default, options.min, options.max, options.integer)
     widget.fillStyle = "solid"
-    widget.backgroundColour = tableBackgroundColour
-    widget.sliderColour = sliderColour
+    widget.backgroundColour = widgetColours.tableBackgroundColour
+    widget.sliderColour = widgetColours.sliderColour
     widget.bounds = getWidgetBounds(options, true)
     setOptional(widget, options)
     return widget
@@ -702,7 +700,8 @@ local resolutions = {
 -- Probability Trigger - Sends note events using note 0 as trigger
 --------------------------------------------------------------------------------
 
-setBackgroundColour("101010")
+local backgroundColour = "404040"
+setBackgroundColour(backgroundColour)
 
 --------------------------------------------------------------------------------
 -- Variables
@@ -793,7 +792,7 @@ local function stopPlaying()
 end
 
 --------------------------------------------------------------------------------
--- Header
+-- Header Panel
 --------------------------------------------------------------------------------
 
 widgets.panel({
@@ -844,7 +843,7 @@ local playButton = widgets.button('Play', false, {
 })
 
 --------------------------------------------------------------------------------
--- Options
+-- Options Panel
 --------------------------------------------------------------------------------
 
 widgets.setSection({
@@ -852,20 +851,19 @@ widgets.setSection({
   ySpacing = 0,
 })
 
-widgets.backgroundColour = "505050"
-
 widgets.panel({
+  backgroundColour = backgroundColour,
   x = widgets.getPanel().x,
   y = widgets.posUnder(widgets.getPanel()),
   width = widgets.getPanel().width,
-  height = 66,
+  height = 60,
 })
 
 widgets.setSection({
   width = 150,
   height = 45,
   xOffset = 10,
-  yOffset = 10,
+  yOffset = 5,
   xSpacing = 5,
   ySpacing = 5,
 })

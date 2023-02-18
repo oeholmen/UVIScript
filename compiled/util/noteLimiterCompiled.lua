@@ -211,7 +211,10 @@ local notes = {
         print("transpose note down", note)
       end
     end
-    return note
+    -- Ensure note is inside given min/max values
+    note = math.max(min, math.min(max, note))
+    -- Ensure note is inside valid values
+    return math.max(0, math.min(127, note))
   end,
   
   getSemitonesBetweenNotes = function(note1, note2)
@@ -290,11 +293,13 @@ noteMax.y = noteMin.y
 
 -- Range must be at least one octave
 noteMin.changed = function(self)
-  noteMax:setRange((self.value+12), 127)
+  --noteMax:setRange((self.value+12), 127)
+  noteMax:setRange(self.value, 127)
 end
 
 noteMax.changed = function(self)
-  noteMin:setRange(0, (self.value-12))
+  --noteMin:setRange(0, (self.value-12))
+  noteMin:setRange(0, self.value)
 end
 
 local priority = panel:Menu("Priority", {"As Played", "Lowest", "Highest", "Random"})

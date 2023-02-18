@@ -60,11 +60,13 @@ noteMax.y = noteMin.y
 
 -- Range must be at least one octave
 noteMin.changed = function(self)
-  noteMax:setRange((self.value+12), 127)
+  --noteMax:setRange((self.value+12), 127)
+  noteMax:setRange(self.value, 127)
 end
 
 noteMax.changed = function(self)
-  noteMin:setRange(0, (self.value-12))
+  --noteMin:setRange(0, (self.value-12))
+  noteMin:setRange(0, self.value)
 end
 
 local priority = panel:Menu("Priority", {"As Played", "Lowest", "Highest", "Random"})

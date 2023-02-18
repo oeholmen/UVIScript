@@ -38,7 +38,10 @@ return {--notes--
         print("transpose note down", note)
       end
     end
-    return note
+    -- Ensure note is inside given min/max values
+    note = math.max(min, math.min(max, note))
+    -- Ensure note is inside valid values
+    return math.max(0, math.min(127, note))
   end,
   
   getSemitonesBetweenNotes = function(note1, note2)

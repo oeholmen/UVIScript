@@ -8,9 +8,11 @@ local resolutions = require "includes.resolutions"
 
 local backgroundColour = "101010"
 
-widgets.backgroundColour = backgroundColour
-widgets.menuBackgroundColour = backgroundColour
-widgets.widgetBackgroundColour = backgroundColour
+widgets.setColours({
+  backgroundColour = backgroundColour,
+  menuBackgroundColour = backgroundColour,
+  widgetBackgroundColour = backgroundColour,
+})
 
 setBackgroundColour(backgroundColour)
 
@@ -93,21 +95,21 @@ widgets.panel({
   height = 30,
 })
 
-widgets.setSection({
-  xSpacing = 5,
-  ySpacing = 5,
-  width = 100,
-  height = 22,
-  xOffset = (widgets.getPanel().width / 2) + 45,
-  yOffset = 5,
-})
-
 widgets.label("Probability Trigger", {
   tooltip = "A sequencer that triggers rythmic pulses (using note 0) that note inputs can listen to",
+  height = 30,
   width = widgets.getPanel().width,
-  x = 0, y = 0, height = 30,
+  x = 0, y = 0,
   alpha = 0.5, fontSize = 22,
   increment = false,
+})
+
+widgets.setSection({
+  width = 100,
+  xSpacing = 5,
+  ySpacing = 5,
+  xOffset = (widgets.getPanel().width / 2) + 45,
+  yOffset = 5,
 })
 
 widgets.numBox('Channel', channel, {
@@ -139,8 +141,6 @@ widgets.setSection({
   ySpacing = 0,
 })
 
-widgets.backgroundColour = "black"
-
 widgets.panel({
   x = widgets.getPanel().x,
   y = widgets.posUnder(widgets.getPanel()),
@@ -148,17 +148,18 @@ widgets.panel({
   height = 205,
 })
 
-local noteWidgetColSpacing = 5
+local noteWidgetColSpacing = 10
 local noteWidgetRowSpacing = 5
 
 local xySpeedFactor = widgets.getPanel():XY('Probability', 'BeatFactorProbability')
-xySpeedFactor.x = noteWidgetColSpacing
-xySpeedFactor.y = noteWidgetRowSpacing
+xySpeedFactor.x = 10
+xySpeedFactor.y = 10
 xySpeedFactor.width = 480
-xySpeedFactor.height = 200
+xySpeedFactor.height = 190
 
 widgets.setSection({
-  width = 207,
+  width = 205,
+  height = 22,
   xOffset = widgets.posSide(xySpeedFactor) + 10,
   yOffset = 10,
   xSpacing = noteWidgetColSpacing,
@@ -168,7 +169,7 @@ widgets.setSection({
 
 local resolutionInput = widgets.menu("Quantize", resolution, resolutionNames, {
   tooltip = "Event triggers are quantized to this resolution",
-  width = 99,
+  width = 93,
   height = 48,
   increment = false,
   changed = function(self) resolution = self.value end,
