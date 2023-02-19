@@ -722,7 +722,7 @@ local function pulse()
   local note = 0
   while isPlaying do
     local duration = resolutions.getResolution(resolution)
-    playNote(note, velocity, beat2ms(resolutions.getPlayDuration(duration, gate)))
+    playNote(note, velocity, beat2ms(resolutions.getPlayDuration(duration, gate)), nil, channel)
     waitBeat(duration)
   end
 end

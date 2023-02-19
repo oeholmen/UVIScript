@@ -568,6 +568,7 @@ local tableLength = 8
 local sequencerPos = 1
 local octaveRange = 1
 local bipolar = true
+local pitchOffsetSwapProbability = 0
 
 widgets.setSection({
   width = 720,
@@ -635,11 +636,11 @@ local sequencerTable = widgets.table(tableLength, 0, {
 })
 
 widgets.setSection({
-  width = 120,
+  width = 114,
   yOffset = widgets.posUnder(sequencerTable) + 5,
 })
 
-local noteInput = widgets.numBox("Root", baseNote, {
+local noteInput = widgets.numBox("Root Note", baseNote, {
   unit = Unit.MidiKey,
   tooltip = "Set the root note",
   changed = function(self) baseNote = self.value end
@@ -666,6 +667,10 @@ local function setRange()
   else
     sequencerTable:setRange(0, tableRange)
   end
+  for i=1,tableLength do
+    sequencerTable:setValue(i, math.max(sequencerTable.min, sequencerTable:getValue(i)))
+    sequencerTable:setValue(i, math.min(sequencerTable.max, sequencerTable:getValue(i)))
+  end
 end
 
 widgets.numBox("Octave Range", octaveRange, {
@@ -687,12 +692,25 @@ widgets.button("Bipolar", bipolar, {
   end
 })
 
+widgets.numBox("Offset Rand", pitchOffsetSwapProbability, {
+  tooltip = "Probability that the pitch offset from another step will be used",
+  unit = Unit.Percent,
+  changed = function(self) pitchOffsetSwapProbability = self.value end
+})
+
 --------------------------------------------------------------------------------
 -- Handle Events
 --------------------------------------------------------------------------------
 
 local function getNote()
-  return baseNote + sequencerTable:getValue(sequencerPos)
+  local pitchOffset = 0
+  if gem.getRandomBoolean(pitchOffsetSwapProbability) then
+    randomPos = gem.getRandom(tableLength)
+    pitchOffset = sequencerTable:getValue(randomPos)
+  else
+    pitchOffset = sequencerTable:getValue(sequencerPos)
+  end
+  return baseNote + pitchOffset
 end
 
 function onNote(e)

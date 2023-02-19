@@ -498,7 +498,7 @@ for page=1,maxPages do
 
     local pitchRand = sequencerPanel:NumBox("PitchOffsetRandomization" .. i, 0, 0, 100, true)
     pitchRand.displayName = "Pitch"
-    pitchRand.tooltip = "Set probability pitch from another step will be used"
+    pitchRand.tooltip = "Probability that the pitch offset from another step will be used"
     pitchRand.visible = isVisible
     pitchRand.unit = Unit.Percent
     pitchRand.size = directionProbability.size
