@@ -11,6 +11,8 @@ local backgroundColour = "202020" -- Light or Dark
 
 setBackgroundColour(backgroundColour)
 
+-- TODO Add parts and evolve like in generativeStrategySequencer
+
 --------------------------------------------------------------------------------
 -- Variables
 --------------------------------------------------------------------------------

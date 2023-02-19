@@ -526,7 +526,7 @@ end
 
 local function handleTrigger(e, note, data)
   if isNoteInActiveVoices(note) == false then
-    local id = playNote(note, e.velocity)
+    local id = playNote(note, e.velocity, -1, nil, e.channel)
     table.insert(activeVoices, {id=id,note=note,channel=e.channel,data=data})
     return true
   end
@@ -566,13 +566,15 @@ local forward = false
 local baseNote = 48
 local tableLength = 8
 local sequencerPos = 1
+local octaveRange = 1
+local bipolar = true
 
 widgets.setSection({
   width = 720,
 })
 
 local sequencerPanel = widgets.panel({
-  height = 200,
+  height = 130,
 })
 
 local sequencerLabel = widgets.label("Sequencer Input", {
@@ -603,21 +605,33 @@ widgets.menu("Channel", widgets.channels(), {
 })
 
 widgets.setSection({
+  width = 710,
   xOffset = 5,
   yOffset = widgets.posUnder(sequencerLabel) + 5,
   xSpacing = 5,
-  ySpacing = 5,
+  ySpacing = 0,
+})
+
+local positionTable = widgets.table(tableLength, 0, {
+  integer = true,
+  enabled = false,
+  persistent = false,
+  fillStyle = "solid",
+  backgroundColour = "404040",
+  sliderColour = "66ff99",
+  height = 3,
+  increment = false,
 })
 
 local sequencerTable = widgets.table(tableLength, 0, {
-  --tooltip = "Events are triggered when the value hits max or min",
+  tooltip = "Set the pitch offset",
   showPopupDisplay = true,
   backgroundColour = "191E25",
   min = -12,
   max = 12,
   integer = true,
-  height = 120,
-  width = 710,
+  height = 60,
+  y = widgets.posUnder(positionTable)
 })
 
 widgets.setSection({
@@ -625,11 +639,13 @@ widgets.setSection({
   yOffset = widgets.posUnder(sequencerTable) + 5,
 })
 
-widgets.numBox("Root", baseNote, {
+local noteInput = widgets.numBox("Root", baseNote, {
   unit = Unit.MidiKey,
   tooltip = "Set the root note",
   changed = function(self) baseNote = self.value end
 })
+
+local listenButton = widgets.button("Note Learn")
 
 widgets.numBox("Steps", tableLength, {
   min = 2,
@@ -639,6 +655,35 @@ widgets.numBox("Steps", tableLength, {
   changed = function(self)
     tableLength = self.value
     sequencerTable.length = tableLength
+    positionTable.length = tableLength
+  end
+})
+
+local function setRange()
+  local tableRange = octaveRange * 12
+  if bipolar then
+    sequencerTable:setRange(-tableRange, tableRange)
+  else
+    sequencerTable:setRange(0, tableRange)
+  end
+end
+
+widgets.numBox("Octave Range", octaveRange, {
+  tooltip = "Set the octave range",
+  min = 1,
+  max = 4,
+  integer = true,
+  changed = function(self)
+    octaveRange = self.value
+    setRange()
+  end
+})
+
+widgets.button("Bipolar", bipolar, {
+  tooltip = "When bipolar is active, the octave range is both positive and negative",
+  changed = function(self)
+    bipolar = self.value
+    setRange()
   end
 })
 
@@ -647,17 +692,28 @@ widgets.numBox("Steps", tableLength, {
 --------------------------------------------------------------------------------
 
 local function getNote()
-  local note = baseNote + sequencerTable:getValue(sequencerPos)
-  sequencerPos = gem.inc(sequencerPos, 1, tableLength)
-  return note
+  return baseNote + sequencerTable:getValue(sequencerPos)
 end
 
 function onNote(e)
+  if listenButton.value then
+    noteInput:setValue(e.note)
+    listenButton:setValue(false)
+  end
   if modular.isTrigger(e, channel) then
     if forward then
       postEvent(e)
     end
-    modular.handleTrigger(e, getNote())
+    if modular.handleTrigger(e, getNote()) then
+      for i=1,tableLength do
+        local val = 0
+        if i == sequencerPos then
+          val = 1
+        end
+        positionTable:setValue(i, val)
+      end
+      sequencerPos = gem.inc(sequencerPos, 1, tableLength)
+    end
   else
     postEvent(e)
   end
@@ -678,6 +734,9 @@ function onTransport(start)
   if start == false then
     modular.releaseVoices()
     sequencerPos = 1
+    for i=1,tableLength do
+      positionTable:setValue(i, 0)
+    end  
   end
 end
 

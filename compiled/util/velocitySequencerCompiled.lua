@@ -198,10 +198,11 @@ panel.backgroundColour = backgroundColour
 panel.x = 10
 panel.y = 10
 panel.width = 700
-panel.height = 100
+panel.height = 90
 
 local label = panel:Label("Label")
 label.text = "Velocity Sequencer"
+label.editable = true
 label.alpha = 0.5
 label.backgroundColour = labelBackgoundColour
 label.textColour = labelTextColour
@@ -227,7 +228,7 @@ seqVelTable.showPopupDisplay = true
 seqVelTable.fillStyle = "solid"
 seqVelTable.sliderColour = sliderColour
 seqVelTable.width = positionTable.width
-seqVelTable.height = 60
+seqVelTable.height = 45
 seqVelTable.x = positionTable.x
 seqVelTable.y = positionTable.y + positionTable.height + 1
 
@@ -293,7 +294,7 @@ function onNote(e)
         val = 1
       end
       positionTable:setValue(i, val)
-    end  
+    end
     velocity, velocityPos = getVelocity(velocityPos)
     e.velocity = randomizeVelocity(velocity)
   end
@@ -305,4 +306,16 @@ function onTransport(start)
   for i=1,velocityTableLength.value do
     positionTable:setValue(i, 0)
   end  
+end
+
+--------------------------------------------------------------------------------
+-- Save / Load
+--------------------------------------------------------------------------------
+
+function onSave()
+  return {label.text}
+end
+
+function onLoad(data)
+  label.text = data[1]
 end

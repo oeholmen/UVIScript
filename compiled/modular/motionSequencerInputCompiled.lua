@@ -792,7 +792,7 @@ end
 
 local function handleTrigger(e, note, data)
   if isNoteInActiveVoices(note) == false then
-    local id = playNote(note, e.velocity)
+    local id = playNote(note, e.velocity, -1, nil, e.channel)
     table.insert(activeVoices, {id=id,note=note,channel=e.channel,data=data})
     return true
   end
@@ -967,22 +967,6 @@ local tableMotion = {
 ----------------------------------------------------------------------------------
 -- Motion Sequencer - Listens for incoming note events (rythm) on note number 0
 ----------------------------------------------------------------------------------
-
---local backgroundColour = "202020" -- Light or Dark
---local textColourOff = "ff22FFFF"
---local textColourOn = "efFFFFFF"
---local backgroundColourOff = "ff084486"
---local backgroundColourOn = "ff02ACFE"
---local widgetBackgroundColour = "black" -- Dark
---local widgetTextColour = "CFFFFE" -- Light
---local labelTextColour = widgetBackgroundColour
---local labelBackgoundColour = widgetTextColour
---local menuBackgroundColour = "01011F"
---local menuTextColour = "#9f02ACFE"
---local menuArrowColour = "66" .. labelTextColour
---local menuOutlineColour = "5f" .. widgetTextColour
---local knobFillColour = "E6D5B8" -- Light
---local sliderColour = "5FB5FF"
 
 local backgroundColour = "606060"
 setBackgroundColour(backgroundColour)

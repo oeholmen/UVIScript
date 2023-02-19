@@ -9,22 +9,6 @@ local resolutions = require "includes.resolutions"
 local modular = require "includes.modular"
 local tableMotion = require "includes.tableMotion"
 
---local backgroundColour = "202020" -- Light or Dark
---local textColourOff = "ff22FFFF"
---local textColourOn = "efFFFFFF"
---local backgroundColourOff = "ff084486"
---local backgroundColourOn = "ff02ACFE"
---local widgetBackgroundColour = "black" -- Dark
---local widgetTextColour = "CFFFFE" -- Light
---local labelTextColour = widgetBackgroundColour
---local labelBackgoundColour = widgetTextColour
---local menuBackgroundColour = "01011F"
---local menuTextColour = "#9f02ACFE"
---local menuArrowColour = "66" .. labelTextColour
---local menuOutlineColour = "5f" .. widgetTextColour
---local knobFillColour = "E6D5B8" -- Light
---local sliderColour = "5FB5FF"
-
 local backgroundColour = "606060"
 setBackgroundColour(backgroundColour)
 
@@ -317,7 +301,6 @@ local octaveRangeInput = widgets.numBox("Octave Range", octaveRange, {
     setScale()
   end
 })
-
 
 local speedRandomizationAmountInput = widgets.numBox("Speed Rand", tableMotion.options.speedRandomizationAmount, {
   unit = Unit.Percent,
