@@ -198,6 +198,17 @@ for luaScript in "${luaScripts[@]}"; do
     echo "Done!"
   fi
 
+  # Create eight part from rythmicFragmentsTrigger
+  if [ $luaScript == 'modular/rythmicFragmentsTrigger' ]; then
+    input_file=$(cat "$output_file")
+    input_file=$(echo "$input_file" | sed 's/local maxVoices = 4/local maxVoices = 8/g')
+    output_file=./compiled/modular/rythmicFragmentsTriggerEightPartCompiled.lua
+    echo "$input_file" > $output_file
+    echo
+    echo "Compiling $luaScript to $output_file"
+    echo "Done!"
+  fi
+
   # Create multipart midi cc sequencer file from midiControlSequencer
   if [ $luaScript == 'sequencers/midiControlSequencer' ]; then
     input_file=$(cat "$output_file")

@@ -1333,7 +1333,7 @@ local channel = 1
 --local seqGateTable
 --local gateRandomization
 local numVoices = 1
-local maxVoices = 4
+local maxVoices = 8
 local playingVoices = {}
 local playingIndex = {}
 local roundCounterPerVoice = {}

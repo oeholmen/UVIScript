@@ -63,6 +63,7 @@ local evolveFragmentProbability
 local randomizeCurrentResolutionProbability
 local adjustBias
 local fragmentSlots = {}
+local voiceToFragment = false
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
@@ -127,7 +128,7 @@ local function play(voice, uniqueId, partDuration)
     -- TODO Param for source per voice?
     -- Default is multivoice uses the fragment that corresponds to the voice
     local sources = nil
-    if numVoices > 1 then
+    if voiceToFragment then
       sources = {voice}
     end
 
@@ -327,14 +328,14 @@ rythmPanel.backgroundColour = "404040"
 rythmPanel.x = sequencerPanel.x
 rythmPanel.y = sequencerPanel.y + sequencerPanel.height + 0
 rythmPanel.width = sequencerPanel.width
-rythmPanel.height = (75 - maxVoices) * maxVoices -- TODO Adjust to fit other maxVoices settings
+rythmPanel.height = (102 * (maxVoices / 2)) + 60
 
 --------------------------------------------------------------------------------
 -- Sequencer Options
 --------------------------------------------------------------------------------
 
 local sequencerLabel = sequencerPanel:Label("Label")
-sequencerLabel.text = "Rythmic Fragments Trigger"
+sequencerLabel.text = "Rythmic Fragments"
 sequencerLabel.tooltip = "A sequencer that triggers rythmic pulses (using note 0) that note inputs can listen to"
 sequencerLabel.alpha = 0.5
 sequencerLabel.backgroundColour = labelBackgoundColour
@@ -343,12 +344,26 @@ sequencerLabel.fontSize = 22
 sequencerLabel.position = {0,0}
 sequencerLabel.size = {sequencerPanel.width,30}
 
+local voiceToFragmentButton = sequencerPanel:OnOffButton("VoiceToFragmentButton", voiceToFragment)
+voiceToFragmentButton.displayName = "Voice to fragment"
+voiceToFragmentButton.tooltip = "Activate to let each voice use the corresponding fragment."
+voiceToFragmentButton.backgroundColourOff = backgroundColourOff
+voiceToFragmentButton.backgroundColourOn = backgroundColourOn
+voiceToFragmentButton.textColourOff = textColourOff
+voiceToFragmentButton.textColourOn = textColourOn
+voiceToFragmentButton.size = {96,22}
+voiceToFragmentButton.x = sequencerPanel.width - (voiceToFragmentButton.width * 5) - 25
+voiceToFragmentButton.y = 5
+voiceToFragmentButton.changed = function(self)
+  voiceToFragment = self.value
+end
+
 local numVoicesInput = sequencerPanel:NumBox("NumVoices", numVoices, 1, maxVoices, true)
 numVoicesInput.displayName = "Voices"
 numVoicesInput.tooltip = "Number of voices"
-numVoicesInput.size = {90,22}
-numVoicesInput.x = sequencerPanel.width - (numVoicesInput.width * 4) - 42
-numVoicesInput.y = 5
+numVoicesInput.size = voiceToFragmentButton.size
+numVoicesInput.x = voiceToFragmentButton.x + voiceToFragmentButton.width + 5
+numVoicesInput.y = voiceToFragmentButton.y
 numVoicesInput.backgroundColour = menuBackgroundColour
 numVoicesInput.textColour = menuTextColour
 numVoicesInput.changed = function(self)
@@ -375,7 +390,7 @@ autoplayButton.textColourOff = textColourOff
 autoplayButton.textColourOn = textColourOn
 autoplayButton.displayName = "Auto Play"
 autoplayButton.tooltip = "Play automatically on transport"
-autoplayButton.size = {100,22}
+autoplayButton.size = channelInput.size
 autoplayButton.x = channelInput.x + channelInput.width + 5
 autoplayButton.y = channelInput.y
 
@@ -476,7 +491,7 @@ storeButton.tooltip = "Store the current state of the fragments"
 storeButton.width = 75
 storeButton.height = 20
 storeButton.x = 15
-storeButton.y = 220
+storeButton.y = 51 * maxVoices
 
 local slotSpacing = 3
 local unusedSlotDefaultText = "Unused"
