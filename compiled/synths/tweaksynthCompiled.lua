@@ -365,6 +365,9 @@ local function setOptional(widget, options)
   if type(options.showPopupDisplay) == "boolean" then
     widget.showPopupDisplay = options.showPopupDisplay
   end
+  if type(options.editable) == "boolean" then
+    widget.editable = options.editable
+  end
   if type(options.backgroundColour) == "string" then
     widget.backgroundColour = options.backgroundColour
   end

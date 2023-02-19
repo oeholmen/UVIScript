@@ -7,7 +7,6 @@ local widgets = require "includes.widgets"
 local scales = require "includes.scales"
 local notes = require "includes.notes"
 local modular = require "includes.modular"
-local resolutions = require "includes.resolutions"
 
 local textColourOff = "ff22FFFF"
 local textColourOn = "efFFFFFF"

@@ -1,3 +1,176 @@
+-- modular/sequencerInput -- 
+--------------------------------------------------------------------------------
+-- Common methods
+--------------------------------------------------------------------------------
+
+local function getRandom(min, max, factor)
+  if type(min) == "number" and type(max) == "number" and min < max then
+    return math.random(min, max)
+  elseif type(min) == "number" then
+    return math.random(min)
+  end
+  local value = math.random()
+  if type(factor) == "number" then
+    value = value * factor
+  end
+  return value
+end
+
+local function getRandomBoolean(probability)
+  -- Default probability of getting true is 50%
+  if type(probability) ~= "number" then
+    probability = 50
+  end
+  return getRandom(100) <= probability
+end
+
+local function getChangeMax(max, probabilityLevel)
+  return math.ceil(max * (probabilityLevel / 100))
+end
+
+local function getIndexFromValue(value, selection)
+  for i,v in ipairs(selection) do
+    if v == value then
+      return i
+    end
+  end
+  return nil
+end
+
+local function randomizeValue(value, limitMin, limitMax, randomizationAmount)
+  if randomizationAmount > 0 then
+    local limitRange = limitMax - limitMin
+    local changeMax = getChangeMax(limitRange, randomizationAmount)
+    local min = math.max(limitMin, (value - changeMax))
+    local max = math.min(limitMax, (value + changeMax))
+    --print("Before randomize value", value)
+    value = getRandom(min, max)
+    --print("After randomize value/changeMax/min/max", value, changeMax, min, max)
+  end
+  return value
+end
+
+local function round(value)
+  local int, frac = math.modf(value)
+  --print("int/frac", int, frac)
+  if math.abs(frac) < 0.5 then
+    value = int
+  elseif value < 0 then
+    value = int - 1
+  else
+    value = int + 1
+  end
+  return value
+end
+
+local function tableIncludes(theTable, theItem)
+  return type(getIndexFromValue(theItem, theTable)) == "number"
+end
+
+local function getRandomFromTable(theTable, except)
+  if #theTable == 0 then
+    return nil
+  end
+  if #theTable == 1 then
+    return theTable[1]
+  end
+  local index = getRandom(#theTable)
+  local value = theTable[index]
+  --print("getRandomFromTable index, value", index, value)
+  if type(except) ~= "nil" then
+    local maxRounds = 10
+    while value == except and maxRounds > 0 do
+      value = theTable[getRandom(#theTable)]
+      maxRounds = maxRounds - 1
+      --print("getRandomFromTable except, maxRounds", except, maxRounds)
+    end
+  end
+  return value
+end
+
+local function trimStartAndEnd(s)
+  return s:match("^%s*(.-)%s*$")
+end
+
+local function getChangePerStep(valueRange, numSteps)
+  return valueRange / (numSteps - 1)
+end
+
+local function inc(val, inc, max, reset)
+  if type(inc) ~= "number" then
+    inc = 1
+  end
+  if type(reset) ~= "number" then
+    reset = 1
+  end
+  val = val + inc
+  if type(max) == "number" and val > max then
+    val = reset
+  end
+  return val
+end
+
+local function triangle(minValue, maxValue, numSteps)
+  local rising = true
+  local numStepsUpDown = round(numSteps / 2)
+  local valueRange = maxValue - minValue
+  local changePerStep = valueRange / numStepsUpDown
+  local startValue = minValue
+  local tri = {}
+  for i=1,numSteps do
+    table.insert(tri, startValue)
+    if rising then
+      startValue = startValue + changePerStep
+      if startValue >= maxValue then
+        rising = false
+      end
+    else
+      startValue = startValue - changePerStep
+    end
+  end
+  return tri
+end
+
+local function rampUp(minValue, maxValue, numSteps)
+  local valueRange = maxValue - minValue
+  local changePerStep = getChangePerStep(valueRange, numSteps)
+  local startValue = minValue
+  local ramp = {}
+  for i=1,numSteps do
+    table.insert(ramp, startValue)
+    startValue = inc(startValue, changePerStep)
+  end
+  return ramp
+end
+
+local function rampDown(minValue, maxValue, numSteps)
+  local valueRange = maxValue - minValue
+  local changePerStep = getChangePerStep(valueRange, numSteps)
+  local startValue = maxValue
+  local ramp = {}
+  for i=1,numSteps do
+    table.insert(ramp, startValue)
+    startValue = inc(startValue, -changePerStep)
+  end
+  return ramp
+end
+
+local gem = {
+  inc = inc,
+  round = round,
+  triangle = triangle,
+  rampUp = rampUp,
+  rampDown = rampDown,
+  getRandom = getRandom,
+  getChangeMax = getChangeMax,
+  tableIncludes = tableIncludes,
+  randomizeValue = randomizeValue,
+  trimStartAndEnd = trimStartAndEnd,
+  getRandomBoolean = getRandomBoolean,
+  getIndexFromValue = getIndexFromValue,
+  getRandomFromTable = getRandomFromTable,
+}
+
 --------------------------------------------------------------------------------
 -- Functions for creating an positioning widgets
 --------------------------------------------------------------------------------
@@ -214,7 +387,7 @@ local function getPanel(options)
   return widgetDefaults.panel
 end
 
-return {--widgets--
+local widgets = {
   channels = function()
     local channels = {"Omni"}
     for j=1,16 do
@@ -329,3 +502,193 @@ return {--widgets--
     return widget
   end,
 }
+
+--------------------------------------------------------------------------------
+-- Common functions for working with event processor that act as modular inputs
+--------------------------------------------------------------------------------
+
+local activeVoices = {}
+
+local function isNoteInActiveVoices(note)
+  for _,v in ipairs(activeVoices) do
+    if v.note == note then
+      return true
+    end
+  end
+  return false
+end
+
+local function isTrigger(e, channel)
+  local isListeningForEvent = channel == 0 or channel == e.channel
+  local isTrigger = e.note == 0 -- Note 0 is used as trigger
+  return isTrigger and isListeningForEvent
+end
+
+local function handleTrigger(e, note, data)
+  if isNoteInActiveVoices(note) == false then
+    local id = playNote(note, e.velocity)
+    table.insert(activeVoices, {id=id,note=note,channel=e.channel,data=data})
+    return true
+  end
+  return false
+end
+
+local function handleReleaseTrigger(e)
+  for i,v in ipairs(activeVoices) do
+    if v.channel == e.channel then
+      releaseVoice(v.id)
+      table.remove(activeVoices, i)
+      return true
+    end
+  end
+  return false
+end
+
+local modular = {
+  releaseVoices = function()
+    for i,v in ipairs(activeVoices) do
+      releaseVoice(v.id)
+    end
+    activeVoices = {}
+  end,
+  isTrigger = isTrigger,
+  handleTrigger = handleTrigger,
+  handleReleaseTrigger = handleReleaseTrigger,
+  getActiveVoices = function() return activeVoices end,
+}
+
+-----------------------------------------------------------------------------------------------------------------
+-- Sequencer Input - A standard sequencer that listens to incoming events on note 0
+-----------------------------------------------------------------------------------------------------------------
+
+local channel = 0 -- 0 = Omni
+local forward = false
+local baseNote = 48
+local tableLength = 8
+local sequencerPos = 1
+
+widgets.setSection({
+  width = 720,
+})
+
+local sequencerPanel = widgets.panel({
+  height = 200,
+})
+
+local sequencerLabel = widgets.label("Sequencer Input", {
+  tooltip = "This sequencer listens to incoming pulses from a rythmic sequencer (Sent as note 0) and generates notes in response",
+  height = 30,
+  editable = true,
+  alpha = 0.5,
+  fontSize = 22,
+})
+
+widgets.setSection({
+  width = 90,
+  xOffset = 531,
+  yOffset = 5,
+  xSpacing = 5,
+  ySpacing = 5,
+})
+
+widgets.button("Forward", forward, {
+  tooltip = "Forward triggers (note=0 events) to the next processor",
+  changed = function(self) forward = self.value end,
+})
+
+widgets.menu("Channel", widgets.channels(), {
+  tooltip = "Listen to triggers (note=0 events) on this channel - if a note event is not being listened to, it will be pass through",
+  showLabel = false,
+  changed = function(self) channel = self.value - 1 end
+})
+
+widgets.setSection({
+  xOffset = 5,
+  yOffset = widgets.posUnder(sequencerLabel) + 5,
+  xSpacing = 5,
+  ySpacing = 5,
+})
+
+local sequencerTable = widgets.table(tableLength, 0, {
+  --tooltip = "Events are triggered when the value hits max or min",
+  showPopupDisplay = true,
+  backgroundColour = "191E25",
+  min = -12,
+  max = 12,
+  integer = true,
+  height = 120,
+  width = 710,
+})
+
+widgets.setSection({
+  width = 120,
+  yOffset = widgets.posUnder(sequencerTable) + 5,
+})
+
+widgets.numBox("Root", baseNote, {
+  unit = Unit.MidiKey,
+  tooltip = "Set the root note",
+  changed = function(self) baseNote = self.value end
+})
+
+widgets.numBox("Steps", tableLength, {
+  min = 2,
+  max = 128,
+  integer = true,
+  tooltip = "Set the number of steps in the sequencer",
+  changed = function(self)
+    tableLength = self.value
+    sequencerTable.length = tableLength
+  end
+})
+
+--------------------------------------------------------------------------------
+-- Handle Events
+--------------------------------------------------------------------------------
+
+local function getNote()
+  local note = baseNote + sequencerTable:getValue(sequencerPos)
+  sequencerPos = gem.inc(sequencerPos, 1, tableLength)
+  return note
+end
+
+function onNote(e)
+  if modular.isTrigger(e, channel) then
+    if forward then
+      postEvent(e)
+    end
+    modular.handleTrigger(e, getNote())
+  else
+    postEvent(e)
+  end
+end
+
+function onRelease(e)
+  if modular.isTrigger(e, channel) then
+    if forward then
+      postEvent(e)
+    end
+    modular.handleReleaseTrigger(e)
+  else
+    postEvent(e)
+  end
+end
+
+function onTransport(start)
+  if start == false then
+    modular.releaseVoices()
+    sequencerPos = 1
+  end
+end
+
+--------------------------------------------------------------------------------
+-- Save / Load
+--------------------------------------------------------------------------------
+
+function onSave()
+  return {sequencerLabel.text}
+end
+
+function onLoad(data)
+  sequencerLabel.text = data[1]
+end

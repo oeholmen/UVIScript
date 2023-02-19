@@ -365,6 +365,9 @@ local function setOptional(widget, options)
   if type(options.showPopupDisplay) == "boolean" then
     widget.showPopupDisplay = options.showPopupDisplay
   end
+  if type(options.editable) == "boolean" then
+    widget.editable = options.editable
+  end
   if type(options.backgroundColour) == "string" then
     widget.backgroundColour = options.backgroundColour
   end
@@ -1199,7 +1202,7 @@ local scaleMenu = widgets.menu("Scale", #scalesNames, scalesNames, {
 local noteInput = widgets.numBox("Base Note", baseNote, {
   width = 33,
   x = widgets.posSide(scaleMenu) - 10,
-  y = firstRowY + 24,
+  y = firstRowY + 25,
   unit = Unit.MidiKey,
   showLabel = false,
   tooltip = "Set the root note",

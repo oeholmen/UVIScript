@@ -116,7 +116,15 @@ local function play(voice, uniqueId, partDuration)
 
     --velocity, velocityPos = getVelocity(velocityPos)
     gate, gatePos = getGate(gatePos)
-    duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = rythmicFragments.getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount)
+
+    -- TODO Param?
+    -- Default is multivoice uses the fragment that corresponds to the voice
+    local sources = nil
+    if numVoices > 1 then
+      sources = {voice}
+    end
+
+    duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = rythmicFragments.getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount, sources)
 
     if type(duration) == "nil" or activeFragment.i == 0 then-- or isNoteActive(voice) == false then
       -- Return voice to sequence runner
@@ -297,7 +305,7 @@ sequencerLabel.fontSize = 22
 sequencerLabel.position = {0,0}
 sequencerLabel.size = {sequencerPanel.width,30}
 
-local numVoicesInput = sequencerPanel:NumBox("NumVoices", numVoices, 1, 16, true)
+local numVoicesInput = sequencerPanel:NumBox("NumVoices", numVoices, 1, 4, true)
 numVoicesInput.displayName = "Voices"
 numVoicesInput.tooltip = "Number of voices"
 numVoicesInput.size = {90,22}

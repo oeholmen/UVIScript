@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
--- Probability Trigger - Sends note events using note 0 as trigger
+-- Bounce Trigger - Sends note events using note 0 as trigger
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
@@ -16,9 +16,7 @@ setBackgroundColour(backgroundColour)
 local isPlaying = false
 local channel = 1
 local resolutionNames = resolutions.getResolutionNames()
-local voiceId = nil -- Holds the id of the created note event
 local velocity = 64
-local quantizeToClosest = true
 local waitResolution = 17
 local waitResolutionMin = 26
 local bounceProbability = 100
@@ -29,13 +27,6 @@ local waitBetweenRounds = false -- TODO Make it possible to insert a wait betwee
 --------------------------------------------------------------------------------
 -- Sequencer Functions
 --------------------------------------------------------------------------------
-
-local function release()
-  if type(voiceId) == "userdata" then
-    releaseVoice(voiceId)
-    voiceId = nil
-  end
-end
 
 local function getStartResolutionIndex()
   if waitResolution < waitResolutionMin then
@@ -94,7 +85,6 @@ local function stopPlaying()
     return
   end
   isPlaying = false
-  release()
 end
 
 --------------------------------------------------------------------------------
