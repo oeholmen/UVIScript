@@ -5,7 +5,6 @@
 local gem = require "includes.common"
 local widgets = require "includes.widgets"
 local scales = require "includes.scales"
-local resolutions = require "includes.resolutions"
 local modular = require "includes.modular"
 local tableMotion = require "includes.tableMotion"
 

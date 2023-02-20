@@ -521,6 +521,26 @@ local octaveProbabilityInputs = {}
 -- Functions
 --------------------------------------------------------------------------------
 
+local function getNoteInputs()
+  return noteInputs
+end
+
+local function getNotesPlaying()
+  return notesPlaying
+end
+
+local function addNotePlaying(note)
+  table.insert(notesPlaying, note)
+end
+
+local function removeNotePlaying(note)
+  table.remove(notesPlaying, gem.getIndexFromValue(note, notesPlaying))
+end
+
+local function clearNotesPlaying()
+  notesPlaying = {}
+end
+
 local function getScale(scaleIndex, keyIndex)
   local scaleDefinition = scaleDefinitions[scaleIndex]
   local rootNote = keyIndex - 1 -- Root note
@@ -706,6 +726,11 @@ local noteSelector = {
   createNoteAndOctaveSelector = createNoteAndOctaveSelector,
   getActiveNotes = getActiveNotes,
   getSelectedNotes = getSelectedNotes,
+  getNoteInputs = getNoteInputs,
+  getNotesPlaying = getNotesPlaying,
+  addNotePlaying = addNotePlaying,
+  removeNotePlaying = removeNotePlaying,
+  clearNotesPlaying = clearNotesPlaying,
   getKey = getKey,
 }
 

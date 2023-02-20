@@ -27,7 +27,7 @@ local widgetColours = {
   tableBackgroundColour = "191E25",
   sliderColour = "5FB5FF", -- Table slider colour
   labelTextColour = "black", -- Light
-  labelBackgoundColour = "CFFFFE",
+  labelBackgroundColour = "CFFFFE",
   menuArrowColour = "66AEFEFF", -- labelTextColour
   menuOutlineColour = "5f9f02ACFE", -- widgetTextColour
   menuTextColour = "9f02ACFE",
@@ -52,7 +52,7 @@ local function setColours(colours)
   widgetColours.tableBackgroundColour = getWidgetValue(colours.tableBackgroundColour, widgetColours.tableBackgroundColour)
   widgetColours.sliderColour = getWidgetValue(colours.sliderColour, widgetColours.sliderColour)
   widgetColours.labelTextColour = getWidgetValue(colours.labelTextColour, widgetColours.labelTextColour)
-  widgetColours.labelBackgoundColour = getWidgetValue(colours.labelBackgoundColour, widgetColours.labelBackgoundColour)
+  widgetColours.labelBackgroundColour = getWidgetValue(colours.labelBackgroundColour, widgetColours.labelBackgroundColour)
   widgetColours.menuArrowColour = getWidgetValue(colours.menuArrowColour, widgetColours.menuArrowColour)
   widgetColours.menuOutlineColour = getWidgetValue(colours.menuOutlineColour, widgetColours.menuOutlineColour)
   widgetColours.menuTextColour = getWidgetValue(colours.menuTextColour, widgetColours.menuTextColour)
@@ -71,11 +71,14 @@ local function setSection(settings)
   widgetDefaults.menuHeight = getWidgetValue(settings.menuHeight, widgetDefaults.menuHeight)
   widgetDefaults.xOffset = getWidgetValue(settings.xOffset, widgetDefaults.xOffset)
   widgetDefaults.yOffset = getWidgetValue(settings.yOffset, widgetDefaults.yOffset)
+  widgetDefaults.xOffset = getWidgetValue(settings.x, widgetDefaults.xOffset)
+  widgetDefaults.yOffset = getWidgetValue(settings.y, widgetDefaults.yOffset)
   widgetDefaults.xSpacing = getWidgetValue(settings.xSpacing, widgetDefaults.xSpacing)
   widgetDefaults.ySpacing = getWidgetValue(settings.ySpacing, widgetDefaults.ySpacing)
   widgetDefaults.cols = getWidgetValue(settings.cols, widgetDefaults.cols)
   widgetDefaults.col = getWidgetValue(settings.col, 0)
   widgetDefaults.row = getWidgetValue(settings.row, 0)
+  setColours(settings)
 end
 
 local function getWidgetName(name, panel)
@@ -204,6 +207,15 @@ local function setOptional(widget, options)
   if type(options.sliderColour) == "string" then
     widget.sliderColour = options.sliderColour
   end
+  if type(options.backgroundColourWhenEditing) == "string" then
+    widget.backgroundColourWhenEditing = options.backgroundColourWhenEditing
+  end
+  if type(options.textColourWhenEditing) == "string" then
+    widget.textColourWhenEditing = options.textColourWhenEditing
+  end
+  if type(options.textColour) == "string" then
+    widget.textColour = options.textColour
+  end
 end
 
 local function setPanel(panel)
@@ -262,8 +274,19 @@ return {--widgets--
     return widgetDefaults.panel
   end,
   button = function(displayName, default, options)
+    local isOnOff = true
+    if type(default) == "table" then
+      options = default
+      default = nil
+      isOnOff = false
+    end
     options = getWidgetOptions(options, displayName, default)
-    local widget = widgetDefaults.panel:OnOffButton(options.name, (options.default == true))
+    local widget
+    if isOnOff then
+      widget = widgetDefaults.panel:OnOffButton(options.name, (options.default == true))
+    else
+      widget = widgetDefaults.panel:Button(options.name)
+    end
     widget.backgroundColourOff = widgetColours.backgroundColourOff
     widget.backgroundColourOn = widgetColours.backgroundColourOn
     widget.textColourOff = widgetColours.textColourOff
@@ -279,7 +302,7 @@ return {--widgets--
     local widget = widgetDefaults.panel:Label("Label")
     widget.text = options.displayName
     widget.tooltip = options.tooltip
-    widget.backgroundColour = widgetColours.labelBackgoundColour
+    widget.backgroundColour = widgetColours.labelBackgroundColour
     widget.textColour = widgetColours.labelTextColour
     widget.bounds = getWidgetBounds(options, true)
     setOptional(widget, options)

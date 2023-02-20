@@ -5,7 +5,9 @@
 local gem = require "includes.common"
 local widgets = require "includes.widgets"
 local modular = require "includes.modular"
+local resolutions = require "includes.resolutions"
 
+local isPlaying = false
 local channel = 0 -- 0 = Omni
 local forward = false
 local baseNote = 48
@@ -14,6 +16,8 @@ local sequencerPos = 1
 local octaveRange = 1
 local bipolar = true
 local pitchOffsetSwapProbability = 0
+local resolutionNames = resolutions.getResolutionNames({'Follow Trigger'})
+local resolution = #resolutionNames
 
 widgets.setSection({
   width = 720,
@@ -32,11 +36,30 @@ local sequencerLabel = widgets.label("Sequencer Input", {
 })
 
 widgets.setSection({
-  width = 90,
-  xOffset = 531,
+  width = 45,
+  xOffset = 354,
   yOffset = 5,
   xSpacing = 5,
   ySpacing = 5,
+  labelBackgroundColour = "transparent",
+})
+
+local clockLabel = widgets.label("Clock")
+
+widgets.setSection({
+  width = 100,
+  xOffset = widgets.posSide(clockLabel),
+})
+
+widgets.menu("Resolution", resolution, resolutionNames, {
+  tooltip = "Set the resolution of the sequencer",
+  showLabel = false,
+  changed = function(self)
+    resolution = self.value
+    if isPlaying and resolution == #resolutionNames then
+      isPlaying = false
+    end
+  end
 })
 
 widgets.button("Forward", forward, {
@@ -147,6 +170,45 @@ widgets.numBox("Offset Rand", pitchOffsetSwapProbability, {
 -- Handle Events
 --------------------------------------------------------------------------------
 
+local function setPosition()
+  print("setPosition", sequencerPos)
+  for i=1,tableLength do
+    local val = 0
+    if i == sequencerPos then
+      val = 1
+    end
+    positionTable:setValue(i, val)
+  end
+end
+
+local function sequenceRunner()
+  print("Starting sequenceRunner")
+  while isPlaying do
+    setPosition()
+    waitBeat(resolutions.getResolution(resolution))
+    if isPlaying then
+      sequencerPos = gem.inc(sequencerPos, 1, tableLength)
+    end
+  end
+end
+
+local function startPlaying()
+  if isPlaying or resolution == #resolutionNames then
+    return
+  end
+  isPlaying = true
+  run(sequenceRunner)
+end
+
+local function stopPlaying()
+  isPlaying = false
+  modular.releaseVoices()
+  sequencerPos = 1
+  for i=1,tableLength do
+    positionTable:setValue(i, 0)
+  end
+end
+
 local function getNote()
   local pitchOffset = 0
   if gem.getRandomBoolean(pitchOffsetSwapProbability) then
@@ -168,14 +230,12 @@ function onNote(e)
       postEvent(e)
     end
     if modular.handleTrigger(e, getNote()) then
-      for i=1,tableLength do
-        local val = 0
-        if i == sequencerPos then
-          val = 1
-        end
-        positionTable:setValue(i, val)
+      if resolution == #resolutionNames then
+        setPosition()
+        sequencerPos = gem.inc(sequencerPos, 1, tableLength)
+      else
+        startPlaying()
       end
-      sequencerPos = gem.inc(sequencerPos, 1, tableLength)
     end
   else
     postEvent(e)
@@ -194,12 +254,10 @@ function onRelease(e)
 end
 
 function onTransport(start)
-  if start == false then
-    modular.releaseVoices()
-    sequencerPos = 1
-    for i=1,tableLength do
-      positionTable:setValue(i, 0)
-    end  
+  if start then
+    startPlaying()
+  else
+    stopPlaying()
   end
 end
 

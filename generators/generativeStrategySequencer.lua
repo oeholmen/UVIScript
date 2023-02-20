@@ -940,7 +940,7 @@ local function getFilteredNotes(voice)
   -- Find the notes, filter for min/max and notes that are already playing
   local notes = {}
   for i,v in ipairs(selectedNotes) do
-    if i >= noteRangeMin and i <= noteRangeMax and gem.tableIncludes(notesPlaying, v) == false then
+    if i >= noteRangeMin and i <= noteRangeMax and gem.tableIncludes(noteSelector.getNotesPlaying(), v) == false then
       table.insert(notes, v)
     end
   end
@@ -1079,7 +1079,7 @@ end
 --------------------------------------------------------------------------------
 
 function initNotes()
-  notesPlaying = {}
+  noteSelector.clearNotesPlaying()
   playingIndex = {}
   rythmicFragments.clearResolutionsForEvolve()
   for voice=1,voices do
@@ -1266,7 +1266,7 @@ function play(voice, uniqueId, partDuration)
       playNote(noteToPlay, velocity, noteDuration, nil, channel)
       --print("playNote noteToPlay, velocity, noteDuration, voice", noteToPlay, velocity, noteDuration, voice)
       -- Register playing note
-      table.insert(notesPlaying, noteToPlay)
+      noteSelector.addNotePlaying(noteToPlay)
       for i,v in ipairs(paramsPerFragment) do
         if activeFragment.i == i then
           spawn(rythmicFragments.flashFragmentActive, v.fragmentActive, duration)
@@ -1283,7 +1283,7 @@ function play(voice, uniqueId, partDuration)
 
     if type(noteToPlay) == "number" then
       -- Unregister note
-      table.remove(notesPlaying, gem.getIndexFromValue(noteToPlay, notesPlaying))
+      noteSelector.removeNotePlaying(noteToPlay)
     end
   end
 end
