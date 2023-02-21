@@ -7,15 +7,12 @@ local widgets = require "includes.widgets"
 local notes = require "includes.notes"
 local scales = require "includes.scales"
 
-local channel = 0 -- 0 = Omni
 local scale = {}
 local key = 1
+local channel = 0 -- 0 = Omni
 local scaleDefinitions = scales.getScaleDefinitions()
 local scaleDefinition = #scaleDefinitions
-
-local function setScale()
-  scale = scales.createScale(scaleDefinition, (key - 1))
-end
+local setScale = function() scale = scales.createScale(scaleDefinition, (key - 1)) end
 
 ------------------------------------------------------------------
 -- Panel
@@ -23,23 +20,22 @@ end
 
 local sequencerPanel = widgets.panel({
   width = 720,
-  height = 60,
+  height = 50,
 })
 
 widgets.label("Scale Quantizer", {
   tooltip = "Quantize incoming notes to the set scale",
   width = sequencerPanel.width,
-  height = 60,
-  alpha = 0.5,
+  height = 50,
+  alpha = 0.75,
   fontSize = 30,
-  backgroundColour = "606060",
+  backgroundColour = "505050",
   textColour = "3fe09f"
 })
 
 widgets.setSection({
-  width = 90,
-  x = 400,
-  y = 5,
+  width = 120,
+  x = 320,
   xSpacing = 15,
 })
 

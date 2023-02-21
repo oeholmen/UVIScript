@@ -1,4 +1,4 @@
--- util/randomOctave -- 
+-- util/scaleQuantizer -- 
 --------------------------------------------------------------------------------
 -- Common methods
 --------------------------------------------------------------------------------
@@ -526,90 +526,203 @@ local widgets = {
   end,
 }
 
--------------------------------------------------------------------------------
--- Transpose incoming notes to octave
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- Common Scales
+--------------------------------------------------------------------------------
 
-local backgroundColour = "595959" -- Light or Dark
-local widgetBackgroundColour = "01011F" -- Dark
-local widgetTextColour = "66ff99" -- Light
-local labelTextColour = "black"
-local labelBackgoundColour = "F8B400"
+-- Make sure these are in sync with the scale names
+-- Scales are defined by distance to the next step
+local scaleDefinitions = {
+  {2,2,1,2,2,2,1}, -- Major (Ionian mode)
+  {2,1,2,2,1,2,2}, -- Minor (Aeolian mode)
+  {2,1,2,2,2,1,2}, -- Dorian mode
+  {1,2,2,2,1,2,2}, -- Phrygian mode
+  {2,2,2,1,2,2,1}, -- Lydian mode
+  {2,2,1,2,2,1,2}, -- Mixolydian mode
+  {1,2,2,1,2,2,2}, -- Locrian mode
+  {2,2,2,1,2,1,2}, -- Acoustic
+  {2,1,2,1,1,3,2}, -- Blues
+  {1,2,1,3,1,2,2}, -- Alterated
+  {2,2,3,2,3}, -- Major Pentatonic
+  {3,2,2,3,2}, -- Minor Pentatonic
+  {3}, -- Diminished
+  {2}, -- Whole tone scale
+  {1}, -- Chomatic
+}
 
-setBackgroundColour(backgroundColour)
+local scaleNames = {
+  "Major (Ionian)",
+  "Minor (Aeolian)",
+  "Dorian",
+  "Phrygian",
+  "Lydian",
+  "Mixolydian",
+  "Locrian",
+  "Acoustic",
+  "Blues",
+  "Alterated",
+  "Major Pentatonic",
+  "Minor Pentatonic",
+  "Diminished",
+  "Whole tone",
+  "Chomatic",
+}
 
-local widgetWidth = 110
+local scales = {
+  getScaleDefinitions = function()
+    return scaleDefinitions
+  end,
 
-local panel = widgets.panel({
-  backgroundColour = backgroundColour,
-  x = 10,
-  y = 10,
-  width = 700,
-  height = 36,
+  getScaleNames = function()
+    return scaleNames
+  end,
+
+  createScale = function(scaleDefinition, rootNote, maxNote)
+    if type(maxNote) ~= "number" then
+      maxNote = 128
+    end
+    local scale = {}
+    -- Find notes for scale
+    local pos = 1
+    while rootNote < maxNote do
+      table.insert(scale, rootNote)
+      rootNote = rootNote + scaleDefinition[pos]
+      pos = pos + 1
+      if pos > #scaleDefinition then
+        pos = 1
+      end
+    end
+    return scale
+  end
+}
+
+--------------------------------------------------------------------------------
+-- Common functions for notes
+--------------------------------------------------------------------------------
+
+local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
+
+local notes = {
+  getNoteNames = function()
+    return notenames
+  end,
+  
+  -- Used for mapping - does not include octave, only name of note (C, C#...)
+  getNoteMapping = function()
+    local noteNumberToNoteName = {}
+    local notenamePos = 1
+    for i=0,127 do
+      table.insert(noteNumberToNoteName, notenames[notenamePos])
+      notenamePos = notenamePos + 1
+      if notenamePos > #notenames then
+        notenamePos = 1
+      end
+    end
+    return noteNumberToNoteName
+  end,
+  
+  transpose = function(note, min, max)
+    --print("Check transpose", note)
+    if note < min then
+      print("note < min", note, min)
+      while note < min do
+        note = note + 12
+        print("transpose note up", note)
+      end
+    elseif note > max then
+      print("note > max", note, max)
+      while note > max do
+        note = note - 12
+        print("transpose note down", note)
+      end
+    end
+    -- Ensure note is inside given min/max values
+    note = math.max(min, math.min(max, note))
+    -- Ensure note is inside valid values
+    return math.max(0, math.min(127, note))
+  end,
+  
+  getSemitonesBetweenNotes = function(note1, note2)
+    return math.max(note1, note2) - math.min(note1, note1)
+  end,
+  
+  getNoteAccordingToScale = function(scale, noteToPlay)
+    for _,note in ipairs(scale) do
+      if note == noteToPlay then
+        return noteToPlay
+      elseif note > noteToPlay then
+        print("Change from noteToPlay to note", noteToPlay, note)
+        return note
+      end
+    end
+    return noteToPlay
+  end,
+}
+
+------------------------------------------------------------------
+-- Scale Quantizer
+------------------------------------------------------------------
+
+local scale = {}
+local key = 1
+local channel = 0 -- 0 = Omni
+local scaleDefinitions = scales.getScaleDefinitions()
+local scaleDefinition = #scaleDefinitions
+local setScale = function() scale = scales.createScale(scaleDefinition, (key - 1)) end
+
+------------------------------------------------------------------
+-- Panel
+------------------------------------------------------------------
+
+local sequencerPanel = widgets.panel({
+  width = 720,
+  height = 50,
 })
 
-local label = panel:Label("Label")
-label.text = "Random octave"
-label.tooltip = "Set a random octave within the given range on incoming notes"
-label.alpha = 0.5
-label.backgroundColour = labelBackgoundColour
-label.textColour = labelTextColour
-label.fontSize = 22
-label.width = 140
+widgets.label("Scale Quantizer", {
+  tooltip = "Quantize incoming notes to the set scale",
+  width = sequencerPanel.width,
+  height = 50,
+  alpha = 0.75,
+  fontSize = 30,
+  backgroundColour = "505050",
+  textColour = "3fe09f"
+})
 
-local probability = panel:NumBox("Probability", 50, 0, 100, true)
-probability.unit = Unit.Percent
-probability.displayName = "Probability"
-probability.tooltip = "Probability that incoming notes will be transposed"
-probability.textColour = widgetTextColour
-probability.backgroundColour = widgetBackgroundColour
-probability.y = label.y
-probability.x = label.x + label.width + 50
-probability.width = widgetWidth
+widgets.setSection({
+  width = 120,
+  x = 320,
+  xSpacing = 15,
+})
 
-local octaveRange = panel:NumBox("OctaveRange", 1, 1, 4, true)
-octaveRange.textColour = widgetTextColour
-octaveRange.backgroundColour = widgetBackgroundColour
-octaveRange.displayName = "Octave"
-octaveRange.tooltip = "Set the available range for octaves"
-octaveRange.width = widgetWidth
-octaveRange.x = probability.x + probability.width + 10
-octaveRange.y = probability.y
+widgets.menu("Key", key, notes.getNoteNames(), {
+  changed = function(self)
+    key = self.value
+    setScale()
+  end
+})
 
-local bipolar = panel:OnOffButton("Bipolar", true)
-bipolar.displayName = "Bipolar"
-bipolar.tooltip = "Use both positive and negative octave"
-bipolar.backgroundColourOff = "#ff084486"
-bipolar.backgroundColourOn = "#ff02ACFE"
-bipolar.textColourOff = "#ff22FFFF"
-bipolar.textColourOn = "#efFFFFFF"
-bipolar.fillColour = "#dd000061"
-bipolar.width = widgetWidth
-bipolar.x = octaveRange.x + octaveRange.width + 10
-bipolar.y = octaveRange.y
+widgets.menu("Scale", scaleDefinition, scales.getScaleNames(), {
+  changed = function(self)
+    scaleDefinition = scaleDefinitions[self.value]
+    setScale()
+  end
+})
 
-function setOctave(note)
-  if gem.getRandomBoolean(probability.value) == false then
-    print("Note was note transposed", note)
-    return note
-  end
-  local octave = octaveRange.default
-  if octaveRange.value > 1 then
-    octave = gem.getRandom(octaveRange.value)
-  end
-  if bipolar.value and gem.getRandomBoolean() then
-    octave = -octave
-  end
-  local transposedNote = note + (octave * 12)
-  if transposedNote > 127 or transposedNote < 0 then
-    print("Out of range, note, transposedNote", note, transposedNote)
-    return note
-  end
-  print("Note was transposed, note, transposedNote, octave", note, transposedNote, octave)
-  return transposedNote
-end
+local channelInput = widgets.menu("Channel", widgets.channels(), {
+  tooltip = "Only quantize incoming notes on this channel",
+  changed = function(self) channel = self.value - 1 end
+})
+
+--------------------------------------------------------------------------------
+-- Handle Events
+--------------------------------------------------------------------------------
 
 function onNote(e)
-  local note = setOctave(e.note)
-  playNote(note, e.velocity)
+  if channel == 0 or channel == e.channel then
+    print("Note before", e.note)
+    e.note = notes.getNoteAccordingToScale(scale, e.note)
+    print("Note after", e.note)
+  end
+  postEvent(e)
 end

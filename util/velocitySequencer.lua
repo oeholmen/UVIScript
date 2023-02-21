@@ -3,6 +3,8 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
+local widgets = require "includes.widgets"
+local resolutions = require "includes.resolutions"
 
 local backgroundColour = "595959" -- Light or Dark
 local labelTextColour = "15133C" -- Dark
@@ -12,129 +14,208 @@ local menuBackgroundColour = "01011F"
 local menuTextColour = "#9f02ACFE"
 local menuArrowColour = "66" .. labelTextColour
 
-local velocityPos = 1
-local velocity = 90
-local channels = {"Omni"}
-for j=1,16 do
-  table.insert(channels, "" .. j)
-end
+widgets.setColours({
+  backgroundColour = backgroundColour,
+  labelTextColour = labelTextColour,
+  labelBackgoundColour = labelBackgoundColour,
+  sliderColour = sliderColour,
+  menuBackgroundColour = menuBackgroundColour,
+  menuTextColour = menuTextColour,
+  menuArrowColour = menuArrowColour,
+})
+
+local positionTable
+local sequencerTable
+local resolutionNames = resolutions.getResolutionNames({'Follow Input'})
+local resolution = #resolutionNames
+local sequencerPos = 1
+local channel = 0 -- 0 = Omni
 
 setBackgroundColour(backgroundColour)
 
-local panel = Panel("VelocitySequencer")
-panel.tooltip = "A sequencer that sets a velocity pattern on incoming notes"
-panel.backgroundColour = backgroundColour
-panel.x = 10
-panel.y = 10
-panel.width = 700
-panel.height = 90
+local panel = widgets.panel({
+  tooltip = "A sequencer that sets a velocity pattern on incoming notes",
+  width = 700,
+  height = 90,
+  x = 10,
+  y = 10,
+})
 
-local label = panel:Label("Label")
-label.text = "Velocity Sequencer"
-label.editable = true
-label.alpha = 0.5
-label.backgroundColour = labelBackgoundColour
-label.textColour = labelTextColour
-label.fontSize = 22
-label.position = {0,0}
-label.size = {162,25}
-label.y = 0
-label.x = 0
+local sequencerLabel = widgets.label("Velocity Sequencer", {
+  editable = true,
+  alpha = 0.5,
+  fontSize = 22,
+  width = 162,
+  height = 25,
+})
 
-local positionTable = panel:Table("Position", 8, 0, 0, 1, true)
-positionTable.enabled = false
-positionTable.persistent = false
-positionTable.fillStyle = "solid"
-positionTable.sliderColour = labelBackgoundColour
-positionTable.width = panel.width
-positionTable.height = 3
-positionTable.x = 5
-positionTable.y = label.y + label.height + 10
+widgets.setSection({
+  width = 51,
+  x = widgets.posSide(sequencerLabel) + 15,
+  y = sequencerLabel.y,
+  xSpacing = 5,
+})
 
-local seqVelTable = panel:Table("Velocity", 8, velocity, 1, 127, true)
-seqVelTable.tooltip = "Set the velocity pattern"
-seqVelTable.showPopupDisplay = true
-seqVelTable.fillStyle = "solid"
-seqVelTable.sliderColour = sliderColour
-seqVelTable.width = positionTable.width
-seqVelTable.height = 45
-seqVelTable.x = positionTable.x
-seqVelTable.y = positionTable.y + positionTable.height + 1
+widgets.label("Channel", {
+  backgroundColour = "transparent",
+  textColour = "silver"
+})
 
-local channelInput = panel:Menu("ChannelInput", channels)
-channelInput.displayName = "Channel"
-channelInput.showLabel = false
-channelInput.tooltip = "Only adjust the velocity in this channel"
-channelInput.arrowColour = menuArrowColour
-channelInput.backgroundColour = menuBackgroundColour
-channelInput.textColour = menuTextColour
-channelInput.width = 60
-channelInput.height = 20
-channelInput.x = label.x + label.width + 165
-channelInput.y = label.y + 5
+local channelInput = widgets.menu("Channel", widgets.channels(), {
+  tooltip = "Only adjust the velocity for events sent on this channel",
+  width = 54,
+  showLabel = false,
+  changed = function(self) channel = self.value - 1 end
+})
 
-local velocityTableLength = panel:NumBox("VelocityTableLength", 8, 1, 128, true)
-velocityTableLength.displayName = "Pattern Length"
-velocityTableLength.tooltip = "Length of velocity pattern table"
-velocityTableLength.width = 150
-velocityTableLength.height = channelInput.height
-velocityTableLength.x = channelInput.x + channelInput.width + 5
-velocityTableLength.y = channelInput.y
-velocityTableLength.backgroundColour = menuBackgroundColour
-velocityTableLength.textColour = menuTextColour
-velocityTableLength.changed = function(self)
-  seqVelTable.length = self.value
-  positionTable.length = self.value
-end
+widgets.setSection({
+  width = 63,
+  x = widgets.posSide(channelInput) + 5,
+  xSpacing = 5,
+})
 
-local velocityRandomization = panel:NumBox("VelocityRandomization", 15, 0, 100, true)
-velocityRandomization.unit = Unit.Percent
-velocityRandomization.displayName = "Randomization"
-velocityRandomization.tooltip = "Amount of radomization applied to the velocity"
-velocityRandomization.width = velocityTableLength.width
-velocityRandomization.height = velocityTableLength.height
-velocityRandomization.x = velocityTableLength.x + velocityTableLength.width + 5
-velocityRandomization.y = velocityTableLength.y
-velocityRandomization.backgroundColour = menuBackgroundColour
-velocityRandomization.textColour = menuTextColour
+widgets.label("Resolution", {
+  backgroundColour = "transparent",
+  textColour = "silver"
+})
+
+local resolutionInput = widgets.menu("Resolution", resolution, resolutionNames, {
+  tooltip = "Set the resolution of the sequencer",
+  width = 81,
+  showLabel = false,
+  changed = function(self)
+    resolution = self.value
+    if isPlaying and resolution == #resolutionNames then
+      isPlaying = false
+    end
+  end
+})
+
+widgets.setSection({
+  width = 118,
+  x = widgets.posSide(resolutionInput) + 5,
+})
+
+widgets.numBox("Pattern Length", 8, {
+  tooltip = "Length of velocity pattern table",
+  min = 1,
+  max = 128,
+  integer = true,
+  changed = function(self)
+    sequencerTable.length = self.value
+    positionTable.length = self.value
+  end
+})
+
+local velocityRandomization = widgets.numBox("Randomization", 0, {
+  tooltip = "Amount of radomization applied to the velocity",
+  unit = Unit.Percent,
+})
+
+widgets.setSection({
+  width = 710,
+  xOffset = 5,
+  yOffset = widgets.posUnder(sequencerLabel) + 5,
+  xSpacing = 5,
+  ySpacing = 0,
+})
+
+positionTable = widgets.table(8, 0, {
+  integer = true,
+  enabled = false,
+  persistent = false,
+  fillStyle = "solid",
+  backgroundColour = "404040",
+  sliderColour = "66ff99",
+  height = 3,
+  increment = false,
+})
+
+sequencerTable = widgets.table(8, 90, {
+  tooltip = "Set the velocity pattern",
+  showPopupDisplay = true,
+  backgroundColour = "191E25",
+  min = 1,
+  max = 127,
+  integer = true,
+  height = 60,
+  y = widgets.posUnder(positionTable)
+})
 
 --------------------------------------------------------------------------------
 -- Handle note events
 --------------------------------------------------------------------------------
 
-local function getVelocity(pos)
-  return seqVelTable:getValue(pos), gem.inc(pos, 1, seqVelTable.length)
+local function setPosition()
+  print("setPosition", sequencerPos)
+  for i=1,sequencerTable.length do
+    local val = 0
+    if i == sequencerPos then
+      val = 1
+    end
+    positionTable:setValue(i, val)
+  end
+end
+
+local function sequenceRunner()
+  print("Starting sequenceRunner")
+  while isPlaying do
+    setPosition()
+    waitBeat(resolutions.getResolution(resolution))
+    if isPlaying then
+      sequencerPos = gem.inc(sequencerPos, 1, sequencerTable.length)
+    end
+  end
+end
+
+local function startPlaying()
+  if isPlaying or resolution == #resolutionNames then
+    return
+  end
+  isPlaying = true
+  run(sequenceRunner)
+end
+
+local function stopPlaying()
+  isPlaying = false
+  sequencerPos = 1
+  for i=1,sequencerTable.length do
+    positionTable:setValue(i, 0)
+  end
 end
 
 local function randomizeVelocity(velocity)
-  return gem.randomizeValue(velocity, seqVelTable.min, seqVelTable.max, velocityRandomization.value)
+  return gem.randomizeValue(velocity, sequencerTable.min, sequencerTable.max, velocityRandomization.value)
+end
+
+local function getVelocity()
+  local velocity = sequencerTable:getValue(sequencerPos)
+  return randomizeVelocity(velocity)
 end
 
 local function isTrigger(e)
-  local channel = channelInput.value - 1
   return channel == 0 or channel == e.channel
 end
 
 function onNote(e)
   if isTrigger(e) then
-    for i=1,velocityTableLength.value do
-      local val = 0
-      if i == velocityPos then
-        val = 1
-      end
-      positionTable:setValue(i, val)
+    e.velocity = getVelocity()
+    if resolution == #resolutionNames then
+      setPosition()
+      sequencerPos = gem.inc(sequencerPos, 1, sequencerTable.length)
+    else
+      startPlaying()
     end
-    velocity, velocityPos = getVelocity(velocityPos)
-    e.velocity = randomizeVelocity(velocity)
   end
   postEvent(e)
 end
 
 function onTransport(start)
-  velocityPos = 1 -- Reset pos
-  for i=1,velocityTableLength.value do
-    positionTable:setValue(i, 0)
-  end  
+  if start then
+    startPlaying()
+  else
+    stopPlaying()
+  end
 end
 
 --------------------------------------------------------------------------------
@@ -142,9 +223,9 @@ end
 --------------------------------------------------------------------------------
 
 function onSave()
-  return {label.text}
+  return {sequencerLabel.text}
 end
 
 function onLoad(data)
-  label.text = data[1]
+  sequencerLabel.text = data[1]
 end

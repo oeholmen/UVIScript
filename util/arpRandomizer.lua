@@ -5,6 +5,7 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
+local widgets = require "includes.widgets"
 
 local buttonAlpha = 0.9
 local buttonBackgroundColourOff = "#ff084486"
@@ -238,12 +239,13 @@ setBackgroundColour(backgroundColour)
 
 local spacing = 20
 
-local panel = Panel("ArpRandomizer")
-panel.backgroundColour = backgroundColour
-panel.x = 10
-panel.y = 10
-panel.width = 700
-panel.height = 60
+local panel = widgets.panel({
+  backgroundColour = backgroundColour,
+  x = 10,
+  y = 10,
+  width = 700,
+  height = 60,
+})
 
 local label = panel:Label("Label")
 label.text = "Arp Randomizer"

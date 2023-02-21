@@ -7,6 +7,7 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
+local widgets = require "includes.widgets"
 local notes = require "includes.notes"
 
 local backgroundColour = "1a4245" -- Light or Dark
@@ -19,12 +20,13 @@ local menuOutlineColour = "5f" .. widgetTextColour
 
 setBackgroundColour(backgroundColour)
 
-local panel = Panel("Limiter")
-panel.backgroundColour = backgroundColour
-panel.x = 10
-panel.y = 10
-panel.width = 700
-panel.height = 60
+local panel = widgets.panel({
+  backgroundColour = backgroundColour,
+  x = 10,
+  y = 10,
+  width = 700,
+  height = 60,
+})
 
 local label = panel:Label("Label")
 label.text = "Note Limiter"

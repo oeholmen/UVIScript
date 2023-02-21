@@ -4,6 +4,7 @@
 
 local gem = require "includes.common"
 local notes = require "includes.notes"
+local scales = require "includes.scales"
 local noteSelector = require "includes.noteSelector"
 
 local backgroundColour = "6c6c6c" -- Light or Dark

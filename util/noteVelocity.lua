@@ -3,6 +3,7 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
+local widgets = require "includes.widgets"
 
 local backgroundColour = "595959" -- Light or Dark
 local widgetBackgroundColour = "15133C" -- Dark
@@ -12,12 +13,13 @@ local labelBackgoundColour = widgetTextColour
 
 setBackgroundColour(backgroundColour)
 
-local panel = Panel("Velocity")
-panel.backgroundColour = backgroundColour
-panel.x = 10
-panel.y = 10
-panel.width = 700
-panel.height = 40
+local panel = widgets.panel({
+  backgroundColour = backgroundColour,
+  x = 10,
+  y = 10,
+  width = 700,
+  height = 40,
+})
 
 local label = panel:Label("Label")
 label.text = "Note Velocity"

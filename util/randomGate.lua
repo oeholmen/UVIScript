@@ -3,6 +3,7 @@
 ----------------------------------------------
 
 local gem = require "includes.common"
+local widgets = require "includes.widgets"
 local resolutions = require "includes.resolutions"
 
 local isRunning = false
@@ -19,12 +20,13 @@ local menuOutlineColour = "5f" .. widgetTextColour
 
 setBackgroundColour(backgroundColour)
 
-local panel = Panel("Gate")
-panel.backgroundColour = backgroundColour
-panel.x = 10
-panel.y = 10
-panel.width = 700
-panel.height = 60
+local panel = widgets.panel({
+  backgroundColour = backgroundColour,
+  x = 10,
+  y = 10,
+  width = 700,
+  height = 60,
+})
 
 local label = panel:Label("Label")
 label.text = "Note Event Gate"

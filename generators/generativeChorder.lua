@@ -3,6 +3,8 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
+local notes = require "includes.notes"
+local scales = require "includes.scales"
 local noteSelector = require "includes.noteSelector"
 local notes = require "includes.notes"
 local resolutions = require "includes.resolutions"

@@ -527,66 +527,57 @@ local widgets = {
 }
 
 --------------------------------------------------------------------------------
--- Common functions for notes
+-- Common functions for working with event processor that act as modular inputs
 --------------------------------------------------------------------------------
 
-local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
+local activeVoices = {}
 
-local notes = {
-  getNoteNames = function()
-    return notenames
-  end,
-  
-  -- Used for mapping - does not include octave, only name of note (C, C#...)
-  getNoteMapping = function()
-    local noteNumberToNoteName = {}
-    local notenamePos = 1
-    for i=0,127 do
-      table.insert(noteNumberToNoteName, notenames[notenamePos])
-      notenamePos = notenamePos + 1
-      if notenamePos > #notenames then
-        notenamePos = 1
-      end
+local function isNoteInActiveVoices(note)
+  for _,v in ipairs(activeVoices) do
+    if v.note == note then
+      return true
     end
-    return noteNumberToNoteName
-  end,
-  
-  transpose = function(note, min, max)
-    --print("Check transpose", note)
-    if note < min then
-      print("note < min", note, min)
-      while note < min do
-        note = note + 12
-        print("transpose note up", note)
-      end
-    elseif note > max then
-      print("note > max", note, max)
-      while note > max do
-        note = note - 12
-        print("transpose note down", note)
-      end
+  end
+  return false
+end
+
+local function isTrigger(e, channel)
+  local isListeningForEvent = channel == 0 or channel == e.channel
+  local isTrigger = e.note == 0 -- Note 0 is used as trigger
+  return isTrigger and isListeningForEvent
+end
+
+local function handleTrigger(e, note, data)
+  if isNoteInActiveVoices(note) == false then
+    local id = playNote(note, e.velocity, -1, nil, e.channel)
+    table.insert(activeVoices, {id=id,note=note,channel=e.channel,data=data})
+    return true
+  end
+  return false
+end
+
+local function handleReleaseTrigger(e)
+  for i,v in ipairs(activeVoices) do
+    if v.channel == e.channel then
+      releaseVoice(v.id)
+      table.remove(activeVoices, i)
+      return true
     end
-    -- Ensure note is inside given min/max values
-    note = math.max(min, math.min(max, note))
-    -- Ensure note is inside valid values
-    return math.max(0, math.min(127, note))
-  end,
-  
-  getSemitonesBetweenNotes = function(note1, note2)
-    return math.max(note1, note2) - math.min(note1, note1)
-  end,
-  
-  getNoteAccordingToScale = function(scale, noteToPlay)
-    for _,note in ipairs(scale) do
-      if note == noteToPlay then
-        return noteToPlay
-      elseif note > noteToPlay then
-        print("Change from noteToPlay to note", noteToPlay, note)
-        return note
-      end
+  end
+  return false
+end
+
+local modular = {
+  releaseVoices = function()
+    for i,v in ipairs(activeVoices) do
+      releaseVoice(v.id)
     end
-    return noteToPlay
+    activeVoices = {}
   end,
+  isTrigger = isTrigger,
+  handleTrigger = handleTrigger,
+  handleReleaseTrigger = handleReleaseTrigger,
+  getActiveVoices = function() return activeVoices end,
 }
 
 --------------------------------------------------------------------------------
@@ -660,57 +651,66 @@ local scales = {
 }
 
 --------------------------------------------------------------------------------
--- Common functions for working with event processor that act as modular inputs
+-- Common functions for notes
 --------------------------------------------------------------------------------
 
-local activeVoices = {}
+local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
 
-local function isNoteInActiveVoices(note)
-  for _,v in ipairs(activeVoices) do
-    if v.note == note then
-      return true
-    end
-  end
-  return false
-end
-
-local function isTrigger(e, channel)
-  local isListeningForEvent = channel == 0 or channel == e.channel
-  local isTrigger = e.note == 0 -- Note 0 is used as trigger
-  return isTrigger and isListeningForEvent
-end
-
-local function handleTrigger(e, note, data)
-  if isNoteInActiveVoices(note) == false then
-    local id = playNote(note, e.velocity, -1, nil, e.channel)
-    table.insert(activeVoices, {id=id,note=note,channel=e.channel,data=data})
-    return true
-  end
-  return false
-end
-
-local function handleReleaseTrigger(e)
-  for i,v in ipairs(activeVoices) do
-    if v.channel == e.channel then
-      releaseVoice(v.id)
-      table.remove(activeVoices, i)
-      return true
-    end
-  end
-  return false
-end
-
-local modular = {
-  releaseVoices = function()
-    for i,v in ipairs(activeVoices) do
-      releaseVoice(v.id)
-    end
-    activeVoices = {}
+local notes = {
+  getNoteNames = function()
+    return notenames
   end,
-  isTrigger = isTrigger,
-  handleTrigger = handleTrigger,
-  handleReleaseTrigger = handleReleaseTrigger,
-  getActiveVoices = function() return activeVoices end,
+  
+  -- Used for mapping - does not include octave, only name of note (C, C#...)
+  getNoteMapping = function()
+    local noteNumberToNoteName = {}
+    local notenamePos = 1
+    for i=0,127 do
+      table.insert(noteNumberToNoteName, notenames[notenamePos])
+      notenamePos = notenamePos + 1
+      if notenamePos > #notenames then
+        notenamePos = 1
+      end
+    end
+    return noteNumberToNoteName
+  end,
+  
+  transpose = function(note, min, max)
+    --print("Check transpose", note)
+    if note < min then
+      print("note < min", note, min)
+      while note < min do
+        note = note + 12
+        print("transpose note up", note)
+      end
+    elseif note > max then
+      print("note > max", note, max)
+      while note > max do
+        note = note - 12
+        print("transpose note down", note)
+      end
+    end
+    -- Ensure note is inside given min/max values
+    note = math.max(min, math.min(max, note))
+    -- Ensure note is inside valid values
+    return math.max(0, math.min(127, note))
+  end,
+  
+  getSemitonesBetweenNotes = function(note1, note2)
+    return math.max(note1, note2) - math.min(note1, note1)
+  end,
+  
+  getNoteAccordingToScale = function(scale, noteToPlay)
+    for _,note in ipairs(scale) do
+      if note == noteToPlay then
+        return noteToPlay
+      elseif note > noteToPlay then
+        print("Change from noteToPlay to note", noteToPlay, note)
+        return note
+      end
+    end
+    return noteToPlay
+  end,
 }
 
 --------------------------------------------------------------------------------

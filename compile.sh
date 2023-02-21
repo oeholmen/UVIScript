@@ -37,12 +37,14 @@ luaScripts=(
   sequencers/strategySequencer
   synths/tweaksynth
   util/arpRandomizer
+  util/blockNotes
   util/humanizer
   util/noteLimiter
   util/noteVelocity
   util/randomGate
   util/randomOctave
-  util/scaleQuantize
+  util/scaleQuantizer
+  util/stripChannel
   util/sieve
   util/velocityLimiter
   util/velocityRandomization
@@ -78,7 +80,6 @@ output_program="./compiled/synths/programs/Tweak Synth Analog.uvip"
 
 cp "$input_program" "$output_program"
 echo "Copied $input_program to $output_program"
-echo
 
 ##########
 
@@ -87,7 +88,6 @@ output_program="./compiled/synths/programs/Tweak Synth Analog 3 Osc.uvip"
 
 cp "$input_program" "$output_program"
 echo "Copied $input_program to $output_program"
-echo
 
 ##########
 
@@ -96,7 +96,6 @@ output_program="./compiled/synths/programs/Tweak Synth FM.uvip"
 
 cp "$input_program" "$output_program"
 echo "Copied $input_program to $output_program"
-echo
 
 ##########
 
@@ -105,7 +104,6 @@ output_program="./compiled/synths/programs/Tweak Synth Wavetable.uvip"
 
 cp "$input_program" "$output_program"
 echo "Copied $input_program to $output_program"
-echo
 
 ##########
 
@@ -114,7 +112,6 @@ output_program="./compiled/synths/programs/Korg Minilogue.uvip"
 
 cp "$input_program" "$output_program"
 echo "Copied $input_program to $output_program"
-echo
 
 for luaScript in "${luaScripts[@]}"; do 
   # Set the input and output files
@@ -125,48 +122,21 @@ for luaScript in "${luaScripts[@]}"; do
 
   echo "Compiling $input_file to $output_file"
 
-  # NOTE: Set the correct includes for the script here
-  if [ $luaScript == 'modular/rythmicFragmentsTrigger' ] || [ $luaScript == 'generators/beatbox' ] || [ $luaScript == 'sequencers/fragmentSequencer' ]; then
-    includes=(common resolutions rythmicFragments)
-  elif [ $luaScript == 'generators/drunkenSequencer' ] || [ $luaScript == 'generators/generativeStrategySequencer' ]; then
-    includes=(common notes scales resolutions noteSelector rythmicFragments)
-  elif [ $luaScript == 'generators/generativeChorder' ]; then
-    includes=(common notes scales resolutions noteSelector)
-  elif [ $luaScript == 'modular/randomNoteInput' ]; then
-    includes=(common widgets notes scales modular noteSelector)
-  elif [ $luaScript == 'util/scaleQuantize' ]; then
-    includes=(common widgets notes scales)
-  elif [ $luaScript == 'modulators/randomEnveloper' ]; then
-    includes=(common resolutions resolutionSelector)
-  elif [ $luaScript == 'modulators/randomGateModulator' ]; then
-    includes=(common resolutions subdivision)
-  elif [ $luaScript == 'sequencers/strategySequencer' ]; then
-    includes=(common notes scales resolutions subdivision)
-  elif [ $luaScript == 'util/noteLimiter' ]; then
-    includes=(common notes)
-  elif [ $luaScript == 'modular/gridSequencerInput' ]; then
-    includes=(common widgets scales notes modular)
-  elif [ $luaScript == 'modular/sequencerInput' ]; then
-    includes=(common widgets modular resolutions)
-  elif [ $luaScript == 'modular/strategyInput' ]; then
-    includes=(common widgets modular scales notes noteSelector)
-  elif [ $luaScript == 'modular/motionSequencerInput' ]; then
-    includes=(common widgets scales modular tableMotion)
-  elif [ $luaScript == 'modular/pulseTrigger' ] || [ $luaScript == 'modular/bounceTrigger' ] || [ $luaScript == 'modular/probabilityTrigger' ] || [ $luaScript == 'modular/swarmTrigger' ]; then
-    includes=(common widgets resolutions)
-  elif [ $luaScript == 'synths/tweaksynth' ] || [ $luaScript == 'sequencers/jumpingSequencer' ] || [ $luaScript == 'sequencers/polyphonicSequencer' ] || [ $luaScript == 'sequencers/stochasticDrumSequencer' ] || [ $luaScript == 'sequencers/stochasticSequencer' ] || [ $luaScript == 'util/randomGate' ] || [ $luaScript == 'modulators/bouncer' ] || [ $luaScript == 'modulators/randomChange' ] || [ $luaScript == 'effects/noteBouncer' ]; then
-    includes=(common resolutions)
-  elif [ $luaScript == 'modular/rythmicMotionsTrigger' ] ; then
-    includes=(common widgets resolutions tableMotion)
-  elif [ $luaScript == 'sequencers/midiControlSequencer' ] || [ $luaScript == 'modulators/modulationSequencer' ]; then
-    includes=(common resolutions modseq)
-  elif [ $luaScript == 'generators/motionSequencer' ]; then
-    includes=(common scales resolutions rythmicFragments)
-  elif [ $luaScript == 'generators/noteFragmentGenerator' ] || [ $luaScript == 'generators/gridSequencer' ]; then
-    includes=(common notes scales resolutions rythmicFragments)
-  else
-    includes=(common)
-  fi
+  # Read input file content
+  input_file=$(cat "$input_file")
+
+  # Find the required includes - common is always included
+  includes=(common)
+
+  availableIncludes=(widgets modular scales notes noteSelector resolutions modseq tableMotion rythmicFragments subdivision resolutionSelector)
+
+  # Search for includes in the script
+  for include in "${availableIncludes[@]}"; do
+    search_include="local $include = require \"includes.$include\""
+    if [[ "$input_file" == *"$search_include"* ]]; then
+      includes+=($include)
+    fi
+  done
 
   # Write all the includes to the compiled file
   echo "-- $luaScript -- " > $output_file
@@ -179,8 +149,7 @@ for luaScript in "${luaScripts[@]}"; do
     echo "" >> $output_file
   done
 
-  # Write the main lua script file to the output file
-  input_file=$(cat "$input_file")
+  # Remove includes and write the main lua script file to the output file
   input_file=$(echo "$input_file" | sed 's/local \(.*\) = require "includes.\(.*\)"//g')
   echo "$input_file" >> $output_file
   echo "Adding $luaScript"

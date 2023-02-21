@@ -3,6 +3,7 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
+local widgets = require "includes.widgets"
 
 local backgroundColour = "#1B1A17" -- Light or Dark
 local widgetBackgroundColour = "#E45826" -- Dark
@@ -13,12 +14,13 @@ local labelBackgoundColour = widgetBackgroundColour
 
 setBackgroundColour(backgroundColour)
 
-local panel = Panel("Humanizer")
-panel.backgroundColour = backgroundColour
-panel.x = 10
-panel.y = 10
-panel.width = 700
-panel.height = 50
+local panel = widgets.panel({
+  backgroundColour = backgroundColour,
+  x = 10,
+  y = 10,
+  width = 700,
+  height = 50,
+})
 
 local label = panel:Label("Label")
 label.text = "Humanizer"

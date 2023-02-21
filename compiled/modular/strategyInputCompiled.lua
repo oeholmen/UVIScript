@@ -953,10 +953,7 @@ local noteSelector = {
 
 local channel = 0 -- 0 = Omni
 local forward = false
-local voices = 1
 local strategyPropbability = 100
-local rangeOverlap = 25
-local selectedNotes = {}
 local strategyInput
 local strategyRestart = 1
 local voiceToStrategySlot = false
@@ -1013,21 +1010,10 @@ local function getStrategyInputText(strategy)
 end
 
 local function getSlotForVoice(voice)
-  -- Select strategies from slot 1 and 5 for voice 1, 2 and 6 for voice 2 etc.
-  local slot1 = strategySlots[voice]
-  local slot2 = strategySlots[voice+voicesInput.max]
-  if slot1.enabled and slot2.enabled then
-    if gem.getRandomBoolean() then
-      return slot1.tooltip
-    else
-      return slot2.tooltip
-    end
-  end
-  if slot1.enabled then
-    return slot1.tooltip
-  end
-  if slot2.enabled then
-    return slot2.tooltip
+  -- Select strategies from slot 1 for voice 1, 2 for voice 2 etc.
+  local slot = strategySlots[voice]
+  if slot.enabled then
+    return slot.tooltip
   end
 end
 
@@ -1106,44 +1092,26 @@ local function getNoteFromStrategy(notes, voice)
   return notes[notePosition[voice]]
 end
 
--- Returns the selected notes filtered by overlap range and playing notes
-local function getFilteredNotes(voice)
-  --print("BEFORE selectedNotes, voices, voice", #selectedNotes, voices, voice)
-  local noteRangeMin = 1
-  local noteRangeMax = #selectedNotes
-  local notesPerVoice = 5
-  local notesRequiredForRange = voices * notesPerVoice
-
-  -- Adjust note range min/max for voice overlap, if we have enough available notes
-  if #selectedNotes >= notesRequiredForRange then
-    local rangeOverlapAmount = rangeOverlap
-    local range = #selectedNotes / voices
-    --print("range, voices, voice", range, voices, voice)
-    local overlapValue = math.ceil(range * (rangeOverlapAmount / 100))
-    --print("overlapValue, voice", overlapValue, voice)
-    noteRangeMax = math.min(noteRangeMax, ((range * voice) + overlapValue))
-    noteRangeMin = math.max(1, (noteRangeMax - range - overlapValue))
-    print("noteRangeMin, noteRangeMax, voice", noteRangeMin, noteRangeMax, voice)
-  end
-
-  -- Find the notes, filter for min/max and notes that are already playing
+-- Returns the selected notes filtered by already playing notes
+local function getFilteredNotes(selectedNotes)
   local notes = {}
   for i,v in ipairs(selectedNotes) do
-    if i >= noteRangeMin and i <= noteRangeMax and gem.tableIncludes(noteSelector.getNotesPlaying(), v) == false then
+    if gem.tableIncludes(noteSelector.getNotesPlaying(), v) == false then
       table.insert(notes, v)
     end
   end
-
-  print("AFTER notes, voice", #notes, voice)
   return notes
 end
 
-local function generateNote(voice)
+local function getNote(voice)
   if type(voice) == "nil" then
     voice = 1
   end
 
-  local notes = getFilteredNotes(voice)
+  --print("Get note for voice", voice)
+
+  -- Refresh selected notes
+  local notes = getFilteredNotes(noteSelector.getSelectedNotes(true))
 
   if #notes == 0 then
     return nil
@@ -1241,6 +1209,7 @@ widgets.setSection({
 })
 
 local createButton = widgets.button("Create", {
+  tooltip = "Replace the current strategy with a randomly created strategy.",
   changed = function()
     local strategy = createStrategy()
     strategyInputField.text = table.concat(strategy, ",")
@@ -1257,6 +1226,12 @@ widgets.menu("Strategy Restart", strategyRestart, {"Restart each round", "Out of
   showLabel = false,
   width = 120,
   changed = function(self) strategyRestart = self.value end
+})
+
+widgets.numBox("Probability", strategyPropbability, {
+  tooltip = "Probability that the active playing strategy will be used to select the next note. Otherwise notes are selected by random.",
+  unit = Unit.Percent,
+  changed = function(self) strategyPropbability = self.value end
 })
 
 --------------------------------------------------------------------------------
@@ -1320,18 +1295,12 @@ noteSelector.createNoteAndOctaveSelector(notePanel, widgets.getColours(), noteLa
 -- Handle Events
 --------------------------------------------------------------------------------
 
-local function getNote()
-  -- Refresh selected notes
-  selectedNotes = noteSelector.getSelectedNotes(true)
-  return generateNote()
-end
-
 function onNote(e)
   if modular.isTrigger(e, channel) then
     if forward then
       postEvent(e)
     end
-    modular.handleTrigger(e, getNote())
+    modular.handleTrigger(e, getNote(e.channel))
   else
     postEvent(e)
   end

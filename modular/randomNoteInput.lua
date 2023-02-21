@@ -5,6 +5,8 @@
 local gem = require "includes.common"
 local widgets = require "includes.widgets"
 local modular = require "includes.modular"
+local notes = require "includes.notes"
+local scales = require "includes.scales"
 local noteSelector = require "includes.noteSelector"
 
 -- TODO Add a button for deselecting all notes

@@ -3,6 +3,8 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
+local notes = require "includes.notes"
+local scales = require "includes.scales"
 local resolutions = require "includes.resolutions"
 local noteSelector = require "includes.noteSelector"
 local rythmicFragments = require "includes.rythmicFragments"
@@ -445,7 +447,7 @@ end
 
 local autoStrategyButton = strategyPanel:OnOffButton("AutoStrategyButton", false)
 autoStrategyButton.displayName = "Auto"
-autoStrategyButton.tooltip = "Random strategies are automatically created and for every round."
+autoStrategyButton.tooltip = "Random strategies are automatically created for every round."
 autoStrategyButton.backgroundColourOff = backgroundColourOff
 autoStrategyButton.backgroundColourOn = backgroundColourOn
 autoStrategyButton.textColourOff = textColourOff

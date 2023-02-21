@@ -1,4 +1,4 @@
--- util/scaleQuantize -- 
+-- util/stripChannel -- 
 --------------------------------------------------------------------------------
 -- Common methods
 --------------------------------------------------------------------------------
@@ -526,196 +526,36 @@ local widgets = {
   end,
 }
 
---------------------------------------------------------------------------------
--- Common functions for notes
---------------------------------------------------------------------------------
-
-local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
-
-local notes = {
-  getNoteNames = function()
-    return notenames
-  end,
-  
-  -- Used for mapping - does not include octave, only name of note (C, C#...)
-  getNoteMapping = function()
-    local noteNumberToNoteName = {}
-    local notenamePos = 1
-    for i=0,127 do
-      table.insert(noteNumberToNoteName, notenames[notenamePos])
-      notenamePos = notenamePos + 1
-      if notenamePos > #notenames then
-        notenamePos = 1
-      end
-    end
-    return noteNumberToNoteName
-  end,
-  
-  transpose = function(note, min, max)
-    --print("Check transpose", note)
-    if note < min then
-      print("note < min", note, min)
-      while note < min do
-        note = note + 12
-        print("transpose note up", note)
-      end
-    elseif note > max then
-      print("note > max", note, max)
-      while note > max do
-        note = note - 12
-        print("transpose note down", note)
-      end
-    end
-    -- Ensure note is inside given min/max values
-    note = math.max(min, math.min(max, note))
-    -- Ensure note is inside valid values
-    return math.max(0, math.min(127, note))
-  end,
-  
-  getSemitonesBetweenNotes = function(note1, note2)
-    return math.max(note1, note2) - math.min(note1, note1)
-  end,
-  
-  getNoteAccordingToScale = function(scale, noteToPlay)
-    for _,note in ipairs(scale) do
-      if note == noteToPlay then
-        return noteToPlay
-      elseif note > noteToPlay then
-        print("Change from noteToPlay to note", noteToPlay, note)
-        return note
-      end
-    end
-    return noteToPlay
-  end,
-}
-
---------------------------------------------------------------------------------
--- Common Scales
---------------------------------------------------------------------------------
-
--- Make sure these are in sync with the scale names
--- Scales are defined by distance to the next step
-local scaleDefinitions = {
-  {2,2,1,2,2,2,1}, -- Major (Ionian mode)
-  {2,1,2,2,1,2,2}, -- Minor (Aeolian mode)
-  {2,1,2,2,2,1,2}, -- Dorian mode
-  {1,2,2,2,1,2,2}, -- Phrygian mode
-  {2,2,2,1,2,2,1}, -- Lydian mode
-  {2,2,1,2,2,1,2}, -- Mixolydian mode
-  {1,2,2,1,2,2,2}, -- Locrian mode
-  {2,2,2,1,2,1,2}, -- Acoustic
-  {2,1,2,1,1,3,2}, -- Blues
-  {1,2,1,3,1,2,2}, -- Alterated
-  {2,2,3,2,3}, -- Major Pentatonic
-  {3,2,2,3,2}, -- Minor Pentatonic
-  {3}, -- Diminished
-  {2}, -- Whole tone scale
-  {1}, -- Chomatic
-}
-
-local scaleNames = {
-  "Major (Ionian)",
-  "Minor (Aeolian)",
-  "Dorian",
-  "Phrygian",
-  "Lydian",
-  "Mixolydian",
-  "Locrian",
-  "Acoustic",
-  "Blues",
-  "Alterated",
-  "Major Pentatonic",
-  "Minor Pentatonic",
-  "Diminished",
-  "Whole tone",
-  "Chomatic",
-}
-
-local scales = {
-  getScaleDefinitions = function()
-    return scaleDefinitions
-  end,
-
-  getScaleNames = function()
-    return scaleNames
-  end,
-
-  createScale = function(scaleDefinition, rootNote, maxNote)
-    if type(maxNote) ~= "number" then
-      maxNote = 128
-    end
-    local scale = {}
-    -- Find notes for scale
-    local pos = 1
-    while rootNote < maxNote do
-      table.insert(scale, rootNote)
-      rootNote = rootNote + scaleDefinition[pos]
-      pos = pos + 1
-      if pos > #scaleDefinition then
-        pos = 1
-      end
-    end
-    return scale
-  end
-}
-
 ------------------------------------------------------------------
--- Scale Quantizer
-------------------------------------------------------------------
-
-local channel = 0 -- 0 = Omni
-local scale = {}
-local key = 1
-local scaleDefinitions = scales.getScaleDefinitions()
-local scaleDefinition = #scaleDefinitions
-
-local function setScale()
-  scale = scales.createScale(scaleDefinition, (key - 1))
-end
-
-------------------------------------------------------------------
--- Panel
+-- Remove channel on note events
 ------------------------------------------------------------------
 
 local sequencerPanel = widgets.panel({
   width = 720,
-  height = 60,
+  height = 50,
 })
 
-widgets.label("Scale Quantizer", {
-  tooltip = "Quantize incoming notes to the set scale",
+widgets.label("Strip Channel", {
   width = sequencerPanel.width,
-  height = 60,
-  alpha = 0.5,
+  height = 50,
+  alpha = 0.75,
   fontSize = 30,
-  backgroundColour = "606060",
+  backgroundColour = "505050",
   textColour = "3fe09f"
 })
 
-widgets.setSection({
-  width = 90,
-  x = 400,
-  y = 5,
-  xSpacing = 15,
+widgets.label("Remove channel on incoming note events", {
+  width = 300,
+  backgroundColour = "transparent",
+  textColour = "a0a0a0",
+  x = 240,
+  y = 15,
 })
 
-widgets.menu("Key", key, notes.getNoteNames(), {
-  changed = function(self)
-    key = self.value
-    setScale()
-  end
-})
-
-widgets.menu("Scale", scaleDefinition, scales.getScaleNames(), {
-  changed = function(self)
-    scaleDefinition = scaleDefinitions[self.value]
-    setScale()
-  end
-})
-
-local channelInput = widgets.menu("Channel", widgets.channels(), {
-  tooltip = "Only quantize incoming notes on this channel",
-  changed = function(self) channel = self.value - 1 end
+local activeButton = widgets.button("Active", true, {
+  tooltip = "Toggle state",
+  x = 580,
+  y = 15,
 })
 
 --------------------------------------------------------------------------------
@@ -723,10 +563,15 @@ local channelInput = widgets.menu("Channel", widgets.channels(), {
 --------------------------------------------------------------------------------
 
 function onNote(e)
-  if channel == 0 or channel == e.channel then
-    print("Note before", e.note)
-    e.note = notes.getNoteAccordingToScale(scale, e.note)
-    print("Note after", e.note)
+  if activeButton.value then
+    e.channel = nil
+  end
+  postEvent(e)
+end
+
+function onRelease(e)
+  if activeButton.value then
+    e.channel = nil
   end
   postEvent(e)
 end
