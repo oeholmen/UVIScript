@@ -42,6 +42,7 @@ luaScripts=(
   util/noteVelocity
   util/randomGate
   util/randomOctave
+  util/scaleQuantize
   util/sieve
   util/velocityLimiter
   util/velocityRandomization
@@ -133,6 +134,8 @@ for luaScript in "${luaScripts[@]}"; do
     includes=(common notes scales resolutions noteSelector)
   elif [ $luaScript == 'modular/randomNoteInput' ]; then
     includes=(common widgets notes scales modular noteSelector)
+  elif [ $luaScript == 'util/scaleQuantize' ]; then
+    includes=(common widgets notes scales)
   elif [ $luaScript == 'modulators/randomEnveloper' ]; then
     includes=(common resolutions resolutionSelector)
   elif [ $luaScript == 'modulators/randomGateModulator' ]; then
