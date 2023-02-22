@@ -101,15 +101,14 @@ widgets.label("Probability Trigger", {
   width = widgets.getPanel().width,
   x = 0, y = 0,
   alpha = 0.5, fontSize = 22,
-  increment = false,
 })
 
 widgets.setSection({
   width = 100,
   xSpacing = 5,
   ySpacing = 5,
-  xOffset = (widgets.getPanel().width / 2) + 45,
-  yOffset = 5,
+  x = (widgets.getPanel().width / 2) + 45,
+  y = 5,
 })
 
 widgets.numBox('Channel', channel, {
@@ -160,8 +159,8 @@ xySpeedFactor.height = 190
 widgets.setSection({
   width = 205,
   height = 22,
-  xOffset = widgets.posSide(xySpeedFactor) + 10,
-  yOffset = 10,
+  x = widgets.posSide(xySpeedFactor) + 10,
+  y = 10,
   xSpacing = noteWidgetColSpacing,
   ySpacing = noteWidgetRowSpacing,
   cols = 1,

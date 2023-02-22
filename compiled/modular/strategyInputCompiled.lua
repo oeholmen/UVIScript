@@ -177,6 +177,8 @@ local gem = {
 
 local panelNameIndex = 1
 local widgetNameIndex = 1
+local currentX = 0
+local currentY = 0
 
 local widgetDefaults = {
   panel = Panel("DefaultPanel"),
@@ -210,7 +212,7 @@ local widgetColours = {
   textColourOn = "efFFFFFF",
 }
 
-local function getWidgetValue(value, default)
+local function getValueOrDefault(value, default)
   if type(value) == "nil" then
     return default
   end
@@ -218,105 +220,122 @@ local function getWidgetValue(value, default)
 end
 
 local function setColours(colours)
-  widgetColours.backgroundColour = getWidgetValue(colours.backgroundColour, widgetColours.backgroundColour)
-  widgetColours.widgetBackgroundColour = getWidgetValue(colours.widgetBackgroundColour, widgetColours.widgetBackgroundColour)
-  widgetColours.menuBackgroundColour = getWidgetValue(colours.menuBackgroundColour, widgetColours.menuBackgroundColour)
-  widgetColours.widgetTextColour = getWidgetValue(colours.widgetTextColour, widgetColours.widgetTextColour)
-  widgetColours.tableBackgroundColour = getWidgetValue(colours.tableBackgroundColour, widgetColours.tableBackgroundColour)
-  widgetColours.sliderColour = getWidgetValue(colours.sliderColour, widgetColours.sliderColour)
-  widgetColours.labelTextColour = getWidgetValue(colours.labelTextColour, widgetColours.labelTextColour)
-  widgetColours.labelBackgroundColour = getWidgetValue(colours.labelBackgroundColour, widgetColours.labelBackgroundColour)
-  widgetColours.menuArrowColour = getWidgetValue(colours.menuArrowColour, widgetColours.menuArrowColour)
-  widgetColours.menuOutlineColour = getWidgetValue(colours.menuOutlineColour, widgetColours.menuOutlineColour)
-  widgetColours.menuTextColour = getWidgetValue(colours.menuTextColour, widgetColours.menuTextColour)
-  widgetColours.backgroundColourOff = getWidgetValue(colours.backgroundColourOff, widgetColours.backgroundColourOff)
-  widgetColours.backgroundColourOn = getWidgetValue(colours.backgroundColourOn, widgetColours.backgroundColourOn)
-  widgetColours.textColourOff = getWidgetValue(colours.textColourOff, widgetColours.textColourOff)
-  widgetColours.textColourOn = getWidgetValue(colours.textColourOn, widgetColours.textColourOn)
+  widgetColours.backgroundColour = getValueOrDefault(colours.backgroundColour, widgetColours.backgroundColour)
+  widgetColours.widgetBackgroundColour = getValueOrDefault(colours.widgetBackgroundColour, widgetColours.widgetBackgroundColour)
+  widgetColours.menuBackgroundColour = getValueOrDefault(colours.menuBackgroundColour, widgetColours.menuBackgroundColour)
+  widgetColours.widgetTextColour = getValueOrDefault(colours.widgetTextColour, widgetColours.widgetTextColour)
+  widgetColours.tableBackgroundColour = getValueOrDefault(colours.tableBackgroundColour, widgetColours.tableBackgroundColour)
+  widgetColours.sliderColour = getValueOrDefault(colours.sliderColour, widgetColours.sliderColour)
+  widgetColours.labelTextColour = getValueOrDefault(colours.labelTextColour, widgetColours.labelTextColour)
+  widgetColours.labelBackgroundColour = getValueOrDefault(colours.labelBackgroundColour, widgetColours.labelBackgroundColour)
+  widgetColours.menuArrowColour = getValueOrDefault(colours.menuArrowColour, widgetColours.menuArrowColour)
+  widgetColours.menuOutlineColour = getValueOrDefault(colours.menuOutlineColour, widgetColours.menuOutlineColour)
+  widgetColours.menuTextColour = getValueOrDefault(colours.menuTextColour, widgetColours.menuTextColour)
+  widgetColours.backgroundColourOff = getValueOrDefault(colours.backgroundColourOff, widgetColours.backgroundColourOff)
+  widgetColours.backgroundColourOn = getValueOrDefault(colours.backgroundColourOn, widgetColours.backgroundColourOn)
+  widgetColours.textColourOff = getValueOrDefault(colours.textColourOff, widgetColours.textColourOff)
+  widgetColours.textColourOn = getValueOrDefault(colours.textColourOn, widgetColours.textColourOn)
 end
 
 local function setSection(settings)
   if type(settings) ~= "table" then
     settings = {}
   end
-  widgetDefaults.width = getWidgetValue(settings.width, widgetDefaults.width)
-  widgetDefaults.height = getWidgetValue(settings.height, widgetDefaults.height)
-  widgetDefaults.menuHeight = getWidgetValue(settings.menuHeight, widgetDefaults.menuHeight)
-  widgetDefaults.xOffset = getWidgetValue(settings.xOffset, widgetDefaults.xOffset)
-  widgetDefaults.yOffset = getWidgetValue(settings.yOffset, widgetDefaults.yOffset)
-  widgetDefaults.xOffset = getWidgetValue(settings.x, widgetDefaults.xOffset)
-  widgetDefaults.yOffset = getWidgetValue(settings.y, widgetDefaults.yOffset)
-  widgetDefaults.xSpacing = getWidgetValue(settings.xSpacing, widgetDefaults.xSpacing)
-  widgetDefaults.ySpacing = getWidgetValue(settings.ySpacing, widgetDefaults.ySpacing)
-  widgetDefaults.cols = getWidgetValue(settings.cols, widgetDefaults.cols)
-  widgetDefaults.col = getWidgetValue(settings.col, 0)
-  widgetDefaults.row = getWidgetValue(settings.row, 0)
+  widgetDefaults.width = getValueOrDefault(settings.width, widgetDefaults.width)
+  widgetDefaults.height = getValueOrDefault(settings.height, widgetDefaults.height)
+  widgetDefaults.menuHeight = getValueOrDefault(settings.menuHeight, widgetDefaults.menuHeight)
+  widgetDefaults.xOffset = getValueOrDefault(settings.xOffset, widgetDefaults.xOffset)
+  widgetDefaults.yOffset = getValueOrDefault(settings.yOffset, widgetDefaults.yOffset)
+  widgetDefaults.xOffset = getValueOrDefault(settings.x, widgetDefaults.xOffset)
+  widgetDefaults.yOffset = getValueOrDefault(settings.y, widgetDefaults.yOffset)
+  widgetDefaults.xSpacing = getValueOrDefault(settings.xSpacing, widgetDefaults.xSpacing)
+  widgetDefaults.ySpacing = getValueOrDefault(settings.ySpacing, widgetDefaults.ySpacing)
+  widgetDefaults.cols = getValueOrDefault(settings.cols, widgetDefaults.cols)
+  widgetDefaults.col = getValueOrDefault(settings.col, 0)
+  widgetDefaults.row = getValueOrDefault(settings.row, 0)
   setColours(settings)
+  currentX = widgetDefaults.xOffset
+  currentY = widgetDefaults.yOffset
 end
 
-local function getWidgetName(name, panel)
+local function getWidgetName(name, displayName, useDisplayNameAsWidgetName, panel)
   if panel then
-    name = getWidgetValue(name, "Panel" .. panelNameIndex)
+    name = getValueOrDefault(name, "Panel" .. panelNameIndex)
     panelNameIndex = panelNameIndex + 1
   elseif type(name) == "nil" then
-    name = "Widget" .. widgetNameIndex
-    widgetNameIndex = widgetNameIndex + 1
+    name = ""
+    if useDisplayNameAsWidgetName and type(displayName) == "string" then
+      name = string.gsub(displayName, "[^a-zA-Z]+", "")
+    end
+    if string.len(name) == 0 then
+      name = "Widget" .. widgetNameIndex
+      widgetNameIndex = widgetNameIndex + 1
+    end
   end
+  print("Widget name", name)
   return name
 end
 
-local function getWidgetX(options)
-  if type(options.x) == "number" then
-    return options.x
+local function incrementRow(row, h)
+  if type(row) == "nil" then
+    row = 1
   end
-
-  -- Calculate widget x position
-  local col = getWidgetValue(options.col, widgetDefaults.col)
-  local width = col * widgetDefaults.width
-  local xSpacing = col * widgetDefaults.xSpacing
-  return widgetDefaults.xOffset + width + xSpacing
-end
-
-local function getWidgetY(options)
-  if type(options.y) == "number" then
-    return options.y
+  if type(h) == "nil" then
+    h = widgetDefaults.height
   end
-
-  -- Calculate widget y position
-  local row = getWidgetValue(options.row, widgetDefaults.row)
-  local height = row * widgetDefaults.height
-  local ySpacing = row * widgetDefaults.ySpacing
-  return widgetDefaults.yOffset + height + ySpacing
-end
-
-local function incrementRow(i)
-  if type(i) == "nil" then
-    i = 1
-  end
-  widgetDefaults.row = widgetDefaults.row + i
+  widgetDefaults.row = widgetDefaults.row + row
   widgetDefaults.col = 0
+  currentX = widgetDefaults.xOffset
+
+  local height = math.max(1, row) * h
+  local ySpacing = math.max(1, row) * widgetDefaults.ySpacing
+  currentY = currentY + height + ySpacing
 end
 
-local function incrementCol(i)
-  if type(i) == "nil" then
-    i = 1
+local function incrementCol(col, w, h)
+  if type(col) == "nil" then
+    col = 1
   end
-  widgetDefaults.col = widgetDefaults.col + i
+  if type(w) == "nil" then
+    w = widgetDefaults.width
+  end
+
+  local width = math.max(1, col) * w
+  local xSpacing = math.max(1, col) * widgetDefaults.xSpacing
+  currentX = currentX + width + xSpacing
+
+  widgetDefaults.col = widgetDefaults.col + col
   if widgetDefaults.col >= widgetDefaults.cols then
-    incrementRow()
+    incrementRow(1, h)
   end
-  --print("widgetDefaults.col, widgetDefaults.row", widgetDefaults.col, widgetDefaults.row)
 end
 
 local function getWidgetBounds(options, increment)
-  local x = getWidgetX(options)
-  local y = getWidgetY(options)
-  local w = getWidgetValue(options.width, widgetDefaults.width)
-  local h = getWidgetValue(options.height, widgetDefaults.height)
+  local x = getValueOrDefault(options.x, currentX)
+  local y = getValueOrDefault(options.y, currentY)
+  local w = getValueOrDefault(options.width, widgetDefaults.width)
+  local h = getValueOrDefault(options.height, widgetDefaults.height)
 
-  -- Increment col and row
-  if increment and options.increment ~= false then
-    incrementCol()
+  if type(options.y) == "number" then
+    print("options.y, y", options.y, y)
+  end
+
+  if type(options.x) == "number" then
+    print("options.x, x", options.x, x)
+  end
+
+  -- Increment position
+  if increment then
+    if type(options.increment) == "boolean" then
+      if options.increment then
+        options.increment = 1
+      else
+        options.increment = 0
+      end
+    end
+    local i = getValueOrDefault(options.increment, 1)
+    incrementCol(i, w, h)
+    --incrementCol(1, w, h)
   end
 
   return {x, y, w, h}
@@ -326,19 +345,19 @@ local function getWidgetOptions(options, displayName, default, panel)
   if type(options) ~= "table" then
     options = {}
   end
-  options.default = getWidgetValue(default, options.default)
-  options.name = getWidgetName(options.name, panel)
-  options.displayName = getWidgetValue(displayName, options.name)
-  options.tooltip = getWidgetValue(options.tooltip, options.displayName)
-  options.integer = getWidgetValue(options.integer, (options.unit == Unit.Percent or options.unit == Unit.MidiKey))
-  options.min = getWidgetValue(options.min, 0)
-  options.default = getWidgetValue(options.default, options.min)
+  options.default = getValueOrDefault(default, options.default)
+  options.name = getWidgetName(options.name, displayName, type(default) ~= "nil", panel)
+  options.displayName = getValueOrDefault(displayName, options.name)
+  options.tooltip = getValueOrDefault(options.tooltip, options.displayName)
+  options.integer = getValueOrDefault(options.integer, (options.unit == Unit.Percent or options.unit == Unit.MidiKey))
+  options.min = getValueOrDefault(options.min, 0)
+  options.default = getValueOrDefault(options.default, options.min)
   if options.unit == Unit.MidiKey then
-    options.max = getWidgetValue(options.max, 127)
+    options.max = getValueOrDefault(options.max, 127)
   elseif options.unit == Unit.Percent then
-    options.max = getWidgetValue(options.max, 100)
+    options.max = getValueOrDefault(options.max, 100)
   else
-    options.max = getWidgetValue(options.max, 1)
+    options.max = getValueOrDefault(options.max, 1)
   end
   return options
 end
@@ -371,6 +390,9 @@ local function setOptional(widget, options)
   if type(options.editable) == "boolean" then
     widget.editable = options.editable
   end
+  if type(options.visible) == "boolean" then
+    widget.visible = options.visible
+  end
   if type(options.backgroundColour) == "string" then
     widget.backgroundColour = options.backgroundColour
   end
@@ -388,6 +410,18 @@ local function setOptional(widget, options)
   end
   if type(options.textColour) == "string" then
     widget.textColour = options.textColour
+  end
+  if type(options.backgroundColourOff) == "string" then
+    widget.backgroundColourOff = options.backgroundColourOff
+  end
+  if type(options.backgroundColourOn) == "string" then
+    widget.backgroundColourOn = options.backgroundColourOn
+  end
+  if type(options.textColourOff) == "string" then
+    widget.textColourOff = options.textColourOff
+  end
+  if type(options.textColourOn) == "string" then
+    widget.textColourOn = options.textColourOn
   end
 end
 
@@ -418,8 +452,6 @@ local widgets = {
   ySpacing = ySpacing,
   widthDefault = widthDefault,
   heightDefault = heightDefault,
-  posSide = posSide,
-  posUnder = posUnder,
   xOffset = function(val) widgetDefaults.xOffset = val end,
   yOffset = function(val) widgetDefaults.yOffset = val end,
   xSpacing = function(val) widgetDefaults.xSpacing = val end,
@@ -485,7 +517,7 @@ local widgets = {
     if type(default) == "table" then
       options = items
       items = default
-      default = nil
+      default = 1
     end
     options = getWidgetOptions(options, displayName, default)
     local widget = widgetDefaults.panel:Menu(options.name, items)
@@ -498,7 +530,7 @@ local widgets = {
     widget.outlineColour = widgetColours.menuOutlineColour
     setOptional(widget, options)
     if widget.showLabel == true then
-      options.height = getWidgetValue(options.height, widgetDefaults.menuHeight)
+      options.height = getValueOrDefault(options.height, widgetDefaults.menuHeight)
     end
     widget.bounds = getWidgetBounds(options, true)
     return widget
@@ -514,8 +546,8 @@ local widgets = {
     setOptional(widget, options)
     return widget
   end,
-  table = function(size, default, options)
-    options = getWidgetOptions(options, nil, default)
+  table = function(displayName, default, size, options)
+    options = getWidgetOptions(options, displayName, default)
     local widget = widgetDefaults.panel:Table(options.name, size, options.default, options.min, options.max, options.integer)
     widget.fillStyle = "solid"
     widget.backgroundColour = widgetColours.tableBackgroundColour
@@ -577,6 +609,7 @@ local modular = {
   isTrigger = isTrigger,
   handleTrigger = handleTrigger,
   handleReleaseTrigger = handleReleaseTrigger,
+  getNumVoices = function() return #activeVoices end,
   getActiveVoices = function() return activeVoices end,
 }
 
@@ -713,254 +746,30 @@ local notes = {
   end,
 }
 
---------------------------------------------------------------------------------
--- Note and Scale Parameters
---------------------------------------------------------------------------------
-
-local octaves = 9
-local scaleDefinitions = scales.getScaleDefinitions()
-local scaleNames = scales.getScaleNames()
-local noteNames = notes.getNoteNames()
-local selectedKey = 1
-
--- TODO Check if they can be local
-local notesPlaying = {}
-local noteInputs = {}
-local noteProbabilityInputs = {}
-local octaveInputs = {}
-local octaveProbabilityInputs = {}
-
---------------------------------------------------------------------------------
--- Functions
---------------------------------------------------------------------------------
-
-local function getNoteInputs()
-  return noteInputs
-end
-
-local function getNotesPlaying()
-  return notesPlaying
-end
-
-local function addNotePlaying(note)
-  table.insert(notesPlaying, note)
-end
-
-local function removeNotePlaying(note)
-  table.remove(notesPlaying, gem.getIndexFromValue(note, notesPlaying))
-end
-
-local function clearNotesPlaying()
-  notesPlaying = {}
-end
-
-local function getScale(scaleIndex, keyIndex)
-  local scaleDefinition = scaleDefinitions[scaleIndex]
-  local rootNote = keyIndex - 1 -- Root note
-  return scales.createScale(scaleDefinition, rootNote)
-end
-
-local function setScale(scaleIndex, keyIndex)
-  local scale = getScale(scaleIndex, keyIndex)
-  for i,v in ipairs(noteInputs) do
-    local noteNumber = i + 11 -- Check note in octave above
-    v:setValue(gem.tableIncludes(scale, noteNumber))
-  end
-end
-
--- Get notes that are activated in selected octaves, filtered by probability
--- If getAllNotes is true, the filter for playing notes is disabled
-local function getSelectedNotes(getAllNotes)
-  local selectedNotes = {} -- Holds note numbers that are available
-  for octaveIndex,octave in ipairs(octaveInputs) do
-    local octaveProbability = octaveProbabilityInputs[octaveIndex].value
-    --print("octaveProbability octaveOnOff", octaveProbability, octave.value)
-    if octave.value and octaveProbability > 0 then
-      for i,v in ipairs(noteInputs) do
-        -- Check if note should be added for this octave
-        local noteProbability = noteProbabilityInputs[i].value
-        --print("noteProbability, octaveProbability, noteOnOff", noteProbability, octaveProbability, v.value)
-        if v.value and gem.getRandomBoolean(noteProbability) and gem.getRandomBoolean(octaveProbability) then
-          local noteNumber = i - 1 -- Base note
-          noteNumber = noteNumber + (12 * octaveIndex) -- Set octave
-          if getAllNotes == true or gem.tableIncludes(notesPlaying, noteNumber) == false then
-            table.insert(selectedNotes, noteNumber)
-            --print("Note added: noteNumber", noteNumber)
-          end
-        end
-      end
-    end
-  end
-  --print("#selectedNotes", #selectedNotes)
-  return selectedNotes
-end
-
--- Get all notes that are activated in all octaves (full scale)
-local function getActiveNotes()
-  local notes = {}
-  for octaveIndex=1, #octaveInputs do
-    for i,v in ipairs(noteInputs) do
-      if v.value then
-        local noteNumber = i - 1 -- Base note
-        noteNumber = noteNumber + (12 * octaveIndex) -- Set octave
-        table.insert(notes, noteNumber)
-      end
-    end
-  end
-  return notes
-end
-
-local function createNoteAndOctaveSelector(notePanel, colours, noteLabel, offsetX, offsetY, generateKeyPos)
-  if type(offsetX) == "nil" then
-    offsetX = 5
-  end
-  if type(offsetY) == "nil" then
-    offsetY = 5
-  end
-  if type(generateKeyPos) == "nil" then
-    generateKeyPos = {
-      x = noteLabel.x + noteLabel.width + 10,
-      y = noteLabel.y
-    }
-  end
-  local columnCount = 0
-  for i=1,#noteNames do
-    local note = notePanel:OnOffButton("Note" .. i, true)
-    note.backgroundColourOff = "#ff084486"
-    note.backgroundColourOn = "#ff02ACFE"
-    note.textColourOff = "#ff22FFFF"
-    note.textColourOn = "#efFFFFFF"
-    note.displayName = noteNames[i]
-    note.tooltip = "Toggle note on/off"
-    note.size = {51,30}
-    note.x = (columnCount * (note.width + 6.6)) + offsetX
-    note.y = noteLabel.y + noteLabel.height + offsetY
-  
-    local noteProbability = notePanel:NumBox("NoteProbability" .. i, 100, 0, 100, true)
-    noteProbability.unit = Unit.Percent
-    noteProbability.textColour = colours.widgetTextColour
-    noteProbability.backgroundColour = colours.widgetBackgroundColour
-    noteProbability.showLabel = false
-    noteProbability.tooltip = "Set the probability that '" .. noteNames[i] .. "' will be available when generating notes to play"
-    noteProbability.width = note.width
-    noteProbability.height = 22
-    noteProbability.x = note.x
-    noteProbability.y = note.y + note.height + 1
-  
-    table.insert(noteInputs, note)
-    table.insert(noteProbabilityInputs, noteProbability)
-  
-    columnCount = columnCount + 1
-  end
-  
-  columnCount = 0
-  
-  local rising = true
-  local numStepsUpDown = math.floor(octaves / 2)
-  local changePerStep = 100 / numStepsUpDown
-  local startValue = 0
-  for i=1,octaves do
-    local octave = notePanel:OnOffButton("Octave" .. i, (startValue > 50))
-    octave.backgroundColourOff = "#ff084486"
-    octave.backgroundColourOn = "#ff02ACFE"
-    octave.textColourOff = "#ff22FFFF"
-    octave.textColourOn = "#efFFFFFF"
-    octave.displayName = "Oct " .. i - 2
-    octave.tooltip = "Toggle octave on/off"
-    octave.width = (636 / octaves)
-    octave.height = 30
-    octave.x = (columnCount * (octave.width + 6.9)) + offsetX
-    octave.y = 90 + offsetY
-  
-    local octaveProbabilityInput = notePanel:NumBox("OctaveProbability" .. i, 100, 0, 100, true)
-    octaveProbabilityInput.unit = Unit.Percent
-    octaveProbabilityInput.textColour = colours.widgetTextColour
-    octaveProbabilityInput.backgroundColour = colours.widgetBackgroundColour
-    octaveProbabilityInput.showLabel = false
-    octaveProbabilityInput.tooltip = "Set the probability that octave " .. i - 2 .. " will be available when generating notes to play"
-    octaveProbabilityInput.width = octave.width
-    octaveProbabilityInput.height = 22
-    octaveProbabilityInput.x = octave.x
-    octaveProbabilityInput.y = octave.y + octave.height
-  
-    table.insert(octaveInputs, octave)
-    table.insert(octaveProbabilityInputs, octaveProbabilityInput)
-  
-    if rising then
-      startValue = startValue + changePerStep
-      if startValue >= 100 then
-        rising = false
-      end
-    else
-      startValue = startValue - changePerStep
-    end
-  
-    columnCount = columnCount + 1
-  end
-
-  local generateKey = notePanel:Menu("GenerateKey", noteNames)
-  generateKey.tooltip = "Set selected notes from key"
-  generateKey.showLabel = false
-  generateKey.backgroundColour = colours.menuBackgroundColour
-  generateKey.textColour = colours.widgetTextColour
-  generateKey.arrowColour = colours.menuArrowColour
-  generateKey.outlineColour = colours.menuOutlineColour
-  generateKey.size = {60,20}
-  generateKey.x = generateKeyPos.x
-  generateKey.y = generateKeyPos.y
-
-  local generateScale = notePanel:Menu("GenerateScale", scaleNames)
-  generateScale.selected = #scaleNames
-  generateScale.tooltip = "Set selected notes from scale"
-  generateScale.showLabel = false
-  generateScale.backgroundColour = colours.menuBackgroundColour
-  generateScale.textColour = colours.widgetTextColour
-  generateScale.arrowColour = colours.menuArrowColour
-  generateScale.outlineColour = colours.menuOutlineColour
-  generateScale.size = {144,20}
-  generateScale.x = generateKey.x + generateKey.width + 10
-  generateScale.y = generateKey.y
-
-  generateKey.changed = function(self)
-    setScale(generateScale.value, self.value)
-    selectedKey = self.value
-  end
-
-  generateScale.changed = function(self)
-    setScale(self.value, generateKey.value)
-  end
-end
-
-local function getKey()
-  return selectedKey
-end
-
-local noteSelector = {
-  createNoteAndOctaveSelector = createNoteAndOctaveSelector,
-  getActiveNotes = getActiveNotes,
-  getSelectedNotes = getSelectedNotes,
-  getNoteInputs = getNoteInputs,
-  getNotesPlaying = getNotesPlaying,
-  addNotePlaying = addNotePlaying,
-  removeNotePlaying = removeNotePlaying,
-  clearNotesPlaying = clearNotesPlaying,
-  getKey = getKey,
-}
-
 -----------------------------------------------------------------------------------------------------------------
 -- Strategy Input - A standard sequencer that listens to incoming events on note 0
 -----------------------------------------------------------------------------------------------------------------
 
 local channel = 0 -- 0 = Omni
 local forward = false
+local voices = 1 -- Holds the maximum amount of seen voices
 local strategyPropbability = 100
-local strategyInput
+local strategyInput = ""
 local strategyRestart = 1
-local voiceToStrategySlot = false
+local randomReset = true -- TODO Param?
+local voiceSlotStrategy = false
+local randomSlotStrategy = false
 local strategyPos = {} -- Holds the position in the selected strategy
 local notePosition = {} -- Holds the current note position
 local unusedStrategySlotDefaultText = "Unused"
 local strategySlots = {}
+local selectedNotes = {}
+local key = 1
+local noteMin = 48
+local noteMax = noteMin + 24
+local scaleDefinitions = scales.getScaleDefinitions()
+local scaleDefinition = scaleDefinitions[#scaleDefinitions]
+local rangeOverlapAmount = 50
 
 -- Strategies are ways to play chords and scales
 local strategies = {
@@ -990,6 +799,18 @@ local strategies = {
 -- Strategy Functions
 --------------------------------------------------------------------------------
 
+-- Returns the selected notes filtered by already playing notes
+local function setNotes()
+  local scale = scales.createScale(scaleDefinition, (key - 1))
+  selectedNotes = {} -- Reset selectedNotes
+  for _,note in ipairs(scale) do
+    -- TODO Check for playing notes?
+    if note >= noteMin and note <= noteMax then
+      table.insert(selectedNotes, note)
+    end
+  end
+end
+
 local function createStrategy()
   local maxLength = 8
   local strategy = {} -- Table to hold strategy
@@ -1009,98 +830,135 @@ local function getStrategyInputText(strategy)
   return table.concat(strategy, ",")
 end
 
-local function getSlotForVoice(voice)
-  -- Select strategies from slot 1 for voice 1, 2 for voice 2 etc.
-  local slot = strategySlots[voice]
-  if slot.enabled then
-    return slot.tooltip
+local function getSlot(voice)
+  if randomSlotStrategy then
+    local slots = {}
+    for _,v in ipairs(strategySlots) do
+      if v.enabled == true then
+        table.insert(slots, v)
+      end
+    end
+    if #slots > 0 then
+      local slot = gem.getRandomFromTable(slots)
+      slot:setValue(true)
+      return slot.tooltip
+    end
+  end
+  if voiceSlotStrategy then
+    if voice > numSlots then
+      voice = voice - numSlots
+    end
+    local slot = strategySlots[voice]
+    if slot.enabled then
+      return slot.tooltip
+    end
   end
 end
 
-local function getNoteFromStrategy(notes, voice)
+local function getNoteFromStrategy(filteredNotes, voice)
   local strategy = {}
-  -- Get strategy from slot, if button active
-  if voiceToStrategySlot then
-    local slot = getSlotForVoice(voice)
-    if type(slot) == "string" then
-      for w in string.gmatch(slot, "-?%d+") do
-        table.insert(strategy, w)
-        --print("Add to strategy from slot for voice", w, voice)
-      end
-      --print("Get strategy from slot", #strategy)
+  -- Get strategy from voice or random slot if active
+  local slot = getSlot(voice)
+  if type(slot) == "string" then
+    for w in string.gmatch(slot, "-?%d+") do
+      table.insert(strategy, w)
+      --print("Add to strategy from slot for voice", w, voice)
     end
+    --print("Get strategy from slot, voice", #strategy, voice)
   end
   -- Get strategy from input
   if #strategy == 0 then
     if string.len(strategyInput) > 0 then
       for w in string.gmatch(strategyInput, "-?%d+") do
-        table.insert(strategy, w)
+        table.insert(strategy, tonumber(w))
         --print("Add to strategy", w)
       end
-      --print("Get strategy from input", #strategy)
+      --print("Get strategy from input, voice", #strategy, voice)
     end
   end
-  -- Get strategy from index
+  -- Get random strategy from default strategies
   if #strategy == 0 then
     strategy = gem.getRandomFromTable(strategies)
   end
   -- Reset strategy position
   if type(strategyPos[voice]) == "nil" or strategyPos[voice] > #strategy then
     strategyPos[voice] = 1
-    if strategyRestart == 3 or strategyRestart == 4 then
+    if strategyRestart == 2 then
       notePosition[voice] = nil -- Reset counter for note position
       --print("Reset note position for voice", voice)
     end
   end
   if type(notePosition[voice]) == "nil" or #strategy == 0 then
     -- Start at a random notePosition
-    notePosition[voice] = gem.getRandom(#notes)
+    notePosition[voice] = gem.getRandom(#filteredNotes)
     --print("Set random notePosition, voice", notePosition[voice], voice)
-    if strategyRestart == 1 then
+    if strategyRestart == 2 then
       strategyPos[voice] = 1
     end
   else
     -- Get next notePosition from strategy
-    --print("Set notePosition, strategyPos, voice", notePosition[voice], strategy[strategyPos[voice]], voice)
-    notePosition[voice] = notePosition[voice] + strategy[strategyPos[voice]]
-    local randomReset = true -- TODO Param?
-    if randomReset and (notePosition[voice] > #notes or notePosition[voice] < 1) then
-      notePosition[voice] = gem.getRandom(#notes)
-      if strategyRestart == 2 then
+    --print("Set notePosition, strategyPos, change, voice", notePosition[voice], strategyPos[voice], strategy[strategyPos[voice]], voice)
+    -- Set notePosition, strategyPos, change, voice 15 1 2 1 
+    notePosition[voice] = gem.inc(notePosition[voice], strategy[strategyPos[voice]])
+    --print("After set notePosition, voice", notePosition[voice], voice)
+    if randomReset and (notePosition[voice] > #filteredNotes or notePosition[voice] < 1) then
+      notePosition[voice] = gem.getRandom(#filteredNotes)
+      if strategyRestart == 1 then
         strategyPos[voice] = 1
       end
-    elseif notePosition[voice] > #notes then
-      --print("Reset notePosition >= #notes", notePosition, #notes)
+    elseif notePosition[voice] > #filteredNotes then
+      --print("Reset notePosition >= #filteredNotes", notePosition, #filteredNotes)
       notePosition[voice] = 1
-      if strategyRestart == 2 then
+      if strategyRestart == 1 then
         strategyPos[voice] = 1
       end
     elseif notePosition[voice] < 1 then
       --print("Reset notePosition[voice] <= 1", notePosition[voice])
-      notePosition[voice] = #notes
-      if strategyRestart == 2 then
+      notePosition[voice] = #filteredNotes
+      if strategyRestart == 1 then
         strategyPos[voice] = 1
       end
     else
       -- Increment strategy pos
       if #strategy > 1 then
-        strategyPos[voice] = strategyPos[voice] + 1
-        --print("Increment strategy pos", strategyPos)
+        strategyPos[voice] = gem.inc(strategyPos[voice])
+        --print("Increment strategy pos", strategyPos[voice])
       end
     end
   end
-  return notes[notePosition[voice]]
+  return filteredNotes[notePosition[voice]]
 end
 
--- Returns the selected notes filtered by already playing notes
-local function getFilteredNotes(selectedNotes)
-  local notes = {}
+-- Returns the selected notes filtered by overlap range and playing notes
+local function getFilteredNotes(voice)
+  local noteRangeMin = 1
+  local noteRangeMax = #selectedNotes
+  local notesPerVoice = 5
+  local notesRequiredForRange = voices * notesPerVoice
+
+  --print("BEFORE selectedNotes, voices, voice", #selectedNotes, voices, voice)
+
+  -- Adjust note range min/max for voice overlap, if we have enough available notes
+  if #selectedNotes >= notesRequiredForRange then
+    local range = #selectedNotes / voices
+    --print("range, voices, voice", range, voices, voice)
+    local overlapValue = math.ceil(range * (rangeOverlapAmount / 100))
+    --print("overlapValue, voice", overlapValue, voice)
+    noteRangeMax = math.min(noteRangeMax, ((range * voice) + overlapValue))
+    noteRangeMin = math.max(1, (noteRangeMax - range - overlapValue))
+    --print("noteRangeMin, noteRangeMax, voice", noteRangeMin, noteRangeMax, voice)
+  end
+
+  -- Find the notes, filter for min/max
+  local filteredNotes = {}
   for i,v in ipairs(selectedNotes) do
-    if gem.tableIncludes(noteSelector.getNotesPlaying(), v) == false then
-      table.insert(notes, v)
+    if i >= math.floor(noteRangeMin) and i <= math.ceil(noteRangeMax) then
+      table.insert(filteredNotes, v)
     end
   end
-  return notes
+
+  --print("AFTER notes, voice", #filteredNotes, voice)
+  return filteredNotes
 end
 
 local function getNote(voice)
@@ -1108,24 +966,26 @@ local function getNote(voice)
     voice = 1
   end
 
-  --print("Get note for voice", voice)
+  -- Set the voices count
+  --if voice > 1 then
+    voices = math.max(voice, voices)
+  --end
 
-  -- Refresh selected notes
-  local notes = getFilteredNotes(noteSelector.getSelectedNotes(true))
+  local filteredNotes = getFilteredNotes(voice)
 
-  if #notes == 0 then
+  if #filteredNotes == 0 then
     return nil
   end
 
-  if #notes == 1 then
-    return notes[1]
+  if #filteredNotes == 1 then
+    return filteredNotes[1]
   end
 
   if gem.getRandomBoolean(strategyPropbability) then
-    return getNoteFromStrategy(notes, voice)
+    return getNoteFromStrategy(filteredNotes, voice)
   end
 
-  return gem.getRandomFromTable(notes)
+  return gem.getRandomFromTable(filteredNotes)
 end
 
 -----------------------------------------------------------------------------------------------------------------
@@ -1150,11 +1010,25 @@ local sequencerLabel = widgets.label("Strategy Input", {
 
 widgets.setSection({
   width = 100,
-  xOffset = 510,
+  xOffset = 300,
   yOffset = 5,
   xSpacing = 5,
   ySpacing = 5,
   labelBackgroundColour = "transparent",
+})
+
+local voicesLabel = widgets.label(voices .. " voice", {
+  visible = false,
+  textColour = "505050"
+})
+
+widgets.setSection({
+  --width = 100,
+  xOffset = 510,
+  --[[ yOffset = 5,
+  xSpacing = 5,
+  ySpacing = 5,
+  labelBackgroundColour = "transparent", ]]
 })
 
 widgets.button("Forward", forward, {
@@ -1163,7 +1037,7 @@ widgets.button("Forward", forward, {
 })
 
 widgets.menu("Channel", widgets.channels(), {
-  tooltip = "Listen to triggers (note=0 events) on this channel - if a note event is not being listened to, it will be pass through",
+  tooltip = "Listen to triggers (note=0 events) on this channel. In omni mode, each channel is sent to a separate voice.",
   showLabel = false,
   changed = function(self) channel = self.value - 1 end
 })
@@ -1179,17 +1053,11 @@ widgets.setSection({
 })
 
 local strategyPanel = widgets.panel({
-  height = 54,
+  height = 81,
   backgroundColour = "404040"
 })
 
-widgets.setSection({
-  width = 260,
-  height = 45,
-  x = 5,
-  y = 5,
-})
-
+-- Strategy input field
 local strategyInputField = widgets.label(getStrategyInputText(gem.getRandomFromTable(strategies)), {
   tooltip = "Strategies are ways to play scales. Numbers represent steps up or down the scale that is currently playing. Feel free to type your own strategies here.",
   editable = true,
@@ -1198,34 +1066,96 @@ local strategyInputField = widgets.label(getStrategyInputText(gem.getRandomFromT
   backgroundColourWhenEditing = "white",
   textColourWhenEditing = "black",
   textColour = "white",
+  width = 276,
+  height = 45,
+  x = 5,
+  y = 5,
   changed = function(self) strategyInput = self.text end
 })
 strategyInputField:changed()
 
+-- Slots
+widgets.setSection({
+  width = 30,
+  height = 20,
+  x = strategyInputField.x,
+  y = widgets.posUnder(strategyInputField),
+  cols = 8,
+})
+
+local numSlots = 8
+local actions = {"Actions..."}
+for j=1,numSlots do
+  local strategySlot = widgets.button("" .. j, false, {
+    tooltip = unusedStrategySlotDefaultText,
+    enabled = false,
+  })
+  strategySlot.changed = function(self)
+    strategyInputField.text = strategySlot.tooltip
+    self.value = false
+  end
+  table.insert(strategySlots, strategySlot)
+  table.insert(actions, "Save to " .. j)
+end
+
+table.insert(actions, "--- Load ---")
+for _,v in ipairs(strategies) do
+  table.insert(actions, getStrategyInputText(v))
+end
+
+-- Options
 widgets.setSection({
   width = 120,
   height = 20,
-  x = widgets.posSide(strategyInputField) + 5,
+  x = widgets.posSide(strategyInputField) + 2,
+  y = strategyInputField.y,
+  cols = 6,
 })
 
-local createButton = widgets.button("Create", {
+widgets.menu("Play Mode", {"Active Input", "Random Slot", "Voice->Slot"}, {
+  tooltip = "Select the strategy to use for note selection. The default is using the strategy displayed in the input.",
+  changed = function(self)
+    randomSlotStrategy = self.text == "Random"
+    voiceSlotStrategy = self.text == "Voice"
+    notePosition = {}
+  end
+})
+
+widgets.menu("Strategy Restart", strategyRestart, {"Out of range", "When finished"}, {
+  tooltip = "Controls when the strategy is restarted",
+  changed = function(self) strategyRestart = self.value end
+})
+
+widgets.menu("Key", key, notes.getNoteNames(), {
+  width = 50,
+  changed = function(self)
+    key = self.value
+    setNotes()
+  end
+})
+
+widgets.menu("Scale", #scaleDefinitions, scales.getScaleNames(), {
+  changed = function(self)
+    scaleDefinition = scaleDefinitions[self.value]
+    setNotes()
+  end
+})
+
+widgets.row(2)
+
+local strategyActions = widgets.menu("Actions", actions, {
+  tooltip = "Available actions for strategies",
+  width = 70,
+  showLabel = false,
+})
+
+widgets.button("Create", {
   tooltip = "Replace the current strategy with a randomly created strategy.",
+  width = 45,
   changed = function()
     local strategy = createStrategy()
     strategyInputField.text = table.concat(strategy, ",")
   end
-})
-
-widgets.setSection({
-  --width = 120,
-  x = createButton.x,
-  y = widgets.posUnder(createButton),
-})
-
-widgets.menu("Strategy Restart", strategyRestart, {"Restart each round", "Out of range", "When finished", "Finished+round"}, {
-  showLabel = false,
-  width = 120,
-  changed = function(self) strategyRestart = self.value end
 })
 
 widgets.numBox("Probability", strategyPropbability, {
@@ -1234,73 +1164,99 @@ widgets.numBox("Probability", strategyPropbability, {
   changed = function(self) strategyPropbability = self.value end
 })
 
+local noteMinInput = widgets.numBox("Note Range", noteMin, {
+  width = 105,
+  max = noteMax,
+  tooltip = "Lowest note",
+  unit = Unit.MidiKey,
+})
+
+local noteMaxInput = widgets.numBox("Max", noteMax, {
+  min = noteMin,
+  width = 30,
+  showLabel = false,
+  tooltip = "Highest note",
+  unit = Unit.MidiKey,
+})
+
+widgets.numBox("Range Overlap", rangeOverlapAmount, {
+  width = 30,
+  showLabel = false,
+  tooltip = "Set the overlap range for the voices. 100 = all voices use the full range, 0 = separate ranges. Requires at least 5 notes per voice.",
+  unit = Unit.Percent,
+  changed = function(self) rangeOverlapAmount = self.value end
+})
+
 --------------------------------------------------------------------------------
--- Notes Panel
+-- Changed functions for widgets
 --------------------------------------------------------------------------------
 
-widgets.setSection({
-  width = 720,
-  height = 160,
-  x = 0,
-  y = widgets.posUnder(strategyPanel),
-})
+noteMinInput.changed = function(self)
+  noteMaxInput:setRange(self.value, 127)
+  noteMin = self.value
+  setNotes()
+end
 
-local notePanel = widgets.panel({
-  backgroundColour = "707070"
-})
+noteMaxInput.changed = function(self)
+  noteMinInput:setRange(0, self.value)
+  noteMax = self.value
+  setNotes()
+end
 
-widgets.setSection({
-  width = 60,
-  height = 20,
-  x = 5,
-  y = 5,
-})
-
-local noteLabel = widgets.label("Notes", {
-  fontSize = 15,
-})
-
-widgets.setSection({
-  width = 90,
-  x = notePanel.width - 290,
-})
-
-widgets.button("Clear notes", {
-  changed = function()
-    for _,v in ipairs(noteSelector.getNoteInputs()) do
-      v:setValue(false)
-    end
+strategyActions.changed = function(self)
+  -- 1 is the menu label...
+  if self.value == 1 then
+    return
   end
-})
 
-widgets.button("All notes", {
-  changed = function()
-    for _,v in ipairs(noteSelector.getNoteInputs()) do
-      v:setValue(true)
+  local actionIndex = self.value - 1
+
+  -- Save strategy
+  if actionIndex <= #strategySlots then
+    if string.len(strategyInputField.text) > 0 then
+      strategySlots[actionIndex].tooltip = strategyInputField.text
+      strategySlots[actionIndex].enabled = true
+    else
+      strategySlots[actionIndex].tooltip = unusedStrategySlotDefaultText
+      strategySlots[actionIndex].enabled = false
     end
+    --print("Strategy saved to slot", strategyInputField.text, actionIndex)
+  elseif actionIndex > #strategySlots + 1 then
+    strategyInputField.text = self.selectedText
   end
-})
 
-widgets.button("Randomize notes", {
-  changed = function()
-    for _,v in ipairs(noteSelector.getNoteInputs()) do
-      v:setValue(gem.getRandomBoolean())
-    end
-  end
-})
-
-noteSelector.createNoteAndOctaveSelector(notePanel, widgets.getColours(), noteLabel, 20, 10)
+  -- Must be last
+  self:setValue(1, false)
+end
 
 --------------------------------------------------------------------------------
 -- Handle Events
 --------------------------------------------------------------------------------
+
+local function flashVoicesLabel()
+  voicesLabel.textColour = "303030"
+  waitBeat(.125)
+  voicesLabel.textColour = "505050"
+end
+
+function onInit()
+  setNotes()
+end
 
 function onNote(e)
   if modular.isTrigger(e, channel) then
     if forward then
       postEvent(e)
     end
-    modular.handleTrigger(e, getNote(e.channel))
+    if modular.handleTrigger(e, getNote(e.channel)) then
+      if voices == 1 then
+        voicesLabel.text = voices .. " voice playing"
+      else
+        voicesLabel.text = voices .. " voices playing"
+      end
+      spawn(flashVoicesLabel)
+      voicesLabel.visible = true
+    end
   else
     postEvent(e)
   end
@@ -1319,6 +1275,8 @@ end
 
 function onTransport(start)
   if start == false then
+    voices = 1 -- Reset voices when stopping
+    voicesLabel.visible = false
     modular.releaseVoices()
   end
 end

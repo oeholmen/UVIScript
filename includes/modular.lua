@@ -49,5 +49,6 @@ return {--modular--
   isTrigger = isTrigger,
   handleTrigger = handleTrigger,
   handleReleaseTrigger = handleReleaseTrigger,
+  getNumVoices = function() return #activeVoices end,
   getActiveVoices = function() return activeVoices end,
 }

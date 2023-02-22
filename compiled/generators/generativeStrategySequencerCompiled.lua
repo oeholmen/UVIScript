@@ -2656,7 +2656,7 @@ function getNoteFromStrategy(notes, voice)
     local slot = getSlotForVoice(voice)
     if type(slot) == "string" then
       for w in string.gmatch(slot, "-?%d+") do
-        table.insert(strategy, w)
+        table.insert(strategy, tonumber(w))
         --print("Add to strategy from slot for voice", w, voice)
       end
       --print("Get strategy from slot", #strategy)
@@ -2695,7 +2695,7 @@ function getNoteFromStrategy(notes, voice)
   else
     -- Get next notePosition from strategy
     --print("Set notePosition, strategyPos, voice", notePosition[voice], strategy[strategyPos[voice]], voice)
-    notePosition[voice] = notePosition[voice] + strategy[strategyPos[voice]]
+    notePosition[voice] = gem.inc(notePosition[voice], strategy[strategyPos[voice]])
     local randomReset = true -- TODO Param?
     if randomReset and (notePosition[voice] > #notes or notePosition[voice] < 1) then
       notePosition[voice] = gem.getRandom(#notes)
@@ -2717,7 +2717,7 @@ function getNoteFromStrategy(notes, voice)
     else
       -- Increment strategy pos
       if #strategy > 1 then
-        strategyPos[voice] = strategyPos[voice] + 1
+        strategyPos[voice] = gem.inc(strategyPos[voice])
         --print("Increment strategy pos", strategyPos)
       end
     end

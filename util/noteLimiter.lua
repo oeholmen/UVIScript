@@ -30,6 +30,7 @@ local panel = widgets.panel({
 
 local label = panel:Label("Label")
 label.text = "Note Limiter"
+label.tooltip = "Limits note range and polyphony (0 polyphony blocks all incoming notes)"
 label.alpha = 0.5
 label.backgroundColour = labelBackgoundColour
 label.textColour = labelTextColour
@@ -39,6 +40,7 @@ label.size = {120,25}
 
 local rangeLabel = panel:Label("Range")
 rangeLabel.text = "Note Range"
+rangeLabel.tooltip = "Set the range for incoming notes. If range is less than an octave, notes may be changed to fit the range."
 rangeLabel.x = 150
 rangeLabel.y = 3
 
@@ -60,14 +62,12 @@ noteMax.tooltip = "Highest note - notes above this are transposed to closest oct
 noteMax.x = noteMin.x + noteMin.width + 10
 noteMax.y = noteMin.y
 
--- Range must be at least one octave
+-- Range must not cross, but can be equal if limiting to one note
 noteMin.changed = function(self)
-  --noteMax:setRange((self.value+12), 127)
   noteMax:setRange(self.value, 127)
 end
 
 noteMax.changed = function(self)
-  --noteMin:setRange(0, (self.value-12))
   noteMin:setRange(0, self.value)
 end
 
@@ -94,7 +94,7 @@ buffer.unit = Unit.MilliSeconds
 buffer.backgroundColour = widgetBackgroundColour
 buffer.textColour = widgetTextColour
 buffer.displayName = "Buffer"
-buffer.tooltip = "Time to wait for incoming notes - if input is from a human, 20-30 ms is recommended, 0 means no buffer (NOTE: this disables the polyphony limit)"
+buffer.tooltip = "Time to wait for incoming notes when calculation polyphony - if input is from a human, 20-30 ms is recommended. 0 means no buffer (NOTE: this disables the polyphony limit)."
 buffer.x = polyphony.x
 buffer.y = polyphony.y + polyphony.height + 5
 buffer.changed = function(self)

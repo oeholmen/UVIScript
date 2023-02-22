@@ -177,6 +177,8 @@ local gem = {
 
 local panelNameIndex = 1
 local widgetNameIndex = 1
+local currentX = 0
+local currentY = 0
 
 local widgetDefaults = {
   panel = Panel("DefaultPanel"),
@@ -210,7 +212,7 @@ local widgetColours = {
   textColourOn = "efFFFFFF",
 }
 
-local function getWidgetValue(value, default)
+local function getValueOrDefault(value, default)
   if type(value) == "nil" then
     return default
   end
@@ -218,105 +220,122 @@ local function getWidgetValue(value, default)
 end
 
 local function setColours(colours)
-  widgetColours.backgroundColour = getWidgetValue(colours.backgroundColour, widgetColours.backgroundColour)
-  widgetColours.widgetBackgroundColour = getWidgetValue(colours.widgetBackgroundColour, widgetColours.widgetBackgroundColour)
-  widgetColours.menuBackgroundColour = getWidgetValue(colours.menuBackgroundColour, widgetColours.menuBackgroundColour)
-  widgetColours.widgetTextColour = getWidgetValue(colours.widgetTextColour, widgetColours.widgetTextColour)
-  widgetColours.tableBackgroundColour = getWidgetValue(colours.tableBackgroundColour, widgetColours.tableBackgroundColour)
-  widgetColours.sliderColour = getWidgetValue(colours.sliderColour, widgetColours.sliderColour)
-  widgetColours.labelTextColour = getWidgetValue(colours.labelTextColour, widgetColours.labelTextColour)
-  widgetColours.labelBackgroundColour = getWidgetValue(colours.labelBackgroundColour, widgetColours.labelBackgroundColour)
-  widgetColours.menuArrowColour = getWidgetValue(colours.menuArrowColour, widgetColours.menuArrowColour)
-  widgetColours.menuOutlineColour = getWidgetValue(colours.menuOutlineColour, widgetColours.menuOutlineColour)
-  widgetColours.menuTextColour = getWidgetValue(colours.menuTextColour, widgetColours.menuTextColour)
-  widgetColours.backgroundColourOff = getWidgetValue(colours.backgroundColourOff, widgetColours.backgroundColourOff)
-  widgetColours.backgroundColourOn = getWidgetValue(colours.backgroundColourOn, widgetColours.backgroundColourOn)
-  widgetColours.textColourOff = getWidgetValue(colours.textColourOff, widgetColours.textColourOff)
-  widgetColours.textColourOn = getWidgetValue(colours.textColourOn, widgetColours.textColourOn)
+  widgetColours.backgroundColour = getValueOrDefault(colours.backgroundColour, widgetColours.backgroundColour)
+  widgetColours.widgetBackgroundColour = getValueOrDefault(colours.widgetBackgroundColour, widgetColours.widgetBackgroundColour)
+  widgetColours.menuBackgroundColour = getValueOrDefault(colours.menuBackgroundColour, widgetColours.menuBackgroundColour)
+  widgetColours.widgetTextColour = getValueOrDefault(colours.widgetTextColour, widgetColours.widgetTextColour)
+  widgetColours.tableBackgroundColour = getValueOrDefault(colours.tableBackgroundColour, widgetColours.tableBackgroundColour)
+  widgetColours.sliderColour = getValueOrDefault(colours.sliderColour, widgetColours.sliderColour)
+  widgetColours.labelTextColour = getValueOrDefault(colours.labelTextColour, widgetColours.labelTextColour)
+  widgetColours.labelBackgroundColour = getValueOrDefault(colours.labelBackgroundColour, widgetColours.labelBackgroundColour)
+  widgetColours.menuArrowColour = getValueOrDefault(colours.menuArrowColour, widgetColours.menuArrowColour)
+  widgetColours.menuOutlineColour = getValueOrDefault(colours.menuOutlineColour, widgetColours.menuOutlineColour)
+  widgetColours.menuTextColour = getValueOrDefault(colours.menuTextColour, widgetColours.menuTextColour)
+  widgetColours.backgroundColourOff = getValueOrDefault(colours.backgroundColourOff, widgetColours.backgroundColourOff)
+  widgetColours.backgroundColourOn = getValueOrDefault(colours.backgroundColourOn, widgetColours.backgroundColourOn)
+  widgetColours.textColourOff = getValueOrDefault(colours.textColourOff, widgetColours.textColourOff)
+  widgetColours.textColourOn = getValueOrDefault(colours.textColourOn, widgetColours.textColourOn)
 end
 
 local function setSection(settings)
   if type(settings) ~= "table" then
     settings = {}
   end
-  widgetDefaults.width = getWidgetValue(settings.width, widgetDefaults.width)
-  widgetDefaults.height = getWidgetValue(settings.height, widgetDefaults.height)
-  widgetDefaults.menuHeight = getWidgetValue(settings.menuHeight, widgetDefaults.menuHeight)
-  widgetDefaults.xOffset = getWidgetValue(settings.xOffset, widgetDefaults.xOffset)
-  widgetDefaults.yOffset = getWidgetValue(settings.yOffset, widgetDefaults.yOffset)
-  widgetDefaults.xOffset = getWidgetValue(settings.x, widgetDefaults.xOffset)
-  widgetDefaults.yOffset = getWidgetValue(settings.y, widgetDefaults.yOffset)
-  widgetDefaults.xSpacing = getWidgetValue(settings.xSpacing, widgetDefaults.xSpacing)
-  widgetDefaults.ySpacing = getWidgetValue(settings.ySpacing, widgetDefaults.ySpacing)
-  widgetDefaults.cols = getWidgetValue(settings.cols, widgetDefaults.cols)
-  widgetDefaults.col = getWidgetValue(settings.col, 0)
-  widgetDefaults.row = getWidgetValue(settings.row, 0)
+  widgetDefaults.width = getValueOrDefault(settings.width, widgetDefaults.width)
+  widgetDefaults.height = getValueOrDefault(settings.height, widgetDefaults.height)
+  widgetDefaults.menuHeight = getValueOrDefault(settings.menuHeight, widgetDefaults.menuHeight)
+  widgetDefaults.xOffset = getValueOrDefault(settings.xOffset, widgetDefaults.xOffset)
+  widgetDefaults.yOffset = getValueOrDefault(settings.yOffset, widgetDefaults.yOffset)
+  widgetDefaults.xOffset = getValueOrDefault(settings.x, widgetDefaults.xOffset)
+  widgetDefaults.yOffset = getValueOrDefault(settings.y, widgetDefaults.yOffset)
+  widgetDefaults.xSpacing = getValueOrDefault(settings.xSpacing, widgetDefaults.xSpacing)
+  widgetDefaults.ySpacing = getValueOrDefault(settings.ySpacing, widgetDefaults.ySpacing)
+  widgetDefaults.cols = getValueOrDefault(settings.cols, widgetDefaults.cols)
+  widgetDefaults.col = getValueOrDefault(settings.col, 0)
+  widgetDefaults.row = getValueOrDefault(settings.row, 0)
   setColours(settings)
+  currentX = widgetDefaults.xOffset
+  currentY = widgetDefaults.yOffset
 end
 
-local function getWidgetName(name, panel)
+local function getWidgetName(name, displayName, useDisplayNameAsWidgetName, panel)
   if panel then
-    name = getWidgetValue(name, "Panel" .. panelNameIndex)
+    name = getValueOrDefault(name, "Panel" .. panelNameIndex)
     panelNameIndex = panelNameIndex + 1
   elseif type(name) == "nil" then
-    name = "Widget" .. widgetNameIndex
-    widgetNameIndex = widgetNameIndex + 1
+    name = ""
+    if useDisplayNameAsWidgetName and type(displayName) == "string" then
+      name = string.gsub(displayName, "[^a-zA-Z]+", "")
+    end
+    if string.len(name) == 0 then
+      name = "Widget" .. widgetNameIndex
+      widgetNameIndex = widgetNameIndex + 1
+    end
   end
+  print("Widget name", name)
   return name
 end
 
-local function getWidgetX(options)
-  if type(options.x) == "number" then
-    return options.x
+local function incrementRow(row, h)
+  if type(row) == "nil" then
+    row = 1
   end
-
-  -- Calculate widget x position
-  local col = getWidgetValue(options.col, widgetDefaults.col)
-  local width = col * widgetDefaults.width
-  local xSpacing = col * widgetDefaults.xSpacing
-  return widgetDefaults.xOffset + width + xSpacing
-end
-
-local function getWidgetY(options)
-  if type(options.y) == "number" then
-    return options.y
+  if type(h) == "nil" then
+    h = widgetDefaults.height
   end
-
-  -- Calculate widget y position
-  local row = getWidgetValue(options.row, widgetDefaults.row)
-  local height = row * widgetDefaults.height
-  local ySpacing = row * widgetDefaults.ySpacing
-  return widgetDefaults.yOffset + height + ySpacing
-end
-
-local function incrementRow(i)
-  if type(i) == "nil" then
-    i = 1
-  end
-  widgetDefaults.row = widgetDefaults.row + i
+  widgetDefaults.row = widgetDefaults.row + row
   widgetDefaults.col = 0
+  currentX = widgetDefaults.xOffset
+
+  local height = math.max(1, row) * h
+  local ySpacing = math.max(1, row) * widgetDefaults.ySpacing
+  currentY = currentY + height + ySpacing
 end
 
-local function incrementCol(i)
-  if type(i) == "nil" then
-    i = 1
+local function incrementCol(col, w, h)
+  if type(col) == "nil" then
+    col = 1
   end
-  widgetDefaults.col = widgetDefaults.col + i
+  if type(w) == "nil" then
+    w = widgetDefaults.width
+  end
+
+  local width = math.max(1, col) * w
+  local xSpacing = math.max(1, col) * widgetDefaults.xSpacing
+  currentX = currentX + width + xSpacing
+
+  widgetDefaults.col = widgetDefaults.col + col
   if widgetDefaults.col >= widgetDefaults.cols then
-    incrementRow()
+    incrementRow(1, h)
   end
-  --print("widgetDefaults.col, widgetDefaults.row", widgetDefaults.col, widgetDefaults.row)
 end
 
 local function getWidgetBounds(options, increment)
-  local x = getWidgetX(options)
-  local y = getWidgetY(options)
-  local w = getWidgetValue(options.width, widgetDefaults.width)
-  local h = getWidgetValue(options.height, widgetDefaults.height)
+  local x = getValueOrDefault(options.x, currentX)
+  local y = getValueOrDefault(options.y, currentY)
+  local w = getValueOrDefault(options.width, widgetDefaults.width)
+  local h = getValueOrDefault(options.height, widgetDefaults.height)
 
-  -- Increment col and row
-  if increment and options.increment ~= false then
-    incrementCol()
+  if type(options.y) == "number" then
+    print("options.y, y", options.y, y)
+  end
+
+  if type(options.x) == "number" then
+    print("options.x, x", options.x, x)
+  end
+
+  -- Increment position
+  if increment then
+    if type(options.increment) == "boolean" then
+      if options.increment then
+        options.increment = 1
+      else
+        options.increment = 0
+      end
+    end
+    local i = getValueOrDefault(options.increment, 1)
+    incrementCol(i, w, h)
+    --incrementCol(1, w, h)
   end
 
   return {x, y, w, h}
@@ -326,19 +345,19 @@ local function getWidgetOptions(options, displayName, default, panel)
   if type(options) ~= "table" then
     options = {}
   end
-  options.default = getWidgetValue(default, options.default)
-  options.name = getWidgetName(options.name, panel)
-  options.displayName = getWidgetValue(displayName, options.name)
-  options.tooltip = getWidgetValue(options.tooltip, options.displayName)
-  options.integer = getWidgetValue(options.integer, (options.unit == Unit.Percent or options.unit == Unit.MidiKey))
-  options.min = getWidgetValue(options.min, 0)
-  options.default = getWidgetValue(options.default, options.min)
+  options.default = getValueOrDefault(default, options.default)
+  options.name = getWidgetName(options.name, displayName, type(default) ~= "nil", panel)
+  options.displayName = getValueOrDefault(displayName, options.name)
+  options.tooltip = getValueOrDefault(options.tooltip, options.displayName)
+  options.integer = getValueOrDefault(options.integer, (options.unit == Unit.Percent or options.unit == Unit.MidiKey))
+  options.min = getValueOrDefault(options.min, 0)
+  options.default = getValueOrDefault(options.default, options.min)
   if options.unit == Unit.MidiKey then
-    options.max = getWidgetValue(options.max, 127)
+    options.max = getValueOrDefault(options.max, 127)
   elseif options.unit == Unit.Percent then
-    options.max = getWidgetValue(options.max, 100)
+    options.max = getValueOrDefault(options.max, 100)
   else
-    options.max = getWidgetValue(options.max, 1)
+    options.max = getValueOrDefault(options.max, 1)
   end
   return options
 end
@@ -371,6 +390,9 @@ local function setOptional(widget, options)
   if type(options.editable) == "boolean" then
     widget.editable = options.editable
   end
+  if type(options.visible) == "boolean" then
+    widget.visible = options.visible
+  end
   if type(options.backgroundColour) == "string" then
     widget.backgroundColour = options.backgroundColour
   end
@@ -388,6 +410,18 @@ local function setOptional(widget, options)
   end
   if type(options.textColour) == "string" then
     widget.textColour = options.textColour
+  end
+  if type(options.backgroundColourOff) == "string" then
+    widget.backgroundColourOff = options.backgroundColourOff
+  end
+  if type(options.backgroundColourOn) == "string" then
+    widget.backgroundColourOn = options.backgroundColourOn
+  end
+  if type(options.textColourOff) == "string" then
+    widget.textColourOff = options.textColourOff
+  end
+  if type(options.textColourOn) == "string" then
+    widget.textColourOn = options.textColourOn
   end
 end
 
@@ -418,8 +452,6 @@ local widgets = {
   ySpacing = ySpacing,
   widthDefault = widthDefault,
   heightDefault = heightDefault,
-  posSide = posSide,
-  posUnder = posUnder,
   xOffset = function(val) widgetDefaults.xOffset = val end,
   yOffset = function(val) widgetDefaults.yOffset = val end,
   xSpacing = function(val) widgetDefaults.xSpacing = val end,
@@ -485,7 +517,7 @@ local widgets = {
     if type(default) == "table" then
       options = items
       items = default
-      default = nil
+      default = 1
     end
     options = getWidgetOptions(options, displayName, default)
     local widget = widgetDefaults.panel:Menu(options.name, items)
@@ -498,7 +530,7 @@ local widgets = {
     widget.outlineColour = widgetColours.menuOutlineColour
     setOptional(widget, options)
     if widget.showLabel == true then
-      options.height = getWidgetValue(options.height, widgetDefaults.menuHeight)
+      options.height = getValueOrDefault(options.height, widgetDefaults.menuHeight)
     end
     widget.bounds = getWidgetBounds(options, true)
     return widget
@@ -514,8 +546,8 @@ local widgets = {
     setOptional(widget, options)
     return widget
   end,
-  table = function(size, default, options)
-    options = getWidgetOptions(options, nil, default)
+  table = function(displayName, default, size, options)
+    options = getWidgetOptions(options, displayName, default)
     local widget = widgetDefaults.panel:Table(options.name, size, options.default, options.min, options.max, options.integer)
     widget.fillStyle = "solid"
     widget.backgroundColour = widgetColours.tableBackgroundColour
@@ -577,6 +609,7 @@ local modular = {
   isTrigger = isTrigger,
   handleTrigger = handleTrigger,
   handleReleaseTrigger = handleReleaseTrigger,
+  getNumVoices = function() return #activeVoices end,
   getActiveVoices = function() return activeVoices end,
 }
 
@@ -953,7 +986,7 @@ local notePanel = widgets.panel({
   height = 250,
 })
 
-positionTable = widgets.table(tableMotion.options.tableLength, 0, {
+positionTable = widgets.table("Position", 0, tableMotion.options.tableLength, {
   enabled = false,
   persistent = false,
   sliderColour = "green",
@@ -961,17 +994,18 @@ positionTable = widgets.table(tableMotion.options.tableLength, 0, {
   height = 6,
 })
 
-widgets.setSection()
+widgets.setSection({
+  height = 160,
+  y = widgets.posUnder(positionTable),
+})
 
-motionTable = widgets.table(tableMotion.options.tableLength, 0, {
+motionTable = widgets.table("Motion", 0, tableMotion.options.tableLength, {
   tooltip = "Events are triggered when the value hits max or min",
   showPopupDisplay = true,
   backgroundColour = "191E25",
   min = -24,
   max = 24,
   integer = true,
-  height = 160,
-  y = widgets.posUnder(positionTable),
 })
 
 local noteWidgetHeight = 20
@@ -988,10 +1022,9 @@ widgets.setSection({
   yOffset = firstRowY,
   xSpacing = noteWidgetCellSpacing,
   ySpacing = noteWidgetRowSpacing,
-  cols = 4
 })
 
-local speedTypeMenu = widgets.menu("Speed Type", tableMotion.speedTypes, {
+widgets.menu("Speed Type", tableMotion.speedTypes, {
   changed = function(self) tableMotion.options.speedType = self.selectedText end
 })
 
@@ -1012,12 +1045,11 @@ local scaleMenu = widgets.menu("Scale", #scalesNames, scalesNames, {
 
 local noteInput = widgets.numBox("Base Note", baseNote, {
   width = 33,
-  x = widgets.posSide(scaleMenu) - 10,
+  x = widgets.posSide(scaleMenu) - 7,
   y = firstRowY + 25,
   unit = Unit.MidiKey,
   showLabel = false,
   tooltip = "Set the root note",
-  increment = false,
   changed = function(self)
     baseNote = self.value
     setScale()
@@ -1025,6 +1057,7 @@ local noteInput = widgets.numBox("Base Note", baseNote, {
 })
 
 local moveSpeedInput = widgets.numBox("Motion Speed", tableMotion.options.moveSpeed, {
+  x = widgets.posSide(noteInput),
   name = "MoveSpeed",
   min = tableMotion.options.moveSpeedMin,
   max = tableMotion.options.moveSpeedMax,
@@ -1033,6 +1066,7 @@ local moveSpeedInput = widgets.numBox("Motion Speed", tableMotion.options.moveSp
   changed = function(self) tableMotion.options.moveSpeed = self.value end
 })
 
+widgets.row()
 widgets.col(3)
 
 local factorInput = widgets.numBox("Speed Factor", tableMotion.options.factor, {
@@ -1042,6 +1076,8 @@ local factorInput = widgets.numBox("Speed Factor", tableMotion.options.factor, {
   tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. Controlled by the Y-axis on the XY controller",
   changed = function(self) tableMotion.options.factor = self.value end
 })
+
+widgets.row()
 
 local motionTableLengthInput = widgets.numBox("Length", tableMotion.options.tableLength, {
   min = 2,
@@ -1068,8 +1104,6 @@ local bipolarButton = widgets.button("Bipolar", bipolar, {
 
 widgets.button("Reset", false, {
   width = bipolarButton.width,
-  x = widgets.posSide(bipolarButton),
-  increment = false,
   changed = function(self)
     resetPitches()
     startMoving()

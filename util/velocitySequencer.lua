@@ -50,13 +50,13 @@ local sequencerLabel = widgets.label("Velocity Sequencer", {
 })
 
 widgets.setSection({
-  width = 51,
-  x = widgets.posSide(sequencerLabel) + 15,
+  x = widgets.posSide(sequencerLabel) + 13,
   y = sequencerLabel.y,
   xSpacing = 5,
 })
 
 widgets.label("Channel", {
+  width = 51,
   backgroundColour = "transparent",
   textColour = "silver"
 })
@@ -68,20 +68,15 @@ local channelInput = widgets.menu("Channel", widgets.channels(), {
   changed = function(self) channel = self.value - 1 end
 })
 
-widgets.setSection({
-  width = 63,
-  x = widgets.posSide(channelInput) + 5,
-  xSpacing = 5,
-})
-
 widgets.label("Resolution", {
+  width = 63,
   backgroundColour = "transparent",
   textColour = "silver"
 })
 
 local resolutionInput = widgets.menu("Resolution", resolution, resolutionNames, {
   tooltip = "Set the resolution of the sequencer",
-  width = 81,
+  width = 90,
   showLabel = false,
   changed = function(self)
     resolution = self.value
@@ -89,11 +84,6 @@ local resolutionInput = widgets.menu("Resolution", resolution, resolutionNames, 
       isPlaying = false
     end
   end
-})
-
-widgets.setSection({
-  width = 118,
-  x = widgets.posSide(resolutionInput) + 5,
 })
 
 widgets.numBox("Pattern Length", 8, {
@@ -120,7 +110,7 @@ widgets.setSection({
   ySpacing = 0,
 })
 
-positionTable = widgets.table(8, 0, {
+positionTable = widgets.table("Position", 0, 8, {
   integer = true,
   enabled = false,
   persistent = false,
@@ -128,18 +118,20 @@ positionTable = widgets.table(8, 0, {
   backgroundColour = "404040",
   sliderColour = "66ff99",
   height = 3,
-  increment = false,
 })
 
-sequencerTable = widgets.table(8, 90, {
+widgets.setSection({
+  yOffset = widgets.posUnder(positionTable),
+  height = 60,
+})
+
+sequencerTable = widgets.table("Velocity", 90, 8, {
   tooltip = "Set the velocity pattern",
   showPopupDisplay = true,
   backgroundColour = "191E25",
   min = 1,
   max = 127,
   integer = true,
-  height = 60,
-  y = widgets.posUnder(positionTable)
 })
 
 --------------------------------------------------------------------------------

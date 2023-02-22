@@ -114,18 +114,16 @@ widgets.setSection({
   ySpacing = 5,
   width = 100,
   height = 22,
-  xOffset = (widgets.getPanel().width / 2) + 45,
-  yOffset = 5,
+  x = (widgets.getPanel().width / 2) + 45,
+  y = 5,
 })
-
-widgets.labelBackgoundColour = "red"
 
 widgets.label("Swarm Trigger", {
   tooltip = "A sequencer that triggers rythmic pulses (using note 0) that note inputs can listen to",
   width = widgets.getPanel().width,
   x = 0, y = 0, height = 30,
   alpha = 0.5, fontSize = 22,
-  increment = false,
+  --increment = false,
 })
 
 widgets.numBox('Channel', channel, {
@@ -175,8 +173,8 @@ xySpeedFactor.height = 200
 
 widgets.setSection({
   width = 210,
-  xOffset = widgets.posSide(xySpeedFactor) + 12,
-  yOffset = 15,
+  x = widgets.posSide(xySpeedFactor) + 12,
+  y = 15,
   xSpacing = noteWidgetColSpacing,
   ySpacing = noteWidgetRowSpacing,
   cols = 1,
@@ -186,8 +184,6 @@ widgets.menu("Swarm Base", resolution, resolutionNames, {
   tooltip = "Set the base resolution of the swarm",
   changed = function(self) resolution = self.value end
 })
-
-widgets.col()
 
 widgets.numBox("Duration Randomization", durationRandomization, {
   unit = Unit.Percent,

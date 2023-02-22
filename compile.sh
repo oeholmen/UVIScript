@@ -37,14 +37,12 @@ luaScripts=(
   sequencers/strategySequencer
   synths/tweaksynth
   util/arpRandomizer
-  util/blockNotes
   util/humanizer
   util/noteLimiter
   util/noteVelocity
   util/randomGate
   util/randomOctave
   util/scaleQuantizer
-  util/stripChannel
   util/sieve
   util/velocityLimiter
   util/velocityRandomization

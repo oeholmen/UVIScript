@@ -182,7 +182,7 @@ local notePanel = widgets.panel({
   height = 250,
 })
 
-positionTable = widgets.table(tableMotion.options.tableLength, 0, {
+positionTable = widgets.table("Position", 0, tableMotion.options.tableLength, {
   enabled = false,
   persistent = false,
   sliderColour = "green",
@@ -192,7 +192,7 @@ positionTable = widgets.table(tableMotion.options.tableLength, 0, {
   y = 0,
 })
 
-motionTable = widgets.table(tableMotion.options.tableLength, 0, {
+motionTable = widgets.table("Motion", 0, tableMotion.options.tableLength, {
   tooltip = "Events are triggered when the value hits max or min",
   showPopupDisplay = true,
   min = -tableRange,
@@ -214,11 +214,11 @@ local firstRowY = motionTable.y + motionTable.height + (noteWidgetRowSpacing * 1
 widgets.setSection({
   width = noteWidgetWidth,
   height = noteWidgetHeight,
-  xOffset = noteWidgetCellSpacing,
-  yOffset = firstRowY,
+  x = noteWidgetCellSpacing,
+  y = firstRowY,
   xSpacing = noteWidgetCellSpacing,
   ySpacing = noteWidgetRowSpacing,
-  cols = 4
+  --cols = 4
 })
 
 widgets.menu("Speed Type", tableMotion.speedTypes, {
@@ -245,6 +245,7 @@ local moveSpeedInput = widgets.numBox("Motion Speed", tableMotion.options.moveSp
   changed = function(self) tableMotion.options.moveSpeed = self.value end
 })
 
+widgets.row()
 widgets.col(3)
 
 widgets.numBox("Speed Factor", tableMotion.options.factor, {
@@ -254,6 +255,8 @@ widgets.numBox("Speed Factor", tableMotion.options.factor, {
   tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. Controlled by the Y-axis on the XY controller",
   changed = function(self) tableMotion.options.factor = self.value end
 })
+
+widgets.row()
 
 widgets.numBox("Range", tableRange, {
   min = 8,
@@ -291,7 +294,7 @@ local bipolarButton = widgets.button("Bipolar", bipolar, {
 widgets.button("Reset", false, {
   width = bipolarButton.width,
   x = widgets.posSide(bipolarButton),
-  increment = false,
+  --increment = false,
   changed = function(self)
     resetTableValues()
     startMoving()

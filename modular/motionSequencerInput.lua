@@ -166,7 +166,7 @@ local notePanel = widgets.panel({
   height = 250,
 })
 
-positionTable = widgets.table(tableMotion.options.tableLength, 0, {
+positionTable = widgets.table("Position", 0, tableMotion.options.tableLength, {
   enabled = false,
   persistent = false,
   sliderColour = "green",
@@ -174,17 +174,18 @@ positionTable = widgets.table(tableMotion.options.tableLength, 0, {
   height = 6,
 })
 
-widgets.setSection()
+widgets.setSection({
+  height = 160,
+  y = widgets.posUnder(positionTable),
+})
 
-motionTable = widgets.table(tableMotion.options.tableLength, 0, {
+motionTable = widgets.table("Motion", 0, tableMotion.options.tableLength, {
   tooltip = "Events are triggered when the value hits max or min",
   showPopupDisplay = true,
   backgroundColour = "191E25",
   min = -24,
   max = 24,
   integer = true,
-  height = 160,
-  y = widgets.posUnder(positionTable),
 })
 
 local noteWidgetHeight = 20
@@ -201,10 +202,9 @@ widgets.setSection({
   yOffset = firstRowY,
   xSpacing = noteWidgetCellSpacing,
   ySpacing = noteWidgetRowSpacing,
-  cols = 4
 })
 
-local speedTypeMenu = widgets.menu("Speed Type", tableMotion.speedTypes, {
+widgets.menu("Speed Type", tableMotion.speedTypes, {
   changed = function(self) tableMotion.options.speedType = self.selectedText end
 })
 
@@ -225,12 +225,11 @@ local scaleMenu = widgets.menu("Scale", #scalesNames, scalesNames, {
 
 local noteInput = widgets.numBox("Base Note", baseNote, {
   width = 33,
-  x = widgets.posSide(scaleMenu) - 10,
+  x = widgets.posSide(scaleMenu) - 7,
   y = firstRowY + 25,
   unit = Unit.MidiKey,
   showLabel = false,
   tooltip = "Set the root note",
-  increment = false,
   changed = function(self)
     baseNote = self.value
     setScale()
@@ -238,6 +237,7 @@ local noteInput = widgets.numBox("Base Note", baseNote, {
 })
 
 local moveSpeedInput = widgets.numBox("Motion Speed", tableMotion.options.moveSpeed, {
+  x = widgets.posSide(noteInput),
   name = "MoveSpeed",
   min = tableMotion.options.moveSpeedMin,
   max = tableMotion.options.moveSpeedMax,
@@ -246,6 +246,7 @@ local moveSpeedInput = widgets.numBox("Motion Speed", tableMotion.options.moveSp
   changed = function(self) tableMotion.options.moveSpeed = self.value end
 })
 
+widgets.row()
 widgets.col(3)
 
 local factorInput = widgets.numBox("Speed Factor", tableMotion.options.factor, {
@@ -255,6 +256,8 @@ local factorInput = widgets.numBox("Speed Factor", tableMotion.options.factor, {
   tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. Controlled by the Y-axis on the XY controller",
   changed = function(self) tableMotion.options.factor = self.value end
 })
+
+widgets.row()
 
 local motionTableLengthInput = widgets.numBox("Length", tableMotion.options.tableLength, {
   min = 2,
@@ -281,8 +284,6 @@ local bipolarButton = widgets.button("Bipolar", bipolar, {
 
 widgets.button("Reset", false, {
   width = bipolarButton.width,
-  x = widgets.posSide(bipolarButton),
-  increment = false,
   changed = function(self)
     resetPitches()
     startMoving()

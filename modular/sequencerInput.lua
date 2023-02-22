@@ -75,13 +75,14 @@ widgets.menu("Channel", widgets.channels(), {
 
 widgets.setSection({
   width = 710,
-  xOffset = 5,
-  yOffset = widgets.posUnder(sequencerLabel) + 5,
+  x = 5,
+  y = widgets.posUnder(sequencerLabel) + 5,
   xSpacing = 5,
   ySpacing = 0,
+  cols = 1
 })
 
-local positionTable = widgets.table(tableLength, 0, {
+local positionTable = widgets.table("Position", 0, tableLength, {
   integer = true,
   enabled = false,
   persistent = false,
@@ -89,10 +90,9 @@ local positionTable = widgets.table(tableLength, 0, {
   backgroundColour = "404040",
   sliderColour = "66ff99",
   height = 3,
-  increment = false,
 })
 
-local sequencerTable = widgets.table(tableLength, 0, {
+local sequencerTable = widgets.table("Pitch Offset", 0, tableLength, {
   tooltip = "Set the pitch offset",
   showPopupDisplay = true,
   backgroundColour = "191E25",
@@ -100,12 +100,12 @@ local sequencerTable = widgets.table(tableLength, 0, {
   max = 12,
   integer = true,
   height = 60,
-  y = widgets.posUnder(positionTable)
 })
 
 widgets.setSection({
   width = 114,
-  yOffset = widgets.posUnder(sequencerTable) + 5,
+  y = widgets.posUnder(sequencerTable) + 5,
+  cols = 6,
 })
 
 local noteInput = widgets.numBox("Root Note", baseNote, {

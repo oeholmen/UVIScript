@@ -10,8 +10,9 @@ local scales = require "includes.scales"
 local scale = {}
 local key = 1
 local channel = 0 -- 0 = Omni
+local scaleNames = scales.getScaleNames()
 local scaleDefinitions = scales.getScaleDefinitions()
-local scaleDefinition = #scaleDefinitions
+local scaleDefinition = scaleDefinitions[#scaleDefinitions]
 local setScale = function() scale = scales.createScale(scaleDefinition, (key - 1)) end
 
 ------------------------------------------------------------------
@@ -46,7 +47,7 @@ widgets.menu("Key", key, notes.getNoteNames(), {
   end
 })
 
-widgets.menu("Scale", scaleDefinition, scales.getScaleNames(), {
+widgets.menu("Scale", #scaleDefinitions, scaleNames, {
   changed = function(self)
     scaleDefinition = scaleDefinitions[self.value]
     setScale()

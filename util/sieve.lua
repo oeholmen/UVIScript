@@ -8,17 +8,22 @@ local gem = require "includes.common"
 local widgets = require "includes.widgets"
 
 local backgroundColour = "202020" -- Light or Dark
-local widgetBackgroundColour = "black" -- Dark
-local widgetTextColour = "3EC1D3" -- Light
-local labelTextColour = widgetBackgroundColour
-local labelBackgoundColour = widgetTextColour
-local menuBackgroundColour = "01011F"
-local menuArrowColour = "66" .. labelTextColour
-local menuOutlineColour = "5f" .. widgetTextColour
+
+widgets.setColours({
+  backgroundColour = backgroundColour,
+  widgetBackgroundColour = "black",
+  widgetTextColour = "3EC1D3",
+  labelTextColour = "black",
+  labelBackgoundColour = "black",
+  menuBackgroundColour = "01011F",
+  menuArrowColour = "66" .. "black",
+  menuOutlineColour = "5f" .. "3EC1D3",
+  backgroundColourOff = "red",
+})
 
 setBackgroundColour(backgroundColour)
 
-local panel = widgets.panel({
+widgets.panel({
   backgroundColour = backgroundColour,
   x = 10,
   y = 10,
@@ -26,43 +31,41 @@ local panel = widgets.panel({
   height = 40,
 })
 
-local label = panel:Label("Label")
-label.text = "Sieve"
-label.alpha = 0.5
-label.backgroundColour = labelBackgoundColour
-label.textColour = labelTextColour
-label.fontSize = 22
-label.position = {0,0}
-label.size = {55,25}
+widgets.setSection({
+  x = 10,
+  y = 8,
+  xSpacing = 15,
+})
 
-local sieveProbability = panel:NumBox("SieveProbability", 50, 0, 100, true)
-sieveProbability.unit = Unit.Percent
-sieveProbability.backgroundColour = widgetBackgroundColour
-sieveProbability.textColour = widgetTextColour
-sieveProbability.displayName = "Probability"
-sieveProbability.tooltip = "Set the probability that incomming notes will pass through the sieve"
+widgets.label("Sieve", {
+  tooltip = "Set the probability that incomming notes will pass through. The sieve can be used to block ranges with probability set to 0.",
+  alpha = 0.5,
+  fontSize = 22,
+})
 
-local noteMin = panel:NumBox("NoteMin", 0, 0, 127, true)
-noteMin.unit = Unit.MidiKey
-noteMin.backgroundColour = widgetBackgroundColour
-noteMin.textColour = widgetTextColour
-noteMin.displayName = "Min"
-noteMin.tooltip = "Lowest note - notes below this are passed through"
+widgets.setSection({
+  x = 210,
+})
 
-local noteMax = panel:NumBox("NoteMax", 127, 0, 127, true)
-noteMax.unit = Unit.MidiKey
-noteMax.backgroundColour = widgetBackgroundColour
-noteMax.textColour = widgetTextColour
-noteMax.displayName = "Max"
-noteMax.tooltip = "Highest note - notes above this are passed through"
+local sieveProbability = widgets.numBox("Probability", 50, {
+  tooltip = "Set the probability that incomming notes will pass through the sieve",
+  unit = Unit.Percent,
+})
 
-local sieveButton = panel:Button("SieveButton")
-sieveButton.displayName = " "
-sieveButton.tooltip = "Shows current state"
-sieveButton.backgroundColourOff = "red"
-sieveButton.backgroundColourOn = "green"
-sieveButton.size = {20,20}
-sieveButton.x = panel.width - 40
+local noteMin = widgets.numBox("Min", 0, {
+  tooltip = "Lowest note - notes below this are passed through",
+  unit = Unit.MidiKey,
+})
+
+local noteMax = widgets.numBox("Max", 127, {
+  tooltip = "Highest note - notes above this are passed through",
+  unit = Unit.MidiKey,
+})
+
+local sieveButton = widgets.button(" ", {
+  tooltip = "Shows current state",
+  width = 22,
+})
 
 --------------------------------------------------------------------------------
 -- Handle note events

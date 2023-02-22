@@ -112,8 +112,8 @@ widgets.label("Bounce Trigger", {
 widgets.setSection({
   width = 100,
   height = 22,
-  xOffset = (widgets.getPanel().width / 2) + 45,
-  yOffset = 5,
+  x = (widgets.getPanel().width / 2) + 45,
+  y = 5,
 })
 
 widgets.numBox('Channel', channel, {
