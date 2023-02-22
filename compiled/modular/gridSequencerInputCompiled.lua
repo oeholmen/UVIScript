@@ -335,7 +335,6 @@ local function getWidgetBounds(options, increment)
     end
     local i = getValueOrDefault(options.increment, 1)
     incrementCol(i, w, h)
-    --incrementCol(1, w, h)
   end
 
   return {x, y, w, h}
@@ -425,15 +424,9 @@ local function setOptional(widget, options)
   end
 end
 
-local function setPanel(panel)
-  widgetDefaults.panel = panel
-end
-
-local function getPanel(options)
-  return widgetDefaults.panel
-end
-
 local widgets = {
+  setColours = setColours,
+  setSection = setSection,
   channels = function()
     local channels = {"Omni"}
     for j=1,16 do
@@ -442,16 +435,7 @@ local widgets = {
     return channels
   end,
   getColours = function() return widgetColours end,
-  setColours = setColours,
-  setPanel = setPanel,
-  getPanel = getPanel,
-  setSection = setSection,
-  xOffset = xOffset,
-  yOffset = yOffset,
-  xSpacing = xSpacing,
-  ySpacing = ySpacing,
-  widthDefault = widthDefault,
-  heightDefault = heightDefault,
+  getPanel = function(options) return widgetDefaults.panel end,
   xOffset = function(val) widgetDefaults.xOffset = val end,
   yOffset = function(val) widgetDefaults.yOffset = val end,
   xSpacing = function(val) widgetDefaults.xSpacing = val end,
@@ -1179,12 +1163,11 @@ end
 -- Panel Definitions
 --------------------------------------------------------------------------------
 
-local sequencerPanel = Panel("GridSequencer")
-sequencerPanel.backgroundColour = backgroundColour
-sequencerPanel.x = 0
-sequencerPanel.y = 0
-sequencerPanel.width = 720
-sequencerPanel.height = 30
+local sequencerPanel = widgets.panel({
+  width = 720,
+  height = 30,
+  backgroundColour = backgroundColour,
+})
 
 local notePanel = Panel("Notes")
 notePanel.backgroundColour = "black"
@@ -1211,7 +1194,6 @@ axisMotionPanel.height = 132
 -- Grid Sequencer
 --------------------------------------------------------------------------------
 
-widgets.setPanel(sequencerPanel)
 local xSpacing = 5
 
 local sequencerLabel = sequencerPanel:Label("Label")
@@ -1278,19 +1260,6 @@ local channelInput = widgets.menu("Channel", widgets.channels(), {
   y = forwardButton.y,
   changed = function(self) channel = self.value - 1 end
 })
-
---[[ local channelInput = sequencerPanel:Menu("ChannelInput", widgets.channels())
-channelInput.tooltip = "Listen to note events on this channel - if a note event is not being listened to, it will be pass through"
-channelInput.arrowColour = menuArrowColour
-channelInput.showLabel = false
-channelInput.backgroundColour = menuBackgroundColour
-channelInput.textColour = widgetTextColour
-channelInput.size = {90,22}
-channelInput.x = forwardButton.x + forwardButton.width + xSpacing
-channelInput.y = forwardButton.y
-channelInput.changed = function(self)
-  channel = self.value - 1
-end ]]
 
 --------------------------------------------------------------------------------
 -- Note Grid

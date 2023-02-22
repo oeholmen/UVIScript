@@ -162,7 +162,6 @@ local function getWidgetBounds(options, increment)
     end
     local i = getValueOrDefault(options.increment, 1)
     incrementCol(i, w, h)
-    --incrementCol(1, w, h)
   end
 
   return {x, y, w, h}
@@ -252,15 +251,9 @@ local function setOptional(widget, options)
   end
 end
 
-local function setPanel(panel)
-  widgetDefaults.panel = panel
-end
-
-local function getPanel(options)
-  return widgetDefaults.panel
-end
-
 return {--widgets--
+  setColours = setColours,
+  setSection = setSection,
   channels = function()
     local channels = {"Omni"}
     for j=1,16 do
@@ -269,16 +262,7 @@ return {--widgets--
     return channels
   end,
   getColours = function() return widgetColours end,
-  setColours = setColours,
-  setPanel = setPanel,
-  getPanel = getPanel,
-  setSection = setSection,
-  xOffset = xOffset,
-  yOffset = yOffset,
-  xSpacing = xSpacing,
-  ySpacing = ySpacing,
-  widthDefault = widthDefault,
-  heightDefault = heightDefault,
+  getPanel = function(options) return widgetDefaults.panel end,
   xOffset = function(val) widgetDefaults.xOffset = val end,
   yOffset = function(val) widgetDefaults.yOffset = val end,
   xSpacing = function(val) widgetDefaults.xSpacing = val end,
