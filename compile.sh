@@ -14,6 +14,7 @@ luaScripts=(
   generators/noteFragmentGenerator
   modular/bounceTrigger
   modular/gridSequencerInput
+  modular/horizontalMotionSequencerInput
   modular/motionSequencerInput
   modular/probabilityTrigger
   modular/pulseTrigger

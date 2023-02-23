@@ -23,6 +23,8 @@ local bipolar = true
 local positionTable
 local motionTable
 local channel = 1
+local triggerMode = 1 -- Holds the strategy for when events are triggered
+local triggerModes = {"Min/Max", "Min", "Max", "Zero", "All"}
 local noteEventId = 0 -- Holds the index if the cell in the table that last triggered an event
 local resolutionNames = resolutions.getResolutionNames()
 local resolution = #resolutionNames
@@ -54,8 +56,20 @@ local function move(i, uniqueId)
   local direction = 1
   local value = motionTable:getValue(i)
   while isPlaying and movingCells[i] == uniqueId do
-    -- Send note event if value is min or max
-    if value == motionTable.min or value == motionTable.max then
+    -- Send note event according to the selected trigger mode
+    local isTrigger = false
+    if triggerMode == 1 and (value == motionTable.min or value == motionTable.max) then
+      isTrigger = true
+    elseif triggerMode == 2 and value == motionTable.min then
+      isTrigger = true
+    elseif triggerMode == 3 and value == motionTable.max then
+      isTrigger = true
+    elseif triggerMode == 4 and value == 0 then
+      isTrigger = true
+    elseif triggerMode == 5 and (value == 0 or value == motionTable.min or value == motionTable.max) then
+      isTrigger = true
+    end
+    if isTrigger then
       noteEventId = i
     end  
     value, direction = tableMotion.moveTable(motionTable, i, value, direction)
@@ -218,18 +232,25 @@ widgets.setSection({
   y = firstRowY,
   xSpacing = noteWidgetCellSpacing,
   ySpacing = noteWidgetRowSpacing,
-  --cols = 4
+  cols = 7
 })
 
 widgets.menu("Speed Type", tableMotion.speedTypes, {
+  width = 82,
   changed = function(self) tableMotion.options.speedType = self.selectedText end
 })
 
 widgets.menu("Start Mode", tableMotion.startModes, {
+  width = 82,
   changed = function(self)
     tableMotion.options.startMode = self.selectedText
     resetTableValues()
   end
+})
+
+widgets.menu("Trigger Mode", triggerMode, triggerModes, {
+  width = 82,
+  changed = function(self) triggerMode = self.value end
 })
 
 widgets.menu("Quantize", resolution, resolutionNames, {

@@ -1,4 +1,4 @@
--- modular/motionSequencerInput -- 
+-- modular/horizontalMotionSequencerInput -- 
 --------------------------------------------------------------------------------
 -- Common methods
 --------------------------------------------------------------------------------
@@ -673,6 +673,69 @@ local scales = {
 }
 
 --------------------------------------------------------------------------------
+-- Common functions for notes
+--------------------------------------------------------------------------------
+
+local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
+
+local notes = {
+  getNoteNames = function()
+    return notenames
+  end,
+  
+  -- Used for mapping - does not include octave, only name of note (C, C#...)
+  getNoteMapping = function()
+    local noteNumberToNoteName = {}
+    local notenamePos = 1
+    for i=0,127 do
+      table.insert(noteNumberToNoteName, notenames[notenamePos])
+      notenamePos = notenamePos + 1
+      if notenamePos > #notenames then
+        notenamePos = 1
+      end
+    end
+    return noteNumberToNoteName
+  end,
+  
+  transpose = function(note, min, max)
+    --print("Check transpose", note)
+    if note < min then
+      print("note < min", note, min)
+      while note < min do
+        note = note + 12
+        print("transpose note up", note)
+      end
+    elseif note > max then
+      print("note > max", note, max)
+      while note > max do
+        note = note - 12
+        print("transpose note down", note)
+      end
+    end
+    -- Ensure note is inside given min/max values
+    note = math.max(min, math.min(max, note))
+    -- Ensure note is inside valid values
+    return math.max(0, math.min(127, note))
+  end,
+  
+  getSemitonesBetweenNotes = function(note1, note2)
+    return math.max(note1, note2) - math.min(note1, note1)
+  end,
+  
+  getNoteAccordingToScale = function(scale, noteToPlay)
+    for _,note in ipairs(scale) do
+      if note == noteToPlay then
+        return noteToPlay
+      elseif note > noteToPlay then
+        print("Change from noteToPlay to note", noteToPlay, note)
+        return note
+      end
+    end
+    return noteToPlay
+  end,
+}
+
+--------------------------------------------------------------------------------
 -- Common functions for processors using table motion
 --------------------------------------------------------------------------------
 
@@ -827,52 +890,65 @@ setBackgroundColour(backgroundColour)
 local isPlaying = false
 local sequencerResolution = 0.25 -- Fallback value
 local baseNote = 60 -- Option
+local tableRange = 16
 local octaveRange = 2 -- Option
 local bipolar = true -- Option
-local pitchOffsetPos = 1
+--local noteMode = 1
+--local noteModes = {"Active", "Last Min/Max", "Last Max", "Last Min", "Chance"}
+local activationMode = 1
+local activationModes = {"Max:On,Min:Off", "Max:Toggle", "Min:Toggle", "Zero:Toggle", "Min:On,Max:Off"}
 local positionTable
 local motionTable
-local scalesNames = scales.getScaleNames()
+local scaleNames = scales.getScaleNames()
 local scaleDefinitions = scales.getScaleDefinitions()
-local scaleDefinitionIndex = #scalesNames
+local scaleDefinitionIndex = #scaleNames
 local activeScale = {} -- Holds the active scale
+local activeNotes = {} -- Holds the active notes in the scale
 local uniqueIndex = 1 -- Holds the unique id for each moving spawn
 local movingCells = {}
 local forward = false
 local channel = 0
+--local notePositionIndex = 0 -- Holds the index if the cell in the table that last set a note active
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
 --------------------------------------------------------------------------------
 
-local function resetPitches()
-  pitchOffsetPos = 1
-  tableMotion.setTableZero(positionTable)
-  tableMotion.setStartMode(motionTable, startMode)
-end
+local function resetTableValues()
+  -- Reset note position index
+  --notePositionIndex = 0
 
-local function setScale()
-  local scaleDefinition = scaleDefinitions[scaleDefinitionIndex]
-  local oneOctScale = scales.createScale(scaleDefinition, 0, 11)
-  --print("#oneOctScale", #oneOctScale)
-  -- Check octave range / bipolar before setting the table range
-  local tableRange = #oneOctScale * octaveRange
-  --print("tableRange", tableRange)
-  tableMotion.setRange(motionTable, tableRange, bipolar)
-  local startNote = baseNote
-  if bipolar then
-    startNote = startNote - (octaveRange * 12)
-  end
-  local maxNote = baseNote + (octaveRange * 12)
-  activeScale = scales.createScale(scaleDefinition, startNote, maxNote)
-  --print("#activeScale, startNote, maxNote", #activeScale, startNote, maxNote)
-  resetPitches()
+  -- Reset position
+  tableMotion.setTableZero(positionTable)
+
+  -- Set start mode
+  tableMotion.setStartMode(motionTable)
 end
 
 local function move(i, uniqueId)
   local direction = 1
   local value = motionTable:getValue(i)
+  --print("Start moving i, uniqueId", i, uniqueId)
   while isPlaying and movingCells[i] == uniqueId do
+    -- Set note position active when value is min or max
+    -- {"Max:On,Min:Off", "Max:Toggle", "Min:Toggle", "Zero:Toggle", "Min:On,Max:Off"}
+    --[[ if value == 0 or value == motionTable.min or value == motionTable.max then
+      if noteMode == 2 or noteMode == 5 or (noteMode == 3 and value == motionTable.max) or (noteMode == 4 and value == motionTable.min) then
+        notePositionIndex = i
+      end
+    end ]]
+    if activationMode == 1 and (value == motionTable.min or value == motionTable.max) then
+      activeNotes[i] = value == motionTable.max
+    elseif activationMode == 2 and value == motionTable.max and direction == 1 then
+      activeNotes[i] = activeNotes[i] == false
+    elseif activationMode == 3 and value == motionTable.min and direction == 1 then
+      activeNotes[i] = activeNotes[i] == false
+    elseif activationMode == 4 and value == 0 then
+      activeNotes[i] = activeNotes[i] == false
+    elseif activationMode == 5 and (value == motionTable.min or value == motionTable.max) then
+      activeNotes[i] = value == motionTable.min
+    end
+    --print("Set activeNotes[i], i, uniqueId", activeNotes[i], i, uniqueId)
     value, direction = tableMotion.moveTable(motionTable, i, value, direction)
   end
 end
@@ -886,23 +962,98 @@ local function startMoving()
   end
 end
 
+local function setRange()
+  tableMotion.setRange(motionTable, tableRange, bipolar)
+  resetTableValues()
+end
+
+local function setScaleTable()
+  local scaleDefinition = scaleDefinitions[scaleDefinitionIndex]
+  local startNote = baseNote
+  if bipolar then
+    startNote = startNote - (octaveRange * 12)
+  end
+  local maxNote = baseNote + (octaveRange * 12)
+  activeScale = scales.createScale(scaleDefinition, startNote, maxNote)
+  activeNotes = {} -- Reset
+  for _,v in ipairs(activeScale) do
+    table.insert(activeNotes, false) -- Notes start deactivated
+  end
+
+  -- Set table length according to the number of notes in the selected scale
+  tableMotion.options.tableLength = #activeScale
+  positionTable.length = tableMotion.options.tableLength
+  motionTable.length = tableMotion.options.tableLength
+
+  --print("#activeScale, startNote, maxNote", #activeScale, startNote, maxNote)
+  resetTableValues()
+  startMoving()
+end
+
+local function getResetPosition()
+  local reset = gem.getRandom(4)
+
+  -- Lowest
+  if reset == 1 then
+    return 1
+  end
+
+  -- Middle
+  if reset == 2 then
+    return math.ceil(#activeScale / 2)
+  end
+
+  -- Random
+  if reset == 3 then
+    return gem.getRandom(#activeScale)
+  end
+
+  -- Highest
+  return #activeScale
+end
+
 local function getNote()
-  for i=1,motionTable.length do
+  --local scalePos = notePositionIndex
+
+  -- {"Active", "Last", "Last Max", "Last Min", "Chance"}
+
+  -- Get note position form active notes
+  --local selectFromActiveNotes = noteMode == 1 or (noteMode == 5 and gem.getRandomBoolean())
+  --if selectFromActiveNotes then
+    local activePositions = {}
+    for i,v in ipairs(activeNotes) do
+      if v then
+        table.insert(activePositions, i)
+      end
+    end
+    print("activeNotes", #activeNotes)
+    print("activePositions", #activePositions)
+    local scalePos = gem.getRandomFromTable(activePositions)
+  --end
+
+  -- No active notes
+  if type(scalePos) == "nil" then-- or scalePos < 1 or scalePos > #activeScale then
+    return
+  end
+
+  -- Set in position table
+  for i=1,positionTable.length do
     local val = 0
-    if i == pitchOffsetPos then
+    if activeNotes[i] then
       val = 1
+    end
+    if i == scalePos then
+      val = 2
     end
     positionTable:setValue(i, val)
   end
-  local scalePos = motionTable:getValue(pitchOffsetPos) + 1
-  if motionTable.min < 0 then
-    scalePos = scalePos + math.abs(motionTable.min)
-  end
-  --print("#activeScale, scalePos", #activeScale, scalePos)
-  local note = activeScale[scalePos]
-  pitchOffsetPos = gem.inc(pitchOffsetPos, 1, motionTable.length)
-  --print("pitchOffsetPos", pitchOffsetPos)
-  return note
+
+  --[[ if scalePos < 1 or scalePos > #activeScale then
+    scalePos = getResetPosition()
+  end ]]
+
+  -- Get note from scale
+  return activeScale[scalePos]
 end
 
 local function startPlaying()
@@ -910,6 +1061,7 @@ local function startPlaying()
     return
   end
   isPlaying = true
+  setScaleTable()
   startMoving()
 end
 
@@ -918,7 +1070,7 @@ local function stopPlaying()
     return
   end
   isPlaying = false
-  resetPitches()
+  resetTableValues()
 end
 
 --------------------------------------------------------------------------------
@@ -930,7 +1082,7 @@ local sequencerPanel = widgets.panel({
   height = 30,
 })
 
-widgets.label("Motion Sequencer Input", {
+widgets.label("Horizontal Motion Sequencer", {
   tooltip = "This sequencer listens to incoming pulses from a rythmic sequencer (Sent as note 0) and generates notes in response",
   width = sequencerPanel.width,
   height = 30,
@@ -940,8 +1092,8 @@ widgets.label("Motion Sequencer Input", {
 
 widgets.setSection({
   width = 90,
-  xOffset = 531,
-  yOffset = 5,
+  x = 531,
+  y = 5,
   xSpacing = 5,
   ySpacing = 5,
 })
@@ -958,29 +1110,31 @@ local channelInput = widgets.menu("Channel", widgets.channels(), {
 })
 
 --------------------------------------------------------------------------------
--- Notes Panel
+-- Settings Panel
 --------------------------------------------------------------------------------
 
 widgets.setSection({
   width = sequencerPanel.width,
-  xOffset = 0,
-  yOffset = 0,
+  x = 0,
+  y = 0,
   xSpacing = 0,
   ySpacing = 0,
 })
 
-local notePanel = widgets.panel({
+local settingsPanel = widgets.panel({
   backgroundColour = backgroundColour,
   y = widgets.posUnder(sequencerPanel),
-  height = 250,
+  height = 254,
 })
 
 positionTable = widgets.table("Position", 0, tableMotion.options.tableLength, {
+  max = 2,
+  integer = true,
   enabled = false,
   persistent = false,
   sliderColour = "green",
   backgroundColour = "CFFFFE",
-  height = 6,
+  height = 10,
 })
 
 widgets.setSection({
@@ -989,10 +1143,11 @@ widgets.setSection({
 })
 
 motionTable = widgets.table("Motion", 0, tableMotion.options.tableLength, {
+  tooltip = "Events are triggered when the value hits max or min",
   showPopupDisplay = true,
   backgroundColour = "191E25",
-  min = -24,
-  max = 24,
+  min = -tableRange,
+  max = tableRange,
   integer = true,
 })
 
@@ -1006,28 +1161,41 @@ widgets.setSection({
   width = noteWidgetWidth,
   height = noteWidgetHeight,
   menuHeight = 45,
-  xOffset = 10,
-  yOffset = firstRowY,
+  x = 10,
+  y = firstRowY,
   xSpacing = noteWidgetCellSpacing,
   ySpacing = noteWidgetRowSpacing,
+  cols = 7
 })
 
 widgets.menu("Speed Type", tableMotion.speedTypes, {
+  width = 75,--82,
   changed = function(self) tableMotion.options.speedType = self.selectedText end
 })
 
-widgets.menu("Start Mode", 6, tableMotion.startModes, {
+widgets.menu("Start Mode", 3, tableMotion.startModes, {
+  width = 75,--82,
   changed = function(self)
     tableMotion.options.startMode = self.selectedText
-    resetPitches()
+    resetTableValues()
   end
 }):changed()
 
-local scaleMenu = widgets.menu("Scale", #scalesNames, scalesNames, {
+widgets.menu("Activation Mode", activationMode, activationModes, {
+  width = 82+14,
+  changed = function(self) activationMode = self.value end
+})
+
+--[[ widgets.menu("Note Mode", noteMode, noteModes, {
+  width = 82,
+  changed = function(self) noteMode = self.value end
+}) ]]
+
+local scaleMenu = widgets.menu("Scale", #scaleNames, scaleNames, {
   width = 90,
   changed = function(self)
     scaleDefinitionIndex = self.value
-    setScale()
+    setScaleTable()
   end
 })
 
@@ -1040,7 +1208,7 @@ local noteInput = widgets.numBox("Base Note", baseNote, {
   tooltip = "Set the root note",
   changed = function(self)
     baseNote = self.value
-    setScale()
+    setScaleTable()
   end
 })
 
@@ -1057,7 +1225,7 @@ local moveSpeedInput = widgets.numBox("Motion Speed", tableMotion.options.moveSp
 widgets.row()
 widgets.col(3)
 
-local factorInput = widgets.numBox("Speed Factor", tableMotion.options.factor, {
+widgets.numBox("Speed Factor", tableMotion.options.factor, {
   name = "Factor",
   min = tableMotion.options.factorMin,
   max = tableMotion.options.factorMax,
@@ -1067,56 +1235,54 @@ local factorInput = widgets.numBox("Speed Factor", tableMotion.options.factor, {
 
 widgets.row()
 
-local motionTableLengthInput = widgets.numBox("Length", tableMotion.options.tableLength, {
-  min = 2,
+widgets.numBox("Range", tableRange, {
+  min = 8,
   max = 128,
   integer = true,
-  tooltip = "Set the table length",
+  tooltip = "Set the table range - high range = fewer events, low range = more events",
   changed = function(self)
-    tableMotion.options.tableLength = self.value
-    positionTable.length = tableMotion.options.tableLength
-    motionTable.length = tableMotion.options.tableLength
-    pitchOffsetPos = 1 -- Reset pos on length change
-    resetPitches()
-    startMoving()
-    end
+    tableRange = self.value
+    setRange()
+  end
 })
 
 local bipolarButton = widgets.button("Bipolar", bipolar, {
   width = (noteWidgetWidth / 2) - (noteWidgetCellSpacing / 2),
   changed = function(self)
     bipolar = self.value
-    setScale()
+    setRange()
+    setScaleTable()
+    startMoving()
   end
 })
 
 widgets.button("Reset", false, {
   width = bipolarButton.width,
   changed = function(self)
-    resetPitches()
+    resetTableValues()
     startMoving()
     self.value = false
   end
 })
 
-local octaveRangeInput = widgets.numBox("Octave Range", octaveRange, {
+widgets.numBox("Octave Range", octaveRange, {
   tooltip = "Set the octave range",
   min = 1,
   max = 4,
   integer = true,
   changed = function(self)
     octaveRange = self.value
-    setScale()
+    setScaleTable()
   end
 })
 
-local speedRandomizationAmountInput = widgets.numBox("Speed Rand", tableMotion.options.speedRandomizationAmount, {
+widgets.numBox("Speed Rand", tableMotion.options.speedRandomizationAmount, {
   unit = Unit.Percent,
   tooltip = "Set the radomization amount applied to speed",
   changed = function(self) tableMotion.options.speedRandomizationAmount = self.value end
 })
 
-local xySpeedFactor = notePanel:XY('MoveSpeed', 'Factor')
+local xySpeedFactor = widgets.getPanel():XY('MoveSpeed', 'Factor')
 xySpeedFactor.y = firstRowY
 xySpeedFactor.x = widgets.posSide(moveSpeedInput) - 5
 xySpeedFactor.width = noteWidgetWidth
@@ -1129,7 +1295,7 @@ xySpeedFactor.height = (noteWidgetHeight * 3) + (noteWidgetRowSpacing * 2)
 function onInit()
   print("Init sequencer")
   uniqueIndex = 1
-  setScale()
+  setScaleTable()
 end
 
 function onNote(e)

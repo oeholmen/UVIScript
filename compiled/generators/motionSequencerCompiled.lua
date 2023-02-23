@@ -112,13 +112,13 @@ end
 
 local function triangle(minValue, maxValue, numSteps)
   local rising = true
-  local numStepsUpDown = round(numSteps / 2)
+  local numStepsUpDown = math.floor(numSteps / 2)
   local valueRange = maxValue - minValue
   local changePerStep = valueRange / numStepsUpDown
   local startValue = minValue
   local tri = {}
   for i=1,numSteps do
-    table.insert(tri, startValue)
+    table.insert(tri, math.floor(startValue))
     if rising then
       startValue = startValue + changePerStep
       if startValue >= maxValue then
@@ -128,6 +128,7 @@ local function triangle(minValue, maxValue, numSteps)
       startValue = startValue - changePerStep
     end
   end
+  tri[#tri] = minValue
   return tri
 end
 
@@ -137,9 +138,10 @@ local function rampUp(minValue, maxValue, numSteps)
   local startValue = minValue
   local ramp = {}
   for i=1,numSteps do
-    table.insert(ramp, startValue)
+    table.insert(ramp, math.floor(startValue))
     startValue = inc(startValue, changePerStep)
   end
+  ramp[#ramp] = maxValue
   return ramp
 end
 
@@ -152,6 +154,7 @@ local function rampDown(minValue, maxValue, numSteps)
     table.insert(ramp, startValue)
     startValue = inc(startValue, -changePerStep)
   end
+  ramp[#ramp] = minValue
   return ramp
 end
 
@@ -224,12 +227,14 @@ local scales = {
 
   createScale = function(scaleDefinition, rootNote, maxNote)
     if type(maxNote) ~= "number" then
-      maxNote = 128
+      maxNote = 127
     end
+    rootNote = math.max(0, rootNote)
+    maxNote = math.min(127, maxNote)
     local scale = {}
     -- Find notes for scale
     local pos = 1
-    while rootNote < maxNote do
+    while rootNote <= maxNote do
       table.insert(scale, rootNote)
       rootNote = rootNote + scaleDefinition[pos]
       pos = pos + 1
@@ -1490,7 +1495,7 @@ end
 
 local function setScale()
   local scaleDefinition = scaleDefinitions[scaleDefinitionIndex]
-  local oneOctScale = scales.createScale(scaleDefinition, 0, 12)
+  local oneOctScale = scales.createScale(scaleDefinition, 0, 11)
   print("#oneOctScale", #oneOctScale)
   -- TODO Check octave range / bipolar before setting the table range
   local tableRange = #oneOctScale * octaveRange
@@ -1504,8 +1509,8 @@ local function setScale()
   if bipolar then
     startNote = startNote - (octaveRange * 12)
   end
-  local maxNote = baseNote + (octaveRange * 12) + 1
-  activeScale = scales.createScale(scaleDefinition, math.max(0, startNote), math.min(128, maxNote))
+  local maxNote = baseNote + (octaveRange * 12)
+  activeScale = scales.createScale(scaleDefinition, math.max(0, startNote), maxNote)
   print("#activeScale, startNote, maxNote", #activeScale, startNote, maxNote)
   resetPitches()
 end

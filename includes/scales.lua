@@ -51,12 +51,14 @@ return {--scales--
 
   createScale = function(scaleDefinition, rootNote, maxNote)
     if type(maxNote) ~= "number" then
-      maxNote = 128
+      maxNote = 127
     end
+    rootNote = math.max(0, rootNote)
+    maxNote = math.min(127, maxNote)
     local scale = {}
     -- Find notes for scale
     local pos = 1
-    while rootNote < maxNote do
+    while rootNote <= maxNote do
       table.insert(scale, rootNote)
       rootNote = rootNote + scaleDefinition[pos]
       pos = pos + 1

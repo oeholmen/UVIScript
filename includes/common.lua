@@ -111,13 +111,13 @@ end
 
 local function triangle(minValue, maxValue, numSteps)
   local rising = true
-  local numStepsUpDown = round(numSteps / 2)
+  local numStepsUpDown = math.floor(numSteps / 2)
   local valueRange = maxValue - minValue
   local changePerStep = valueRange / numStepsUpDown
   local startValue = minValue
   local tri = {}
   for i=1,numSteps do
-    table.insert(tri, startValue)
+    table.insert(tri, math.floor(startValue))
     if rising then
       startValue = startValue + changePerStep
       if startValue >= maxValue then
@@ -127,6 +127,7 @@ local function triangle(minValue, maxValue, numSteps)
       startValue = startValue - changePerStep
     end
   end
+  tri[#tri] = minValue
   return tri
 end
 
@@ -136,9 +137,10 @@ local function rampUp(minValue, maxValue, numSteps)
   local startValue = minValue
   local ramp = {}
   for i=1,numSteps do
-    table.insert(ramp, startValue)
+    table.insert(ramp, math.floor(startValue))
     startValue = inc(startValue, changePerStep)
   end
+  ramp[#ramp] = maxValue
   return ramp
 end
 
@@ -151,6 +153,7 @@ local function rampDown(minValue, maxValue, numSteps)
     table.insert(ramp, startValue)
     startValue = inc(startValue, -changePerStep)
   end
+  ramp[#ramp] = minValue
   return ramp
 end
 

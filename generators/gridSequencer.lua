@@ -501,7 +501,7 @@ local function setScale()
   end
   local startNote = (rootNote - 1) + ((startOctave + 2) * 12)
   local maxNote = startNote + (octaves * 12)
-  local scale = scales.createScale(scaleDefinitions[scaleDefinitionIndex], startNote, math.min(128, maxNote))
+  local scale = scales.createScale(scaleDefinitions[scaleDefinitionIndex], startNote, maxNote)
   local scalePos = 1
   local scaleIncrementDefinitionPos = 1
   local degreeDefinitionPos = 0

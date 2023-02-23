@@ -136,7 +136,7 @@ end
 
 local function setScale()
   local scaleDefinition = scaleDefinitions[scaleDefinitionIndex]
-  local oneOctScale = scales.createScale(scaleDefinition, 0, 12)
+  local oneOctScale = scales.createScale(scaleDefinition, 0, 11)
   print("#oneOctScale", #oneOctScale)
   -- TODO Check octave range / bipolar before setting the table range
   local tableRange = #oneOctScale * octaveRange
@@ -150,8 +150,8 @@ local function setScale()
   if bipolar then
     startNote = startNote - (octaveRange * 12)
   end
-  local maxNote = baseNote + (octaveRange * 12) + 1
-  activeScale = scales.createScale(scaleDefinition, math.max(0, startNote), math.min(128, maxNote))
+  local maxNote = baseNote + (octaveRange * 12)
+  activeScale = scales.createScale(scaleDefinition, math.max(0, startNote), maxNote)
   print("#activeScale, startNote, maxNote", #activeScale, startNote, maxNote)
   resetPitches()
 end

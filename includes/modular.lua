@@ -20,7 +20,7 @@ local function isTrigger(e, channel)
 end
 
 local function handleTrigger(e, note, data)
-  if isNoteInActiveVoices(note) == false then
+  if type(note) == "number" and isNoteInActiveVoices(note) == false then
     local id = playNote(note, e.velocity, -1, nil, e.channel)
     table.insert(activeVoices, {id=id,note=note,channel=e.channel,data=data})
     return true

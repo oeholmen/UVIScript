@@ -112,13 +112,13 @@ end
 
 local function triangle(minValue, maxValue, numSteps)
   local rising = true
-  local numStepsUpDown = round(numSteps / 2)
+  local numStepsUpDown = math.floor(numSteps / 2)
   local valueRange = maxValue - minValue
   local changePerStep = valueRange / numStepsUpDown
   local startValue = minValue
   local tri = {}
   for i=1,numSteps do
-    table.insert(tri, startValue)
+    table.insert(tri, math.floor(startValue))
     if rising then
       startValue = startValue + changePerStep
       if startValue >= maxValue then
@@ -128,6 +128,7 @@ local function triangle(minValue, maxValue, numSteps)
       startValue = startValue - changePerStep
     end
   end
+  tri[#tri] = minValue
   return tri
 end
 
@@ -137,9 +138,10 @@ local function rampUp(minValue, maxValue, numSteps)
   local startValue = minValue
   local ramp = {}
   for i=1,numSteps do
-    table.insert(ramp, startValue)
+    table.insert(ramp, math.floor(startValue))
     startValue = inc(startValue, changePerStep)
   end
+  ramp[#ramp] = maxValue
   return ramp
 end
 
@@ -152,6 +154,7 @@ local function rampDown(minValue, maxValue, numSteps)
     table.insert(ramp, startValue)
     startValue = inc(startValue, -changePerStep)
   end
+  ramp[#ramp] = minValue
   return ramp
 end
 
@@ -564,7 +567,7 @@ local function isTrigger(e, channel)
 end
 
 local function handleTrigger(e, note, data)
-  if isNoteInActiveVoices(note) == false then
+  if type(note) == "number" and isNoteInActiveVoices(note) == false then
     local id = playNote(note, e.velocity, -1, nil, e.channel)
     table.insert(activeVoices, {id=id,note=note,channel=e.channel,data=data})
     return true
@@ -650,12 +653,14 @@ local scales = {
 
   createScale = function(scaleDefinition, rootNote, maxNote)
     if type(maxNote) ~= "number" then
-      maxNote = 128
+      maxNote = 127
     end
+    rootNote = math.max(0, rootNote)
+    maxNote = math.min(127, maxNote)
     local scale = {}
     -- Find notes for scale
     local pos = 1
-    while rootNote < maxNote do
+    while rootNote <= maxNote do
       table.insert(scale, rootNote)
       rootNote = rootNote + scaleDefinition[pos]
       pos = pos + 1
@@ -740,7 +745,6 @@ local voices = 1 -- Holds the maximum amount of seen voices
 local strategyPropbability = 100
 local strategyInput = ""
 local strategyRestart = 1
-local randomReset = true -- TODO Param?
 local voiceSlotStrategy = false
 local randomSlotStrategy = false
 local strategyPos = {} -- Holds the position in the selected strategy
@@ -783,20 +787,20 @@ local strategies = {
 -- Strategy Functions
 --------------------------------------------------------------------------------
 
--- Returns the selected notes filtered by already playing notes
+-- Returns the notes filtered by scale and range
 local function setNotes()
-  local scale = scales.createScale(scaleDefinition, (key - 1))
+  local scale = scales.createScale(scaleDefinition, (key - 1), noteMax)
   selectedNotes = {} -- Reset selectedNotes
   for _,note in ipairs(scale) do
-    -- TODO Check for playing notes?
     if note >= noteMin and note <= noteMax then
       table.insert(selectedNotes, note)
     end
   end
+  print("Found selectedNotes within selected scale/range", #selectedNotes)
 end
 
 local function createStrategy()
-  local maxLength = 8
+  local maxLength = 16 -- TODO Param?
   local strategy = {} -- Table to hold strategy
   local ln = gem.getRandom(maxLength) -- Length
   for i=1, ln do
@@ -814,7 +818,7 @@ local function getStrategyInputText(strategy)
   return table.concat(strategy, ",")
 end
 
-local function getSlot(voice)
+local function getStrategyFromSlot(voice)
   if randomSlotStrategy then
     local slots = {}
     for _,v in ipairs(strategySlots) do
@@ -839,74 +843,82 @@ local function getSlot(voice)
   end
 end
 
+local function getNotePosition(noteCount, voice)
+  local maxIndex = noteCount
+  local preferLowerHalf = type(notePosition[voice]) == "nil" or notePosition[voice] > maxIndex
+  -- Prefer lower/upper half when resetting, depending on above or below range
+  if noteCount > 7 then
+    noteCount = math.ceil(noteCount / 2)
+  end
+  print("maxIndex, noteCount, preferLowerHalf", maxIndex, noteCount, preferLowerHalf)
+  if maxIndex > noteCount then
+    if preferLowerHalf then
+      -- Lower half
+      print("Resetting in lower half", 1, noteCount)
+      return gem.getRandom(1, noteCount)
+    else
+      -- Upper half
+      print("Resetting in upper half", noteCount, maxIndex)
+      return gem.getRandom(noteCount, maxIndex)
+    end
+  elseif maxIndex > 1 then
+    print("Resetting within full range", maxIndex)
+    return gem.getRandom(maxIndex)
+  end
+  return 1
+end
+
 local function getNoteFromStrategy(filteredNotes, voice)
   local strategy = {}
-  -- Get strategy from voice or random slot if active
-  local slot = getSlot(voice)
-  if type(slot) == "string" then
-    for w in string.gmatch(slot, "-?%d+") do
-      table.insert(strategy, w)
-      --print("Add to strategy from slot for voice", w, voice)
-    end
-    --print("Get strategy from slot, voice", #strategy, voice)
+  local strategyText = getStrategyFromSlot(voice)
+  -- Get strategy from input field if not found in a slot
+  if type(strategyText) ~= "string" or string.len(strategyText) == 0 then
+    strategyText = strategyInput
   end
-  -- Get strategy from input
-  if #strategy == 0 then
-    if string.len(strategyInput) > 0 then
-      for w in string.gmatch(strategyInput, "-?%d+") do
-        table.insert(strategy, tonumber(w))
-        --print("Add to strategy", w)
-      end
-      --print("Get strategy from input, voice", #strategy, voice)
+  if string.len(strategyText) > 0 then
+    for w in string.gmatch(strategyText, "-?%d+") do
+      table.insert(strategy, tonumber(w))
     end
+    print("Get strategy from input or slot, voice", #strategy, voice)
   end
   -- Get random strategy from default strategies
   if #strategy == 0 then
     strategy = gem.getRandomFromTable(strategies)
+    print("No strategy found - use random strategy from default strategies")
   end
-  -- Reset strategy position
+  -- Reset strategy position if required
   if type(strategyPos[voice]) == "nil" or strategyPos[voice] > #strategy then
     strategyPos[voice] = 1
+    print("Reset strategy position for voice", voice)
     if strategyRestart == 2 then
       notePosition[voice] = nil -- Reset counter for note position
-      --print("Reset note position for voice", voice)
+      print("Reset note position for voice due to strategyRestart == 2", voice)
     end
   end
   if type(notePosition[voice]) == "nil" or #strategy == 0 then
     -- Start at a random notePosition
-    notePosition[voice] = gem.getRandom(#filteredNotes)
-    --print("Set random notePosition, voice", notePosition[voice], voice)
+    notePosition[voice] = getNotePosition(#filteredNotes, voice)
+    print("Set random notePosition, voice", notePosition[voice], voice)
     if strategyRestart == 2 then
       strategyPos[voice] = 1
     end
   else
     -- Get next notePosition from strategy
-    --print("Set notePosition, strategyPos, change, voice", notePosition[voice], strategyPos[voice], strategy[strategyPos[voice]], voice)
-    -- Set notePosition, strategyPos, change, voice 15 1 2 1 
+    print("Increment notePosition, voice", notePosition[voice], voice)
     notePosition[voice] = gem.inc(notePosition[voice], strategy[strategyPos[voice]])
-    --print("After set notePosition, voice", notePosition[voice], voice)
-    if randomReset and (notePosition[voice] > #filteredNotes or notePosition[voice] < 1) then
-      notePosition[voice] = gem.getRandom(#filteredNotes)
+    print("After increment notePosition, voice", notePosition[voice], voice)
+    if notePosition[voice] > #filteredNotes or notePosition[voice] < 1 then
+      notePosition[voice] = getNotePosition(#filteredNotes, voice)
+      print("Out of range - set random note position for voice", notePosition[voice], voice)
       if strategyRestart == 1 then
         strategyPos[voice] = 1
-      end
-    elseif notePosition[voice] > #filteredNotes then
-      --print("Reset notePosition >= #filteredNotes", notePosition, #filteredNotes)
-      notePosition[voice] = 1
-      if strategyRestart == 1 then
-        strategyPos[voice] = 1
-      end
-    elseif notePosition[voice] < 1 then
-      --print("Reset notePosition[voice] <= 1", notePosition[voice])
-      notePosition[voice] = #filteredNotes
-      if strategyRestart == 1 then
-        strategyPos[voice] = 1
+        print("Reset strategy position for voice due to strategyRestart == 1", voice)
       end
     else
       -- Increment strategy pos
       if #strategy > 1 then
         strategyPos[voice] = gem.inc(strategyPos[voice])
-        --print("Increment strategy pos", strategyPos[voice])
+        print("Increment strategy position for voice", strategyPos[voice], voice)
       end
     end
   end
@@ -1007,12 +1019,7 @@ local voicesLabel = widgets.label(voices .. " voice", {
 })
 
 widgets.setSection({
-  --width = 100,
   xOffset = 510,
-  --[[ yOffset = 5,
-  xSpacing = 5,
-  ySpacing = 5,
-  labelBackgroundColour = "transparent", ]]
 })
 
 widgets.button("Forward", forward, {
