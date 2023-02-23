@@ -888,15 +888,12 @@ setBackgroundColour(backgroundColour)
 --------------------------------------------------------------------------------
 
 local isPlaying = false
-local sequencerResolution = 0.25 -- Fallback value
 local baseNote = 60 -- Option
 local tableRange = 16
 local octaveRange = 2 -- Option
 local bipolar = true -- Option
---local noteMode = 1
---local noteModes = {"Active", "Last Min/Max", "Last Max", "Last Min", "Chance"}
 local activationMode = 1
-local activationModes = {"Max:On,Min:Off", "Max:Toggle", "Min:Toggle", "Zero:Toggle", "Min:On,Max:Off"}
+local activationModes = {"Max:On,Min:Off", "Max:Toggle", "Min:Toggle", "Zero:Toggle", "Min:On,Max:Off", "Min/Max:Toggle"}
 local positionTable
 local motionTable
 local scaleNames = scales.getScaleNames()
@@ -908,16 +905,12 @@ local uniqueIndex = 1 -- Holds the unique id for each moving spawn
 local movingCells = {}
 local forward = false
 local channel = 0
---local notePositionIndex = 0 -- Holds the index if the cell in the table that last set a note active
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
 --------------------------------------------------------------------------------
 
 local function resetTableValues()
-  -- Reset note position index
-  --notePositionIndex = 0
-
   -- Reset position
   tableMotion.setTableZero(positionTable)
 
@@ -930,13 +923,7 @@ local function move(i, uniqueId)
   local value = motionTable:getValue(i)
   --print("Start moving i, uniqueId", i, uniqueId)
   while isPlaying and movingCells[i] == uniqueId do
-    -- Set note position active when value is min or max
-    -- {"Max:On,Min:Off", "Max:Toggle", "Min:Toggle", "Zero:Toggle", "Min:On,Max:Off"}
-    --[[ if value == 0 or value == motionTable.min or value == motionTable.max then
-      if noteMode == 2 or noteMode == 5 or (noteMode == 3 and value == motionTable.max) or (noteMode == 4 and value == motionTable.min) then
-        notePositionIndex = i
-      end
-    end ]]
+    -- Set note position active according to activation mode
     if activationMode == 1 and (value == motionTable.min or value == motionTable.max) then
       activeNotes[i] = value == motionTable.max
     elseif activationMode == 2 and value == motionTable.max and direction == 1 then
@@ -947,6 +934,8 @@ local function move(i, uniqueId)
       activeNotes[i] = activeNotes[i] == false
     elseif activationMode == 5 and (value == motionTable.min or value == motionTable.max) then
       activeNotes[i] = value == motionTable.min
+    elseif activationMode == 6 and (value == motionTable.min or value == motionTable.max) and direction == 1 then
+      activeNotes[i] = activeNotes[i] == false
     end
     --print("Set activeNotes[i], i, uniqueId", activeNotes[i], i, uniqueId)
     value, direction = tableMotion.moveTable(motionTable, i, value, direction)
@@ -990,46 +979,16 @@ local function setScaleTable()
   startMoving()
 end
 
-local function getResetPosition()
-  local reset = gem.getRandom(4)
-
-  -- Lowest
-  if reset == 1 then
-    return 1
-  end
-
-  -- Middle
-  if reset == 2 then
-    return math.ceil(#activeScale / 2)
-  end
-
-  -- Random
-  if reset == 3 then
-    return gem.getRandom(#activeScale)
-  end
-
-  -- Highest
-  return #activeScale
-end
-
 local function getNote()
-  --local scalePos = notePositionIndex
-
-  -- {"Active", "Last", "Last Max", "Last Min", "Chance"}
-
-  -- Get note position form active notes
-  --local selectFromActiveNotes = noteMode == 1 or (noteMode == 5 and gem.getRandomBoolean())
-  --if selectFromActiveNotes then
-    local activePositions = {}
-    for i,v in ipairs(activeNotes) do
-      if v then
-        table.insert(activePositions, i)
-      end
+  local activePositions = {}
+  for i,v in ipairs(activeNotes) do
+    if v then
+      table.insert(activePositions, i)
     end
-    print("activeNotes", #activeNotes)
-    print("activePositions", #activePositions)
-    local scalePos = gem.getRandomFromTable(activePositions)
-  --end
+  end
+  print("activeNotes", #activeNotes)
+  print("activePositions", #activePositions)
+  local scalePos = gem.getRandomFromTable(activePositions)
 
   -- No active notes
   if type(scalePos) == "nil" then-- or scalePos < 1 or scalePos > #activeScale then
@@ -1047,10 +1006,6 @@ local function getNote()
     end
     positionTable:setValue(i, val)
   end
-
-  --[[ if scalePos < 1 or scalePos > #activeScale then
-    scalePos = getResetPosition()
-  end ]]
 
   -- Get note from scale
   return activeScale[scalePos]
@@ -1152,10 +1107,10 @@ motionTable = widgets.table("Motion", 0, tableMotion.options.tableLength, {
 })
 
 local noteWidgetHeight = 20
-local noteWidgetWidth = 130
-local noteWidgetRowSpacing = 5
-local noteWidgetCellSpacing = 14
-local firstRowY = motionTable.y + motionTable.height + 10
+local noteWidgetWidth = 138
+local noteWidgetRowSpacing = 6
+local noteWidgetCellSpacing = 6
+local firstRowY = motionTable.y + motionTable.height + 6
 
 widgets.setSection({
   width = noteWidgetWidth,
@@ -1169,12 +1124,14 @@ widgets.setSection({
 })
 
 widgets.menu("Speed Type", tableMotion.speedTypes, {
-  width = 75,--82,
+  tooltip = "The speed type works with the speed factor to control speed variations across the table. Ramp Up means fast -> slower, Triangle means slower in the center.",
+  width = 90,
   changed = function(self) tableMotion.options.speedType = self.selectedText end
 })
 
 widgets.menu("Start Mode", 3, tableMotion.startModes, {
-  width = 75,--82,
+  tooltip = "Set how the table will look when starting.",
+  width = 90,
   changed = function(self)
     tableMotion.options.startMode = self.selectedText
     resetTableValues()
@@ -1182,42 +1139,24 @@ widgets.menu("Start Mode", 3, tableMotion.startModes, {
 }):changed()
 
 widgets.menu("Activation Mode", activationMode, activationModes, {
-  width = 82+14,
+  tooltip = "Activation mode controls when notes in the table are activated and deactivated.",
+  width = 114,
   changed = function(self) activationMode = self.value end
 })
 
---[[ widgets.menu("Note Mode", noteMode, noteModes, {
-  width = 82,
-  changed = function(self) noteMode = self.value end
-}) ]]
-
 local scaleMenu = widgets.menu("Scale", #scaleNames, scaleNames, {
-  width = 90,
+  width = 114,
   changed = function(self)
     scaleDefinitionIndex = self.value
     setScaleTable()
   end
 })
 
-local noteInput = widgets.numBox("Base Note", baseNote, {
-  width = 33,
-  x = widgets.posSide(scaleMenu) - 7,
-  y = firstRowY + 25,
-  unit = Unit.MidiKey,
-  showLabel = false,
-  tooltip = "Set the root note",
-  changed = function(self)
-    baseNote = self.value
-    setScaleTable()
-  end
-})
-
 local moveSpeedInput = widgets.numBox("Motion Speed", tableMotion.options.moveSpeed, {
-  x = widgets.posSide(noteInput),
   name = "MoveSpeed",
+  tooltip = "Set the speed of the up/down motion in each cell - Controlled by the X-axis on the XY controller",
   min = tableMotion.options.moveSpeedMin,
   max = tableMotion.options.moveSpeedMax,
-  tooltip = "Set the speed of the up/down motion in each cell - Controlled by the X-axis on the XY controller",
   unit = Unit.MilliSeconds,
   changed = function(self) tableMotion.options.moveSpeed = self.value end
 })
@@ -1227,15 +1166,16 @@ widgets.col(3)
 
 widgets.numBox("Speed Factor", tableMotion.options.factor, {
   name = "Factor",
+  tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. Controlled by the Y-axis on the XY controller",
   min = tableMotion.options.factorMin,
   max = tableMotion.options.factorMax,
-  tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. Controlled by the Y-axis on the XY controller",
   changed = function(self) tableMotion.options.factor = self.value end
 })
 
 widgets.row()
 
 widgets.numBox("Range", tableRange, {
+  width = 90,
   min = 8,
   max = 128,
   integer = true,
@@ -1246,8 +1186,33 @@ widgets.numBox("Range", tableRange, {
   end
 })
 
-local bipolarButton = widgets.button("Bipolar", bipolar, {
-  width = (noteWidgetWidth / 2) - (noteWidgetCellSpacing / 2),
+-- TODO Add a menu for automatic reset options?
+widgets.button("Reset", false, {
+  tooltip = "Reset table to start mode",
+  width = 90,
+  changed = function(self)
+    resetTableValues()
+    setScaleTable()
+    startMoving()
+    self.value = false
+  end
+})
+
+widgets.numBox("Octave Range", octaveRange, {
+  width = 114,
+  tooltip = "Set the octave range",
+  min = 1,
+  max = 4,
+  integer = true,
+  changed = function(self)
+    octaveRange = self.value
+    setScaleTable()
+  end
+})
+
+widgets.button("Bipolar", bipolar, {
+  tooltip = "Toggle table bipolar mode",
+  width = 78,
   changed = function(self)
     bipolar = self.value
     setRange()
@@ -1256,22 +1221,13 @@ local bipolarButton = widgets.button("Bipolar", bipolar, {
   end
 })
 
-widgets.button("Reset", false, {
-  width = bipolarButton.width,
+local noteInput = widgets.numBox("Base Note", baseNote, {
+  width = 30,
+  unit = Unit.MidiKey,
+  showLabel = false,
+  tooltip = "Set the root note",
   changed = function(self)
-    resetTableValues()
-    startMoving()
-    self.value = false
-  end
-})
-
-widgets.numBox("Octave Range", octaveRange, {
-  tooltip = "Set the octave range",
-  min = 1,
-  max = 4,
-  integer = true,
-  changed = function(self)
-    octaveRange = self.value
+    baseNote = self.value
     setScaleTable()
   end
 })
@@ -1284,8 +1240,8 @@ widgets.numBox("Speed Rand", tableMotion.options.speedRandomizationAmount, {
 
 local xySpeedFactor = widgets.getPanel():XY('MoveSpeed', 'Factor')
 xySpeedFactor.y = firstRowY
-xySpeedFactor.x = widgets.posSide(moveSpeedInput) - 5
-xySpeedFactor.width = noteWidgetWidth
+xySpeedFactor.x = widgets.posSide(moveSpeedInput)
+xySpeedFactor.width = noteWidgetWidth - 10
 xySpeedFactor.height = (noteWidgetHeight * 3) + (noteWidgetRowSpacing * 2)
 
 --------------------------------------------------------------------------------
