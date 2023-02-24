@@ -96,29 +96,53 @@ local function getChangePerStep(valueRange, numSteps)
   return valueRange / (numSteps - 1)
 end
 
-local function inc(val, inc, max, reset)
+local function inc(val, inc, resetAt, resetTo)
   if type(inc) ~= "number" then
     inc = 1
   end
-  if type(reset) ~= "number" then
-    reset = 1
+  if type(resetTo) ~= "number" then
+    resetTo = 1
   end
   val = val + inc
-  if type(max) == "number" and val > max then
-    val = reset
+  if type(resetAt) == "number" then
+    if (inc > 0 and val > resetAt) or (inc < 0 and val < resetAt) then
+      val = resetTo
+    end
   end
   return val
+end
+
+local function shape(minValue, maxValue, numSteps, shapeFunc)
+  local unipolar = minValue == 0
+  local changePerStep = getChangePerStep(1, numSteps)
+  local shape = {}
+  for i=1,numSteps do
+    local value = math[shapeFunc](2 * math.pi * changePerStep * (i-1))
+    if unipolar then
+      value = ((maxValue * value) + maxValue) / 2
+    else
+      value = maxValue * value
+    end
+    print("step, value", i, value)
+    table.insert(shape, value)
+  end
+  if shapeFunc == 'sin' or shapeFunc == 'tan' then
+    shape[#shape] = shape[1]
+  else
+    shape[#shape] = maxValue
+  end
+  return shape
 end
 
 local function triangle(minValue, maxValue, numSteps)
   local rising = true
   local numStepsUpDown = math.floor(numSteps / 2)
   local valueRange = maxValue - minValue
-  local changePerStep = valueRange / numStepsUpDown
+  local changePerStep = getChangePerStep(valueRange, numStepsUpDown)
   local startValue = minValue
-  local tri = {}
+  local shape = {}
   for i=1,numSteps do
-    table.insert(tri, math.floor(startValue))
+    table.insert(shape, startValue)
     if rising then
       startValue = startValue + changePerStep
       if startValue >= maxValue then
@@ -128,42 +152,43 @@ local function triangle(minValue, maxValue, numSteps)
       startValue = startValue - changePerStep
     end
   end
-  tri[#tri] = minValue
-  return tri
+  shape[#shape] = minValue
+  return shape
 end
 
 local function rampUp(minValue, maxValue, numSteps)
   local valueRange = maxValue - minValue
   local changePerStep = getChangePerStep(valueRange, numSteps)
   local startValue = minValue
-  local ramp = {}
+  local shape = {}
   for i=1,numSteps do
-    table.insert(ramp, math.floor(startValue))
+    table.insert(shape, startValue)
     startValue = inc(startValue, changePerStep)
   end
-  ramp[#ramp] = maxValue
-  return ramp
+  shape[#shape] = maxValue
+  return shape
 end
 
 local function rampDown(minValue, maxValue, numSteps)
   local valueRange = maxValue - minValue
   local changePerStep = getChangePerStep(valueRange, numSteps)
   local startValue = maxValue
-  local ramp = {}
+  local shape = {}
   for i=1,numSteps do
-    table.insert(ramp, startValue)
+    table.insert(shape, startValue)
     startValue = inc(startValue, -changePerStep)
   end
-  ramp[#ramp] = minValue
-  return ramp
+  shape[#shape] = minValue
+  return shape
 end
 
 local gem = {
   inc = inc,
   round = round,
-  triangle = triangle,
+  shape = shape,
   rampUp = rampUp,
   rampDown = rampDown,
+  triangle = triangle,
   getRandom = getRandom,
   getChangeMax = getChangeMax,
   tableIncludes = tableIncludes,
@@ -676,8 +701,9 @@ local scales = {
 -- Common functions for processors using table motion
 --------------------------------------------------------------------------------
 
+local directionStartModes = {"Up", "Down", "Even Up", "Even Down", "Odd Up", "Odd Down", "Random"}
 local speedTypes = {"Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Random"}
-local startModes = {"Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Zero", "Min", "Max", "Keep State", "Random"}
+local startModes = {"Ramp Up", "Ramp Down", "Triangle", "Sine", "Cosine", "Tangent", "Even", "Odd", "Zero", "Min", "Max", "Keep State", "Random"}
 
 local motionOptions = {
   factor = 2,
@@ -685,12 +711,51 @@ local motionOptions = {
   factorMax = 4,
   moveSpeed = 25,
   moveSpeedMin = 5,
-  moveSpeedMax = 250,
+  moveSpeedMax = 500,
   speedType = speedTypes[1],
   startMode = startModes[1],
+  directionStartMode = directionStartModes[1],
   speedRandomizationAmount = 0,
   tableLength = 32,
 }
+
+local function getStartDirection(i)
+  local direction = 1
+  if motionOptions.directionStartMode == "Down" then
+    direction = -1
+  elseif motionOptions.directionStartMode == "Even Up" then
+    if i % 2 == 0 then
+      direction = 1
+    else
+      direction = -1
+    end
+  elseif motionOptions.directionStartMode == "Even Down" then
+    if i % 2 == 0 then
+      direction = -1
+    else
+      direction = 1
+    end
+  elseif motionOptions.directionStartMode == "Odd Up" then
+    if i % 2 == 0 then
+      direction = -1
+    else
+      direction = 1
+    end
+  elseif motionOptions.directionStartMode == "Odd Down" then
+    if i % 2 == 0 then
+      direction = 1
+    else
+      direction = -1
+    end
+  elseif motionOptions.directionStartMode == "Random" then
+    if gem.getRandomBoolean() then
+      direction = 1
+    else
+      direction = -1
+    end
+  end
+  return direction
+end
 
 local function setTableZero(theTable)
     for i=1,theTable.length do
@@ -700,31 +765,32 @@ end
 
 local function setStartMode(theTable)
   -- Reset table according to start mode
+  local values = {}
   if motionOptions.startMode == "Keep State" then
     return
   elseif motionOptions.startMode == "Ramp Up" then
-    for i,v in ipairs(gem.rampUp(theTable.min, theTable.max, theTable.length)) do
-      theTable:setValue(i, v)
-    end
+    values = gem.rampUp(theTable.min, theTable.max, theTable.length)
   elseif motionOptions.startMode == "Ramp Down" then
-    for i,v in ipairs(gem.rampDown(theTable.min, theTable.max, theTable.length)) do
-      theTable:setValue(i, v)
-    end
+    values = gem.rampDown(theTable.min, theTable.max, theTable.length)
   elseif motionOptions.startMode == "Triangle" then
-    for i,v in ipairs(gem.triangle(theTable.min, theTable.max, theTable.length)) do
-      theTable:setValue(i, v)
-    end
+    values = gem.triangle(theTable.min, theTable.max, theTable.length)
+  elseif motionOptions.startMode == "Sine" then
+    values = gem.shape(theTable.min, theTable.max, theTable.length, 'sin')
+  elseif motionOptions.startMode == "Cosine" then
+    values = gem.shape(theTable.min, theTable.max, theTable.length, 'cos')
+  elseif motionOptions.startMode == "Tangent" then
+    values = gem.shape(theTable.min, theTable.max, theTable.length, 'tan')
   elseif motionOptions.startMode == "Random" then
     for i=1,theTable.length do
-      theTable:setValue(i, gem.getRandom(theTable.min, theTable.max))
+      table.insert(values, gem.getRandom(theTable.min, theTable.max))
     end
   elseif motionOptions.startMode == "Min" then
     for i=1,theTable.length do
-      theTable:setValue(i, theTable.min)
+      table.insert(values, theTable.min)
     end
   elseif motionOptions.startMode == "Max" then
     for i=1,theTable.length do
-      theTable:setValue(i, theTable.max)
+      table.insert(values, theTable.max)
     end
   elseif motionOptions.startMode == "Even" then
     local minValue = theTable.min
@@ -734,7 +800,7 @@ local function setStartMode(theTable)
       if i % 2 == 0 then
         val = maxValue
       end
-      theTable:setValue(i, val)
+      table.insert(values, val)
     end
   elseif motionOptions.startMode == "Odd" then
     local minValue = theTable.min
@@ -744,10 +810,14 @@ local function setStartMode(theTable)
       if i % 2 == 0 then
         val = minValue
       end
-      theTable:setValue(i, val)
+      table.insert(values, val)
     end
   else
     setTableZero(theTable)
+    return
+  end
+  for i,v in ipairs(values) do
+    theTable:setValue(i, math.floor(v))
   end
 end
 
@@ -756,7 +826,7 @@ local function moveTable(theTable, i, value, direction)
   -- Increment value
   local amount = i - 1
   if (i > middle and motionOptions.speedType == "Triangle") or motionOptions.speedType == "Ramp Down" then
-    amount = (theTable.length - i)
+    amount = theTable.length - i
   elseif motionOptions.speedType == "Random" then
     amount = gem.getRandom(theTable.length) - 1
   elseif (motionOptions.speedType == "Even" and i % 2 == 0) or (motionOptions.speedType == "Odd" and i % 2 > 0) then
@@ -805,9 +875,11 @@ local tableMotion = {
       theTable:setRange(0, tableRange)
     end
   end,
+  getStartDirection = getStartDirection,
   moveTable = moveTable,
   setStartMode = setStartMode,
   setTableZero = setTableZero,
+  directionStartModes = directionStartModes,
   speedTypes = speedTypes,
   startModes = startModes,
   options = motionOptions
@@ -1016,7 +1088,7 @@ widgets.menu("Speed Type", tableMotion.speedTypes, {
   changed = function(self) tableMotion.options.speedType = self.selectedText end
 })
 
-widgets.menu("Start Mode", 6, tableMotion.startModes, {
+widgets.menu("Start Mode", 9, tableMotion.startModes, {
   changed = function(self)
     tableMotion.options.startMode = self.selectedText
     resetPitches()

@@ -53,7 +53,7 @@ local function setRange()
 end
 
 local function move(i, uniqueId)
-  local direction = 1
+  local direction = tableMotion.getStartDirection(i)
   local value = motionTable:getValue(i)
   while isPlaying and movingCells[i] == uniqueId do
     -- Send note event according to the selected trigger mode
@@ -236,24 +236,33 @@ widgets.setSection({
 })
 
 widgets.menu("Speed Type", tableMotion.speedTypes, {
+  tooltip = "The speed type works with the speed factor to control speed variations across the table. Ramp Up means fast -> slower, Triangle means slower in the center.",
   width = 82,
   changed = function(self) tableMotion.options.speedType = self.selectedText end
 })
 
-widgets.menu("Start Mode", tableMotion.startModes, {
+widgets.menu("Start Shape", tableMotion.startModes, {
   width = 82,
+  tooltip = "Set how the table will look when starting.",
   changed = function(self)
     tableMotion.options.startMode = self.selectedText
     resetTableValues()
   end
 })
 
-widgets.menu("Trigger Mode", triggerMode, triggerModes, {
+widgets.menu("Start Direction", tableMotion.directionStartModes, {
+  tooltip = "Select start direction for the bars",
   width = 82,
+  changed = function(self) tableMotion.options.directionStartMode = self.selectedText end
+})
+
+widgets.menu("Trigger Mode", triggerMode, triggerModes, {
+  width = 75,
   changed = function(self) triggerMode = self.value end
 })
 
 widgets.menu("Quantize", resolution, resolutionNames, {
+  width = 75,
   changed = function(self) resolution = self.value end
 })
 
@@ -270,6 +279,7 @@ widgets.row()
 widgets.col(3)
 
 widgets.numBox("Speed Factor", tableMotion.options.factor, {
+  x = moveSpeedInput.x,
   name = "Factor",
   min = tableMotion.options.factorMin,
   max = tableMotion.options.factorMax,
@@ -304,8 +314,8 @@ widgets.numBox("Length", tableMotion.options.tableLength, {
   end
 })
 
-local bipolarButton = widgets.button("Bipolar", bipolar, {
-  width = (noteWidgetWidth / 2) - (noteWidgetCellSpacing / 2),
+widgets.button("Bipolar", bipolar, {
+  width = 75,
   changed = function(self)
     bipolar = self.value
     setRange()
@@ -313,9 +323,7 @@ local bipolarButton = widgets.button("Bipolar", bipolar, {
 })
 
 widgets.button("Reset", false, {
-  width = bipolarButton.width,
-  x = widgets.posSide(bipolarButton),
-  --increment = false,
+  width = 75,
   changed = function(self)
     resetTableValues()
     startMoving()
@@ -332,7 +340,7 @@ widgets.numBox("Speed Rand", tableMotion.options.speedRandomizationAmount, {
 local xySpeedFactor = notePanel:XY('MoveSpeed', 'Factor')
 xySpeedFactor.y = firstRowY
 xySpeedFactor.x = widgets.posSide(moveSpeedInput)
-xySpeedFactor.width = noteWidgetWidth
+xySpeedFactor.width = 102
 xySpeedFactor.height = (noteWidgetHeight * 3) + (noteWidgetRowSpacing * 2)
 
 --------------------------------------------------------------------------------

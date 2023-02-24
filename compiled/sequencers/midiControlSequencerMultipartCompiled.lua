@@ -96,29 +96,53 @@ local function getChangePerStep(valueRange, numSteps)
   return valueRange / (numSteps - 1)
 end
 
-local function inc(val, inc, max, reset)
+local function inc(val, inc, resetAt, resetTo)
   if type(inc) ~= "number" then
     inc = 1
   end
-  if type(reset) ~= "number" then
-    reset = 1
+  if type(resetTo) ~= "number" then
+    resetTo = 1
   end
   val = val + inc
-  if type(max) == "number" and val > max then
-    val = reset
+  if type(resetAt) == "number" then
+    if (inc > 0 and val > resetAt) or (inc < 0 and val < resetAt) then
+      val = resetTo
+    end
   end
   return val
+end
+
+local function shape(minValue, maxValue, numSteps, shapeFunc)
+  local unipolar = minValue == 0
+  local changePerStep = getChangePerStep(1, numSteps)
+  local shape = {}
+  for i=1,numSteps do
+    local value = math[shapeFunc](2 * math.pi * changePerStep * (i-1))
+    if unipolar then
+      value = ((maxValue * value) + maxValue) / 2
+    else
+      value = maxValue * value
+    end
+    print("step, value", i, value)
+    table.insert(shape, value)
+  end
+  if shapeFunc == 'sin' or shapeFunc == 'tan' then
+    shape[#shape] = shape[1]
+  else
+    shape[#shape] = maxValue
+  end
+  return shape
 end
 
 local function triangle(minValue, maxValue, numSteps)
   local rising = true
   local numStepsUpDown = math.floor(numSteps / 2)
   local valueRange = maxValue - minValue
-  local changePerStep = valueRange / numStepsUpDown
+  local changePerStep = getChangePerStep(valueRange, numStepsUpDown)
   local startValue = minValue
-  local tri = {}
+  local shape = {}
   for i=1,numSteps do
-    table.insert(tri, math.floor(startValue))
+    table.insert(shape, startValue)
     if rising then
       startValue = startValue + changePerStep
       if startValue >= maxValue then
@@ -128,42 +152,43 @@ local function triangle(minValue, maxValue, numSteps)
       startValue = startValue - changePerStep
     end
   end
-  tri[#tri] = minValue
-  return tri
+  shape[#shape] = minValue
+  return shape
 end
 
 local function rampUp(minValue, maxValue, numSteps)
   local valueRange = maxValue - minValue
   local changePerStep = getChangePerStep(valueRange, numSteps)
   local startValue = minValue
-  local ramp = {}
+  local shape = {}
   for i=1,numSteps do
-    table.insert(ramp, math.floor(startValue))
+    table.insert(shape, startValue)
     startValue = inc(startValue, changePerStep)
   end
-  ramp[#ramp] = maxValue
-  return ramp
+  shape[#shape] = maxValue
+  return shape
 end
 
 local function rampDown(minValue, maxValue, numSteps)
   local valueRange = maxValue - minValue
   local changePerStep = getChangePerStep(valueRange, numSteps)
   local startValue = maxValue
-  local ramp = {}
+  local shape = {}
   for i=1,numSteps do
-    table.insert(ramp, startValue)
+    table.insert(shape, startValue)
     startValue = inc(startValue, -changePerStep)
   end
-  ramp[#ramp] = minValue
-  return ramp
+  shape[#shape] = minValue
+  return shape
 end
 
 local gem = {
   inc = inc,
   round = round,
-  triangle = triangle,
+  shape = shape,
   rampUp = rampUp,
   rampDown = rampDown,
+  triangle = triangle,
   getRandom = getRandom,
   getChangeMax = getChangeMax,
   tableIncludes = tableIncludes,
@@ -396,7 +421,7 @@ isPlaying = false
 local pageButtons = {}
 local headerPanel = Panel("Header")
 local footerPanel = Panel("Footer")
-local defaultActions = {"Actions...", "Randomize", "Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Reduce 50%"}
+local defaultActions = {"Actions...", "Randomize", "Ramp Up", "Ramp Down", "Triangle", "Sine", "Cosine", "Tangent", "Even", "Odd", "Reduce 50%"}
 local actionMenu = footerPanel:Menu("ActionMenu", defaultActions)
 local cyclePagesButton = footerPanel:OnOffButton("CyclePagesButton")
 local changePageProbability = footerPanel:NumBox("ChangePageProbability", 0, 0, 100, true)
@@ -688,6 +713,7 @@ actionMenu.showLabel = false
 actionMenu.x = changePageProbability.x + changePageProbability.width + 5
 actionMenu.size = {110,22}
 actionMenu.changed = function(self)
+  -- {"Actions...", "Randomize", "Ramp Up", "Ramp Down", "Triangle", "Sine", "Cosine", "Tangent", "Even", "Odd", "Reduce 50%"}
   -- 1 is the menu label...
   if self.value == 1 then
     return
@@ -710,13 +736,6 @@ actionMenu.changed = function(self)
       for i,v in ipairs(gem.rampUp(minValue, maxValue, numSteps)) do
         paramsPerPart[partIndex].seqValueTable:setValue(i, v)
       end
-      --[[ local valueRange = maxValue - minValue
-      local changePerStep = valueRange / (numSteps - 1)
-      local startValue = minValue
-      for i=1,numSteps do
-        paramsPerPart[partIndex].seqValueTable:setValue(i, startValue)
-        startValue = startValue + changePerStep
-      end ]]
     end
   elseif self.value == 4 then
     -- Ramp Down
@@ -728,13 +747,6 @@ actionMenu.changed = function(self)
       for i,v in ipairs(gem.rampDown(minValue, maxValue, numSteps)) do
         paramsPerPart[partIndex].seqValueTable:setValue(i, v)
       end
-      --[[ local valueRange = maxValue - minValue
-      local changePerStep = valueRange / (numSteps - 1)
-      local startValue = maxValue
-      for i=1,numSteps do
-        paramsPerPart[partIndex].seqValueTable:setValue(i, startValue)
-        startValue = startValue - changePerStep
-      end ]]
     end
   elseif self.value == 5 then
     -- Triangle
@@ -746,24 +758,41 @@ actionMenu.changed = function(self)
       for i,v in ipairs(gem.triangle(minValue, maxValue, numSteps)) do
         paramsPerPart[partIndex].seqValueTable:setValue(i, v)
       end
-      --[[ local rising = true
-      local numStepsUpDown = gem.round(numSteps / 2)
-      local valueRange = maxValue - minValue
-      local changePerStep = valueRange / numStepsUpDown
-      local startValue = minValue
-      for i=1,numSteps do
-        paramsPerPart[partIndex].seqValueTable:setValue(i, startValue)
-        if rising then
-          startValue = startValue + changePerStep
-          if startValue >= maxValue then
-            rising = false
-          end
-        else
-          startValue = startValue - changePerStep
-        end
-      end ]]
     end
   elseif self.value == 6 then
+    -- Sine
+    for part=1,numParts do
+      local partIndex = getPartIndex(part)
+      local minValue = paramsPerPart[partIndex].seqValueTable.min
+      local maxValue = paramsPerPart[partIndex].seqValueTable.max
+      local numSteps = paramsPerPart[partIndex].numStepsBox.value
+      for i,v in ipairs(gem.shape(minValue, maxValue, numSteps, 'sin')) do
+        paramsPerPart[partIndex].seqValueTable:setValue(i, v)
+      end
+    end
+  elseif self.value == 7 then
+    -- Cosine
+    for part=1,numParts do
+      local partIndex = getPartIndex(part)
+      local minValue = paramsPerPart[partIndex].seqValueTable.min
+      local maxValue = paramsPerPart[partIndex].seqValueTable.max
+      local numSteps = paramsPerPart[partIndex].numStepsBox.value
+      for i,v in ipairs(gem.shape(minValue, maxValue, numSteps, 'cos')) do
+        paramsPerPart[partIndex].seqValueTable:setValue(i, v)
+      end
+    end
+  elseif self.value == 8 then
+    -- Tangent
+    for part=1,numParts do
+      local partIndex = getPartIndex(part)
+      local minValue = paramsPerPart[partIndex].seqValueTable.min
+      local maxValue = paramsPerPart[partIndex].seqValueTable.max
+      local numSteps = paramsPerPart[partIndex].numStepsBox.value
+      for i,v in ipairs(gem.shape(minValue, maxValue, numSteps, 'tan')) do
+        paramsPerPart[partIndex].seqValueTable:setValue(i, v)
+      end
+    end
+  elseif self.value == 9 then
     -- Even
     for part=1,numParts do
       local partIndex = getPartIndex(part)
@@ -778,7 +807,7 @@ actionMenu.changed = function(self)
         paramsPerPart[partIndex].seqValueTable:setValue(i, val)
       end
     end
-  elseif self.value == 7 then
+  elseif self.value == 10 then
     -- Odd
     for part=1,numParts do
       local partIndex = getPartIndex(part)
@@ -786,7 +815,6 @@ actionMenu.changed = function(self)
       local maxValue = paramsPerPart[partIndex].seqValueTable.max
       local numSteps = paramsPerPart[partIndex].numStepsBox.value
       for i=1,numSteps do
-        --local val = math.min(2+2*i, math.abs((i-0.5)*2)-1)
         local val = maxValue
         if i % 2 == 0 then
           val = minValue
@@ -794,7 +822,7 @@ actionMenu.changed = function(self)
         paramsPerPart[partIndex].seqValueTable:setValue(i, val)
       end
     end
-  elseif self.value == 8 then
+  elseif self.value == 11 then
     -- Reduce 50%
     for part=1,numParts do
       local partIndex = getPartIndex(part)

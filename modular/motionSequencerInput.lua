@@ -207,7 +207,7 @@ widgets.menu("Speed Type", tableMotion.speedTypes, {
   changed = function(self) tableMotion.options.speedType = self.selectedText end
 })
 
-widgets.menu("Start Mode", 6, tableMotion.startModes, {
+widgets.menu("Start Mode", 9, tableMotion.startModes, {
   changed = function(self)
     tableMotion.options.startMode = self.selectedText
     resetPitches()

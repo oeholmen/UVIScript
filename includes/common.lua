@@ -95,29 +95,53 @@ local function getChangePerStep(valueRange, numSteps)
   return valueRange / (numSteps - 1)
 end
 
-local function inc(val, inc, max, reset)
+local function inc(val, inc, resetAt, resetTo)
   if type(inc) ~= "number" then
     inc = 1
   end
-  if type(reset) ~= "number" then
-    reset = 1
+  if type(resetTo) ~= "number" then
+    resetTo = 1
   end
   val = val + inc
-  if type(max) == "number" and val > max then
-    val = reset
+  if type(resetAt) == "number" then
+    if (inc > 0 and val > resetAt) or (inc < 0 and val < resetAt) then
+      val = resetTo
+    end
   end
   return val
+end
+
+local function shape(minValue, maxValue, numSteps, shapeFunc)
+  local unipolar = minValue == 0
+  local changePerStep = getChangePerStep(1, numSteps)
+  local shape = {}
+  for i=1,numSteps do
+    local value = math[shapeFunc](2 * math.pi * changePerStep * (i-1))
+    if unipolar then
+      value = ((maxValue * value) + maxValue) / 2
+    else
+      value = maxValue * value
+    end
+    print("step, value", i, value)
+    table.insert(shape, value)
+  end
+  if shapeFunc == 'sin' or shapeFunc == 'tan' then
+    shape[#shape] = shape[1]
+  else
+    shape[#shape] = maxValue
+  end
+  return shape
 end
 
 local function triangle(minValue, maxValue, numSteps)
   local rising = true
   local numStepsUpDown = math.floor(numSteps / 2)
   local valueRange = maxValue - minValue
-  local changePerStep = valueRange / numStepsUpDown
+  local changePerStep = getChangePerStep(valueRange, numStepsUpDown)
   local startValue = minValue
-  local tri = {}
+  local shape = {}
   for i=1,numSteps do
-    table.insert(tri, math.floor(startValue))
+    table.insert(shape, startValue)
     if rising then
       startValue = startValue + changePerStep
       if startValue >= maxValue then
@@ -127,42 +151,43 @@ local function triangle(minValue, maxValue, numSteps)
       startValue = startValue - changePerStep
     end
   end
-  tri[#tri] = minValue
-  return tri
+  shape[#shape] = minValue
+  return shape
 end
 
 local function rampUp(minValue, maxValue, numSteps)
   local valueRange = maxValue - minValue
   local changePerStep = getChangePerStep(valueRange, numSteps)
   local startValue = minValue
-  local ramp = {}
+  local shape = {}
   for i=1,numSteps do
-    table.insert(ramp, math.floor(startValue))
+    table.insert(shape, startValue)
     startValue = inc(startValue, changePerStep)
   end
-  ramp[#ramp] = maxValue
-  return ramp
+  shape[#shape] = maxValue
+  return shape
 end
 
 local function rampDown(minValue, maxValue, numSteps)
   local valueRange = maxValue - minValue
   local changePerStep = getChangePerStep(valueRange, numSteps)
   local startValue = maxValue
-  local ramp = {}
+  local shape = {}
   for i=1,numSteps do
-    table.insert(ramp, startValue)
+    table.insert(shape, startValue)
     startValue = inc(startValue, -changePerStep)
   end
-  ramp[#ramp] = minValue
-  return ramp
+  shape[#shape] = minValue
+  return shape
 end
 
 return {--gem--
   inc = inc,
   round = round,
-  triangle = triangle,
+  shape = shape,
   rampUp = rampUp,
   rampDown = rampDown,
+  triangle = triangle,
   getRandom = getRandom,
   getChangeMax = getChangeMax,
   tableIncludes = tableIncludes,

@@ -96,29 +96,53 @@ local function getChangePerStep(valueRange, numSteps)
   return valueRange / (numSteps - 1)
 end
 
-local function inc(val, inc, max, reset)
+local function inc(val, inc, resetAt, resetTo)
   if type(inc) ~= "number" then
     inc = 1
   end
-  if type(reset) ~= "number" then
-    reset = 1
+  if type(resetTo) ~= "number" then
+    resetTo = 1
   end
   val = val + inc
-  if type(max) == "number" and val > max then
-    val = reset
+  if type(resetAt) == "number" then
+    if (inc > 0 and val > resetAt) or (inc < 0 and val < resetAt) then
+      val = resetTo
+    end
   end
   return val
+end
+
+local function shape(minValue, maxValue, numSteps, shapeFunc)
+  local unipolar = minValue == 0
+  local changePerStep = getChangePerStep(1, numSteps)
+  local shape = {}
+  for i=1,numSteps do
+    local value = math[shapeFunc](2 * math.pi * changePerStep * (i-1))
+    if unipolar then
+      value = ((maxValue * value) + maxValue) / 2
+    else
+      value = maxValue * value
+    end
+    print("step, value", i, value)
+    table.insert(shape, value)
+  end
+  if shapeFunc == 'sin' or shapeFunc == 'tan' then
+    shape[#shape] = shape[1]
+  else
+    shape[#shape] = maxValue
+  end
+  return shape
 end
 
 local function triangle(minValue, maxValue, numSteps)
   local rising = true
   local numStepsUpDown = math.floor(numSteps / 2)
   local valueRange = maxValue - minValue
-  local changePerStep = valueRange / numStepsUpDown
+  local changePerStep = getChangePerStep(valueRange, numStepsUpDown)
   local startValue = minValue
-  local tri = {}
+  local shape = {}
   for i=1,numSteps do
-    table.insert(tri, math.floor(startValue))
+    table.insert(shape, startValue)
     if rising then
       startValue = startValue + changePerStep
       if startValue >= maxValue then
@@ -128,42 +152,43 @@ local function triangle(minValue, maxValue, numSteps)
       startValue = startValue - changePerStep
     end
   end
-  tri[#tri] = minValue
-  return tri
+  shape[#shape] = minValue
+  return shape
 end
 
 local function rampUp(minValue, maxValue, numSteps)
   local valueRange = maxValue - minValue
   local changePerStep = getChangePerStep(valueRange, numSteps)
   local startValue = minValue
-  local ramp = {}
+  local shape = {}
   for i=1,numSteps do
-    table.insert(ramp, math.floor(startValue))
+    table.insert(shape, startValue)
     startValue = inc(startValue, changePerStep)
   end
-  ramp[#ramp] = maxValue
-  return ramp
+  shape[#shape] = maxValue
+  return shape
 end
 
 local function rampDown(minValue, maxValue, numSteps)
   local valueRange = maxValue - minValue
   local changePerStep = getChangePerStep(valueRange, numSteps)
   local startValue = maxValue
-  local ramp = {}
+  local shape = {}
   for i=1,numSteps do
-    table.insert(ramp, startValue)
+    table.insert(shape, startValue)
     startValue = inc(startValue, -changePerStep)
   end
-  ramp[#ramp] = minValue
-  return ramp
+  shape[#shape] = minValue
+  return shape
 end
 
 local gem = {
   inc = inc,
   round = round,
-  triangle = triangle,
+  shape = shape,
   rampUp = rampUp,
   rampDown = rampDown,
+  triangle = triangle,
   getRandom = getRandom,
   getChangeMax = getChangeMax,
   tableIncludes = tableIncludes,
@@ -739,8 +764,9 @@ local notes = {
 -- Common functions for processors using table motion
 --------------------------------------------------------------------------------
 
+local directionStartModes = {"Up", "Down", "Even Up", "Even Down", "Odd Up", "Odd Down", "Random"}
 local speedTypes = {"Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Random"}
-local startModes = {"Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Zero", "Min", "Max", "Keep State", "Random"}
+local startModes = {"Ramp Up", "Ramp Down", "Triangle", "Sine", "Cosine", "Tangent", "Even", "Odd", "Zero", "Min", "Max", "Keep State", "Random"}
 
 local motionOptions = {
   factor = 2,
@@ -748,12 +774,51 @@ local motionOptions = {
   factorMax = 4,
   moveSpeed = 25,
   moveSpeedMin = 5,
-  moveSpeedMax = 250,
+  moveSpeedMax = 500,
   speedType = speedTypes[1],
   startMode = startModes[1],
+  directionStartMode = directionStartModes[1],
   speedRandomizationAmount = 0,
   tableLength = 32,
 }
+
+local function getStartDirection(i)
+  local direction = 1
+  if motionOptions.directionStartMode == "Down" then
+    direction = -1
+  elseif motionOptions.directionStartMode == "Even Up" then
+    if i % 2 == 0 then
+      direction = 1
+    else
+      direction = -1
+    end
+  elseif motionOptions.directionStartMode == "Even Down" then
+    if i % 2 == 0 then
+      direction = -1
+    else
+      direction = 1
+    end
+  elseif motionOptions.directionStartMode == "Odd Up" then
+    if i % 2 == 0 then
+      direction = -1
+    else
+      direction = 1
+    end
+  elseif motionOptions.directionStartMode == "Odd Down" then
+    if i % 2 == 0 then
+      direction = 1
+    else
+      direction = -1
+    end
+  elseif motionOptions.directionStartMode == "Random" then
+    if gem.getRandomBoolean() then
+      direction = 1
+    else
+      direction = -1
+    end
+  end
+  return direction
+end
 
 local function setTableZero(theTable)
     for i=1,theTable.length do
@@ -763,31 +828,32 @@ end
 
 local function setStartMode(theTable)
   -- Reset table according to start mode
+  local values = {}
   if motionOptions.startMode == "Keep State" then
     return
   elseif motionOptions.startMode == "Ramp Up" then
-    for i,v in ipairs(gem.rampUp(theTable.min, theTable.max, theTable.length)) do
-      theTable:setValue(i, v)
-    end
+    values = gem.rampUp(theTable.min, theTable.max, theTable.length)
   elseif motionOptions.startMode == "Ramp Down" then
-    for i,v in ipairs(gem.rampDown(theTable.min, theTable.max, theTable.length)) do
-      theTable:setValue(i, v)
-    end
+    values = gem.rampDown(theTable.min, theTable.max, theTable.length)
   elseif motionOptions.startMode == "Triangle" then
-    for i,v in ipairs(gem.triangle(theTable.min, theTable.max, theTable.length)) do
-      theTable:setValue(i, v)
-    end
+    values = gem.triangle(theTable.min, theTable.max, theTable.length)
+  elseif motionOptions.startMode == "Sine" then
+    values = gem.shape(theTable.min, theTable.max, theTable.length, 'sin')
+  elseif motionOptions.startMode == "Cosine" then
+    values = gem.shape(theTable.min, theTable.max, theTable.length, 'cos')
+  elseif motionOptions.startMode == "Tangent" then
+    values = gem.shape(theTable.min, theTable.max, theTable.length, 'tan')
   elseif motionOptions.startMode == "Random" then
     for i=1,theTable.length do
-      theTable:setValue(i, gem.getRandom(theTable.min, theTable.max))
+      table.insert(values, gem.getRandom(theTable.min, theTable.max))
     end
   elseif motionOptions.startMode == "Min" then
     for i=1,theTable.length do
-      theTable:setValue(i, theTable.min)
+      table.insert(values, theTable.min)
     end
   elseif motionOptions.startMode == "Max" then
     for i=1,theTable.length do
-      theTable:setValue(i, theTable.max)
+      table.insert(values, theTable.max)
     end
   elseif motionOptions.startMode == "Even" then
     local minValue = theTable.min
@@ -797,7 +863,7 @@ local function setStartMode(theTable)
       if i % 2 == 0 then
         val = maxValue
       end
-      theTable:setValue(i, val)
+      table.insert(values, val)
     end
   elseif motionOptions.startMode == "Odd" then
     local minValue = theTable.min
@@ -807,10 +873,14 @@ local function setStartMode(theTable)
       if i % 2 == 0 then
         val = minValue
       end
-      theTable:setValue(i, val)
+      table.insert(values, val)
     end
   else
     setTableZero(theTable)
+    return
+  end
+  for i,v in ipairs(values) do
+    theTable:setValue(i, math.floor(v))
   end
 end
 
@@ -819,7 +889,7 @@ local function moveTable(theTable, i, value, direction)
   -- Increment value
   local amount = i - 1
   if (i > middle and motionOptions.speedType == "Triangle") or motionOptions.speedType == "Ramp Down" then
-    amount = (theTable.length - i)
+    amount = theTable.length - i
   elseif motionOptions.speedType == "Random" then
     amount = gem.getRandom(theTable.length) - 1
   elseif (motionOptions.speedType == "Even" and i % 2 == 0) or (motionOptions.speedType == "Odd" and i % 2 > 0) then
@@ -868,9 +938,11 @@ local tableMotion = {
       theTable:setRange(0, tableRange)
     end
   end,
+  getStartDirection = getStartDirection,
   moveTable = moveTable,
   setStartMode = setStartMode,
   setTableZero = setTableZero,
+  directionStartModes = directionStartModes,
   speedTypes = speedTypes,
   startModes = startModes,
   options = motionOptions
@@ -892,15 +964,18 @@ local baseNote = 60 -- Option
 local tableRange = 16
 local octaveRange = 2 -- Option
 local bipolar = true -- Option
+local scalePos = 0
 local activationMode = 1
 local activationModes = {"Max:On,Min:Off", "Max:Toggle", "Min:Toggle", "Zero:Toggle", "Min:On,Max:Off", "Min/Max:Toggle"}
+local playModes = {"Random", "Up", "Down"}
+local playMode = playModes[1]
 local positionTable
 local motionTable
 local scaleNames = scales.getScaleNames()
 local scaleDefinitions = scales.getScaleDefinitions()
 local scaleDefinitionIndex = #scaleNames
 local activeScale = {} -- Holds the active scale
-local activeNotes = {} -- Holds the active notes in the scale
+local noteState = {} -- Holds the state (on/off) for notes in the scale
 local uniqueIndex = 1 -- Holds the unique id for each moving spawn
 local movingCells = {}
 local forward = false
@@ -911,6 +986,8 @@ local channel = 0
 --------------------------------------------------------------------------------
 
 local function resetTableValues()
+  scalePos = 0
+
   -- Reset position
   tableMotion.setTableZero(positionTable)
 
@@ -919,25 +996,30 @@ local function resetTableValues()
 end
 
 local function move(i, uniqueId)
-  local direction = 1
+  local direction = tableMotion.getStartDirection(i)
   local value = motionTable:getValue(i)
   --print("Start moving i, uniqueId", i, uniqueId)
   while isPlaying and movingCells[i] == uniqueId do
     -- Set note position active according to activation mode
     if activationMode == 1 and (value == motionTable.min or value == motionTable.max) then
-      activeNotes[i] = value == motionTable.max
+      noteState[i] = value == motionTable.max
     elseif activationMode == 2 and value == motionTable.max and direction == 1 then
-      activeNotes[i] = activeNotes[i] == false
+      noteState[i] = noteState[i] == false
     elseif activationMode == 3 and value == motionTable.min and direction == 1 then
-      activeNotes[i] = activeNotes[i] == false
+      noteState[i] = noteState[i] == false
     elseif activationMode == 4 and value == 0 then
-      activeNotes[i] = activeNotes[i] == false
+      noteState[i] = noteState[i] == false
     elseif activationMode == 5 and (value == motionTable.min or value == motionTable.max) then
-      activeNotes[i] = value == motionTable.min
+      noteState[i] = value == motionTable.min
     elseif activationMode == 6 and (value == motionTable.min or value == motionTable.max) and direction == 1 then
-      activeNotes[i] = activeNotes[i] == false
+      noteState[i] = noteState[i] == false
     end
-    --print("Set activeNotes[i], i, uniqueId", activeNotes[i], i, uniqueId)
+    if noteState[i] then
+      positionTable:setValue(i, 1)
+    else
+      positionTable:setValue(i, 0)
+    end
+    --print("Set noteState[i], i, uniqueId", noteState[i], i, uniqueId)
     value, direction = tableMotion.moveTable(motionTable, i, value, direction)
   end
 end
@@ -964,9 +1046,9 @@ local function setScaleTable()
   end
   local maxNote = baseNote + (octaveRange * 12)
   activeScale = scales.createScale(scaleDefinition, startNote, maxNote)
-  activeNotes = {} -- Reset
+  noteState = {} -- Reset
   for _,v in ipairs(activeScale) do
-    table.insert(activeNotes, false) -- Notes start deactivated
+    table.insert(noteState, false) -- Notes start deactivated
   end
 
   -- Set table length according to the number of notes in the selected scale
@@ -980,25 +1062,58 @@ local function setScaleTable()
 end
 
 local function getNote()
+  -- Find all active positions
   local activePositions = {}
-  for i,v in ipairs(activeNotes) do
+  for i,v in ipairs(noteState) do
     if v then
       table.insert(activePositions, i)
     end
   end
-  print("activeNotes", #activeNotes)
-  print("activePositions", #activePositions)
-  local scalePos = gem.getRandomFromTable(activePositions)
+  print("activePositions", #activePositions)  
+  print("noteState", #noteState)
+
+  if playMode == "Random" then
+    -- Get a random position from the active positions
+    scalePos = gem.getRandomFromTable(activePositions)
+  else
+    -- Walk up or down the scale
+    -- TODO Drunk?
+    if #activePositions > 1 then
+      local increment = 1
+      local resetAt = #activeScale
+      local resetTo = 1
+      if playMode == "Down" then
+        increment = -1
+        resetAt = 1
+        resetTo = #activeScale
+      end
+      local counter = 1
+      repeat
+        scalePos = gem.inc(scalePos, increment, resetAt, resetTo)
+        counter = gem.inc(counter)
+      until noteState[scalePos] or counter > #activeScale
+      if noteState[scalePos] == false then
+        scalePos = nil
+      end
+    elseif #activePositions == 1 then
+      scalePos = activePositions[1]
+    else
+      scalePos = nil
+    end
+  end
+
+  print("type(scalePos)", type(scalePos), scalePos)
 
   -- No active notes
-  if type(scalePos) == "nil" then-- or scalePos < 1 or scalePos > #activeScale then
+  if type(scalePos) == "nil" then
+    scalePos = 0 -- Reset if no note was found
     return
   end
 
   -- Set in position table
   for i=1,positionTable.length do
     local val = 0
-    if activeNotes[i] then
+    if noteState[i] then
       val = 1
     end
     if i == scalePos then
@@ -1047,10 +1162,21 @@ widgets.label("Horizontal Motion Sequencer", {
 
 widgets.setSection({
   width = 90,
-  x = 531,
+  x = 348,
   y = 5,
   xSpacing = 5,
   ySpacing = 5,
+})
+
+widgets.label("Play Direction", {
+  width = 81,
+  backgroundColour = "transparent",
+})
+
+widgets.menu("Play Mode", playModes, {
+  tooltip = "Set the play direction for the sequencer",
+  showLabel = false,
+  changed = function(self) playMode = self.selectedText end
 })
 
 widgets.button("Forward", forward, {
@@ -1125,34 +1251,33 @@ widgets.setSection({
 
 widgets.menu("Speed Type", tableMotion.speedTypes, {
   tooltip = "The speed type works with the speed factor to control speed variations across the table. Ramp Up means fast -> slower, Triangle means slower in the center.",
-  width = 90,
+  width = 81,
   changed = function(self) tableMotion.options.speedType = self.selectedText end
 })
 
-widgets.menu("Start Mode", 3, tableMotion.startModes, {
+widgets.menu("Start Shape", 3, tableMotion.startModes, {
   tooltip = "Set how the table will look when starting.",
-  width = 90,
+  width = 81,
   changed = function(self)
     tableMotion.options.startMode = self.selectedText
     resetTableValues()
   end
 }):changed()
 
-widgets.menu("Activation Mode", activationMode, activationModes, {
+widgets.menu("Start Direction", tableMotion.directionStartModes, {
+  tooltip = "Select start direction for the bars",
+  width = 81,
+  changed = function(self) tableMotion.options.directionStartMode = self.selectedText end
+})
+
+local activationModeMenu = widgets.menu("Activation Mode", activationMode, activationModes, {
   tooltip = "Activation mode controls when notes in the table are activated and deactivated.",
-  width = 114,
+  width = 105,
   changed = function(self) activationMode = self.value end
 })
 
-local scaleMenu = widgets.menu("Scale", #scaleNames, scaleNames, {
-  width = 114,
-  changed = function(self)
-    scaleDefinitionIndex = self.value
-    setScaleTable()
-  end
-})
-
 local moveSpeedInput = widgets.numBox("Motion Speed", tableMotion.options.moveSpeed, {
+  x = 470,
   name = "MoveSpeed",
   tooltip = "Set the speed of the up/down motion in each cell - Controlled by the X-axis on the XY controller",
   min = tableMotion.options.moveSpeedMin,
@@ -1162,10 +1287,22 @@ local moveSpeedInput = widgets.numBox("Motion Speed", tableMotion.options.moveSp
 })
 
 widgets.row()
-widgets.col(3)
+
+widgets.button("Bipolar", bipolar, {
+  tooltip = "Toggle table bipolar mode",
+  x = widgets.posSide(activationModeMenu),
+  width = 81,
+  changed = function(self)
+    bipolar = self.value
+    setRange()
+    setScaleTable()
+    startMoving()
+  end
+})
 
 widgets.numBox("Speed Factor", tableMotion.options.factor, {
   name = "Factor",
+  x = moveSpeedInput.x,
   tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. Controlled by the Y-axis on the XY controller",
   min = tableMotion.options.factorMin,
   max = tableMotion.options.factorMax,
@@ -1175,7 +1312,7 @@ widgets.numBox("Speed Factor", tableMotion.options.factor, {
 widgets.row()
 
 widgets.numBox("Range", tableRange, {
-  width = 90,
+  width = 81,
   min = 8,
   max = 128,
   integer = true,
@@ -1183,13 +1320,14 @@ widgets.numBox("Range", tableRange, {
   changed = function(self)
     tableRange = self.value
     setRange()
+    startMoving()
   end
 })
 
 -- TODO Add a menu for automatic reset options?
 widgets.button("Reset", false, {
-  tooltip = "Reset table to start mode",
-  width = 90,
+  tooltip = "Reset the start shape and direction",
+  width = 81,
   changed = function(self)
     resetTableValues()
     setScaleTable()
@@ -1198,8 +1336,28 @@ widgets.button("Reset", false, {
   end
 })
 
+local noteInput = widgets.numBox("Base Note", baseNote, {
+  width = 33,
+  unit = Unit.MidiKey,
+  showLabel = false,
+  tooltip = "Set the root note",
+  changed = function(self)
+    baseNote = self.value
+    setScaleTable()
+  end
+})
+
+widgets.menu("Scale", #scaleNames, scaleNames, {
+  width = 117,
+  showLabel = false,
+  changed = function(self)
+    scaleDefinitionIndex = self.value
+    setScaleTable()
+  end
+})
+
 widgets.numBox("Octave Range", octaveRange, {
-  width = 114,
+  width = 117,
   tooltip = "Set the octave range",
   min = 1,
   max = 4,
@@ -1210,38 +1368,17 @@ widgets.numBox("Octave Range", octaveRange, {
   end
 })
 
-widgets.button("Bipolar", bipolar, {
-  tooltip = "Toggle table bipolar mode",
-  width = 78,
-  changed = function(self)
-    bipolar = self.value
-    setRange()
-    setScaleTable()
-    startMoving()
-  end
-})
-
-local noteInput = widgets.numBox("Base Note", baseNote, {
-  width = 30,
-  unit = Unit.MidiKey,
-  showLabel = false,
-  tooltip = "Set the root note",
-  changed = function(self)
-    baseNote = self.value
-    setScaleTable()
-  end
-})
-
 widgets.numBox("Speed Rand", tableMotion.options.speedRandomizationAmount, {
-  unit = Unit.Percent,
   tooltip = "Set the radomization amount applied to speed",
+  x = moveSpeedInput.x,
+  unit = Unit.Percent,
   changed = function(self) tableMotion.options.speedRandomizationAmount = self.value end
 })
 
 local xySpeedFactor = widgets.getPanel():XY('MoveSpeed', 'Factor')
 xySpeedFactor.y = firstRowY
 xySpeedFactor.x = widgets.posSide(moveSpeedInput)
-xySpeedFactor.width = noteWidgetWidth - 10
+xySpeedFactor.width = 100
 xySpeedFactor.height = (noteWidgetHeight * 3) + (noteWidgetRowSpacing * 2)
 
 --------------------------------------------------------------------------------
