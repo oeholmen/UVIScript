@@ -3,15 +3,16 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
+local shapes = require "includes.shapes"
 
 local directionStartModes = {"Up", "Down", "Even Up", "Even Down", "Odd Up", "Odd Down", "Random"}
 local speedTypes = {"Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Random"}
-local startModes = {"Ramp Up", "Ramp Down", "Triangle", "Sine", "Cosine", "Tangent", "Even", "Odd", "Zero", "Min", "Max", "Keep State", "Random"}
+local startModes = shapes.getShapeNames({"Even", "Odd", "Zero", "Min", "Max", "Keep State", "Random"})
 
 local motionOptions = {
   factor = 2,
   factorMin = 0,
-  factorMax = 4,
+  factorMax = 8,
   moveSpeed = 25,
   moveSpeedMin = 5,
   moveSpeedMax = 500,
@@ -19,7 +20,14 @@ local motionOptions = {
   startMode = startModes[1],
   directionStartMode = directionStartModes[1],
   speedRandomizationAmount = 0,
-  tableLength = 32,
+  tableLength = 128--32,
+}
+
+local shapeOptions = {
+    z = 0,
+    stepRange = 2,
+    xOffset = -1,
+    xMultiple = 1,
 }
 
 local function getStartDirection(i)
@@ -71,18 +79,6 @@ local function setStartMode(theTable)
   local values = {}
   if motionOptions.startMode == "Keep State" then
     return
-  elseif motionOptions.startMode == "Ramp Up" then
-    values = gem.rampUp(theTable.min, theTable.max, theTable.length)
-  elseif motionOptions.startMode == "Ramp Down" then
-    values = gem.rampDown(theTable.min, theTable.max, theTable.length)
-  elseif motionOptions.startMode == "Triangle" then
-    values = gem.triangle(theTable.min, theTable.max, theTable.length)
-  elseif motionOptions.startMode == "Sine" then
-    values = gem.shape(theTable.min, theTable.max, theTable.length, 'sin')
-  elseif motionOptions.startMode == "Cosine" then
-    values = gem.shape(theTable.min, theTable.max, theTable.length, 'cos')
-  elseif motionOptions.startMode == "Tangent" then
-    values = gem.shape(theTable.min, theTable.max, theTable.length, 'tan')
   elseif motionOptions.startMode == "Random" then
     for i=1,theTable.length do
       table.insert(values, gem.getRandom(theTable.min, theTable.max))
@@ -115,9 +111,14 @@ local function setStartMode(theTable)
       end
       table.insert(values, val)
     end
-  else
+  elseif motionOptions.startMode == "Zero" then
     setTableZero(theTable)
     return
+  else
+    local shapeIndex = gem.getIndexFromValue(motionOptions.startMode, shapes.getShapeNames())
+    local shapeFunc = shapes.getShapeFunction(shapeIndex)
+    print("Calling shapeFunc", shapeFunc)
+    values = shapes[shapeFunc](theTable, shapeOptions)
   end
   for i,v in ipairs(values) do
     theTable:setValue(i, math.floor(v))
@@ -185,5 +186,6 @@ return {--tableMotion--
   directionStartModes = directionStartModes,
   speedTypes = speedTypes,
   startModes = startModes,
-  options = motionOptions
+  options = motionOptions,
+  shapeOptions = shapeOptions,
 }

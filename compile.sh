@@ -127,7 +127,7 @@ for luaScript in "${luaScripts[@]}"; do
   # Find the required includes - common is always included
   includes=(common)
 
-  availableIncludes=(widgets modular scales notes noteSelector resolutions modseq tableMotion rythmicFragments subdivision resolutionSelector)
+  availableIncludes=(widgets modular scales notes, shapes noteSelector resolutions modseq tableMotion rythmicFragments subdivision resolutionSelector)
 
   # Search for includes in the script
   for include in "${availableIncludes[@]}"; do

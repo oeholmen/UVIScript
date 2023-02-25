@@ -18,7 +18,7 @@ setBackgroundColour(backgroundColour)
 --------------------------------------------------------------------------------
 
 local isPlaying = false
-local tableRange = 16
+local tableRange = 128--16
 local bipolar = true
 local positionTable
 local motionTable
@@ -232,7 +232,7 @@ widgets.setSection({
   y = firstRowY,
   xSpacing = noteWidgetCellSpacing,
   ySpacing = noteWidgetRowSpacing,
-  cols = 7
+  cols = 9
 })
 
 widgets.menu("Speed Type", tableMotion.speedTypes, {
@@ -290,6 +290,7 @@ widgets.numBox("Speed Factor", tableMotion.options.factor, {
 widgets.row()
 
 widgets.numBox("Range", tableRange, {
+  width = 82,
   min = 8,
   max = 128,
   integer = true,
@@ -301,6 +302,7 @@ widgets.numBox("Range", tableRange, {
 })
 
 widgets.numBox("Length", tableMotion.options.tableLength, {
+  width = 82,
   min = 2,
   max = 128,
   integer = true,
@@ -314,8 +316,61 @@ widgets.numBox("Length", tableMotion.options.tableLength, {
   end
 })
 
+widgets.numBox("stepRange", tableMotion.shapeOptions.stepRange, {
+  tooltip = "Set step range",
+  width = 30,
+  showLabel = false,
+  min = 1,
+  max = 2,
+  integer = true,
+  changed = function(self)
+    tableMotion.shapeOptions.stepRange = self.value
+    resetTableValues()
+    startMoving()
+  end
+})
+
+widgets.numBox("xOffset", tableMotion.shapeOptions.xOffset, {
+  tooltip = "Set the offset applied to x (phase)",
+  width = 30,
+  showLabel = false,
+  min = -1,
+  max = 1,
+  changed = function(self)
+    tableMotion.shapeOptions.xOffset = self.value
+    resetTableValues()
+    startMoving()
+  end
+})
+
+widgets.numBox("xMultiple", tableMotion.shapeOptions.xMultiple, {
+  tooltip = "Set the multiple applied to x",
+  width = 30,
+  showLabel = false,
+  min = -8,
+  max = 8,
+  changed = function(self)
+    tableMotion.shapeOptions.xMultiple = self.value
+    resetTableValues()
+    startMoving()
+  end
+})
+
+widgets.numBox("z", tableMotion.shapeOptions.z, {
+  tooltip = "Set the z value",
+  width = 30,
+  showLabel = false,
+  min = -1,
+  max = 1,
+  changed = function(self)
+    tableMotion.shapeOptions.z = self.value
+    resetTableValues()
+    startMoving()
+  end
+})
+
 widgets.button("Bipolar", bipolar, {
-  width = 75,
+  width = 59,
   changed = function(self)
     bipolar = self.value
     setRange()
@@ -323,7 +378,7 @@ widgets.button("Bipolar", bipolar, {
 })
 
 widgets.button("Reset", false, {
-  width = 75,
+  width = 59,
   changed = function(self)
     resetTableValues()
     startMoving()

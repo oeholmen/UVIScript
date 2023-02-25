@@ -112,12 +112,197 @@ local function inc(val, inc, resetAt, resetTo)
   return val
 end
 
-local function shape(minValue, maxValue, numSteps, shapeFunc)
+-- sign function: -1 if x<0; 1 if x>0
+local function signA(x)
+  if x < 0 then
+    return -1
+  end
+  return 1
+end
+
+-- sign function oposite: 1 if x<0; -1 if x>0
+local function signB(x)
+  if x < 0 then
+    return 1
+  end
+  return -1
+end
+
+-- z = current table number, from -1.0 to 1.0
+-- w = x current time-value getting plotted, from 0.0 to 1.0 same as (x+1)/2
+-- When a 'q' is preset in the formula, the function plots to the FFT bins instead of plotting the to the waveform display. q iterates from 1 to 512 for the respective harmonics/bins. **
+local function testShape(minValue, maxValue, numSteps)
+  local unipolar = minValue == 0
+  local changePerStep = getChangePerStep(2, numSteps)
+  local shape = {}
+  for i=1,numSteps do
+    local z = 0
+    local q = 1
+    local x = (changePerStep * (i-1)) - 1
+    local w = x
+    local value = x
+    if unipolar then
+      value = ((maxValue * value) + maxValue) / 2
+    else
+      value = maxValue * value
+    end
+    print("step, value", i, value)
+    table.insert(shape, value)
+  end
+  return shape
+end
+
+-- 0.5*(cos(x*pi/2)*((sin((x)*pi)+(1-z)*(sin(z*((x*x)^z)*pi*32)))))
+local function sweetSine(minValue, maxValue, numSteps)
+  local unipolar = minValue == 0
+  local changePerStep = getChangePerStep(2, numSteps)
+  local shape = {}
+  for i=1,numSteps do
+    local z = 0
+    local q = 1
+    local x = (changePerStep * (i-1)) - 1
+    local w = x
+    local value = 0.5*(math.cos(x*math.pi/2)*((math.sin((x)*math.pi)+(1-z)*(math.sin(z*((x*x)^z)*math.pi*32)))))
+    if unipolar then
+      value = ((maxValue * value) + maxValue) / 2
+    else
+      value = maxValue * value
+    end
+    print("step, value", i, value)
+    table.insert(shape, value)
+  end
+  return shape
+end
+
+-- sin(w*pi*(2+(62*z*z*z)))*sin(w*pi)
+local function softSine(minValue, maxValue, numSteps)
   local unipolar = minValue == 0
   local changePerStep = getChangePerStep(1, numSteps)
   local shape = {}
   for i=1,numSteps do
-    local value = math[shapeFunc](2 * math.pi * changePerStep * (i-1))
+    local z = -0
+    local q = 1
+    local x = (changePerStep * (i-1)) - 1
+    local w = x
+    local value = math.sin(w*math.pi*(2+(62*z*z*z)))*math.sin(w*math.pi)
+    if unipolar then
+      value = ((maxValue * value) + maxValue) / 2
+    else
+      value = maxValue * value
+    end
+    print("step, value", i, value)
+    table.insert(shape, value)
+  end
+  return shape
+end
+
+-- sin(w*pi*(2+(62*z*z*z)))*sin(w*pi)
+local function drop(minValue, maxValue, numSteps)
+  local unipolar = minValue == 0
+  local changePerStep = getChangePerStep(2, numSteps)
+  local shape = {}
+  for i=1,numSteps do
+    local z = 1
+    local q = 1
+    local x = (changePerStep * (i-1)) - 1
+    local w = x
+    local value = math.sin(w*math.pi*(2+(62*z*z*z)))*math.sin(w*math.pi)
+    if unipolar then
+      value = ((maxValue * value) + maxValue) / 2
+    else
+      value = maxValue * value
+    end
+    print("step, value", i, value)
+    table.insert(shape, value)
+  end
+  return shape
+end
+
+-- cos(x*pi/2)*1.6*(.60*sin( ((z*16)+1)*3*x ) + .20*sin( ((z*16)+1)*9*x ) + .15*sin( ((z*16)+1)*15*x))
+local function tripleSin(minValue, maxValue, numSteps)
+  local unipolar = minValue == 0
+  local changePerStep = getChangePerStep(2, numSteps)
+  local shape = {}
+  for i=1,numSteps do
+    local z = 0
+    local x = (changePerStep * (i-1)) - 1
+    local value = math.cos(x*math.pi/2)*1.6*(.60*math.sin( ((z*16)+1)*3*x ) + .20*math.sin( ((z*16)+1)*9*x ) + .15*math.sin( ((z*16)+1)*15*x))
+    if unipolar then
+      value = ((maxValue * value) + maxValue) / 2
+    else
+      value = maxValue * value
+    end
+    print("step, value", i, value)
+    table.insert(shape, value)
+  end
+  return shape
+end
+
+-- organish sin(x*pi)+(0.16*(sin(2*x*pi)+sin(3*x*pi)+sin(4*x*pi)))
+local function organIsh(minValue, maxValue, numSteps)
+  local unipolar = minValue == 0
+  local changePerStep = getChangePerStep(2, numSteps)
+  local shape = {}
+  for i=1,numSteps do
+    local x = (changePerStep * (i-1)) - 1
+    local value = math.sin(x*math.pi)+(0.16*(math.sin(2*x*math.pi)+math.sin(3*x*math.pi)+math.sin(4*x*math.pi)))
+    if unipolar then
+      value = ((maxValue * value) + maxValue) / 2
+    else
+      value = maxValue * value
+    end
+    print("step, value", i, value)
+    table.insert(shape, value)
+  end
+  return shape
+end
+
+-- filtered sqr 1.2*sin(x*pi)+0.31*sin(x*pi*3)+0.11*sin(x*pi*5)+0.033*sin(x*pi*7)
+local function filteredSquare(minValue, maxValue, numSteps)
+  local unipolar = minValue == 0
+  local changePerStep = getChangePerStep(2, numSteps)
+  local shape = {}
+  for i=1,numSteps do
+    local x = (changePerStep * (i-1)) - 1
+    local value = 1.2*math.sin(x*math.pi)+0.31*math.sin(x*math.pi*3)+0.11*math.sin(x*math.pi*5)+0.033*math.sin(x*math.pi*7)
+    if unipolar then
+      value = ((maxValue * value) + maxValue) / 2
+    else
+      value = maxValue * value
+    end
+    print("step, value", i, value)
+    table.insert(shape, value)
+  end
+  return shape
+end
+
+-- hpf saw x-(0.635*sin(x*pi))
+local function hpfSaw(minValue, maxValue, numSteps)
+  local unipolar = minValue == 0
+  local changePerStep = getChangePerStep(2, numSteps)
+  local shape = {}
+  for i=1,numSteps do
+    local x = (changePerStep * (i-1)) - 1
+    local value = x-(0.635*math.sin(x*math.pi))
+    if unipolar then
+      value = ((maxValue * value) + maxValue) / 2
+    else
+      value = maxValue * value
+    end
+    print("step, value", i, value)
+    table.insert(shape, value)
+  end
+  return shape
+end
+
+-- sin(x*pi)
+local function shape(minValue, maxValue, numSteps, shapeFunc)
+  local unipolar = minValue == 0
+  local changePerStep = getChangePerStep(2, numSteps)
+  local shape = {}
+  for i=1,numSteps do
+    local x = (changePerStep * (i-1))
+    local value = math[shapeFunc](x * math.pi)
     if unipolar then
       value = ((maxValue * value) + maxValue) / 2
     else
@@ -134,7 +319,219 @@ local function shape(minValue, maxValue, numSteps, shapeFunc)
   return shape
 end
 
-local function triangle(minValue, maxValue, numSteps)
+local function shapeReverse(minValue, maxValue, numSteps, shapeFunc)
+  local unipolar = minValue == 0
+  local changePerStep = getChangePerStep(2, numSteps)
+  local shape = {}
+  for i=1,numSteps do
+    local x = (changePerStep * (i-1)) - 1
+    local value = math[shapeFunc](x * math.pi)
+    if unipolar then
+      value = ((maxValue * value) + maxValue) / 2
+    else
+      value = maxValue * value
+    end
+    print("step, value", i, value)
+    table.insert(shape, value)
+  end
+  if shapeFunc == 'sin' or shapeFunc == 'tan' then
+    shape[#shape] = shape[1]
+  else
+    shape[#shape] = maxValue
+  end
+  return shape
+end
+
+local function shapeDouble(minValue, maxValue, numSteps, shapeFunc)
+  local unipolar = minValue == 0
+  local changePerStep = getChangePerStep(2, numSteps)
+  local shape = {}
+  for i=1,numSteps do
+    local x = 2 * (changePerStep * (i-1))
+    local value = math[shapeFunc](x * math.pi)
+    if unipolar then
+      value = ((maxValue * value) + maxValue) / 2
+    else
+      value = maxValue * value
+    end
+    print("step, value", i, value)
+    table.insert(shape, value)
+  end
+  if shapeFunc == 'sin' or shapeFunc == 'tan' then
+    shape[#shape] = shape[1]
+  else
+    shape[#shape] = maxValue
+  end
+  return shape
+end
+
+-- Saw in phase x < 0 ? -1-x : 1-x
+local function sawInPhase(minValue, maxValue, numSteps)
+  local unipolar = minValue == 0
+  local changePerStep = getChangePerStep(2, numSteps)
+  local shape = {}
+  for i=1,numSteps do
+    local x = (changePerStep * (i-1)) - 1
+    local value = signA(x)-x
+    if unipolar then
+      value = ((maxValue * value) + maxValue) / 2
+    else
+      value = maxValue * value
+    end
+    print("step, value", i, value)
+    table.insert(shape, value)
+  end
+  return shape
+end
+
+-- SquareTri -1*(sign(x)*0.5)+(abs(x)-0.5)
+local function squareTri(minValue, maxValue, numSteps)
+  local unipolar = minValue == 0
+  local changePerStep = getChangePerStep(2, numSteps)
+  local shape = {}
+  for i=1,numSteps do
+    local x = (changePerStep * (i-1)) - 1
+    local value = -1*(signA(x)*0.5)+(math.abs(x)-0.5)
+    if unipolar then
+      value = ((maxValue * value) + maxValue) / 2
+    else
+      value = maxValue * value
+    end
+    print("step, value", i, value)
+    table.insert(shape, value)
+  end
+  return shape
+end
+
+-- rint = round to nearest integer
+--(rint(16*abs(x))/8.0)-1
+local function lofiTriangle(minValue, maxValue, numSteps)
+  local unipolar = minValue == 0
+  local changePerStep = getChangePerStep(2, numSteps)
+  local shape = {}
+  for i=1,numSteps do
+    local x = (changePerStep * (i-1)) - 1
+    local value = (round(16*math.abs(x))/8.0)-1
+    if unipolar then
+      value = ((maxValue * value) + maxValue) / 2
+    else
+      value = maxValue * value
+    end
+    print("step, value", i, value)
+    table.insert(shape, value)
+  end
+  return shape
+end
+
+local function doubleSaw(minValue, maxValue, numSteps)
+  local unipolar = minValue == 0
+  local changePerStep = getChangePerStep(2, numSteps)
+  local shape = {}
+  for i=1,numSteps do
+    local x = (changePerStep * (i-1)) - 1
+    local value = (x*2)+signB(x)
+    if unipolar then
+      value = ((maxValue * value) + maxValue) / 2
+    else
+      value = maxValue * value
+    end
+    print("step, value", i, value)
+    table.insert(shape, value)
+  end
+  return shape
+end
+
+local function dome50(minValue, maxValue, numSteps)
+  local unipolar = minValue == 0
+  local changePerStep = getChangePerStep(1, numSteps)
+  local shape = {}
+  for i=1,numSteps do
+    local x = (changePerStep * (i-1)) - 1
+    local value = -1-1.275*math.sin(x*math.pi)
+    if unipolar then
+      value = ((maxValue * value) + maxValue) / 2
+    else
+      value = maxValue * value
+    end
+    print("step, value", i, value)
+    table.insert(shape, value)
+  end
+  return shape
+end
+
+local function sawAnalog(minValue, maxValue, numSteps)
+  local unipolar = minValue == 0
+  local changePerStep = getChangePerStep(2, numSteps)
+  local shape = {}
+  for i=1,numSteps do
+    local x = (changePerStep * (i-1))
+    local value = 2.001 * (math.sin(x * 0.7905) - 0.5)
+    if unipolar then
+      value = ((maxValue * value) + maxValue) / 2
+    else
+      value = maxValue * value
+    end
+    print("step, value", i, value)
+    table.insert(shape, value)
+  end
+  return shape
+end
+
+local function dome(minValue, maxValue, numSteps)
+  local unipolar = minValue == 0
+  local changePerStep = getChangePerStep(2, numSteps)
+  local shape = {}
+  for i=1,numSteps do
+    local x = (changePerStep * (i-1)) - .0
+    local value = 2 * (math.sin(x * 1.5705) - 0.5)
+    if unipolar then
+      value = ((maxValue * value) + maxValue) / 2
+    else
+      value = maxValue * value
+    end
+    print("step, value", i, value)
+    table.insert(shape, value)
+  end
+  return shape
+end
+
+local function triangleInPhase(minValue, maxValue, numSteps)
+  local unipolar = minValue == 0
+  local changePerStep = getChangePerStep(2, numSteps)
+  local shape = {}
+  for i=1,numSteps do
+    local x = (changePerStep * (i-1)) - 1
+    local value = math.min(2+2*x, math.abs((x-0.5)*2)-1)
+    if unipolar then
+      value = ((maxValue * value) + maxValue) / 2
+    else
+      value = maxValue * value
+    end
+    print("step, value", i, value)
+    table.insert(shape, value)
+  end
+  return shape
+end
+
+local function triangleOffPhase(minValue, maxValue, numSteps)
+  local unipolar = minValue == 0
+  local changePerStep = getChangePerStep(2, numSteps)
+  local shape = {}
+  for i=1,numSteps do
+    local x = (changePerStep * (i-1)) - 1
+    local value = math.abs(x*2)-1
+    if unipolar then
+      value = ((maxValue * value) + maxValue) / 2
+    else
+      value = maxValue * value
+    end
+    print("step, value", i, value)
+    table.insert(shape, value)
+  end
+  return shape
+end
+
+local function triangleOffPhaseReverse(minValue, maxValue, numSteps)
   local rising = true
   local numStepsUpDown = math.floor(numSteps / 2)
   local valueRange = maxValue - minValue
@@ -156,39 +553,59 @@ local function triangle(minValue, maxValue, numSteps)
   return shape
 end
 
-local function rampUp(minValue, maxValue, numSteps)
-  local valueRange = maxValue - minValue
-  local changePerStep = getChangePerStep(valueRange, numSteps)
-  local startValue = minValue
+local function ramp(minValue, maxValue, numSteps, f)
+  local unipolar = minValue == 0
+  local changePerStep = getChangePerStep(1, numSteps)
   local shape = {}
   for i=1,numSteps do
-    table.insert(shape, startValue)
-    startValue = inc(startValue, changePerStep)
+    local x = (changePerStep * (i-1)) + f
+    local value = math.min(2+2*x, math.abs((x-0.5)*2)-1)
+    if unipolar then
+      value = ((maxValue * value) + maxValue) / 2
+    else
+      value = maxValue * value
+    end
+    print("step, value", i, value)
+    table.insert(shape, value)
   end
-  shape[#shape] = maxValue
   return shape
 end
 
+local function rampUp(minValue, maxValue, numSteps)
+  return ramp(minValue, maxValue, numSteps, .5)
+end
+
 local function rampDown(minValue, maxValue, numSteps)
-  local valueRange = maxValue - minValue
-  local changePerStep = getChangePerStep(valueRange, numSteps)
-  local startValue = maxValue
-  local shape = {}
-  for i=1,numSteps do
-    table.insert(shape, startValue)
-    startValue = inc(startValue, -changePerStep)
-  end
-  shape[#shape] = minValue
-  return shape
+  return ramp(minValue, maxValue, numSteps, -.5)
 end
 
 local gem = {
   inc = inc,
   round = round,
   shape = shape,
+  shapeReverse = shapeReverse,
+  shapeDouble = shapeDouble,
+  dome = dome,
+  dome50 = dome50,
+  hpfSaw = hpfSaw,
+  sawAnalog = sawAnalog,
+  sawInPhase = sawInPhase,
+  doubleSaw = doubleSaw,
+  filteredSquare = filteredSquare,
+  organIsh = organIsh,
   rampUp = rampUp,
   rampDown = rampDown,
-  triangle = triangle,
+  squareTri = squareTri,
+  triangle = triangleOffPhaseReverse,
+  lofiTriangle = lofiTriangle,
+  triangleInPhase = triangleInPhase,
+  triangleOffPhase = triangleOffPhase,
+  triangleOffPhaseReverse = triangleOffPhaseReverse,
+  testShape = testShape,
+  sweetSine = sweetSine,
+  softSine = softSine,
+  drop = drop,
+  tripleSin = tripleSin,
   getRandom = getRandom,
   getChangeMax = getChangeMax,
   tableIncludes = tableIncludes,
@@ -703,12 +1120,18 @@ local scales = {
 
 local directionStartModes = {"Up", "Down", "Even Up", "Even Down", "Odd Up", "Odd Down", "Random"}
 local speedTypes = {"Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Random"}
-local startModes = {"Ramp Up", "Ramp Down", "Triangle", "Sine", "Cosine", "Tangent", "Even", "Odd", "Zero", "Min", "Max", "Keep State", "Random"}
+local startModes = {
+  "Ramp Up", "Ramp Down", "Triangle 1", "Triangle 2", "Triangle 3", "LoFi Triangle", "Sqr/Tri", "Sine", "Cosine", "Sine Rev", 
+  "Cosine Rev", "Double Sine", "Double Cosine", "Dome", "Dome (50%)", "Saw", "HPF Saw", "Analog Saw", "Double Saw", "Fltr Sqr", 
+  "Organ-Ish", "Tangent", "Even", "Odd", "Zero", "Min", "Max",
+  "tripleSin", "drop", "softSine", "sweetSine", "testShape",
+  "Keep State", "Random",
+}
 
 local motionOptions = {
   factor = 2,
   factorMin = 0,
-  factorMax = 4,
+  factorMax = 8,
   moveSpeed = 25,
   moveSpeedMin = 5,
   moveSpeedMax = 500,
@@ -772,12 +1195,44 @@ local function setStartMode(theTable)
     values = gem.rampUp(theTable.min, theTable.max, theTable.length)
   elseif motionOptions.startMode == "Ramp Down" then
     values = gem.rampDown(theTable.min, theTable.max, theTable.length)
-  elseif motionOptions.startMode == "Triangle" then
-    values = gem.triangle(theTable.min, theTable.max, theTable.length)
+  elseif motionOptions.startMode == "Triangle 1" then
+    values = gem.triangleInPhase(theTable.min, theTable.max, theTable.length)
+  elseif motionOptions.startMode == "Triangle 2" then
+    values = gem.triangleOffPhase(theTable.min, theTable.max, theTable.length)
+  elseif motionOptions.startMode == "Triangle 3" then
+    values = gem.triangleOffPhaseReverse(theTable.min, theTable.max, theTable.length)
+  elseif motionOptions.startMode == "LoFi Triangle" then
+    values = gem.lofiTriangle(theTable.min, theTable.max, theTable.length)
+  elseif motionOptions.startMode == "Sqr/Tri" then
+    values = gem.squareTri(theTable.min, theTable.max, theTable.length)
+  elseif motionOptions.startMode == "Fltr Sqr" then
+    values = gem.filteredSquare(theTable.min, theTable.max, theTable.length)
+  elseif motionOptions.startMode == "Organ-Ish" then
+    values = gem.organIsh(theTable.min, theTable.max, theTable.length)
   elseif motionOptions.startMode == "Sine" then
     values = gem.shape(theTable.min, theTable.max, theTable.length, 'sin')
   elseif motionOptions.startMode == "Cosine" then
     values = gem.shape(theTable.min, theTable.max, theTable.length, 'cos')
+  elseif motionOptions.startMode == "Sine Rev" then
+    values = gem.shapeReverse(theTable.min, theTable.max, theTable.length, 'sin')
+  elseif motionOptions.startMode == "Cosine Rev" then
+    values = gem.shapeReverse(theTable.min, theTable.max, theTable.length, 'cos')
+  elseif motionOptions.startMode == "Double Sine" then
+    values = gem.shapeDouble(theTable.min, theTable.max, theTable.length, 'sin')
+  elseif motionOptions.startMode == "Double Cosine" then
+    values = gem.shapeDouble(theTable.min, theTable.max, theTable.length, 'cos')
+  elseif motionOptions.startMode == "Dome" then
+    values = gem.dome(theTable.min, theTable.max, theTable.length)
+  elseif motionOptions.startMode == "Dome (50%)" then
+    values = gem.dome50(theTable.min, theTable.max, theTable.length)
+  elseif motionOptions.startMode == "Analog Saw" then
+    values = gem.sawAnalog(theTable.min, theTable.max, theTable.length)
+  elseif motionOptions.startMode == "Saw" then
+    values = gem.sawInPhase(theTable.min, theTable.max, theTable.length)
+  elseif motionOptions.startMode == "HPF Saw" then
+    values = gem.hpfSaw(theTable.min, theTable.max, theTable.length)
+  elseif motionOptions.startMode == "Double Saw" then
+    values = gem.doubleSaw(theTable.min, theTable.max, theTable.length)
   elseif motionOptions.startMode == "Tangent" then
     values = gem.shape(theTable.min, theTable.max, theTable.length, 'tan')
   elseif motionOptions.startMode == "Random" then
@@ -812,9 +1267,11 @@ local function setStartMode(theTable)
       end
       table.insert(values, val)
     end
-  else
+  elseif motionOptions.startMode == "Zero" then
     setTableZero(theTable)
     return
+  else
+    values = gem[motionOptions.startMode](theTable.min, theTable.max, theTable.length)
   end
   for i,v in ipairs(values) do
     theTable:setValue(i, math.floor(v))

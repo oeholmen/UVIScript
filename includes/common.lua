@@ -111,88 +111,15 @@ local function inc(val, inc, resetAt, resetTo)
   return val
 end
 
-local function shape(minValue, maxValue, numSteps, shapeFunc)
-  local unipolar = minValue == 0
-  local changePerStep = getChangePerStep(1, numSteps)
-  local shape = {}
-  for i=1,numSteps do
-    local value = math[shapeFunc](2 * math.pi * changePerStep * (i-1))
-    if unipolar then
-      value = ((maxValue * value) + maxValue) / 2
-    else
-      value = maxValue * value
-    end
-    print("step, value", i, value)
-    table.insert(shape, value)
-  end
-  if shapeFunc == 'sin' or shapeFunc == 'tan' then
-    shape[#shape] = shape[1]
-  else
-    shape[#shape] = maxValue
-  end
-  return shape
-end
-
-local function triangle(minValue, maxValue, numSteps)
-  local rising = true
-  local numStepsUpDown = math.floor(numSteps / 2)
-  local valueRange = maxValue - minValue
-  local changePerStep = getChangePerStep(valueRange, numStepsUpDown)
-  local startValue = minValue
-  local shape = {}
-  for i=1,numSteps do
-    table.insert(shape, startValue)
-    if rising then
-      startValue = startValue + changePerStep
-      if startValue >= maxValue then
-        rising = false
-      end
-    else
-      startValue = startValue - changePerStep
-    end
-  end
-  shape[#shape] = minValue
-  return shape
-end
-
-local function rampUp(minValue, maxValue, numSteps)
-  local valueRange = maxValue - minValue
-  local changePerStep = getChangePerStep(valueRange, numSteps)
-  local startValue = minValue
-  local shape = {}
-  for i=1,numSteps do
-    table.insert(shape, startValue)
-    startValue = inc(startValue, changePerStep)
-  end
-  shape[#shape] = maxValue
-  return shape
-end
-
-local function rampDown(minValue, maxValue, numSteps)
-  local valueRange = maxValue - minValue
-  local changePerStep = getChangePerStep(valueRange, numSteps)
-  local startValue = maxValue
-  local shape = {}
-  for i=1,numSteps do
-    table.insert(shape, startValue)
-    startValue = inc(startValue, -changePerStep)
-  end
-  shape[#shape] = minValue
-  return shape
-end
-
 return {--gem--
   inc = inc,
   round = round,
-  shape = shape,
-  rampUp = rampUp,
-  rampDown = rampDown,
-  triangle = triangle,
   getRandom = getRandom,
   getChangeMax = getChangeMax,
   tableIncludes = tableIncludes,
   randomizeValue = randomizeValue,
   trimStartAndEnd = trimStartAndEnd,
+  getChangePerStep = getChangePerStep,
   getRandomBoolean = getRandomBoolean,
   getIndexFromValue = getIndexFromValue,
   getRandomFromTable = getRandomFromTable,

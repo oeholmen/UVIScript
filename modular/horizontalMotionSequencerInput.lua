@@ -3,6 +3,7 @@
 ----------------------------------------------------------------------------------
 
 local gem = require "includes.common"
+local shapes = require "includes.shapes"
 local widgets = require "includes.widgets"
 local scales = require "includes.scales"
 local notes = require "includes.notes"
@@ -24,7 +25,7 @@ local bipolar = true -- Option
 local scalePos = 0
 local activationMode = 1
 local activationModes = {"Max:On,Min:Off", "Max:Toggle", "Min:Toggle", "Zero:Toggle", "Min:On,Max:Off", "Min/Max:Toggle"}
-local playModes = {"Random", "Up", "Down"}
+local playModes = {"Random", "Up", "Down", "Alternate"}
 local playMode = playModes[1]
 local positionTable
 local motionTable
@@ -134,12 +135,11 @@ local function getNote()
     scalePos = gem.getRandomFromTable(activePositions)
   else
     -- Walk up or down the scale
-    -- TODO Drunk?
     if #activePositions > 1 then
       local increment = 1
       local resetAt = #activeScale
       local resetTo = 1
-      if playMode == "Down" then
+      if playMode == "Down" or (playMode == "Alternate" and gem.getRandomBoolean()) then
         increment = -1
         resetAt = 1
         resetTo = #activeScale
