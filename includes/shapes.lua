@@ -30,8 +30,9 @@ local shapeNames = {
   "Zero",
   "Min",
   "Max",
+  "Chaos To Sine",
   "Random",
-  --"Test Shape",
+  "Test Shape",
 }
 
 local shapeFunctions = {
@@ -54,13 +55,14 @@ local shapeFunctions = {
   "tripleSin",
   "softSine",
   "sweetSine",
-  "evenOdd",
-  "oddEven",
+  "even",
+  "odd",
   "zeroAll",
   "minAll",
   "maxAll",
+  "chaosToSine",
   "randomAll",
-  --"testShape",
+  "testShape",
 }
 
 local defaultShapeOptions = {
@@ -69,6 +71,14 @@ local defaultShapeOptions = {
   phase = -1,
   factor = 1,
 }
+
+-- sign function: -1 if x<0; 1 if x>0
+local function signA(x)
+  if x < 0 then
+    return -1
+  end
+  return 1
+end
 
 local function getValueOrDefault(value, default)
   if type(value) == "number" then
@@ -117,6 +127,9 @@ local shapeTemplates = {
   even = getShapeOptions({
       z = -1
   }),
+  odd = getShapeOptions({
+      z = 1
+  }),
   zero = getShapeOptions({
       z = 0
   }),
@@ -127,68 +140,6 @@ local shapeTemplates = {
       z = 1
   }),
 }
-
-local function randomAll(theTable, options)
-  options = getShapeOptions(options)
-  local values = {}
-  for i=1,theTable.length do
-    local value = gem.getRandom(theTable.min, theTable.max) * options.z * options.factor
-    table.insert(values, value)
-  end
-  return values, options
-end
-
-local function oddEven(theTable, options)
-  options = getShapeOptions(options)
-  local values = {}
-  local minValue = theTable.min
-  local maxValue = theTable.max
-  for i=1,theTable.length do
-    local val = maxValue
-    if i % 2 == 0 then
-      val = minValue
-    end
-    table.insert(values, (val * options.z * options.factor))
-  end
-  return values, options
-end
-
-local function evenOdd(theTable, options)
-  if type(options) == "nil" then
-    options = shapeTemplates.even
-  end
-  return oddEven(theTable, options)
-end
-
-local function minMaxZero(theTable, options)
-  options = getShapeOptions(options)
-  local values = {}
-  for i=1,theTable.length do
-    table.insert(values, (theTable.max * options.z * options.factor))
-  end
-  return values, options
-end
-
-local function zeroAll(theTable, options)
-  if type(options) == "nil" then
-    options = shapeTemplates.zero
-  end
-  return minMaxZero(theTable, options)
-end
-
-local function minAll(theTable, options)
-  if type(options) == "nil" then
-    options = shapeTemplates.min
-  end
-  return minMaxZero(theTable, options)
-end
-
-local function maxAll(theTable, options)
-  if type(options) == "nil" then
-    options = shapeTemplates.max
-  end
-  return minMaxZero(theTable, options)
-end
 
 local function getShapeNames(options, max)
   if type(max) ~= "number" then
@@ -222,14 +173,6 @@ local function getShapeFunction(i)
   return shapeFunctions[i]
 end
 
--- sign function: -1 if x<0; 1 if x>0
-local function signA(x)
-  if x < 0 then
-    return -1
-  end
-  return 1
-end
-
 -- z = current table number, from -1.0 to 1.0
 -- x = current time-value getting plotted, from -1.0 to 1.0 OR 0.0 to 1.0 (same as (x+1)/2) - depending on stepRange=1|2
 local function createShape(shapeTable, shapeFunc, options)
@@ -240,28 +183,95 @@ local function createShape(shapeTable, shapeFunc, options)
   local unipolar = minValue == 0
   local changePerStep = gem.getChangePerStep(options.stepRange, numSteps)
   local shape = {}
-  print("Create shape, stepRange, phase, factor", options.stepRange, options.phase, options.factor)
-  print("minValue, maxValue, numSteps, changePerStep", minValue, maxValue, numSteps, changePerStep)
+  --print("Create shape, stepRange, phase, factor", options.stepRange, options.phase, options.factor)
+  --print("minValue, maxValue, numSteps, changePerStep", minValue, maxValue, numSteps, changePerStep)
   for i=1,numSteps do
     local x = options.factor * ((changePerStep * (i-1)) + options.phase)
     local z = options.z
-    local value = shapeFunc(x, z)
+    local value = shapeFunc(x, z, i)
     if unipolar then
       value = ((maxValue * value) + maxValue) / 2
     else
       value = maxValue * value
     end
-    print("step, value, x", i, value, x)
-    table.insert(shape, value)
+    --print("step, value, x", i, value, x)
+    table.insert(shape, math.max(minValue, math.min(maxValue, value)))
   end
   return shape, options
 end
 
 local function testShape(shapeTable, options)
-  local shapeFunc = function(x, z)
-    return x * z -- Unique
+  local shapeFunc = function(x, z, i)
+    return math.sin(math.pi*z*z*32*math.log(x+1))
   end
   return createShape(shapeTable, shapeFunc, options)
+end
+
+local function chaosToSine(shapeTable, options)
+  local shapeFunc = function(x, z, i)
+    return math.sin(math.pi*z*z*32*math.log(x+1))
+  end
+  return createShape(shapeTable, shapeFunc, options)
+end
+
+local function randomAll(shapeTable, options)
+  local shapeFunc = function(x, z)
+    return ((gem.getRandom() * 2) - 1) * z
+  end
+  return createShape(shapeTable, shapeFunc, options)
+end
+
+local function oddAndEven(shapeTable, options)
+  local shapeFunc = function(x, z, i)
+    x = 1
+    if i % 2 == 0 then
+      x = -1
+    end
+    return x * z
+  end
+  return createShape(shapeTable, shapeFunc, options)
+end
+
+local function evenMax(shapeTable, options)
+  if type(options) == "nil" then
+    options = shapeTemplates.even
+  end
+  return oddAndEven(shapeTable, options)
+end
+
+local function oddMax(shapeTable, options)
+  if type(options) == "nil" then
+    options = shapeTemplates.odd
+  end
+  return oddAndEven(shapeTable, options)
+end
+
+local function minMaxZero(shapeTable, options)
+  local shapeFunc = function(x, z)
+    return z
+  end
+  return createShape(shapeTable, shapeFunc, options)
+end
+
+local function zeroAll(shapeTable, options)
+  if type(options) == "nil" then
+    options = shapeTemplates.zero
+  end
+  return minMaxZero(shapeTable, options)
+end
+
+local function minAll(shapeTable, options)
+  if type(options) == "nil" then
+    options = shapeTemplates.min
+  end
+  return minMaxZero(shapeTable, options)
+end
+
+local function maxAll(shapeTable, options)
+  if type(options) == "nil" then
+    options = shapeTemplates.max
+  end
+  return minMaxZero(shapeTable, options)
 end
 
 local function sineShaper(shapeTable, options)
@@ -437,10 +447,11 @@ return {--shapes--
   tripleSin = tripleSin,
   sineShaper = sineShaper,
   triangleShaper = triangleShaper,
-  evenOdd = evenOdd,
-  oddEven = oddEven,
+  even = evenMax,
+  odd = oddMax,
   zeroAll = zeroAll,
   minAll = minAll,
   maxAll = maxAll,
+  chaosToSine = chaosToSine,
   randomAll = randomAll,
 }

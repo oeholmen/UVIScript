@@ -4,6 +4,7 @@
 
 local gem = require "includes.common"
 local shapes = require "includes.shapes"
+local widgets = require "includes.widgets"
 
 local directionStartModes = {"Up", "Down", "Even Up", "Even Down", "Odd Up", "Odd Down", "Random"}
 local speedTypes = {"Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Random"}
@@ -20,7 +21,8 @@ local motionOptions = {
   startMode = startModes[1],
   directionStartMode = directionStartModes[1],
   speedRandomizationAmount = 0,
-  tableLength = 128--32,
+  tableLength = 32,
+  useMorph = false,
 }
 
 local shapeOptions = {
@@ -30,7 +32,51 @@ local shapeOptions = {
     factor = 1,
 }
 
+local function getShapeWidgets(width, showLabel)
+  -- Widgets for controlling shape
+  if type(width) == "nil" then
+    width = 30
+  end
+  return {
+    stepRange = widgets.numBox("Step Range", shapeOptions.stepRange, {
+      name = "ShapePhaseStepRange",
+      tooltip = "Set step range for the shape. Mostly affects polarity of the shape.",
+      width = width,
+      showLabel = showLabel == true,
+      min = 0,
+      max = 4,
+    }),
+    phase = widgets.numBox("Shape Phase", shapeOptions.phase, {
+      name = "ShapePhase",
+      tooltip = "Set the phase applied to the shape (move left/right).",
+      width = width,
+      showLabel = showLabel == true,
+      min = -1,
+      max = 1,
+    }),
+    factor = widgets.numBox("Shape Factor", shapeOptions.factor, {
+      name = "ShapeFactor",
+      tooltip = "Set the factor (multiplier) applied to the value of each step.",
+      width = width,
+      showLabel = showLabel == true,
+      min = -8,
+      max = 8,
+    }),
+    z = widgets.numBox("Shape Morph", shapeOptions.z, {
+      name = "ShapeZValue",
+      tooltip = "Set the morph value. This value is mostly assigned to amplitude, but it depends on the shape.",
+      width = width,
+      showLabel = showLabel == true,
+      min = -1,
+      max = 1,
+    })
+  }
+end
+
 local function getStartDirection(i)
+  if type(i) == "nil" then
+    i = 1
+  end
   local direction = 1
   if motionOptions.directionStartMode == "Down" then
     direction = -1
@@ -74,18 +120,49 @@ local function setTableZero(theTable)
     end  
 end
 
-local function setStartMode(theTable, options)
+local function setStartMode(theTable, options, stateFunction)
   -- Reset table according to start mode (unless keep state is selected)
   if motionOptions.startMode ~= "Keep State" then
     local values = {}
     local shapeIndex = gem.getIndexFromValue(motionOptions.startMode, shapes.getShapeNames())
     local shapeFunc = shapes.getShapeFunction(shapeIndex)
+    --print("Calling shapeFunc", shapeFunc)
     values, shapeOptions = shapes[shapeFunc](theTable, options)
     for i,v in ipairs(values) do
-      theTable:setValue(i, math.floor(v))
+      --theTable:setValue(i, math.floor(v))
+      local value = gem.round(v)
+      theTable:setValue(i, value)
+      if type(stateFunction) == "function" then
+        stateFunction(i, value)
+      end
     end
   end
   return shapeOptions
+end
+
+local function getWaitDuration()
+  return gem.randomizeValue(motionOptions.moveSpeed, motionOptions.moveSpeedMin, motionOptions.moveSpeedMax, motionOptions.speedRandomizationAmount)
+end
+
+local function advanceMorphValue(theTable, value, min, max, direction)
+  -- Advance shape morph widget value
+  local valueRange = theTable.max - theTable.min
+  local changeFactor = max - min
+  local changePerStep = gem.getChangePerStep(changeFactor, valueRange)
+
+  if direction < 0 then
+    changePerStep = -changePerStep
+  end
+
+  value = gem.inc(value, changePerStep)
+  if value > max then
+    direction = -1
+    value = max
+  elseif value < min then
+    direction = 1
+    value = min
+  end
+  return value, direction
 end
 
 local function moveTable(theTable, i, value, direction)
@@ -103,7 +180,7 @@ local function moveTable(theTable, i, value, direction)
   end
   local min = theTable.min
   local max = theTable.max
-  local duration = gem.randomizeValue(motionOptions.moveSpeed, motionOptions.moveSpeedMin, motionOptions.moveSpeedMax, motionOptions.speedRandomizationAmount) + (amount * motionOptions.factor) -- TODO Param for operator?
+  local duration = getWaitDuration() + (amount * motionOptions.factor) -- TODO Param for operator?
   theTable:setValue(i, value)
   value = gem.inc(value, direction)
   if value < min then
@@ -142,8 +219,11 @@ return {--tableMotion--
       theTable:setRange(0, tableRange)
     end
   end,
+  getShapeWidgets = getShapeWidgets,
   getStartDirection = getStartDirection,
   moveTable = moveTable,
+  advanceMorphValue = advanceMorphValue,
+  getWaitDuration = getWaitDuration,
   setStartMode = setStartMode,
   setTableZero = setTableZero,
   directionStartModes = directionStartModes,

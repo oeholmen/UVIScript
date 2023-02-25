@@ -18,7 +18,7 @@ setBackgroundColour(backgroundColour)
 --------------------------------------------------------------------------------
 
 local isPlaying = false
-local tableRange = 128--16
+local tableRange = 16
 local bipolar = true
 local positionTable
 local motionTable
@@ -29,6 +29,7 @@ local noteEventId = 0 -- Holds the index if the cell in the table that last trig
 local resolutionNames = resolutions.getResolutionNames()
 local resolution = #resolutionNames
 local uniqueIndex = 1 -- Holds the unique id for each moving spawn
+local morphSeqIndex = 0 -- Holds the unique id for the morpging sequencer
 local movingCells = {}
 local voiceId = nil -- Holds the id of the created note event
 local shapeWidgets = {} -- Holds the widgets for controlling shape
@@ -61,32 +62,71 @@ local function setRange()
   resetTableValues(tableMotion.shapeOptions)
 end
 
+local function morph(uniqueId)
+  print("startMorphing")
+  local direction = tableMotion.getStartDirection()
+  local value = shapeWidgets.z.value
+  if value == shapeWidgets.z.max then
+    direction = -1
+  end
+  while isPlaying and tableMotion.options.useMorph and morphSeqIndex == uniqueId do
+    value, direction = tableMotion.advanceMorphValue(motionTable, value, shapeWidgets.z.min, shapeWidgets.z.max, direction)
+    local options = {
+      z = value,
+      stepRange = tableMotion.shapeOptions.stepRange,
+      phase = tableMotion.shapeOptions.phase,
+      factor = tableMotion.shapeOptions.factor,
+    }
+    tableMotion.setStartMode(motionTable, options)
+    wait(tableMotion.getWaitDuration())
+  end
+end
+
 local function move(i, uniqueId)
   local direction = tableMotion.getStartDirection(i)
   local value = motionTable:getValue(i)
+  local currentValue = value
   while isPlaying and movingCells[i] == uniqueId do
     -- Send note event according to the selected trigger mode
     local isTrigger = false
-    if triggerMode == 1 and (value == motionTable.min or value == motionTable.max) then
+    local hasValueChanged = true--currentValue ~= value
+    if hasValueChanged and triggerMode == 1 and (value == motionTable.min or value == motionTable.max) then
       isTrigger = true
-    elseif triggerMode == 2 and value == motionTable.min then
+    elseif hasValueChanged and triggerMode == 2 and value == motionTable.min then
       isTrigger = true
-    elseif triggerMode == 3 and value == motionTable.max then
+    elseif hasValueChanged and triggerMode == 3 and value == motionTable.max then
       isTrigger = true
-    elseif triggerMode == 4 and value == 0 then
+    elseif hasValueChanged and triggerMode == 4 and value == 0 then
       isTrigger = true
-    elseif triggerMode == 5 and (value == 0 or value == motionTable.min or value == motionTable.max) then
+    elseif hasValueChanged and triggerMode == 5 and (value == 0 or value == motionTable.min or value == motionTable.max) then
       isTrigger = true
     end
     if isTrigger then
       noteEventId = i
-    end  
-    value, direction = tableMotion.moveTable(motionTable, i, value, direction)
+    end
+    currentValue = value -- Save current value before value is updated
+    if tableMotion.options.useMorph then
+      -- Get the current value from the table
+      value = motionTable:getValue(i)
+      -- Then we wait
+      wait(tableMotion.getWaitDuration())
+    else
+      value, direction = tableMotion.moveTable(motionTable, i, value, direction)
+      -- Wait happens in moveTable
+    end
   end
 end
 
 local function startMoving()
-  movingCells = {} -- Reset index to stop
+  if isPlaying == false then
+    return
+  end
+  -- Reset index to stop motion
+  morphSeqIndex = gem.inc(morphSeqIndex)
+  movingCells = {}
+  if tableMotion.options.useMorph then
+   spawn(morph, morphSeqIndex)
+  end
   for i=1,motionTable.length do
     table.insert(movingCells, uniqueIndex)
     spawn(move, i, uniqueIndex)
@@ -202,7 +242,7 @@ local notePanel = widgets.panel({
   x = sequencerPanel.x,
   y = widgets.posUnder(sequencerPanel),
   width = sequencerPanel.width,
-  height = 250,
+  height = 270,
 })
 
 positionTable = widgets.table("Position", 0, tableMotion.options.tableLength, {
@@ -250,12 +290,12 @@ widgets.menu("Speed Type", tableMotion.speedTypes, {
   changed = function(self) tableMotion.options.speedType = self.selectedText end
 })
 
-widgets.menu("Start Shape", tableMotion.startModes, {
-  width = 82,
+local startShape = widgets.menu("Start Shape", 3, tableMotion.startModes, {
   tooltip = "Set how the table will look when starting.",
+  width = 82,
   changed = function(self)
     tableMotion.options.startMode = self.selectedText
-    resetTableValues() -- Loads a "fresh" shape without local adjustments
+    resetTableValues() -- Load a "fresh" shape without adjustments when selecting a shape
   end
 })
 
@@ -299,7 +339,6 @@ widgets.numBox("Speed Factor", tableMotion.options.factor, {
 widgets.row()
 
 widgets.numBox("Range", tableRange, {
-  width = 82,
   min = 8,
   max = 128,
   integer = true,
@@ -311,7 +350,7 @@ widgets.numBox("Range", tableRange, {
 })
 
 widgets.numBox("Length", tableMotion.options.tableLength, {
-  width = 82,
+  width = 129,
   min = 2,
   max = 128,
   integer = true,
@@ -325,61 +364,8 @@ widgets.numBox("Length", tableMotion.options.tableLength, {
   end
 })
 
-shapeWidgets.stepRange = widgets.numBox("stepRange", tableMotion.shapeOptions.stepRange, {
-  tooltip = "Set step range",
-  width = 30,
-  showLabel = false,
-  min = .5,
-  max = 4,
-  --integer = true,
-  changed = function(self)
-    tableMotion.shapeOptions.stepRange = self.value
-    resetTableValues(tableMotion.shapeOptions)
-    startMoving()
-  end
-})
-
-shapeWidgets.phase = widgets.numBox("phase", tableMotion.shapeOptions.phase, {
-  tooltip = "Set the phase applied to x",
-  width = 30,
-  showLabel = false,
-  min = -1,
-  max = 1,
-  changed = function(self)
-    tableMotion.shapeOptions.phase = self.value
-    resetTableValues(tableMotion.shapeOptions)
-    startMoving()
-  end
-})
-
-shapeWidgets.factor = widgets.numBox("factor", tableMotion.shapeOptions.factor, {
-  tooltip = "Set the factor (multiple) applied to x",
-  width = 30,
-  showLabel = false,
-  min = -8,
-  max = 8,
-  changed = function(self)
-    tableMotion.shapeOptions.factor = self.value
-    resetTableValues(tableMotion.shapeOptions)
-    startMoving()
-  end
-})
-
-shapeWidgets.z = widgets.numBox("z", tableMotion.shapeOptions.z, {
-  tooltip = "Set the z value",
-  width = 30,
-  showLabel = false,
-  min = -1,
-  max = 1,
-  changed = function(self)
-    tableMotion.shapeOptions.z = self.value
-    resetTableValues(tableMotion.shapeOptions)
-    startMoving()
-  end
-})
-
 widgets.button("Bipolar", bipolar, {
-  width = 59,
+  width = 75,
   changed = function(self)
     bipolar = self.value
     setRange()
@@ -387,7 +373,7 @@ widgets.button("Bipolar", bipolar, {
 })
 
 widgets.button("Reset", false, {
-  width = 59,
+  width = 75,
   changed = function(self)
     resetTableValues(tableMotion.shapeOptions)
     startMoving()
@@ -401,11 +387,49 @@ widgets.numBox("Speed Rand", tableMotion.options.speedRandomizationAmount, {
   changed = function(self) tableMotion.options.speedRandomizationAmount = self.value end
 })
 
+widgets.row()
+
+shapeWidgets = tableMotion.getShapeWidgets(138, true)
+
+shapeWidgets.stepRange.changed = function(self)
+  tableMotion.shapeOptions.stepRange = self.value
+  resetTableValues(tableMotion.shapeOptions)
+  startMoving()
+end
+
+shapeWidgets.phase.changed = function(self)
+  tableMotion.shapeOptions.phase = self.value
+  resetTableValues(tableMotion.shapeOptions)
+  startMoving()
+end
+
+shapeWidgets.factor.changed = function(self)
+  tableMotion.shapeOptions.factor = self.value
+  resetTableValues(tableMotion.shapeOptions)
+  startMoving()
+end
+
+shapeWidgets.z.changed = function(self)
+  tableMotion.shapeOptions.z = self.value
+  resetTableValues(tableMotion.shapeOptions)
+  startMoving()
+end
+
 local xySpeedFactor = notePanel:XY('MoveSpeed', 'Factor')
 xySpeedFactor.y = firstRowY
 xySpeedFactor.x = widgets.posSide(moveSpeedInput)
 xySpeedFactor.width = 102
 xySpeedFactor.height = (noteWidgetHeight * 3) + (noteWidgetRowSpacing * 2)
+
+widgets.button("Morph", tableMotion.options.useMorph, {
+  tooltip = "When active, use the shape morph for creating motion",
+  x = xySpeedFactor.x,
+  width = xySpeedFactor.width,
+  changed = function(self)
+    tableMotion.options.useMorph = self.value
+    startMoving()
+  end
+})
 
 --------------------------------------------------------------------------------
 -- Handle events
@@ -415,6 +439,7 @@ function onInit()
   print("Init sequencer")
   uniqueIndex = 1
   setRange()
+  startShape:changed()
 end
 
 function onNote(e)

@@ -34,66 +34,114 @@ local scaleDefinitions = scales.getScaleDefinitions()
 local scaleDefinitionIndex = #scaleNames
 local activeScale = {} -- Holds the active scale
 local noteState = {} -- Holds the state (on/off) for notes in the scale
+local currentValue = {} -- Holds the current table value to check for changes
 local uniqueIndex = 1 -- Holds the unique id for each moving spawn
+local morphSeqIndex = 0 -- Holds the unique id for the morpging sequencer
 local movingCells = {}
 local forward = false
 local channel = 0
+local shapeWidgets = {} -- Holds the widgets for controlling shape
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
 --------------------------------------------------------------------------------
 
-local function resetTableValues()
+local function resetTableValues(options)
   scalePos = 0
 
   -- Reset position
   tableMotion.setTableZero(positionTable)
 
+  -- TODO Check that shape adjustments are saved correctly!
+
   -- Set start mode
-  tableMotion.setStartMode(motionTable)
+  options = tableMotion.setStartMode(motionTable, options)
+
+  -- Update widgets with values from the shape
+  shapeWidgets.stepRange.value = options.stepRange
+  shapeWidgets.phase.value = options.phase
+  shapeWidgets.factor.value = options.factor
+  shapeWidgets.z.value = options.z
 end
 
-local function move(i, uniqueId)
-  local direction = tableMotion.getStartDirection(i)
-  local value = motionTable:getValue(i)
-  --print("Start moving i, uniqueId", i, uniqueId)
-  while isPlaying and movingCells[i] == uniqueId do
-    -- Set note position active according to activation mode
+local function updateNoteState(i, value)
+  -- Only toggle if value is changed
+  local valueHasChanged = value ~= currentValue[i]
+  if valueHasChanged then
     if activationMode == 1 and (value == motionTable.min or value == motionTable.max) then
       noteState[i] = value == motionTable.max
-    elseif activationMode == 2 and value == motionTable.max and direction == 1 then
+    elseif activationMode == 2 and value == motionTable.max then
       noteState[i] = noteState[i] == false
-    elseif activationMode == 3 and value == motionTable.min and direction == 1 then
+    elseif activationMode == 3 and value == motionTable.min then
       noteState[i] = noteState[i] == false
     elseif activationMode == 4 and value == 0 then
       noteState[i] = noteState[i] == false
     elseif activationMode == 5 and (value == motionTable.min or value == motionTable.max) then
       noteState[i] = value == motionTable.min
-    elseif activationMode == 6 and (value == motionTable.min or value == motionTable.max) and direction == 1 then
+    elseif activationMode == 6 and (value == motionTable.min or value == motionTable.max) then
       noteState[i] = noteState[i] == false
     end
-    if noteState[i] then
-      positionTable:setValue(i, 1)
-    else
-      positionTable:setValue(i, 0)
-    end
-    --print("Set noteState[i], i, uniqueId", noteState[i], i, uniqueId)
+  end
+  -- Update the current value
+  currentValue[i] = value
+  if noteState[i] then
+    positionTable:setValue(i, 1)
+  else
+    positionTable:setValue(i, 0)
+  end
+end
+
+local function morph(uniqueId)
+  print("startMorphing")
+  local direction = tableMotion.getStartDirection()
+  local value = shapeWidgets.z.value
+  if value == shapeWidgets.z.max then
+    direction = -1
+  end
+  while isPlaying and tableMotion.options.useMorph and morphSeqIndex == uniqueId do
+    value, direction = tableMotion.advanceMorphValue(motionTable, value, shapeWidgets.z.min, shapeWidgets.z.max, direction)
+    local options = {
+      z = value,
+      stepRange = tableMotion.shapeOptions.stepRange,
+      phase = tableMotion.shapeOptions.phase,
+      factor = tableMotion.shapeOptions.factor,
+    }
+    tableMotion.setStartMode(motionTable, options, updateNoteState)
+    wait(tableMotion.getWaitDuration())
+  end
+end
+
+local function move(i, uniqueId)
+  local direction = tableMotion.getStartDirection(i)
+  local value = motionTable:getValue(i)
+  while isPlaying and movingCells[i] == uniqueId do
+    updateNoteState(i, value)
     value, direction = tableMotion.moveTable(motionTable, i, value, direction)
+    -- Wait happens in moveTable
   end
 end
 
 local function startMoving()
-  movingCells = {} -- Reset index to stop motion
-  for i=1,motionTable.length do
-    table.insert(movingCells, uniqueIndex)
-    spawn(move, i, uniqueIndex)
-    uniqueIndex = gem.inc(uniqueIndex)
+  if isPlaying == false then
+    return
+  end
+  -- Reset index to stop motion
+  morphSeqIndex = gem.inc(morphSeqIndex)
+  movingCells = {}
+  if tableMotion.options.useMorph then
+    spawn(morph, morphSeqIndex)
+  else
+    for i=1,motionTable.length do
+      table.insert(movingCells, uniqueIndex)
+      spawn(move, i, uniqueIndex)
+      uniqueIndex = gem.inc(uniqueIndex)
+    end
   end
 end
 
 local function setRange()
   tableMotion.setRange(motionTable, tableRange, bipolar)
-  resetTableValues()
+  resetTableValues(tableMotion.shapeOptions)
 end
 
 local function setScaleTable()
@@ -104,18 +152,24 @@ local function setScaleTable()
   end
   local maxNote = baseNote + (octaveRange * 12)
   activeScale = scales.createScale(scaleDefinition, startNote, maxNote)
-  noteState = {} -- Reset
-  for _,v in ipairs(activeScale) do
-    table.insert(noteState, false) -- Notes start deactivated
-  end
 
   -- Set table length according to the number of notes in the selected scale
   tableMotion.options.tableLength = #activeScale
   positionTable.length = tableMotion.options.tableLength
   motionTable.length = tableMotion.options.tableLength
 
-  --print("#activeScale, startNote, maxNote", #activeScale, startNote, maxNote)
-  resetTableValues()
+  -- Reset table values and set start shape
+  resetTableValues(tableMotion.shapeOptions)
+
+  -- Reset note state
+  noteState = {}
+  currentValue = {}
+  for i,v in ipairs(activeScale) do
+    table.insert(noteState, false) -- Notes start deactivated
+    table.insert(currentValue, nil) -- Set initial value
+    updateNoteState(i, motionTable:getValue(i))
+  end
+
   startMoving()
 end
 
@@ -127,8 +181,8 @@ local function getNote()
       table.insert(activePositions, i)
     end
   end
-  print("activePositions", #activePositions)  
-  print("noteState", #noteState)
+  --print("activePositions", #activePositions)  
+  --print("noteState", #noteState)
 
   if playMode == "Random" then
     -- Get a random position from the active positions
@@ -159,7 +213,7 @@ local function getNote()
     end
   end
 
-  print("type(scalePos)", type(scalePos), scalePos)
+  --print("type(scalePos)", type(scalePos), scalePos)
 
   -- No active notes
   if type(scalePos) == "nil" then
@@ -197,7 +251,7 @@ local function stopPlaying()
     return
   end
   isPlaying = false
-  resetTableValues()
+  resetTableValues(tableMotion.shapeOptions)
 end
 
 --------------------------------------------------------------------------------
@@ -262,7 +316,7 @@ widgets.setSection({
 local settingsPanel = widgets.panel({
   backgroundColour = backgroundColour,
   y = widgets.posUnder(sequencerPanel),
-  height = 254,
+  height = 280,
 })
 
 positionTable = widgets.table("Position", 0, tableMotion.options.tableLength, {
@@ -303,7 +357,7 @@ widgets.setSection({
   y = firstRowY,
   xSpacing = noteWidgetCellSpacing,
   ySpacing = noteWidgetRowSpacing,
-  cols = 7
+  cols = 9
 })
 
 widgets.menu("Speed Type", tableMotion.speedTypes, {
@@ -317,9 +371,9 @@ widgets.menu("Start Shape", 3, tableMotion.startModes, {
   width = 81,
   changed = function(self)
     tableMotion.options.startMode = self.selectedText
-    resetTableValues()
+    resetTableValues() -- Load a "fresh" shape without adjustments when selecting a shape
   end
-}):changed()
+})
 
 widgets.menu("Start Direction", tableMotion.directionStartModes, {
   tooltip = "Select start direction for the bars",
@@ -386,7 +440,7 @@ widgets.button("Reset", false, {
   tooltip = "Reset the start shape and direction",
   width = 81,
   changed = function(self)
-    resetTableValues()
+    resetTableValues(tableMotion.shapeOptions)
     setScaleTable()
     startMoving()
     self.value = false
@@ -432,11 +486,53 @@ widgets.numBox("Speed Rand", tableMotion.options.speedRandomizationAmount, {
   changed = function(self) tableMotion.options.speedRandomizationAmount = self.value end
 })
 
+widgets.row()
+
+shapeWidgets = tableMotion.getShapeWidgets(109, true)
+
+shapeWidgets.stepRange.changed = function(self)
+  tableMotion.shapeOptions.stepRange = self.value
+  resetTableValues(tableMotion.shapeOptions)
+  setScaleTable()
+  startMoving()
+end
+
+shapeWidgets.phase.changed = function(self)
+  tableMotion.shapeOptions.phase = self.value
+  resetTableValues(tableMotion.shapeOptions)
+  setScaleTable()
+  startMoving()
+end
+
+shapeWidgets.factor.changed = function(self)
+  tableMotion.shapeOptions.factor = self.value
+  resetTableValues(tableMotion.shapeOptions)
+  setScaleTable()
+  startMoving()
+end
+
+shapeWidgets.z.changed = function(self)
+  tableMotion.shapeOptions.z = self.value
+  resetTableValues(tableMotion.shapeOptions)
+  setScaleTable()
+  startMoving()
+end
+
 local xySpeedFactor = widgets.getPanel():XY('MoveSpeed', 'Factor')
 xySpeedFactor.y = firstRowY
 xySpeedFactor.x = widgets.posSide(moveSpeedInput)
 xySpeedFactor.width = 100
 xySpeedFactor.height = (noteWidgetHeight * 3) + (noteWidgetRowSpacing * 2)
+
+widgets.button("Morph", tableMotion.options.useMorph, {
+  tooltip = "When active, use the shape morph for creating motion",
+  x = xySpeedFactor.x,
+  width = xySpeedFactor.width,
+  changed = function(self)
+    tableMotion.options.useMorph = self.value
+    startMoving()
+  end
+})
 
 --------------------------------------------------------------------------------
 -- Handle events
