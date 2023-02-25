@@ -31,25 +31,34 @@ local resolution = #resolutionNames
 local uniqueIndex = 1 -- Holds the unique id for each moving spawn
 local movingCells = {}
 local voiceId = nil -- Holds the id of the created note event
+local shapeWidgets = {} -- Holds the widgets for controlling shape
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
 --------------------------------------------------------------------------------
 
-local function resetTableValues()
+local function resetTableValues(options)
   -- Reset event id
   noteEventId = 0
 
   -- Reset position
   tableMotion.setTableZero(positionTable)
 
+  -- TODO Check that shape adjustments are saved correctly!
+
   -- Set start mode
-  tableMotion.setStartMode(motionTable)
+  options = tableMotion.setStartMode(motionTable, options)
+
+  -- Update widgets with values from the shape
+  shapeWidgets.stepRange.value = options.stepRange
+  shapeWidgets.phase.value = options.phase
+  shapeWidgets.factor.value = options.factor
+  shapeWidgets.z.value = options.z
 end
 
 local function setRange()
   tableMotion.setRange(motionTable, tableRange, bipolar)
-  resetTableValues()
+  resetTableValues(tableMotion.shapeOptions)
 end
 
 local function move(i, uniqueId)
@@ -125,7 +134,7 @@ local function stopPlaying()
     return
   end
   isPlaying = false
-  resetTableValues()
+  resetTableValues(tableMotion.shapeOptions)
   if type(voiceId) == "userdata" then
     releaseVoice(voiceId)
     voiceId = nil
@@ -246,7 +255,7 @@ widgets.menu("Start Shape", tableMotion.startModes, {
   tooltip = "Set how the table will look when starting.",
   changed = function(self)
     tableMotion.options.startMode = self.selectedText
-    resetTableValues()
+    resetTableValues() -- Loads a "fresh" shape without local adjustments
   end
 })
 
@@ -311,52 +320,52 @@ widgets.numBox("Length", tableMotion.options.tableLength, {
     tableMotion.options.tableLength = self.value
     positionTable.length = tableMotion.options.tableLength
     motionTable.length = tableMotion.options.tableLength
-    resetTableValues()
+    resetTableValues(tableMotion.shapeOptions)
     startMoving()
   end
 })
 
-widgets.numBox("stepRange", tableMotion.shapeOptions.stepRange, {
+shapeWidgets.stepRange = widgets.numBox("stepRange", tableMotion.shapeOptions.stepRange, {
   tooltip = "Set step range",
   width = 30,
   showLabel = false,
-  min = 1,
-  max = 2,
-  integer = true,
+  min = .5,
+  max = 4,
+  --integer = true,
   changed = function(self)
     tableMotion.shapeOptions.stepRange = self.value
-    resetTableValues()
+    resetTableValues(tableMotion.shapeOptions)
     startMoving()
   end
 })
 
-widgets.numBox("xOffset", tableMotion.shapeOptions.xOffset, {
-  tooltip = "Set the offset applied to x (phase)",
+shapeWidgets.phase = widgets.numBox("phase", tableMotion.shapeOptions.phase, {
+  tooltip = "Set the phase applied to x",
   width = 30,
   showLabel = false,
   min = -1,
   max = 1,
   changed = function(self)
-    tableMotion.shapeOptions.xOffset = self.value
-    resetTableValues()
+    tableMotion.shapeOptions.phase = self.value
+    resetTableValues(tableMotion.shapeOptions)
     startMoving()
   end
 })
 
-widgets.numBox("xMultiple", tableMotion.shapeOptions.xMultiple, {
-  tooltip = "Set the multiple applied to x",
+shapeWidgets.factor = widgets.numBox("factor", tableMotion.shapeOptions.factor, {
+  tooltip = "Set the factor (multiple) applied to x",
   width = 30,
   showLabel = false,
   min = -8,
   max = 8,
   changed = function(self)
-    tableMotion.shapeOptions.xMultiple = self.value
-    resetTableValues()
+    tableMotion.shapeOptions.factor = self.value
+    resetTableValues(tableMotion.shapeOptions)
     startMoving()
   end
 })
 
-widgets.numBox("z", tableMotion.shapeOptions.z, {
+shapeWidgets.z = widgets.numBox("z", tableMotion.shapeOptions.z, {
   tooltip = "Set the z value",
   width = 30,
   showLabel = false,
@@ -364,7 +373,7 @@ widgets.numBox("z", tableMotion.shapeOptions.z, {
   max = 1,
   changed = function(self)
     tableMotion.shapeOptions.z = self.value
-    resetTableValues()
+    resetTableValues(tableMotion.shapeOptions)
     startMoving()
   end
 })
@@ -380,7 +389,7 @@ widgets.button("Bipolar", bipolar, {
 widgets.button("Reset", false, {
   width = 59,
   changed = function(self)
-    resetTableValues()
+    resetTableValues(tableMotion.shapeOptions)
     startMoving()
     self.value = false
   end

@@ -7,7 +7,7 @@ local shapes = require "includes.shapes"
 
 local directionStartModes = {"Up", "Down", "Even Up", "Even Down", "Odd Up", "Odd Down", "Random"}
 local speedTypes = {"Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Random"}
-local startModes = shapes.getShapeNames({"Even", "Odd", "Zero", "Min", "Max", "Keep State", "Random"})
+local startModes = shapes.getShapeNames({"Keep State"})
 
 local motionOptions = {
   factor = 2,
@@ -24,10 +24,10 @@ local motionOptions = {
 }
 
 local shapeOptions = {
-    z = 0,
+    z = 1,
     stepRange = 2,
-    xOffset = -1,
-    xMultiple = 1,
+    phase = -1,
+    factor = 1,
 }
 
 local function getStartDirection(i)
@@ -74,55 +74,18 @@ local function setTableZero(theTable)
     end  
 end
 
-local function setStartMode(theTable)
-  -- Reset table according to start mode
-  local values = {}
-  if motionOptions.startMode == "Keep State" then
-    return
-  elseif motionOptions.startMode == "Random" then
-    for i=1,theTable.length do
-      table.insert(values, gem.getRandom(theTable.min, theTable.max))
-    end
-  elseif motionOptions.startMode == "Min" then
-    for i=1,theTable.length do
-      table.insert(values, theTable.min)
-    end
-  elseif motionOptions.startMode == "Max" then
-    for i=1,theTable.length do
-      table.insert(values, theTable.max)
-    end
-  elseif motionOptions.startMode == "Even" then
-    local minValue = theTable.min
-    local maxValue = theTable.max
-    for i=1,theTable.length do
-      local val = minValue
-      if i % 2 == 0 then
-        val = maxValue
-      end
-      table.insert(values, val)
-    end
-  elseif motionOptions.startMode == "Odd" then
-    local minValue = theTable.min
-    local maxValue = theTable.max
-    for i=1,theTable.length do
-      local val = maxValue
-      if i % 2 == 0 then
-        val = minValue
-      end
-      table.insert(values, val)
-    end
-  elseif motionOptions.startMode == "Zero" then
-    setTableZero(theTable)
-    return
-  else
+local function setStartMode(theTable, options)
+  -- Reset table according to start mode (unless keep state is selected)
+  if motionOptions.startMode ~= "Keep State" then
+    local values = {}
     local shapeIndex = gem.getIndexFromValue(motionOptions.startMode, shapes.getShapeNames())
     local shapeFunc = shapes.getShapeFunction(shapeIndex)
-    print("Calling shapeFunc", shapeFunc)
-    values = shapes[shapeFunc](theTable, shapeOptions)
+    values, shapeOptions = shapes[shapeFunc](theTable, options)
+    for i,v in ipairs(values) do
+      theTable:setValue(i, math.floor(v))
+    end
   end
-  for i,v in ipairs(values) do
-    theTable:setValue(i, math.floor(v))
-  end
+  return shapeOptions
 end
 
 local function moveTable(theTable, i, value, direction)
