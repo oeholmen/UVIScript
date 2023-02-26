@@ -39,6 +39,7 @@ local shapeNames = {
   "HPF-Sqr To Sqr",
   "Wacky",
   "Sine To Noise",
+  "Window-y SQR Sync",
   "Random",
   --"Test Shape",
 }
@@ -76,6 +77,7 @@ local shapeFunctions = {
   "hpfSqrToSqr",
   "wacky",
   "sinToNoise",
+  "windowYSqr",
   "random",
   "testShape",
 }
@@ -218,6 +220,24 @@ end
 local function testShape(shapeTable, options)
   local shapeFunc = function(x, z, i)
     return x
+  end
+  if type(options) == "nil" then
+    options = shapeTemplates.zero
+  end
+  return createShape(shapeTable, shapeFunc, options)
+end
+
+-- window-y SQR sync (abs(x)>0.5?(1-abs(x))*2:1)*min(1,max(-1,8*sin((z+0.02)*x*pi*32)))
+local function windowYSqr(shapeTable, options)
+  local shapeFunc = function(x, z, i)
+    local v = 1
+    if math.abs(x) > 0.5 then
+      v = (1-math.abs(x))*2
+    end
+    return v * math.min(1, math.max(-1,8*math.sin((z+0.02)*x*math.pi*32)))
+  end
+  if type(options) == "nil" then
+    options = shapeTemplates.zero
   end
   return createShape(shapeTable, shapeFunc, options)
 end
@@ -609,5 +629,6 @@ return {--shapes--
   hpfSqrToSqr = hpfSqrToSqr,
   wacky = wacky,
   sinToNoise = sinToNoise,
+  windowYSqr = windowYSqr,
   random = randomAll,
 }

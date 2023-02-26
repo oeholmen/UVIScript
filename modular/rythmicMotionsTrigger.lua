@@ -132,7 +132,6 @@ end
 local function move(i, uniqueId)
   local direction = tableMotion.getStartDirection(i)
   local value = motionTable:getValue(i)
-  local currentValue = value
   while isPlaying and movingCells[i] == uniqueId do
     checkTrigger(i, value)
     value, direction = tableMotion.moveTable(motionTable, i, value, direction)
