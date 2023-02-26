@@ -13,7 +13,7 @@ local startModes = shapes.getShapeNames({"Keep State"})
 local motionOptions = {
   factor = 2,
   factorMin = 0,
-  factorMax = 8,
+  factorMax = 10,
   moveSpeed = 25,
   moveSpeedMin = 5,
   moveSpeedMax = 500,
@@ -23,6 +23,7 @@ local motionOptions = {
   speedRandomizationAmount = 0,
   tableLength = 32,
   useMorph = false,
+  manualMode = false,
 }
 
 local shapeOptions = {
@@ -31,47 +32,6 @@ local shapeOptions = {
     phase = -1,
     factor = 1,
 }
-
-local function getShapeWidgets(width, showLabel)
-  -- Widgets for controlling shape
-  if type(width) == "nil" then
-    width = 30
-  end
-  return {
-    stepRange = widgets.numBox("Step Range", shapeOptions.stepRange, {
-      name = "ShapePhaseStepRange",
-      tooltip = "Set step range for the shape. Mostly affects polarity of the shape.",
-      width = width,
-      showLabel = showLabel == true,
-      min = 0,
-      max = 4,
-    }),
-    phase = widgets.numBox("Shape Phase", shapeOptions.phase, {
-      name = "ShapePhase",
-      tooltip = "Set the phase applied to the shape (move left/right).",
-      width = width,
-      showLabel = showLabel == true,
-      min = -1,
-      max = 1,
-    }),
-    factor = widgets.numBox("Shape Factor", shapeOptions.factor, {
-      name = "ShapeFactor",
-      tooltip = "Set the factor (multiplier) applied to the value of each step.",
-      width = width,
-      showLabel = showLabel == true,
-      min = -8,
-      max = 8,
-    }),
-    z = widgets.numBox("Shape Morph", shapeOptions.z, {
-      name = "ShapeZValue",
-      tooltip = "Set the morph value. This value is mostly assigned to amplitude, but it depends on the shape.",
-      width = width,
-      showLabel = showLabel == true,
-      min = -1,
-      max = 1,
-    })
-  }
-end
 
 local function getStartDirection(i)
   if type(i) == "nil" then
@@ -126,14 +86,14 @@ local function setStartMode(theTable, options, stateFunction)
     local values = {}
     local shapeIndex = gem.getIndexFromValue(motionOptions.startMode, shapes.getShapeNames())
     local shapeFunc = shapes.getShapeFunction(shapeIndex)
-    --print("Calling shapeFunc", shapeFunc)
+    print("Calling shapeFunc", shapeFunc)
     values, shapeOptions = shapes[shapeFunc](theTable, options)
     for i,v in ipairs(values) do
       local value = v
-      if shapeFunc == "sineShaper" then
-        -- TODO Sine prefers round
+      if shapeFunc == "sine" then
+        -- Sine prefers round
         value = gem.round(v)
-      elseif v > 0 then
+      elseif v > 1 then
         value = math.ceil(v)
       else
         value = math.floor(v)

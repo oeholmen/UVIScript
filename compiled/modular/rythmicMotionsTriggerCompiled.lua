@@ -552,7 +552,7 @@ local shapeNames = {
 local shapeFunctions = {
   "rampUp",
   "rampDown",
-  "sineShaper",
+  "sine",
   "triangleInPhase",
   "triangleOffPhase",
   "lofiTriangle",
@@ -587,6 +587,39 @@ local shapeFunctions = {
   "testShape",
 }
 
+-- Holds the shape definitions
+-- x = current time-value getting plotted, from -1.0 to 1.0 OR 0.0 to 1.0 (same as (x+1)/2) - depending on stepRange=1|2
+-- z = current table number, from -1.0 to 1.0
+-- i = current index
+local shapes = {
+  triangleShaper = function(x, z)
+    return math.min(2+2*x, math.abs((x-0.5)*2)-1) * z -- Unique
+  end,
+  sineShaper = function(x, z) return math.cos(x) * z end,
+  sawInPhase = function(x, z) return (signA(x)-x) * z end,
+  sinToNoise = function(x, z, i) return 2*gem.avg({math.sin(z*x*math.pi),(1-z)*gem.getRandom()}) end,
+  wacky = function(x, z, i) return math.sin(((x)+1)^(z-1)*math.pi) end,
+  hpfSqrToSqr = function(x, z, i)
+    if x < 0 then
+      return math.sin((z*0.5)*math.pi)^(x+1)
+    end
+    return -math.sin((z*0.5)*math.pi)^x
+  end,
+  windowYSqr = function(x, z, i)
+    local v = 1
+    if math.abs(x) > 0.5 then
+      v = (1-math.abs(x))*2
+    end
+    return v * math.min(1, math.max(-1,8*math.sin((z+0.02)*x*math.pi*32)))
+  end,
+  filteredSquare = function(x, z, i)
+    return (1.2*math.sin(x*math.pi)+0.31*math.sin(x*math.pi*3)+0.11*math.sin(x*math.pi*5)+0.033*math.sin(x*math.pi*7)) * z
+  end,
+  organIsh = function(x, z)
+    return (math.sin(x*math.pi)+(0.16*(math.sin(2*x*math.pi)+math.sin(3*x*math.pi)+math.sin(4*x*math.pi)))) * z
+  end,
+}
+
 local function getDefaultShapeOptions()
   return {
     z = 1,
@@ -595,6 +628,36 @@ local function getDefaultShapeOptions()
     factor = 1,
   }
 end
+
+local shapeTemplates = {
+  sine = {
+    phase = -0.5,
+    factor = math.pi,
+  },
+  triangleOffPhase = {
+    phase = -0.5,
+  },
+  rampUp = {
+    stepRange = 1,
+    phase = 0.5,
+  },
+  rampDown = {
+    stepRange = 1,
+    phase = -0.5,
+  },
+  range1 = {
+    stepRange = 1
+  },
+  phase0 = {
+      phase = 0
+  },
+  zero = {
+      z = 0
+  },
+  min = {
+      z = -1
+  },
+}
 
 -- sign function: -1 if x<0; 1 if x>0
 local function signA(x)
@@ -625,42 +688,16 @@ local function getShapeOptions(overrides)
   }
 end
 
-local shapeTemplates = {
-  sine = getShapeOptions({
-    phase = -0.5,
-    factor = math.pi,
-  }),
-
-  triangleOffPhase = getShapeOptions({
-    phase = -0.5,
-  }),
-
-  rampUp = getShapeOptions({
-    stepRange = 1,
-    phase = 0.5,
-  }),
-
-  rampDown = getShapeOptions({
-    stepRange = 1,
-    phase = -0.5,
-  }),
-
-  range1 = getShapeOptions({
-    stepRange = 1
-  }),
-
-  phase0 = getShapeOptions({
-      phase = 0
-  }),
-
-  zero = getShapeOptions({
-      z = 0
-  }),
-
-  min = getShapeOptions({
-      z = -1
-  }),
-}
+local function getShapeTemplate(options, shapeTemplate)
+  if type(options) == "nil" then
+    if type(shapeTemplate) == "string" then
+      options = shapeTemplates[shapeTemplate]
+    elseif type(shapeTemplate) == "table" then
+      options = shapeTemplate
+    end
+  end
+  return getShapeOptions(options)
+end
 
 local function getShapeNames(options, max)
   if type(max) ~= "number" then
@@ -694,15 +731,16 @@ local function getShapeFunction(i)
   return shapeFunctions[i]
 end
 
--- z = current table number, from -1.0 to 1.0
--- x = current time-value getting plotted, from -1.0 to 1.0 OR 0.0 to 1.0 (same as (x+1)/2) - depending on stepRange=1|2
-local function createShape(shapeTable, shapeFunc, options)
-  options = getShapeOptions(options)
+local function createShape(shapeTable, options, shapeFunc, shapeTemplate)
+  options = getShapeTemplate(options, shapeTemplate)
   local minValue = shapeTable.min
   local maxValue = shapeTable.max
   local numSteps = shapeTable.length
   local unipolar = minValue == 0
   local changePerStep = gem.getChangePerStep(options.stepRange, numSteps)
+  if type(shapeFunc) == "string" then
+    shapeFunc = shapes[shapeFunc]
+  end
   local shape = {}
   --print("Create shape, stepRange, phase, factor", options.stepRange, options.phase, options.factor)
   --print("minValue, maxValue, numSteps, changePerStep", minValue, maxValue, numSteps, changePerStep)
@@ -729,59 +767,7 @@ local function testShape(shapeTable, options)
   if type(options) == "nil" then
     options = shapeTemplates.zero
   end
-  return createShape(shapeTable, shapeFunc, options)
-end
-
--- window-y SQR sync (abs(x)>0.5?(1-abs(x))*2:1)*min(1,max(-1,8*sin((z+0.02)*x*pi*32)))
-local function windowYSqr(shapeTable, options)
-  local shapeFunc = function(x, z, i)
-    local v = 1
-    if math.abs(x) > 0.5 then
-      v = (1-math.abs(x))*2
-    end
-    return v * math.min(1, math.max(-1,8*math.sin((z+0.02)*x*math.pi*32)))
-  end
-  if type(options) == "nil" then
-    options = shapeTemplates.zero
-  end
-  return createShape(shapeTable, shapeFunc, options)
-end
-
--- sinToNoise 2*avg(sin(z*x*pi),(1-z)*rand)
-local function sinToNoise(shapeTable, options)
-  local shapeFunc = function(x, z, i)
-    return 2*gem.avg({math.sin(z*x*math.pi),(1-z)*gem.getRandom()})
-  end
-  return createShape(shapeTable, shapeFunc, options)
-end
-
--- wacky sin(((x)+1)^(z-1)*pi)
-local function wacky(shapeTable, options)
-  local shapeFunc = function(x, z, i)
-    return math.sin(((x)+1)^(z-1)*math.pi)
-  end
-  if type(options) == "nil" then
-    options = getShapeOptions({
-      z = 0.84,
-    })
-  end
-  return createShape(shapeTable, shapeFunc, options)
-end
-
--- HPF Sqr -> Sqr (x<0)?sin((z*0.5)*pi)^(x+1):-sin((z*0.5)*pi)^x
-local function hpfSqrToSqr(shapeTable, options)
-  local shapeFunc = function(x, z, i)
-    if x < 0 then
-      return math.sin((z*0.5)*math.pi)^(x+1)
-    end
-    return -math.sin((z*0.5)*math.pi)^x
-  end
-  if type(options) == "nil" then
-    options = getShapeOptions({
-      z = 0.01,
-    })
-  end
-  return createShape(shapeTable, shapeFunc, options)
+  return createShape(shapeTable, options, shapeFunc)
 end
 
 -- brassy sin(pi*sign(x)*(abs(x)^(((1-z)+0.1)*pi*pi)))
@@ -792,7 +778,7 @@ local function brassy(shapeTable, options)
   if type(options) == "nil" then
     options = shapeTemplates.zero
   end
-  return createShape(shapeTable, shapeFunc, options)
+  return createShape(shapeTable, options, shapeFunc)
 end
 
 -- taffy sin(x*pi*2)*cos(x*pi)*cos(z*pi*(abs((x*2)^3)-1)*pi)
@@ -803,7 +789,7 @@ local function taffy(shapeTable, options)
   if type(options) == "nil" then
     options = shapeTemplates.zero
   end
-  return createShape(shapeTable, shapeFunc, options)
+  return createShape(shapeTable, options, shapeFunc)
 end
 
 -- tripple-sin window
@@ -814,7 +800,7 @@ local function tripleSinWindow(shapeTable, options)
   if type(options) == "nil" then
     options = shapeTemplates.zero
   end
-  return createShape(shapeTable, shapeFunc, options)
+  return createShape(shapeTable, options, shapeFunc)
 end
 
 -- pwm 50-100 (x>z)?1:-1
@@ -825,7 +811,7 @@ local function pwm50to100(shapeTable, options)
     end
     return -1
   end
-  return createShape(shapeTable, shapeFunc, options)
+  return createShape(shapeTable, options, shapeFunc)
 end
 
 -- saw sin reveal (x+1>z*2)?(x):sin(x*pi)
@@ -839,21 +825,21 @@ local function sawSinReveal(shapeTable, options)
   if type(options) == "nil" then
     options = shapeTemplates.min
   end
-  return createShape(shapeTable, shapeFunc, options)
+  return createShape(shapeTable, options, shapeFunc)
 end
 
 local function chaosToSine(shapeTable, options)
   local shapeFunc = function(x, z, i)
     return math.sin(math.pi*z*z*32*math.log(x+1))
   end
-  return createShape(shapeTable, shapeFunc, options)
+  return createShape(shapeTable, options, shapeFunc)
 end
 
 local function randomAll(shapeTable, options)
   local shapeFunc = function(x, z)
     return ((gem.getRandom() * 2) - 1) * z
   end
-  return createShape(shapeTable, shapeFunc, options)
+  return createShape(shapeTable, options, shapeFunc)
 end
 
 local function oddAndEven(shapeTable, options)
@@ -864,7 +850,7 @@ local function oddAndEven(shapeTable, options)
     end
     return x * z
   end
-  return createShape(shapeTable, shapeFunc, options)
+  return createShape(shapeTable, options, shapeFunc)
 end
 
 local function evenMax(shapeTable, options)
@@ -882,7 +868,7 @@ local function minMaxZero(shapeTable, options)
   local shapeFunc = function(x, z)
     return z
   end
-  return createShape(shapeTable, shapeFunc, options)
+  return createShape(shapeTable, options, shapeFunc)
 end
 
 local function zeroAll(shapeTable, options)
@@ -903,85 +889,53 @@ local function maxAll(shapeTable, options)
   return minMaxZero(shapeTable, options)
 end
 
-local function sineShaper(shapeTable, options)
-  local shapeFunc = function(x, z)
-    return math.cos(x) * z -- Unique
-  end
-  -- Get from template
-  if type(options) == "nil" then
-    options = shapeTemplates.sine
-  end
-  return createShape(shapeTable, shapeFunc, options)
-end
-
 local function sweetSine(shapeTable, options)
   local shapeFunc = function(x, z)
     return 0.5*(math.cos(x*math.pi/2)*((math.sin((x)*math.pi)+(1-z)*(math.sin(z*((x*x)^z)*math.pi*32))))) -- Unique
   end
-  return createShape(shapeTable, shapeFunc, options)
+  return createShape(shapeTable, options, shapeFunc)
 end
 
 local function softSine(shapeTable, options)
   local shapeFunc = function(x, z)
     return math.sin(x*math.pi*(2+(62*z*z*z)))*math.sin(x*math.pi) -- Unique
   end
-  return createShape(shapeTable, shapeFunc, options)
+  return createShape(shapeTable, options, shapeFunc)
 end
 
 local function tripleSin(shapeTable, options)
   local shapeFunc = function(x, z)
     return math.cos(x*math.pi/2)*1.6*(.60*math.sin( ((z*16)+1)*3*x ) + .20*math.sin( ((z*16)+1)*9*x ) + .15*math.sin( ((z*16)+1)*15*x)) -- Unique
   end
-  return createShape(shapeTable, shapeFunc, options)
-end
-
-local function organIsh(shapeTable, options)
-  local shapeFunc = function(x, z)
-    return (math.sin(x*math.pi)+(0.16*(math.sin(2*x*math.pi)+math.sin(3*x*math.pi)+math.sin(4*x*math.pi)))) * z -- Unique
-  end
-  return createShape(shapeTable, shapeFunc, options)
-end
-
-local function filteredSquare(shapeTable, options)
-  local shapeFunc = function(x, z)
-    return (1.2*math.sin(x*math.pi)+0.31*math.sin(x*math.pi*3)+0.11*math.sin(x*math.pi*5)+0.033*math.sin(x*math.pi*7)) * z -- Unique
-  end
-  return createShape(shapeTable, shapeFunc, options)
+  return createShape(shapeTable, options, shapeFunc)
 end
 
 local function hpfSaw(shapeTable, options)
   local shapeFunc = function(x, z)
     return (x-(0.635*math.sin(x*math.pi))) * z -- Unique
   end
-  return createShape(shapeTable, shapeFunc, options)
-end
-
-local function sawInPhase(shapeTable, options)
-  local shapeFunc = function(x, z)
-    return (signA(x)-x) * z -- Unique
-  end
-  return createShape(shapeTable, shapeFunc, options)
+  return createShape(shapeTable, options, shapeFunc)
 end
 
 local function squareTri(shapeTable, options)
   local shapeFunc = function(x, z)
     return (-1*(signA(x)*0.5)+(math.abs(x)-0.5)) * z -- Unique
   end
-  return createShape(shapeTable, shapeFunc, options)
+  return createShape(shapeTable, options, shapeFunc)
 end
 
 local function lofiTriangle(shapeTable, options)
   local shapeFunc = function(x, z)
     return ((gem.round(16*math.abs(x))/8.0)-1) * z -- Unique
   end
-  return createShape(shapeTable, shapeFunc, options)
+  return createShape(shapeTable, options, shapeFunc)
 end
 
 local function tangent(shapeTable, options)
   local shapeFunc = function(x, z)
     return math.tan(x * math.pi) * z
   end
-  return createShape(shapeTable, shapeFunc, options)
+  return createShape(shapeTable, options, shapeFunc)
 end
 
 local function dome(shapeTable, options)
@@ -992,7 +946,7 @@ local function dome(shapeTable, options)
   if type(options) == "nil" then
     options = shapeTemplates.phase0
   end
-  return createShape(shapeTable, shapeFunc, options)
+  return createShape(shapeTable, options, shapeFunc)
 end
 
 local function domeSmall(shapeTable, options)
@@ -1003,7 +957,7 @@ local function domeSmall(shapeTable, options)
   if type(options) == "nil" then
     options = shapeTemplates.range1
   end
-  return createShape(shapeTable, shapeFunc, options)
+  return createShape(shapeTable, options, shapeFunc)
 end
 
 local function sawAnalog(shapeTable, options)
@@ -1014,42 +968,7 @@ local function sawAnalog(shapeTable, options)
   if type(options) == "nil" then
     options = shapeTemplates.phase0
   end
-  return createShape(shapeTable, shapeFunc, options)
-end
-
-local function triangleShaper(shapeTable, options)
-  local shapeFunc = function(x, z)
-    return math.min(2+2*x, math.abs((x-0.5)*2)-1) * z -- Unique
-  end
-  return createShape(shapeTable, shapeFunc, options)
-end
-
-local function rampUp(shapeTable, options)
-  -- Get from template
-  if type(options) == "nil" then
-    options = shapeTemplates.rampUp
-  end
-  return triangleShaper(shapeTable, options)
-end
-
-local function rampDown(shapeTable, options)
-  -- Get from template
-  if type(options) == "nil" then
-    options = shapeTemplates.rampDown
-  end
-  return triangleShaper(shapeTable, options)
-end
-
-local function triangleInPhase(shapeTable, options)
-  return triangleShaper(shapeTable, options)
-end
-
-local function triangleOffPhase(shapeTable, options)
-  -- Get from template
-  if type(options) == "nil" then
-    options = shapeTemplates.triangleOffPhase
-  end
-  return triangleShaper(shapeTable, options)
+  return createShape(shapeTable, options, shapeFunc)
 end
 
 local function getShapeWidgets(width, showLabel)
@@ -1067,14 +986,6 @@ local function getShapeWidgets(width, showLabel)
       min = 0,
       max = 4,
     }),
-    phase = widgets.numBox("Shape Phase", shapeOptions.phase, {
-      name = "ShapePhase",
-      tooltip = "Set the phase applied to the shape (move left/right).",
-      width = width,
-      showLabel = showLabel == true,
-      min = -1,
-      max = 1,
-    }),
     factor = widgets.numBox("Shape Factor", shapeOptions.factor, {
       name = "ShapeFactor",
       tooltip = "Set the factor (multiplier) applied to the value of each step.",
@@ -1082,6 +993,14 @@ local function getShapeWidgets(width, showLabel)
       showLabel = showLabel == true,
       min = -8,
       max = 8,
+    }),
+    phase = widgets.numBox("Shape Phase", shapeOptions.phase, {
+      name = "ShapePhase",
+      tooltip = "Set the phase applied to the shape (move left/right).",
+      width = width,
+      showLabel = showLabel == true,
+      min = -1,
+      max = 1,
     }),
     z = widgets.numBox("Shape Morph", shapeOptions.z, {
       name = "ShapeMorph",
@@ -1106,21 +1025,19 @@ local shapes = {
   domeSmall = domeSmall,
   hpfSaw = hpfSaw,
   sawAnalog = sawAnalog,
-  sawInPhase = sawInPhase,
-  filteredSquare = filteredSquare,
-  organIsh = organIsh,
-  rampUp = rampUp,
-  rampDown = rampDown,
+  sawInPhase = function(t,o) return createShape(t, o, 'sawInPhase') end,
+  organIsh = function(t,o) return createShape(t, o, 'organIsh') end,
+  triangleInPhase = function(t,o) return createShape(t, o, 'triangleShaper') end,
+  rampUp = function(t,o) return createShape(t, o, 'triangleShaper', 'rampUp') end,
+  rampDown = function(t,o) return createShape(t, o, 'triangleShaper', 'rampDown') end,
+  triangleOffPhase = function(t,o) return createShape(t, o, 'triangleShaper', 'triangleOffPhase') end,
   squareTri = squareTri,
   lofiTriangle = lofiTriangle,
-  triangleInPhase = triangleInPhase,
-  triangleOffPhase = triangleOffPhase,
   testShape = testShape,
   sweetSine = sweetSine,
   softSine = softSine,
   tripleSin = tripleSin,
-  sineShaper = sineShaper,
-  triangleShaper = triangleShaper,
+  sine = function(t,o) return createShape(t, o, 'sineShaper', 'sine') end,
   even = evenMax,
   odd = oddMax,
   zero = zeroAll,
@@ -1131,10 +1048,11 @@ local shapes = {
   tripleSinWindow = tripleSinWindow,
   taffy = taffy,
   brassy = brassy,
-  hpfSqrToSqr = hpfSqrToSqr,
-  wacky = wacky,
-  sinToNoise = sinToNoise,
-  windowYSqr = windowYSqr,
+  hpfSqrToSqr = function(t,o) return createShape(t, o, 'hpfSqrToSqr', {z = 0.01}) end,
+  wacky = function(t,o) return createShape(t, o, 'wacky', {z = 0.84}) end,
+  sinToNoise = function(t,o) return createShape(t, o, 'sinToNoise') end,
+  filteredSquare = function(t,o) return createShape(t, o, 'filteredSquare') end,
+  windowYSqr = function(t,o) return createShape(t, o, 'windowYSqr', {z = 0}) end,
   random = randomAll,
 }
 
@@ -1345,7 +1263,7 @@ local startModes = shapes.getShapeNames({"Keep State"})
 local motionOptions = {
   factor = 2,
   factorMin = 0,
-  factorMax = 8,
+  factorMax = 10,
   moveSpeed = 25,
   moveSpeedMin = 5,
   moveSpeedMax = 500,
@@ -1355,6 +1273,7 @@ local motionOptions = {
   speedRandomizationAmount = 0,
   tableLength = 32,
   useMorph = false,
+  manualMode = false,
 }
 
 local shapeOptions = {
@@ -1363,47 +1282,6 @@ local shapeOptions = {
     phase = -1,
     factor = 1,
 }
-
-local function getShapeWidgets(width, showLabel)
-  -- Widgets for controlling shape
-  if type(width) == "nil" then
-    width = 30
-  end
-  return {
-    stepRange = widgets.numBox("Step Range", shapeOptions.stepRange, {
-      name = "ShapePhaseStepRange",
-      tooltip = "Set step range for the shape. Mostly affects polarity of the shape.",
-      width = width,
-      showLabel = showLabel == true,
-      min = 0,
-      max = 4,
-    }),
-    phase = widgets.numBox("Shape Phase", shapeOptions.phase, {
-      name = "ShapePhase",
-      tooltip = "Set the phase applied to the shape (move left/right).",
-      width = width,
-      showLabel = showLabel == true,
-      min = -1,
-      max = 1,
-    }),
-    factor = widgets.numBox("Shape Factor", shapeOptions.factor, {
-      name = "ShapeFactor",
-      tooltip = "Set the factor (multiplier) applied to the value of each step.",
-      width = width,
-      showLabel = showLabel == true,
-      min = -8,
-      max = 8,
-    }),
-    z = widgets.numBox("Shape Morph", shapeOptions.z, {
-      name = "ShapeZValue",
-      tooltip = "Set the morph value. This value is mostly assigned to amplitude, but it depends on the shape.",
-      width = width,
-      showLabel = showLabel == true,
-      min = -1,
-      max = 1,
-    })
-  }
-end
 
 local function getStartDirection(i)
   if type(i) == "nil" then
@@ -1458,14 +1336,14 @@ local function setStartMode(theTable, options, stateFunction)
     local values = {}
     local shapeIndex = gem.getIndexFromValue(motionOptions.startMode, shapes.getShapeNames())
     local shapeFunc = shapes.getShapeFunction(shapeIndex)
-    --print("Calling shapeFunc", shapeFunc)
+    print("Calling shapeFunc", shapeFunc)
     values, shapeOptions = shapes[shapeFunc](theTable, options)
     for i,v in ipairs(values) do
       local value = v
-      if shapeFunc == "sineShaper" then
-        -- TODO Sine prefers round
+      if shapeFunc == "sine" then
+        -- Sine prefers round
         value = gem.round(v)
-      elseif v > 0 then
+      elseif v > 1 then
         value = math.ceil(v)
       else
         value = math.floor(v)
@@ -1622,10 +1500,11 @@ local function resetTableValues(options)
   --print("options.stepRange, options.phase, options.factor, options.z", options.stepRange, options.phase, options.factor, options.z)
 
   -- Update widgets with values from the shape
-  shapeWidgets.stepRange.value = options.stepRange
-  shapeWidgets.phase.value = options.phase
-  shapeWidgets.factor.value = options.factor
-  shapeWidgets.z.value = options.z
+  local callChanged = true
+  shapeWidgets.stepRange:setValue(options.stepRange, callChanged)
+  shapeWidgets.phase:setValue(options.phase, callChanged)
+  shapeWidgets.factor:setValue(options.factor, callChanged)
+  shapeWidgets.z:setValue(options.z, callChanged)
 
   currentValue = {}
   for i=1,motionTable.length do
@@ -1664,6 +1543,13 @@ local function checkTrigger(i, value)
   currentValue[i] = value
 end
 
+local function manual(uniqueId, stateFunction)
+  while isPlaying and tableMotion.options.manualMode and morphSeqIndex == uniqueId do
+    tableMotion.setStartMode(motionTable, tableMotion.shapeOptions, stateFunction)
+    wait(tableMotion.getWaitDuration())
+  end
+end
+
 local function morph(uniqueId, stateFunction)
   print("startMorphing")
   local direction = tableMotion.getStartDirection()
@@ -1684,6 +1570,9 @@ local function morph(uniqueId, stateFunction)
   while isPlaying and tableMotion.options.useMorph and morphSeqIndex == uniqueId do
     for _,v in ipairs({"z", "phase"}) do
       morphSettings[v].value, morphSettings[v].direction = tableMotion.advanceValue(motionTable, morphSettings[v].value, morphSettings[v].min, morphSettings[v].max, morphSettings[v].direction)
+      if v == "phase" then
+        morphSettings[v].value = morphSettings[v].value * (tableMotion.options.factor / tableMotion.options.factorMax)
+      end
     end
     local options = {
       z = morphSettings.z.value,
@@ -1713,7 +1602,9 @@ local function startMoving()
   -- Reset index to stop motion
   morphSeqIndex = gem.inc(morphSeqIndex)
   movingCells = {}
-  if tableMotion.options.useMorph then
+  if tableMotion.options.manualMode then
+    spawn(manual, morphSeqIndex, checkTrigger)
+  elseif tableMotion.options.useMorph then
     spawn(morph, morphSeqIndex, checkTrigger)
   else
     for i=1,motionTable.length do
@@ -1820,14 +1711,14 @@ playButton.changed = function(self)
 end
 
 --------------------------------------------------------------------------------
--- Notes Panel
+-- Sequencer Panel
 --------------------------------------------------------------------------------
 
 widgets.xSpacing(0)
 widgets.ySpacing(0)
 widgets.backgroundColour = "606060"
 
-local notePanel = widgets.panel({
+widgets.panel({
   backgroundColour = backgroundColour,
   x = sequencerPanel.x,
   y = widgets.posUnder(sequencerPanel),
@@ -1839,7 +1730,7 @@ positionTable = widgets.table("Position", 0, tableMotion.options.tableLength, {
   enabled = false,
   persistent = false,
   sliderColour = "yellow",
-  width = sequencerPanel.width,
+  width = sequencerPanel.width - 120,
   height = 6,
   x = 0,
   y = 0,
@@ -1852,7 +1743,7 @@ motionTable = widgets.table("Motion", 0, tableMotion.options.tableLength, {
   max = tableRange,
   integer = true,
   sliderColour = "pink",
-  width = sequencerPanel.width,
+  width = positionTable.width,
   height = 160,
   x = 0,
   y = widgets.posUnder(positionTable),
@@ -1922,7 +1813,7 @@ widgets.numBox("Speed Factor", tableMotion.options.factor, {
   name = "Factor",
   min = tableMotion.options.factorMin,
   max = tableMotion.options.factorMax,
-  tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. Controlled by the Y-axis on the XY controller",
+  tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. When using morph, this controls phase amount. Controlled by the Y-axis on the XY controller",
   changed = function(self) tableMotion.options.factor = self.value end
 })
 
@@ -2005,18 +1896,34 @@ shapeWidgets.z.changed = function(self)
   startMoving()
 end
 
-local xySpeedFactor = notePanel:XY('MoveSpeed', 'Factor')
+local xySpeedFactor = widgets.getPanel():XY('MoveSpeed', 'Factor')
 xySpeedFactor.y = firstRowY
 xySpeedFactor.x = widgets.posSide(moveSpeedInput)
 xySpeedFactor.width = 102
 xySpeedFactor.height = (noteWidgetHeight * 3) + (noteWidgetRowSpacing * 2)
 
+local xyShapeMorph = widgets.getPanel():XY('ShapePhase', 'ShapeMorph')
+xyShapeMorph.y = motionTable.y
+xyShapeMorph.x = widgets.posSide(motionTable)
+xyShapeMorph.width = xySpeedFactor.width
+xyShapeMorph.height = motionTable.height
+
 widgets.button("Morph", tableMotion.options.useMorph, {
   tooltip = "When active, use the shape morph for creating motion",
-  x = xySpeedFactor.x,
-  width = xySpeedFactor.width,
+  x = xyShapeMorph.x,
+  width = xyShapeMorph.width / 2,
   changed = function(self)
     tableMotion.options.useMorph = self.value
+    startMoving()
+  end
+})
+
+widgets.button("Manual", tableMotion.options.manualMode, {
+  tooltip = "When active, use the shape morph for creating motion",
+  x = xyShapeMorph.x + (xyShapeMorph.width / 2),
+  width = xyShapeMorph.width / 2,
+  changed = function(self)
+    tableMotion.options.manualMode = self.value
     startMoving()
   end
 })

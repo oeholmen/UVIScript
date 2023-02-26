@@ -55,10 +55,11 @@ local function resetTableValues(options)
   --print("options.stepRange, options.phase, options.factor, options.z", options.stepRange, options.phase, options.factor, options.z)
 
   -- Update widgets with values from the shape
-  shapeWidgets.stepRange.value = options.stepRange
-  shapeWidgets.phase.value = options.phase
-  shapeWidgets.factor.value = options.factor
-  shapeWidgets.z.value = options.z
+  local callChanged = true
+  shapeWidgets.stepRange:setValue(options.stepRange, callChanged)
+  shapeWidgets.phase:setValue(options.phase, callChanged)
+  shapeWidgets.factor:setValue(options.factor, callChanged)
+  shapeWidgets.z:setValue(options.z, callChanged)
 
   currentValue = {}
   for i=1,motionTable.length do
@@ -97,6 +98,13 @@ local function checkTrigger(i, value)
   currentValue[i] = value
 end
 
+local function manual(uniqueId, stateFunction)
+  while isPlaying and tableMotion.options.manualMode and morphSeqIndex == uniqueId do
+    tableMotion.setStartMode(motionTable, tableMotion.shapeOptions, stateFunction)
+    wait(tableMotion.getWaitDuration())
+  end
+end
+
 local function morph(uniqueId, stateFunction)
   print("startMorphing")
   local direction = tableMotion.getStartDirection()
@@ -117,6 +125,9 @@ local function morph(uniqueId, stateFunction)
   while isPlaying and tableMotion.options.useMorph and morphSeqIndex == uniqueId do
     for _,v in ipairs({"z", "phase"}) do
       morphSettings[v].value, morphSettings[v].direction = tableMotion.advanceValue(motionTable, morphSettings[v].value, morphSettings[v].min, morphSettings[v].max, morphSettings[v].direction)
+      if v == "phase" then
+        morphSettings[v].value = morphSettings[v].value * (tableMotion.options.factor / tableMotion.options.factorMax)
+      end
     end
     local options = {
       z = morphSettings.z.value,
@@ -146,7 +157,9 @@ local function startMoving()
   -- Reset index to stop motion
   morphSeqIndex = gem.inc(morphSeqIndex)
   movingCells = {}
-  if tableMotion.options.useMorph then
+  if tableMotion.options.manualMode then
+    spawn(manual, morphSeqIndex, checkTrigger)
+  elseif tableMotion.options.useMorph then
     spawn(morph, morphSeqIndex, checkTrigger)
   else
     for i=1,motionTable.length do
@@ -253,14 +266,14 @@ playButton.changed = function(self)
 end
 
 --------------------------------------------------------------------------------
--- Notes Panel
+-- Sequencer Panel
 --------------------------------------------------------------------------------
 
 widgets.xSpacing(0)
 widgets.ySpacing(0)
 widgets.backgroundColour = "606060"
 
-local notePanel = widgets.panel({
+widgets.panel({
   backgroundColour = backgroundColour,
   x = sequencerPanel.x,
   y = widgets.posUnder(sequencerPanel),
@@ -272,7 +285,7 @@ positionTable = widgets.table("Position", 0, tableMotion.options.tableLength, {
   enabled = false,
   persistent = false,
   sliderColour = "yellow",
-  width = sequencerPanel.width,
+  width = sequencerPanel.width - 120,
   height = 6,
   x = 0,
   y = 0,
@@ -285,7 +298,7 @@ motionTable = widgets.table("Motion", 0, tableMotion.options.tableLength, {
   max = tableRange,
   integer = true,
   sliderColour = "pink",
-  width = sequencerPanel.width,
+  width = positionTable.width,
   height = 160,
   x = 0,
   y = widgets.posUnder(positionTable),
@@ -355,7 +368,7 @@ widgets.numBox("Speed Factor", tableMotion.options.factor, {
   name = "Factor",
   min = tableMotion.options.factorMin,
   max = tableMotion.options.factorMax,
-  tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. Controlled by the Y-axis on the XY controller",
+  tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. When using morph, this controls phase amount. Controlled by the Y-axis on the XY controller",
   changed = function(self) tableMotion.options.factor = self.value end
 })
 
@@ -438,18 +451,34 @@ shapeWidgets.z.changed = function(self)
   startMoving()
 end
 
-local xySpeedFactor = notePanel:XY('MoveSpeed', 'Factor')
+local xySpeedFactor = widgets.getPanel():XY('MoveSpeed', 'Factor')
 xySpeedFactor.y = firstRowY
 xySpeedFactor.x = widgets.posSide(moveSpeedInput)
 xySpeedFactor.width = 102
 xySpeedFactor.height = (noteWidgetHeight * 3) + (noteWidgetRowSpacing * 2)
 
+local xyShapeMorph = widgets.getPanel():XY('ShapePhase', 'ShapeMorph')
+xyShapeMorph.y = motionTable.y
+xyShapeMorph.x = widgets.posSide(motionTable)
+xyShapeMorph.width = xySpeedFactor.width
+xyShapeMorph.height = motionTable.height
+
 widgets.button("Morph", tableMotion.options.useMorph, {
   tooltip = "When active, use the shape morph for creating motion",
-  x = xySpeedFactor.x,
-  width = xySpeedFactor.width,
+  x = xyShapeMorph.x,
+  width = xyShapeMorph.width / 2,
   changed = function(self)
     tableMotion.options.useMorph = self.value
+    startMoving()
+  end
+})
+
+widgets.button("Manual", tableMotion.options.manualMode, {
+  tooltip = "When active, use the shape morph for creating motion",
+  x = xyShapeMorph.x + (xyShapeMorph.width / 2),
+  width = xyShapeMorph.width / 2,
+  changed = function(self)
+    tableMotion.options.manualMode = self.value
     startMoving()
   end
 })
