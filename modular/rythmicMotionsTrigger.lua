@@ -3,6 +3,7 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
+local shapes = require "includes.shapes"
 local widgets = require "includes.widgets"
 local resolutions = require "includes.resolutions"
 local tableMotion = require "includes.tableMotion"
@@ -25,6 +26,7 @@ local motionTable
 local channel = 1
 local triggerMode = 1 -- Holds the strategy for when events are triggered
 local triggerModes = {"Min/Max", "Min", "Max", "Zero", "All"}
+local currentValue = {} -- Holds the current table value to check for changes
 local noteEventId = 0 -- Holds the index if the cell in the table that last triggered an event
 local resolutionNames = resolutions.getResolutionNames()
 local resolution = #resolutionNames
@@ -50,11 +52,18 @@ local function resetTableValues(options)
   -- Set start mode
   options = tableMotion.setStartMode(motionTable, options)
 
+  --print("options.stepRange, options.phase, options.factor, options.z", options.stepRange, options.phase, options.factor, options.z)
+
   -- Update widgets with values from the shape
   shapeWidgets.stepRange.value = options.stepRange
   shapeWidgets.phase.value = options.phase
   shapeWidgets.factor.value = options.factor
   shapeWidgets.z.value = options.z
+
+  currentValue = {}
+  for i=1,motionTable.length do
+    table.insert(currentValue, nil) -- Set initial value
+  end
 end
 
 local function setRange()
@@ -62,22 +71,60 @@ local function setRange()
   resetTableValues(tableMotion.shapeOptions)
 end
 
-local function morph(uniqueId)
+local function checkTrigger(i, value)
+  -- Send note event according to the selected trigger mode
+  local valueHasChanged = value ~= currentValue[i]
+  --print("value, currentValue[i], valueHasChanged", value, currentValue[i], valueHasChanged)
+  -- Only set as trigger if value is changed
+  if valueHasChanged then
+    local isTrigger = false
+    if triggerMode == 1 and (value == motionTable.min or value == motionTable.max) then
+      isTrigger = true
+    elseif triggerMode == 2 and value == motionTable.min then
+      isTrigger = true
+    elseif triggerMode == 3 and value == motionTable.max then
+      isTrigger = true
+    elseif triggerMode == 4 and value == 0 then
+      isTrigger = true
+    elseif triggerMode == 5 and (value == 0 or value == motionTable.min or value == motionTable.max) then
+      isTrigger = true
+    end
+    if isTrigger then
+      noteEventId = i
+    end
+  end
+  -- Update the current value
+  currentValue[i] = value
+end
+
+local function morph(uniqueId, stateFunction)
   print("startMorphing")
   local direction = tableMotion.getStartDirection()
-  local value = shapeWidgets.z.value
-  if value == shapeWidgets.z.max then
-    direction = -1
-  end
+  local morphSettings = {
+    z = {
+      value = shapeWidgets.z.value,
+      min = shapeWidgets.z.min,
+      max = shapeWidgets.z.max,
+      direction = direction,
+    },
+    phase = {
+      value = shapeWidgets.phase.value,
+      min = shapeWidgets.phase.min,
+      max = shapeWidgets.phase.max,
+      direction = direction,
+    }
+  }
   while isPlaying and tableMotion.options.useMorph and morphSeqIndex == uniqueId do
-    value, direction = tableMotion.advanceMorphValue(motionTable, value, shapeWidgets.z.min, shapeWidgets.z.max, direction)
+    for _,v in ipairs({"z", "phase"}) do
+      morphSettings[v].value, morphSettings[v].direction = tableMotion.advanceValue(motionTable, morphSettings[v].value, morphSettings[v].min, morphSettings[v].max, morphSettings[v].direction)
+    end
     local options = {
-      z = value,
+      z = morphSettings.z.value,
       stepRange = tableMotion.shapeOptions.stepRange,
-      phase = tableMotion.shapeOptions.phase,
+      phase = morphSettings.phase.value,
       factor = tableMotion.shapeOptions.factor,
     }
-    tableMotion.setStartMode(motionTable, options)
+    tableMotion.setStartMode(motionTable, options, stateFunction)
     wait(tableMotion.getWaitDuration())
   end
 end
@@ -87,33 +134,9 @@ local function move(i, uniqueId)
   local value = motionTable:getValue(i)
   local currentValue = value
   while isPlaying and movingCells[i] == uniqueId do
-    -- Send note event according to the selected trigger mode
-    local isTrigger = false
-    local hasValueChanged = true--currentValue ~= value
-    if hasValueChanged and triggerMode == 1 and (value == motionTable.min or value == motionTable.max) then
-      isTrigger = true
-    elseif hasValueChanged and triggerMode == 2 and value == motionTable.min then
-      isTrigger = true
-    elseif hasValueChanged and triggerMode == 3 and value == motionTable.max then
-      isTrigger = true
-    elseif hasValueChanged and triggerMode == 4 and value == 0 then
-      isTrigger = true
-    elseif hasValueChanged and triggerMode == 5 and (value == 0 or value == motionTable.min or value == motionTable.max) then
-      isTrigger = true
-    end
-    if isTrigger then
-      noteEventId = i
-    end
-    currentValue = value -- Save current value before value is updated
-    if tableMotion.options.useMorph then
-      -- Get the current value from the table
-      value = motionTable:getValue(i)
-      -- Then we wait
-      wait(tableMotion.getWaitDuration())
-    else
-      value, direction = tableMotion.moveTable(motionTable, i, value, direction)
-      -- Wait happens in moveTable
-    end
+    checkTrigger(i, value)
+    value, direction = tableMotion.moveTable(motionTable, i, value, direction)
+    -- Wait happens in moveTable
   end
 end
 
@@ -125,12 +148,13 @@ local function startMoving()
   morphSeqIndex = gem.inc(morphSeqIndex)
   movingCells = {}
   if tableMotion.options.useMorph then
-   spawn(morph, morphSeqIndex)
-  end
-  for i=1,motionTable.length do
-    table.insert(movingCells, uniqueIndex)
-    spawn(move, i, uniqueIndex)
-    uniqueIndex = gem.inc(uniqueIndex)
+    spawn(morph, morphSeqIndex, checkTrigger)
+  else
+    for i=1,motionTable.length do
+      table.insert(movingCells, uniqueIndex)
+      spawn(move, i, uniqueIndex)
+      uniqueIndex = gem.inc(uniqueIndex)
+    end
   end
 end
 
@@ -248,7 +272,7 @@ local notePanel = widgets.panel({
 positionTable = widgets.table("Position", 0, tableMotion.options.tableLength, {
   enabled = false,
   persistent = false,
-  sliderColour = "green",
+  sliderColour = "yellow",
   width = sequencerPanel.width,
   height = 6,
   x = 0,
@@ -389,7 +413,7 @@ widgets.numBox("Speed Rand", tableMotion.options.speedRandomizationAmount, {
 
 widgets.row()
 
-shapeWidgets = tableMotion.getShapeWidgets(138, true)
+shapeWidgets = shapes.getWidgets(138, true)
 
 shapeWidgets.stepRange.changed = function(self)
   tableMotion.shapeOptions.stepRange = self.value

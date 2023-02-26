@@ -115,9 +115,9 @@ local function getStartDirection(i)
 end
 
 local function setTableZero(theTable)
-    for i=1,theTable.length do
-      theTable:setValue(i, 0)
-    end  
+  for i=1,theTable.length do
+    theTable:setValue(i, 0)
+  end  
 end
 
 local function setStartMode(theTable, options, stateFunction)
@@ -129,8 +129,15 @@ local function setStartMode(theTable, options, stateFunction)
     --print("Calling shapeFunc", shapeFunc)
     values, shapeOptions = shapes[shapeFunc](theTable, options)
     for i,v in ipairs(values) do
-      --theTable:setValue(i, math.floor(v))
-      local value = gem.round(v)
+      local value = v
+      if shapeFunc == "sineShaper" then
+        -- TODO Sine prefers round
+        value = gem.round(v)
+      elseif v > 0 then
+        value = math.ceil(v)
+      else
+        value = math.floor(v)
+      end
       theTable:setValue(i, value)
       if type(stateFunction) == "function" then
         stateFunction(i, value)
@@ -144,8 +151,7 @@ local function getWaitDuration()
   return gem.randomizeValue(motionOptions.moveSpeed, motionOptions.moveSpeedMin, motionOptions.moveSpeedMax, motionOptions.speedRandomizationAmount)
 end
 
-local function advanceMorphValue(theTable, value, min, max, direction)
-  -- Advance shape morph widget value
+local function advanceValue(theTable, value, min, max, direction)
   local valueRange = theTable.max - theTable.min
   local changeFactor = max - min
   local changePerStep = gem.getChangePerStep(changeFactor, valueRange)
@@ -222,7 +228,7 @@ return {--tableMotion--
   getShapeWidgets = getShapeWidgets,
   getStartDirection = getStartDirection,
   moveTable = moveTable,
-  advanceMorphValue = advanceMorphValue,
+  advanceValue = advanceValue,
   getWaitDuration = getWaitDuration,
   setStartMode = setStartMode,
   setTableZero = setTableZero,

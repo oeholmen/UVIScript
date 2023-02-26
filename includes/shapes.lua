@@ -3,12 +3,12 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
+local widgets = require "includes.widgets"
 
 -- Keep in sync with function names
 local shapeNames = {
   "Ramp Up",
   "Ramp Down",
-  "Triangle",
   "Sine",
   "Triangle",
   "Triangle (Off Phs)",
@@ -31,14 +31,21 @@ local shapeNames = {
   "Min",
   "Max",
   "Chaos To Sine",
+  "Saw/Sin Reveal",
+  "PWM 50 to 100",
+  "Triple-Sin Window",
+  "Taffy",
+  "Brassy",
+  "HPF-Sqr To Sqr",
+  "Wacky",
+  "Sine To Noise",
   "Random",
-  "Test Shape",
+  --"Test Shape",
 }
 
 local shapeFunctions = {
   "rampUp",
   "rampDown",
-  "triangleShaper",
   "sineShaper",
   "triangleInPhase",
   "triangleOffPhase",
@@ -57,20 +64,30 @@ local shapeFunctions = {
   "sweetSine",
   "even",
   "odd",
-  "zeroAll",
-  "minAll",
-  "maxAll",
+  "zero",
+  "min",
+  "max",
   "chaosToSine",
-  "randomAll",
+  "sawSinReveal",
+  "pwm50to100",
+  "tripleSinWindow",
+  "taffy",
+  "brassy",
+  "hpfSqrToSqr",
+  "wacky",
+  "sinToNoise",
+  "random",
   "testShape",
 }
 
-local defaultShapeOptions = {
-  z = 1,
-  stepRange = 2,
-  phase = -1,
-  factor = 1,
-}
+local function getDefaultShapeOptions()
+  return {
+    z = 1,
+    stepRange = 2,
+    phase = -1,
+    factor = 1,
+  }
+end
 
 -- sign function: -1 if x<0; 1 if x>0
 local function signA(x)
@@ -88,9 +105,11 @@ local function getValueOrDefault(value, default)
 end
 
 local function getShapeOptions(overrides)
+  local defaultShapeOptions = getDefaultShapeOptions()
   if type(overrides) == "nil" then
     return defaultShapeOptions
   end
+  --print("defaultShapeOptions:stepRange, phase, factor, z", defaultShapeOptions.stepRange, defaultShapeOptions.phase, defaultShapeOptions.factor, defaultShapeOptions.z)
   return {
     stepRange = getValueOrDefault(overrides.stepRange, defaultShapeOptions.stepRange),
     phase = getValueOrDefault(overrides.phase, defaultShapeOptions.phase),
@@ -104,40 +123,35 @@ local shapeTemplates = {
     phase = -0.5,
     factor = math.pi,
   }),
+
   triangleOffPhase = getShapeOptions({
     phase = -0.5,
   }),
+
   rampUp = getShapeOptions({
     stepRange = 1,
     phase = 0.5,
   }),
+
   rampDown = getShapeOptions({
     stepRange = 1,
     phase = -0.5,
   }),
-  dome = getShapeOptions({
-    phase = 0
-  }),
-  domeSmall = getShapeOptions({
+
+  range1 = getShapeOptions({
     stepRange = 1
   }),
-  sawAnalog = getShapeOptions({
+
+  phase0 = getShapeOptions({
       phase = 0
   }),
-  even = getShapeOptions({
-      z = -1
-  }),
-  odd = getShapeOptions({
-      z = 1
-  }),
+
   zero = getShapeOptions({
       z = 0
   }),
+
   min = getShapeOptions({
       z = -1
-  }),
-  max = getShapeOptions({
-      z = 1
   }),
 }
 
@@ -196,13 +210,109 @@ local function createShape(shapeTable, shapeFunc, options)
     end
     --print("step, value, x", i, value, x)
     table.insert(shape, math.max(minValue, math.min(maxValue, value)))
+    --table.insert(shape, value)
   end
   return shape, options
 end
 
 local function testShape(shapeTable, options)
   local shapeFunc = function(x, z, i)
-    return math.sin(math.pi*z*z*32*math.log(x+1))
+    return x
+  end
+  return createShape(shapeTable, shapeFunc, options)
+end
+
+-- sinToNoise 2*avg(sin(z*x*pi),(1-z)*rand)
+local function sinToNoise(shapeTable, options)
+  local shapeFunc = function(x, z, i)
+    return 2*gem.avg({math.sin(z*x*math.pi),(1-z)*gem.getRandom()})
+  end
+  return createShape(shapeTable, shapeFunc, options)
+end
+
+-- wacky sin(((x)+1)^(z-1)*pi)
+local function wacky(shapeTable, options)
+  local shapeFunc = function(x, z, i)
+    return math.sin(((x)+1)^(z-1)*math.pi)
+  end
+  if type(options) == "nil" then
+    options = getShapeOptions({
+      z = 0.84,
+    })
+  end
+  return createShape(shapeTable, shapeFunc, options)
+end
+
+-- HPF Sqr -> Sqr (x<0)?sin((z*0.5)*pi)^(x+1):-sin((z*0.5)*pi)^x
+local function hpfSqrToSqr(shapeTable, options)
+  local shapeFunc = function(x, z, i)
+    if x < 0 then
+      return math.sin((z*0.5)*math.pi)^(x+1)
+    end
+    return -math.sin((z*0.5)*math.pi)^x
+  end
+  if type(options) == "nil" then
+    options = getShapeOptions({
+      z = 0.01,
+    })
+  end
+  return createShape(shapeTable, shapeFunc, options)
+end
+
+-- brassy sin(pi*sign(x)*(abs(x)^(((1-z)+0.1)*pi*pi)))
+local function brassy(shapeTable, options)
+  local shapeFunc = function(x, z, i)
+    return math.sin(math.pi*signA(x)*(math.abs(x)^(((1-z)+0.1)*math.pi*math.pi)))
+  end
+  if type(options) == "nil" then
+    options = shapeTemplates.zero
+  end
+  return createShape(shapeTable, shapeFunc, options)
+end
+
+-- taffy sin(x*pi*2)*cos(x*pi)*cos(z*pi*(abs((x*2)^3)-1)*pi)
+local function taffy(shapeTable, options)
+  local shapeFunc = function(x, z, i)
+    return math.sin(x*math.pi*2)*math.cos(x*math.pi)*math.cos(z*math.pi*(math.abs((x*2)^3)-1)*math.pi)
+  end
+  if type(options) == "nil" then
+    options = shapeTemplates.zero
+  end
+  return createShape(shapeTable, shapeFunc, options)
+end
+
+-- tripple-sin window
+local function tripleSinWindow(shapeTable, options)
+  local shapeFunc = function(x, z, i)
+    return math.cos(x*math.pi/2)*1.6*(.60*math.sin( ((z*16)+1)*3*x ) + .20*math.sin( ((z*16)+1)*9*x ) + .15*math.sin( ((z*16)+1)*15*x))
+  end
+  if type(options) == "nil" then
+    options = shapeTemplates.zero
+  end
+  return createShape(shapeTable, shapeFunc, options)
+end
+
+-- pwm 50-100 (x>z)?1:-1
+local function pwm50to100(shapeTable, options)
+  local shapeFunc = function(x, z, i)
+    if x > z then
+      return 1
+    end
+    return -1
+  end
+  return createShape(shapeTable, shapeFunc, options)
+end
+
+-- saw sin reveal (x+1>z*2)?(x):sin(x*pi)
+local function sawSinReveal(shapeTable, options)
+  local shapeFunc = function(x, z, i)
+    if x + 1 > z * 2 then
+      return x
+    end
+    return math.sin(x * math.pi)
+  end
+  if type(options) == "nil" then
+    options = shapeTemplates.min
   end
   return createShape(shapeTable, shapeFunc, options)
 end
@@ -234,15 +344,12 @@ end
 
 local function evenMax(shapeTable, options)
   if type(options) == "nil" then
-    options = shapeTemplates.even
+    options = shapeTemplates.min
   end
   return oddAndEven(shapeTable, options)
 end
 
 local function oddMax(shapeTable, options)
-  if type(options) == "nil" then
-    options = shapeTemplates.odd
-  end
   return oddAndEven(shapeTable, options)
 end
 
@@ -268,9 +375,6 @@ local function minAll(shapeTable, options)
 end
 
 local function maxAll(shapeTable, options)
-  if type(options) == "nil" then
-    options = shapeTemplates.max
-  end
   return minMaxZero(shapeTable, options)
 end
 
@@ -361,7 +465,7 @@ local function dome(shapeTable, options)
   end
   -- Get from template
   if type(options) == "nil" then
-    options = shapeTemplates.dome
+    options = shapeTemplates.phase0
   end
   return createShape(shapeTable, shapeFunc, options)
 end
@@ -372,7 +476,7 @@ local function domeSmall(shapeTable, options)
   end
   -- Get from template
   if type(options) == "nil" then
-    options = shapeTemplates.domeSmall
+    options = shapeTemplates.range1
   end
   return createShape(shapeTable, shapeFunc, options)
 end
@@ -383,7 +487,7 @@ local function sawAnalog(shapeTable, options)
   end
   -- Get from template
   if type(options) == "nil" then
-    options = shapeTemplates.sawAnalog
+    options = shapeTemplates.phase0
   end
   return createShape(shapeTable, shapeFunc, options)
 end
@@ -423,11 +527,56 @@ local function triangleOffPhase(shapeTable, options)
   return triangleShaper(shapeTable, options)
 end
 
+local function getShapeWidgets(width, showLabel)
+  -- Widgets for controlling shape
+  if type(width) == "nil" then
+    width = 30
+  end
+  local shapeOptions = getShapeOptions()
+  return {
+    stepRange = widgets.numBox("Step Range", shapeOptions.stepRange, {
+      name = "ShapeStepRange",
+      tooltip = "Set step range for the shape. Mostly affects polarity of the shape.",
+      width = width,
+      showLabel = showLabel == true,
+      min = 0,
+      max = 4,
+    }),
+    phase = widgets.numBox("Shape Phase", shapeOptions.phase, {
+      name = "ShapePhase",
+      tooltip = "Set the phase applied to the shape (move left/right).",
+      width = width,
+      showLabel = showLabel == true,
+      min = -1,
+      max = 1,
+    }),
+    factor = widgets.numBox("Shape Factor", shapeOptions.factor, {
+      name = "ShapeFactor",
+      tooltip = "Set the factor (multiplier) applied to the value of each step.",
+      width = width,
+      showLabel = showLabel == true,
+      min = -8,
+      max = 8,
+    }),
+    z = widgets.numBox("Shape Morph", shapeOptions.z, {
+      name = "ShapeMorph",
+      tooltip = "Set the morph value. This value is mostly assigned to amplitude, but it depends on the shape.",
+      width = width,
+      showLabel = showLabel == true,
+      min = -1,
+      max = 1,
+    })
+  }
+end
+
 return {--shapes--
+  getWidgets = getShapeWidgets,
   getShapeNames = getShapeNames,
   getShapeFunctions = getShapeFunctions,
   getShapeFunction = getShapeFunction,
+  getShapeOptions = getShapeOptions,
   tangent = tangent,
+  sawSinReveal = sawSinReveal,
   dome = dome,
   domeSmall = domeSmall,
   hpfSaw = hpfSaw,
@@ -449,9 +598,16 @@ return {--shapes--
   triangleShaper = triangleShaper,
   even = evenMax,
   odd = oddMax,
-  zeroAll = zeroAll,
-  minAll = minAll,
-  maxAll = maxAll,
+  zero = zeroAll,
+  min = minAll,
+  max = maxAll,
   chaosToSine = chaosToSine,
-  randomAll = randomAll,
+  pwm50to100 = pwm50to100,
+  tripleSinWindow = tripleSinWindow,
+  taffy = taffy,
+  brassy = brassy,
+  hpfSqrToSqr = hpfSqrToSqr,
+  wacky = wacky,
+  sinToNoise = sinToNoise,
+  random = randomAll,
 }

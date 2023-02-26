@@ -49,6 +49,14 @@ local function randomizeValue(value, limitMin, limitMax, randomizationAmount)
   return value
 end
 
+local function avg(t)
+  local sum = 0
+  for _,v in pairs(t) do -- Get the sum of all numbers in t
+    sum = sum + v
+  end
+  return sum / #t
+end
+
 local function round(value)
   local int, frac = math.modf(value)
   --print("int/frac", int, frac)
@@ -113,6 +121,7 @@ end
 
 return {--gem--
   inc = inc,
+  avg = avg,
   round = round,
   getRandom = getRandom,
   getChangeMax = getChangeMax,

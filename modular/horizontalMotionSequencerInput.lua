@@ -91,22 +91,34 @@ local function updateNoteState(i, value)
   end
 end
 
-local function morph(uniqueId)
+local function morph(uniqueId, stateFunction)
   print("startMorphing")
   local direction = tableMotion.getStartDirection()
-  local value = shapeWidgets.z.value
-  if value == shapeWidgets.z.max then
-    direction = -1
-  end
+  local morphSettings = {
+    z = {
+      value = shapeWidgets.z.value,
+      min = shapeWidgets.z.min,
+      max = shapeWidgets.z.max,
+      direction = direction,
+    },
+    phase = {
+      value = shapeWidgets.phase.value,
+      min = shapeWidgets.phase.min,
+      max = shapeWidgets.phase.max,
+      direction = direction,
+    }
+  }
   while isPlaying and tableMotion.options.useMorph and morphSeqIndex == uniqueId do
-    value, direction = tableMotion.advanceMorphValue(motionTable, value, shapeWidgets.z.min, shapeWidgets.z.max, direction)
+    for _,v in ipairs({"z", "phase"}) do
+      morphSettings[v].value, morphSettings[v].direction = tableMotion.advanceValue(motionTable, morphSettings[v].value, morphSettings[v].min, morphSettings[v].max, morphSettings[v].direction)
+    end
     local options = {
-      z = value,
+      z = morphSettings.z.value,
       stepRange = tableMotion.shapeOptions.stepRange,
-      phase = tableMotion.shapeOptions.phase,
+      phase = morphSettings.phase.value,
       factor = tableMotion.shapeOptions.factor,
     }
-    tableMotion.setStartMode(motionTable, options, updateNoteState)
+    tableMotion.setStartMode(motionTable, options, stateFunction)
     wait(tableMotion.getWaitDuration())
   end
 end
@@ -129,7 +141,7 @@ local function startMoving()
   morphSeqIndex = gem.inc(morphSeqIndex)
   movingCells = {}
   if tableMotion.options.useMorph then
-    spawn(morph, morphSeqIndex)
+    spawn(morph, morphSeqIndex, updateNoteState)
   else
     for i=1,motionTable.length do
       table.insert(movingCells, uniqueIndex)
@@ -488,7 +500,7 @@ widgets.numBox("Speed Rand", tableMotion.options.speedRandomizationAmount, {
 
 widgets.row()
 
-shapeWidgets = tableMotion.getShapeWidgets(109, true)
+shapeWidgets = shapes.getWidgets(109, true)
 
 shapeWidgets.stepRange.changed = function(self)
   tableMotion.shapeOptions.stepRange = self.value
