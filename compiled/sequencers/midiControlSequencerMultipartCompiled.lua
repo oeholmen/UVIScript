@@ -767,9 +767,8 @@ isPlaying = false
 --------------------------------------------------------------------------------
 
 local pageButtons = {}
-local headerPanel = Panel("Header")
-local footerPanel = Panel("Footer")
---local defaultActions = {"Actions...", "Randomize", "Ramp Up", "Ramp Down", "Triangle", "Sine", "Cosine", "Tangent", "Even", "Odd", "Reduce 50%"}
+local headerPanel = widgets.panel()
+local footerPanel = widgets.panel()
 local shapeNames = shapes.getShapeNames()
 local cyclePagesButton = footerPanel:OnOffButton("CyclePagesButton")
 local changePageProbability = footerPanel:NumBox("ChangePageProbability", 0, 0, 100, true)

@@ -277,6 +277,9 @@ return {--widgets--
   col = function(i) incrementCol(i) end,
   row = function(i) incrementRow(i) end,
   panel = function(options)
+    if type(options) ~= "table" then
+      options = {}
+    end
     -- The first time, we use the default panel
     local create = panelNameIndex > 1
     if create == false then
