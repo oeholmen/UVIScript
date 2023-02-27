@@ -77,12 +77,12 @@ local function resetTableValues(options)
   tableMotion.setTableZero(positionTable)
 
   -- TODO Check that shape adjustments are saved correctly!
+  local callChanged = type(options) == "nil"
 
   -- Set start mode
   options = tableMotion.setStartMode(motionTable, options, updateNoteState)
 
   -- Update widgets with values from the shape
-  local callChanged = type(options) == "table"
   shapeWidgets.stepRange:setValue(options.stepRange, callChanged)
   shapeWidgets.phase:setValue(options.phase, callChanged)
   shapeWidgets.factor:setValue(options.factor, callChanged)

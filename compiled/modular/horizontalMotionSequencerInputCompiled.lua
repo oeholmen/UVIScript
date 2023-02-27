@@ -670,8 +670,8 @@ local shapeNames = {
   "Organ-Ish",
   "Tangent",
   "Triple Sine",
-  "Soft Sine", -- TODO Rename?
-  "Sweet Sine",
+  "Punk Sine",
+  "Soft Sine",
   "Even",
   "Odd",
   "Zero",
@@ -708,8 +708,8 @@ local shapeFunctions = {
   "organIsh",
   "tangent",
   "tripleSin",
+  "punkSine",
   "softSine",
-  "sweetSine",
   "even",
   "odd",
   "zero",
@@ -734,81 +734,36 @@ local shapeFunctions = {
 -- z = current table number, from -1.0 to 1.0
 -- i = current index
 local shapes = {
-  triangleShaper = function(x, z)
-    return math.min(2+2*x, math.abs((x-0.5)*2)-1) * z -- Unique
-  end,
+  triangleShaper = function(x, z) return math.min(2+2*x, math.abs((x-0.5)*2)-1) * z end,
   sineShaper = function(x, z) return math.cos(x) * z end,
   sawInPhase = function(x, z) return (gem.sign(x)-x) * z end,
   sinToNoise = function(x, z, i) return 2*gem.avg({math.sin(z*x*math.pi),(1-z)*gem.getRandom()}) end,
   wacky = function(x, z, i) return math.sin(((x)+1)^(z-1)*math.pi) end,
-  hpfSqrToSqr = function(x, z, i)
-    if x < 0 then
-      return math.sin((z*0.5)*math.pi)^(x+1)
-    end
-    return -math.sin((z*0.5)*math.pi)^x
-  end,
-  windowYSqr = function(x, z, i)
-    local v = 1
-    if math.abs(x) > 0.5 then
-      v = (1-math.abs(x))*2
-    end
-    return v * math.min(1, math.max(-1,8*math.sin((z+0.02)*x*math.pi*32)))
-  end,
-  filteredSquare = function(x, z, i)
-    return (1.2*math.sin(x*math.pi)+0.31*math.sin(x*math.pi*3)+0.11*math.sin(x*math.pi*5)+0.033*math.sin(x*math.pi*7)) * z
-  end,
-  organIsh = function(x, z)
-    return (math.sin(x*math.pi)+(0.16*(math.sin(2*x*math.pi)+math.sin(3*x*math.pi)+math.sin(4*x*math.pi)))) * z
-  end,
-  sawAnalog = function(x, z)
-    return (2.001 * (math.sin(x * 0.7905) - 0.5)) * z
-  end,
-  dome = function(x, z)
-    return (2 * (math.sin(x * 1.5705) - 0.5)) * z
-  end,
-  brassy = function(x, z, i)
-    return math.sin(math.pi*gem.sign(x)*(math.abs(x)^(((1-z)+0.1)*math.pi*math.pi)))
-  end,
-  taffy = function(x, z, i)
-    return math.sin(x*math.pi*2)*math.cos(x*math.pi)*math.cos(z*math.pi*(math.abs((x*2)^3)-1)*math.pi)
-  end,
-  random = function(x, z)
-    return ((gem.getRandom() * 2) - 1) * z
-  end,
-  tripleSinWindow = function(x, z, i)
-    return math.cos(x*math.pi/2)*1.6*(.60*math.sin( ((z*16)+1)*3*x ) + .20*math.sin( ((z*16)+1)*9*x ) + .15*math.sin( ((z*16)+1)*15*x))
-  end,
-  pwm50to100 = function(x, z, i)
-    if x > z then
-      return 1
-    end
-    return -1
-  end,
-  chaosToSine = function(x, z, i)
-    return math.sin(math.pi*z*z*32*math.log(x+1))
-  end,
-  sawSinReveal = function(x, z, i)
-    if x + 1 > z * 2 then
-      return x
-    end
-    return math.sin(x * math.pi)
-  end,
-  domeSmall = function(x, z)
-    return (-1-1.275*math.sin(x*math.pi)) * z
-  end,
-  minMaxZero = function(x, z)
-    return z
-  end,
-  oddAndEven = function(x, z, i)
-    x = 1
-    if i % 2 == 0 then
-      x = -1
-    end
-    return x * z
-  end,
-  tangent = function(x, z)
-    return math.tan(x * math.pi) * z
-  end,
+  hpfSqrToSqr = function(x, z, i) if x < 0 then return math.sin((z*0.5)*math.pi)^(x+1) end return -math.sin((z*0.5)*math.pi)^x end,
+  windowYSqr = function(x, z, i) local v = 1 if math.abs(x) > 0.5 then v = (1-math.abs(x))*2 end return v * math.min(1, math.max(-1,8*math.sin((z+0.02)*x*math.pi*32))) end,
+  filteredSquare = function(x, z, i) return (1.2*math.sin(x*math.pi)+0.31*math.sin(x*math.pi*3)+0.11*math.sin(x*math.pi*5)+0.033*math.sin(x*math.pi*7)) * z end,
+  organIsh = function(x, z) return (math.sin(x*math.pi)+(0.16*(math.sin(2*x*math.pi)+math.sin(3*x*math.pi)+math.sin(4*x*math.pi)))) * z end,
+  sawAnalog = function(x, z) return (2.001 * (math.sin(x * 0.7905) - 0.5)) * z end,
+  dome = function(x, z) return (2 * (math.sin(x * 1.5705) - 0.5)) * z end,
+  brassy = function(x, z, i) return math.sin(math.pi*gem.sign(x)*(math.abs(x)^(((1-z)+0.1)*math.pi*math.pi))) end,
+  taffy = function(x, z, i) return math.sin(x*math.pi*2)*math.cos(x*math.pi)*math.cos(z*math.pi*(math.abs((x*2)^3)-1)*math.pi) end,
+  random = function(x, z) return ((gem.getRandom() * 2) - 1) * z end,
+  punkSine = function(x, z) return math.sin(x*math.pi*(2+(62*z*z*z)))*math.sin(x*math.pi) end,
+  softSine = function(x, z) return 0.5*(math.cos(x*math.pi/2)*((math.sin((x)*math.pi)+(1-z)*(math.sin(z*((x*x)^z)*math.pi*32))))) end,
+  tripleSin = function(x, z) return math.cos(x*math.pi/2)*1.6*(.60*math.sin( ((z*16)+1)*3*x ) + .20*math.sin( ((z*16)+1)*9*x ) + .15*math.sin( ((z*16)+1)*15*x)) end,
+  pwm50to100 = function(x, z, i) if x > z then return 1 end return -1 end,
+  chaosToSine = function(x, z, i) return math.sin(math.pi*z*z*32*math.log(x+1)) end,
+  sawSinReveal = function(x, z, i) if x + 1 > z * 2 then return x end return math.sin(x * math.pi) end,
+  domeSmall = function(x, z) return (-1-1.275*math.sin(x*math.pi)) * z end,
+  minMaxZero = function(x, z) return z end,
+  oddAndEven = function(x, z, i) x = 1 if i % 2 == 0 then x = -1 end return x * z end,
+  tangent = function(x, z) return math.tan(x * math.pi) * z end,
+  lofiTriangle = function(x, z) return ((gem.round(16*math.abs(x))/8.0)-1) * z end,
+  hpfSaw = function(x, z) return (x-(0.635*math.sin(x*math.pi))) * z end,
+  squareTri = function(x, z) return (-1*(gem.sign(x)*0.5)+(math.abs(x)-0.5)) * z end,
+  testShape = function(x, z, i)
+    return x
+  end
 }
 
 local function getDefaultShapeOptions()
@@ -917,64 +872,18 @@ local function createShape(shapeBounds, options, shapeFunc, shapeTemplate)
   return shape, options
 end
 
-local function testShape(shapeTable, options)
-  local shapeFunc = function(x, z, i)
-    return x
-  end
-  return createShape(shapeTable, options, shapeFunc)
-end
-
-local function sweetSine(shapeTable, options)
-  local shapeFunc = function(x, z)
-    return 0.5*(math.cos(x*math.pi/2)*((math.sin((x)*math.pi)+(1-z)*(math.sin(z*((x*x)^z)*math.pi*32))))) -- Unique
-  end
-  return createShape(shapeTable, options, shapeFunc)
-end
-
-local function softSine(shapeTable, options)
-  local shapeFunc = function(x, z)
-    return math.sin(x*math.pi*(2+(62*z*z*z)))*math.sin(x*math.pi) -- Unique
-  end
-  return createShape(shapeTable, options, shapeFunc)
-end
-
-local function tripleSin(shapeTable, options)
-  local shapeFunc = function(x, z)
-    return math.cos(x*math.pi/2)*1.6*(.60*math.sin( ((z*16)+1)*3*x ) + .20*math.sin( ((z*16)+1)*9*x ) + .15*math.sin( ((z*16)+1)*15*x)) -- Unique
-  end
-  return createShape(shapeTable, options, shapeFunc)
-end
-
-local function hpfSaw(shapeTable, options)
-  local shapeFunc = function(x, z)
-    return (x-(0.635*math.sin(x*math.pi))) * z -- Unique
-  end
-  return createShape(shapeTable, options, shapeFunc)
-end
-
-local function squareTri(shapeTable, options)
-  local shapeFunc = function(x, z)
-    return (-1*(gem.sign(x)*0.5)+(math.abs(x)-0.5)) * z -- Unique
-  end
-  return createShape(shapeTable, options, shapeFunc)
-end
-
-local function lofiTriangle(shapeTable, options)
-  local shapeFunc = function(x, z)
-    return ((gem.round(16*math.abs(x))/8.0)-1) * z -- Unique
-  end
-  return createShape(shapeTable, options, shapeFunc)
-end
-
-local function getShapeWidgets(width, showLabel)
+local function getShapeWidgets(width, showLabel, i)
   -- Widgets for controlling shape
   if type(width) == "nil" then
-    width = 30
+    width = 120
+  end
+  if type(i) == "nil" then
+    i = ""
   end
   local shapeOptions = getShapeOptions()
   return {
     stepRange = widgets.numBox("Step Range", shapeOptions.stepRange, {
-      name = "ShapeStepRange",
+      name = "ShapeStepRange" .. i,
       tooltip = "Set step range for the shape. Mostly affects polarity of the shape.",
       width = width,
       showLabel = showLabel == true,
@@ -982,7 +891,7 @@ local function getShapeWidgets(width, showLabel)
       max = 4,
     }),
     factor = widgets.numBox("Shape Factor", shapeOptions.factor, {
-      name = "ShapeFactor",
+      name = "ShapeFactor" .. i,
       tooltip = "Set the factor (multiplier) applied to the value of each step.",
       width = width,
       showLabel = showLabel == true,
@@ -990,7 +899,7 @@ local function getShapeWidgets(width, showLabel)
       max = 8,
     }),
     phase = widgets.numBox("Shape Phase", shapeOptions.phase, {
-      name = "ShapePhase",
+      name = "ShapePhase" .. i,
       tooltip = "Set the phase applied to the shape (move left/right).",
       width = width,
       showLabel = showLabel == true,
@@ -998,7 +907,7 @@ local function getShapeWidgets(width, showLabel)
       max = 1,
     }),
     z = widgets.numBox("Shape Morph", shapeOptions.z, {
-      name = "ShapeMorph",
+      name = "ShapeMorph" .. i,
       tooltip = "Set the morph value. This value is mostly assigned to amplitude, but it depends on the shape.",
       width = width,
       showLabel = showLabel == true,
@@ -1014,13 +923,11 @@ local shapes = {
   getShapeFunctions = getShapeFunctions,
   getShapeFunction = getShapeFunction,
   getShapeOptions = getShapeOptions,
-  hpfSaw = hpfSaw,
-  squareTri = squareTri,
-  lofiTriangle = lofiTriangle,
-  testShape = testShape,
-  sweetSine = sweetSine,
-  softSine = softSine,
-  tripleSin = tripleSin,
+  squareTri = function(t,o) return createShape(t, o, 'squareTri') end,
+  hpfSaw = function(t,o) return createShape(t, o, 'hpfSaw') end,
+  softSine = function(t,o) return createShape(t, o, 'softSine') end,
+  punkSine = function(t,o) return createShape(t, o, 'punkSine') end,
+  lofiTriangle = function(t,o) return createShape(t, o, 'lofiTriangle') end,
   tangent = function(t,o) return createShape(t, o, 'tangent') end,
   even = function(t,o) return createShape(t, o, 'oddAndEven', {z = -1}) end,
   odd = function(t,o) return createShape(t, o, 'oddAndEven') end,
@@ -1040,7 +947,8 @@ local shapes = {
   sine = function(t,o) return createShape(t, o, 'sineShaper', {phase = -0.5, factor = math.pi}) end,
   chaosToSine = function(t,o) return createShape(t, o, 'chaosToSine') end,
   pwm50to100 = function(t,o) return createShape(t, o, 'pwm50to100') end,
-  tripleSinWindow = function(t,o) return createShape(t, o, 'tripleSinWindow', {z = 0}) end,
+  tripleSin = function(t,o) return createShape(t, o, 'tripleSin') end,
+  tripleSinWindow = function(t,o) return createShape(t, o, 'tripleSin', {z = 0}) end,
   taffy = function(t,o) return createShape(t, o, 'taffy', {z = 0}) end,
   brassy = function(t,o) return createShape(t, o, 'brassy', {z = 0}) end,
   hpfSqrToSqr = function(t,o) return createShape(t, o, 'hpfSqrToSqr', {z = 0.01}) end,
@@ -1049,6 +957,7 @@ local shapes = {
   filteredSquare = function(t,o) return createShape(t, o, 'filteredSquare') end,
   windowYSqr = function(t,o) return createShape(t, o, 'windowYSqr', {z = 0}) end,
   random = function(t,o) return createShape(t, o, 'random') end,
+  testShape = function(t,o) return createShape(t, o, 'testShape') end,
 }
 
 --------------------------------------------------------------------------------
@@ -1408,12 +1317,12 @@ local function resetTableValues(options)
   tableMotion.setTableZero(positionTable)
 
   -- TODO Check that shape adjustments are saved correctly!
+  local callChanged = type(options) == "nil"
 
   -- Set start mode
   options = tableMotion.setStartMode(motionTable, options, updateNoteState)
 
   -- Update widgets with values from the shape
-  local callChanged = type(options) == "table"
   shapeWidgets.stepRange:setValue(options.stepRange, callChanged)
   shapeWidgets.phase:setValue(options.phase, callChanged)
   shapeWidgets.factor:setValue(options.factor, callChanged)

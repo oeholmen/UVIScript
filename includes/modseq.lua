@@ -29,17 +29,12 @@ isPlaying = false
 local pageButtons = {}
 local headerPanel = widgets.panel()
 local footerPanel = widgets.panel()
-local shapeNames = shapes.getShapeNames()
 local cyclePagesButton = footerPanel:OnOffButton("CyclePagesButton")
 local changePageProbability = footerPanel:NumBox("ChangePageProbability", 0, 0, 100, true)
-local defaultActions = {}
-
-table.insert(defaultActions, "Actions...")
-for _,v in ipairs(shapeNames) do
-  table.insert(defaultActions, v)
-end
+local defaultActions = {"Actions..."}
 
 local actionMenu = footerPanel:Menu("ActionMenu", defaultActions)
+actionMenu.enabled = false
 
 --------------------------------------------------------------------------------
 -- Common Functions
@@ -105,6 +100,41 @@ local function setPageDuration(page)
   end
   table.sort(pageResolutions)
   paramsPerPage[page].pageDuration = pageResolutions[#pageResolutions]
+end
+
+local function getShapeLoadOptions(partIndex, loadNew)
+  if loadNew == true then
+    return -- Load a new shape without adjustments
+  end
+
+  return {
+    z = paramsPerPart[partIndex].shapeWidgets.z.value,
+    stepRange = paramsPerPart[partIndex].shapeWidgets.stepRange.value,
+    phase = paramsPerPart[partIndex].shapeWidgets.phase.value,
+    factor = paramsPerPart[partIndex].shapeWidgets.factor.value,
+  }
+end
+
+local function loadShape(partIndex, loadNew)
+  local options = getShapeLoadOptions(partIndex, loadNew)
+  local values = {}
+  if paramsPerPart[partIndex].shapeMenu.value == 1 then
+    -- If not shape was selected, we load the first
+    paramsPerPart[partIndex].shapeMenu.value = 2
+  end
+  local shapeFunc = shapes.getShapeFunction(paramsPerPart[partIndex].shapeMenu.value - 1)
+  values, options = shapes[shapeFunc](paramsPerPart[partIndex].seqValueTable, options)
+  for i,v in ipairs(values) do
+    paramsPerPart[partIndex].seqValueTable:setValue(i, v)
+  end
+  if loadNew == true then
+    -- Update widgets with values from the shape
+    local callChanged = true
+    paramsPerPart[partIndex].shapeWidgets.stepRange:setValue(options.stepRange, callChanged)
+    paramsPerPart[partIndex].shapeWidgets.phase:setValue(options.phase, callChanged)
+    paramsPerPart[partIndex].shapeWidgets.factor:setValue(options.factor, callChanged)
+    paramsPerPart[partIndex].shapeWidgets.z:setValue(options.z, callChanged)
+  end
 end
 
 local function setNumSteps(partIndex, numSteps)
@@ -288,6 +318,7 @@ numPagesBox.changed = function(self)
     end
   end
   actionMenu.items = actionMenuItems
+  actionMenu.enabled = #actionMenuItems > 1
 end
 
 -- Add page buttons
@@ -332,45 +363,30 @@ actionMenu.changed = function(self)
   if self.value == 1 then
     return
   end
-  if (self.value - 1) <= #shapeNames then
-    local options = nil
-    local shapeOptions = {}
-    local values = {}
-    local shapeIndex = gem.getIndexFromValue(self.selectedText, shapes.getShapeNames())
-    local shapeFunc = shapes.getShapeFunction(shapeIndex)
-    for part=1,numParts do
-      local partIndex = getPartIndex(part)
-      values, shapeOptions = shapes[shapeFunc](paramsPerPart[partIndex].seqValueTable, options)
-      for i,v in ipairs(values) do
-        paramsPerPart[partIndex].seqValueTable:setValue(i, v)
+  -- Copy settings from another page
+  local sourcePage = self.value - #defaultActions
+  local targetPage = activePage
+  for part=1,numParts do
+    local sourcePartIndex = getPartIndex(part, sourcePage)
+    local targetPartIndex = getPartIndex(part, targetPage)
+    if sourcePartIndex ~= targetPartIndex then
+      local source = paramsPerPart[sourcePartIndex]
+      local target = paramsPerPart[targetPartIndex]
+      target.numStepsBox:setValue(source.numStepsBox.value)
+      for i=1, target.numStepsBox.value do
+        target.seqValueTable:setValue(i, source.seqValueTable:getValue(i))
+        target.smoothStepTable:setValue(i, source.smoothStepTable:getValue(i))
       end
+      -- Copy Settings
+      target.stepResolution:setValue(source.stepResolution.value)
+      target.smoothInput:setValue(source.smoothInput.value)
+      target.valueRandomization:setValue(source.valueRandomization.value)
+      target.smoothRandomization:setValue(source.smoothRandomization.value)
+      target.stepButton:setValue(source.stepButton.value)
+      target.bipolarButton:setValue(source.bipolarButton.value)
     end
-  else
-    -- Copy settings from another page
-    local sourcePage = self.value - #defaultActions
-    local targetPage = activePage
-    for part=1,numParts do
-      local sourcePartIndex = getPartIndex(part, sourcePage)
-      local targetPartIndex = getPartIndex(part, targetPage)
-      if sourcePartIndex ~= targetPartIndex then
-        local source = paramsPerPart[sourcePartIndex]
-        local target = paramsPerPart[targetPartIndex]
-        target.numStepsBox:setValue(source.numStepsBox.value)
-        for i=1, target.numStepsBox.value do
-          target.seqValueTable:setValue(i, source.seqValueTable:getValue(i))
-          target.smoothStepTable:setValue(i, source.smoothStepTable:getValue(i))
-        end
-        -- Copy Settings
-        target.stepResolution:setValue(source.stepResolution.value)
-        target.smoothInput:setValue(source.smoothInput.value)
-        target.valueRandomization:setValue(source.valueRandomization.value)
-        target.smoothRandomization:setValue(source.smoothRandomization.value)
-        target.stepButton:setValue(source.stepButton.value)
-        target.bipolarButton:setValue(source.bipolarButton.value)
-      end
-    end
-    self.selected = 1
   end
+  self.selected = 1
 end
 
 local function setTitle(title)
@@ -389,6 +405,7 @@ return {--modseq--
   headerPanel = headerPanel,
   footerPanel = footerPanel,
   actionMenu = actionMenu,
+  loadShape = loadShape,
   labelInput = labelInput,
   playButton = playButton,
   autoplayButton = autoplayButton,

@@ -4,11 +4,17 @@
 
 local gem = require "includes.common"
 local shapes = require "includes.shapes"
+local widgets = require "includes.widgets"
 local resolutions = require "includes.resolutions"
 local modseq = require "includes.modseq"
 
 local isAutoPlayActive = false
 local heldNotes = {}
+local shapeNames = shapes.getShapeNames()
+local shapeMenuItems = {"Select shape..."}
+for _,v in ipairs(shapeNames) do
+  table.insert(shapeMenuItems, v)
+end
 
 modseq.setTitle("Modulation Sequencer")
 modseq.setTitleTooltip("A sequencer sending script event modulation in broadcast mode")
@@ -31,7 +37,7 @@ sourceIndex.y = modseq.autoplayButton.y
 for page=1,maxPages do
   local tableX = 0
   local tableY = 0
-  local tableWidth = 700
+  local tableWidth = 640
   local tableHeight = 64
   local buttonRowHeight = 36
   local buttonSpacing = 9
@@ -42,13 +48,13 @@ for page=1,maxPages do
     tableHeight = tableHeight * 2
   end
 
-  local sequencerPanel = Panel("SequencerPage" .. page)
+  local sequencerPanel = widgets.panel({name="SequencerPage" .. page})
   sequencerPanel.visible = page == 1
   sequencerPanel.backgroundColour = menuOutlineColour
   sequencerPanel.x = 10
   sequencerPanel.y = modseq.headerPanel.height + 15
   sequencerPanel.width = 700
-  sequencerPanel.height = numParts * (tableHeight + 30 + buttonRowHeight)
+  sequencerPanel.height = numParts * (tableHeight + 60 + buttonRowHeight)
 
   for part=1,numParts do
     local isVisible = true
@@ -97,6 +103,7 @@ for page=1,maxPages do
       smoothStepTable.backgroundColour = "#3f606060"
     end
     smoothStepTable.showLabel = false
+    smoothStepTable.showPopupDisplay = true
     smoothStepTable.sliderColour = "#3f339900"
     smoothStepTable.width = tableWidth
     smoothStepTable.height = 30
@@ -152,6 +159,7 @@ for page=1,maxPages do
     numStepsBox.changed = function(self)
       --print("numStepsBox.changed index/value", i, self.value)
       modseq.setNumSteps(i, self.value)
+      modseq.loadShape(i)
     end
 
     local valueRandomization = sequencerPanel:NumBox("ValueRandomization" .. i, 0, 0, 100, true)
@@ -212,7 +220,45 @@ for page=1,maxPages do
     end
     bipolarButton:changed()
 
-    table.insert(paramsPerPart, {stepButton=stepButton,smoothStepTable=smoothStepTable,smoothInput=smoothInput,valueRandomization=valueRandomization,smoothRandomization=smoothRandomization,seqValueTable=seqValueTable,positionTable=positionTable,stepResolution=stepResolution,numStepsBox=numStepsBox})
+    widgets.setSection({
+      x = 0,
+      y = widgets.posUnder(stepButton) + 10,
+      xSpacing = buttonSpacing
+    })
+
+    local shapeWidgets = shapes.getWidgets(121, true, i)
+
+    shapeWidgets.stepRange.changed = function(self)
+      modseq.loadShape(i)
+    end
+
+    shapeWidgets.phase.changed = function(self)
+      modseq.loadShape(i)
+    end
+
+    shapeWidgets.factor.changed = function(self)
+      modseq.loadShape(i)
+    end
+
+    shapeWidgets.z.changed = function(self)
+      modseq.loadShape(i)
+    end
+
+    local shapeMenu = widgets.menu("Shape", shapeMenuItems, {
+      name = "shape" .. i,
+      showLabel = false,
+      changed = function(self)
+        modseq.loadShape(i, true)
+      end
+    })
+
+    local xyShapeMorph = widgets.getPanel():XY('ShapePhase' .. i, 'ShapeMorph' .. i)
+    xyShapeMorph.x = widgets.posSide(seqValueTable)
+    xyShapeMorph.y = seqValueTable.y
+    xyShapeMorph.width = 51
+    xyShapeMorph.height = seqValueTable.height
+
+    table.insert(paramsPerPart, {shapeWidgets=shapeWidgets,shapeMenu=shapeMenu,bipolarButton=bipolarButton,stepButton=stepButton,smoothStepTable=smoothStepTable,smoothInput=smoothInput,valueRandomization=valueRandomization,smoothRandomization=smoothRandomization,seqValueTable=seqValueTable,positionTable=positionTable,stepResolution=stepResolution,numStepsBox=numStepsBox})
 
     tableY = tableY + tableHeight + buttonRowHeight
   end
