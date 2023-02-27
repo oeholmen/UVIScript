@@ -9,6 +9,11 @@ local widgets = require "includes.widgets"
 local directionStartModes = {"Up", "Down", "Even Up", "Even Down", "Odd Up", "Odd Down", "Random"}
 local speedTypes = {"Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Random"}
 local startModes = shapes.getShapeNames({"Keep State"})
+local movementTypes = {"Evolve", "Morph", "Manual"}
+local uniqueIndex = 1 -- Holds the unique id for each moving spawn
+local morphSeqIndex = 0 -- Holds the unique id for the morphing sequencer
+local movingCells = {}
+local isTableMotionActive = false
 
 local motionOptions = {
   factor = 2,
@@ -16,7 +21,7 @@ local motionOptions = {
   factorMax = 10,
   moveSpeed = 25,
   moveSpeedMin = 5,
-  moveSpeedMax = 5000,
+  moveSpeedMax = 60000,
   speedType = speedTypes[1],
   startMode = startModes[1],
   directionStartMode = directionStartModes[1],
@@ -86,7 +91,7 @@ local function setStartMode(theTable, options, stateFunction)
     local values = {}
     local shapeIndex = gem.getIndexFromValue(motionOptions.startMode, shapes.getShapeNames())
     local shapeFunc = shapes.getShapeFunction(shapeIndex)
-    print("Calling shapeFunc", shapeFunc)
+    --print("Calling shapeFunc", shapeFunc)
     values, shapeOptions = shapes[shapeFunc](theTable, options)
     for i,v in ipairs(values) do
       local value = v
@@ -98,8 +103,10 @@ local function setStartMode(theTable, options, stateFunction)
       else
         value = math.floor(v)
       end
+      --print("Set value, i", value, i)
       theTable:setValue(i, value)
       if type(stateFunction) == "function" then
+        --print("Calling stateFunc")
         stateFunction(i, value)
       end
     end
@@ -177,6 +184,83 @@ local function moveTable(theTable, i, value, direction)
   return value, direction
 end
 
+local function morph(theTable, uniqueId, stateFunction)
+  print("startMorphing")
+  local direction = getStartDirection()
+  local morphSettings = {
+    z = {
+      value = shapeWidgets.z.value,
+      min = shapeWidgets.z.min,
+      max = shapeWidgets.z.max,
+      direction = direction,
+    },
+    phase = {
+      value = shapeWidgets.phase.value,
+      min = shapeWidgets.phase.min,
+      max = shapeWidgets.phase.max,
+      direction = direction,
+    }
+  }
+  while isTableMotionActive and motionOptions.useMorph and morphSeqIndex == uniqueId do
+    morphSettings.z.value, morphSettings.z.direction = advanceValue(theTable, morphSettings.z.value, morphSettings.z.min, morphSettings.z.max, morphSettings.z.direction)
+    if motionOptions.factor > 0 then
+      local factor = motionOptions.factor / motionOptions.factorMax
+      local range = morphSettings.phase.max - morphSettings.phase.min
+      local min = morphSettings.phase.min
+      local max = min + (range * factor)
+      if shapeWidgets.phase.value > min then
+        range = (range / 2) * factor
+        min = shapeWidgets.phase.value - range
+        max = shapeWidgets.phase.value + range
+      end
+      morphSettings.phase.value, morphSettings.phase.direction = advanceValue(theTable, morphSettings.phase.value, min, max, morphSettings.phase.direction)
+    end
+    local options = {
+      z = morphSettings.z.value,
+      stepRange = shapeOptions.stepRange,
+      phase = morphSettings.phase.value,
+      factor = shapeOptions.factor,
+    }
+    setStartMode(theTable, options, stateFunction)
+    wait(getWaitDuration())
+  end
+end
+
+local function move(theTable, i, uniqueId, stateFunction)
+  local direction = getStartDirection(i)
+  local value = theTable:getValue(i)
+  while isTableMotionActive and movingCells[i] == uniqueId do
+    if type(stateFunction) == "function" then
+      stateFunction(i, value)
+    end
+    value, direction = moveTable(theTable, i, value, direction)
+    -- Wait happens in moveTable
+  end
+end
+
+local function startMoving(theTable, stateFunction)
+  if isTableMotionActive == false then
+    return
+  end
+  -- Reset index to stop motion
+  morphSeqIndex = gem.inc(morphSeqIndex)
+  movingCells = {}
+  if motionOptions.manualMode then
+    print("In manualMode")
+    return -- Nothing needs to be done in manual mode
+  elseif motionOptions.useMorph then
+    print("spawn morph")
+    spawn(morph, theTable, morphSeqIndex, stateFunction)
+  else
+    print("spawn move")
+    for i=1,theTable.length do
+      table.insert(movingCells, uniqueIndex)
+      spawn(move, theTable, i, uniqueIndex, stateFunction)
+      uniqueIndex = gem.inc(uniqueIndex)
+    end
+  end
+end
+
 return {--tableMotion--
   setRange = function(theTable, tableRange, bipolar)
     if bipolar then
@@ -185,6 +269,11 @@ return {--tableMotion--
       theTable:setRange(0, tableRange)
     end
   end,
+  startMoving = startMoving,
+  isMoving = function(m) return isTableMotionActive == true end,
+  isNotMoving = function(m) return isTableMotionActive == false end,
+  setMoving = function(m) isTableMotionActive = m ~= false end,
+  resetUniqueIndex = function() uniqueIndex = 1 end,
   getShapeWidgets = getShapeWidgets,
   getStartDirection = getStartDirection,
   moveTable = moveTable,

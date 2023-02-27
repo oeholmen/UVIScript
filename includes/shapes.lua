@@ -226,11 +226,11 @@ local function getShapeFunction(i)
   return shapeFunctions[i]
 end
 
-local function createShape(shapeTable, options, shapeFunc, shapeTemplate)
+local function createShape(shapeBounds, options, shapeFunc, shapeTemplate)
   options = getShapeTemplate(options, shapeTemplate)
-  local minValue = shapeTable.min
-  local maxValue = shapeTable.max
-  local numSteps = shapeTable.length
+  local minValue = shapeBounds.min -- x-azis max value
+  local maxValue = shapeBounds.max -- x-azis min value
+  local numSteps = shapeBounds.length -- y-axis steps
   local unipolar = minValue == 0
   local changePerStep = gem.getChangePerStep(options.stepRange, numSteps)
   if type(shapeFunc) == "string" then
@@ -242,7 +242,7 @@ local function createShape(shapeTable, options, shapeFunc, shapeTemplate)
   for i=1,numSteps do
     local x = options.factor * ((changePerStep * (i-1)) + options.phase)
     local z = options.z
-    local value = shapeFunc(x, z, i)
+    local value = shapeFunc(x, z, i, minValue, maxValue)
     if unipolar then
       value = ((maxValue * value) + maxValue) / 2
     else
