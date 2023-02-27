@@ -49,6 +49,14 @@ local function randomizeValue(value, limitMin, limitMax, randomizationAmount)
   return value
 end
 
+-- sign function: -1 if x<0; 1 if x>0
+local function sign(x)
+  if x < 0 then
+    return -1
+  end
+  return 1
+end
+
 local function avg(t)
   local sum = 0
   for _,v in pairs(t) do -- Get the sum of all numbers in t
@@ -122,6 +130,7 @@ end
 return {--gem--
   inc = inc,
   avg = avg,
+  sign = sign,
   round = round,
   getRandom = getRandom,
   getChangeMax = getChangeMax,

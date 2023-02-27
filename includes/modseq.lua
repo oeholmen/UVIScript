@@ -3,6 +3,7 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
+local shapes = require "includes.shapes"
 local resolutions = require "includes.resolutions"
 
 outlineColour = "#FFB5FF"
@@ -27,10 +28,18 @@ isPlaying = false
 local pageButtons = {}
 local headerPanel = Panel("Header")
 local footerPanel = Panel("Footer")
-local defaultActions = {"Actions...", "Randomize", "Ramp Up", "Ramp Down", "Triangle", "Sine", "Cosine", "Tangent", "Even", "Odd", "Reduce 50%"}
-local actionMenu = footerPanel:Menu("ActionMenu", defaultActions)
+--local defaultActions = {"Actions...", "Randomize", "Ramp Up", "Ramp Down", "Triangle", "Sine", "Cosine", "Tangent", "Even", "Odd", "Reduce 50%"}
+local shapeNames = shapes.getShapeNames()
 local cyclePagesButton = footerPanel:OnOffButton("CyclePagesButton")
 local changePageProbability = footerPanel:NumBox("ChangePageProbability", 0, 0, 100, true)
+local defaultActions = {}
+
+table.insert(defaultActions, "Actions...")
+for _,v in ipairs(shapeNames) do
+  table.insert(defaultActions, v)
+end
+
+local actionMenu = footerPanel:Menu("ActionMenu", defaultActions)
 
 --------------------------------------------------------------------------------
 -- Common Functions
@@ -82,24 +91,24 @@ local function clearPosition()
 end
 
 local function setPageDuration(page)
-  print("setPageDuration for page", page)
+  --print("setPageDuration for page", page)
   local pageResolutions = {}
   for part=1,numParts do
     local partIndex = getPartIndex(part, page)
-    print("getResolution for partIndex", partIndex)
+    --print("getResolution for partIndex", partIndex)
     local partResolution = resolutions.getResolution(paramsPerPart[partIndex].stepResolution.value)
     if paramsPerPart[partIndex].stepButton.value then
       partResolution = partResolution * paramsPerPart[partIndex].numStepsBox.value
     end
     table.insert(pageResolutions, partResolution)
-    print("Added resolution/part/page", partResolution, part, page)
+    --print("Added resolution/part/page", partResolution, part, page)
   end
   table.sort(pageResolutions)
   paramsPerPage[page].pageDuration = pageResolutions[#pageResolutions]
 end
 
 local function setNumSteps(partIndex, numSteps)
-  print("setNumSteps for partIndex/numSteps", partIndex, numSteps)
+  --print("setNumSteps for partIndex/numSteps", partIndex, numSteps)
   paramsPerPart[partIndex].positionTable.length = numSteps
   paramsPerPart[partIndex].seqValueTable.length = numSteps
   if type(paramsPerPart[partIndex].smoothStepTable) ~= "nil" then
@@ -114,7 +123,7 @@ local function pageRunner()
   while isPlaying do
     repeatCounter = repeatCounter + 1
     local repeats = paramsPerPage[activePage].minRepeats.value
-    print("New round on page/duration/repeats/repeatCounter", activePage, paramsPerPage[activePage].pageDuration, repeats, repeatCounter)
+    --print("New round on page/duration/repeats/repeatCounter", activePage, paramsPerPage[activePage].pageDuration, repeats, repeatCounter)
     if repeatCounter >= repeats and nextUp == activePage then
       if gem.getRandomBoolean(changePageProbability.value) then
         nextUp = gem.getRandom(numPages)
@@ -139,7 +148,7 @@ local function startPlaying()
   end
   spawn(pageRunner)
   for i=1,numParts do
-    print("Start playing", i)
+    --print("Start playing", i)
     spawn(arpeg, i)
   end
   isPlaying = true
@@ -149,7 +158,7 @@ local function stopPlaying()
   if isPlaying == false then
     return
   end
-  print("Stop playing")
+  --print("Stop playing")
   isPlaying = false
   clearPosition()
   gotoNextPage()
@@ -319,126 +328,21 @@ actionMenu.showLabel = false
 actionMenu.x = changePageProbability.x + changePageProbability.width + 5
 actionMenu.size = {110,22}
 actionMenu.changed = function(self)
-  -- {"Actions...", "Randomize", "Ramp Up", "Ramp Down", "Triangle", "Sine", "Cosine", "Tangent", "Even", "Odd", "Reduce 50%"}
   -- 1 is the menu label...
   if self.value == 1 then
     return
   end
-  if self.value == 2 then
-    -- Randomize value table
+  if (self.value - 1) <= #shapeNames then
+    local options = nil
+    local shapeOptions = {}
+    local values = {}
+    local shapeIndex = gem.getIndexFromValue(self.selectedText, shapes.getShapeNames())
+    local shapeFunc = shapes.getShapeFunction(shapeIndex)
     for part=1,numParts do
       local partIndex = getPartIndex(part)
-      for i=1,paramsPerPart[partIndex].numStepsBox.value do
-        paramsPerPart[partIndex].seqValueTable:setValue(i, gem.getRandom(paramsPerPart[partIndex].seqValueTable.min, paramsPerPart[partIndex].seqValueTable.max))
-      end
-    end
-  elseif self.value == 3 then
-    -- Ramp Up
-    for part=1,numParts do
-      local partIndex = getPartIndex(part)
-      local minValue = paramsPerPart[partIndex].seqValueTable.min
-      local maxValue = paramsPerPart[partIndex].seqValueTable.max
-      local numSteps = paramsPerPart[partIndex].numStepsBox.value
-      for i,v in ipairs(gem.rampUp(minValue, maxValue, numSteps)) do
+      values, shapeOptions = shapes[shapeFunc](paramsPerPart[partIndex].seqValueTable, options)
+      for i,v in ipairs(values) do
         paramsPerPart[partIndex].seqValueTable:setValue(i, v)
-      end
-    end
-  elseif self.value == 4 then
-    -- Ramp Down
-    for part=1,numParts do
-      local partIndex = getPartIndex(part)
-      local minValue = paramsPerPart[partIndex].seqValueTable.min
-      local maxValue = paramsPerPart[partIndex].seqValueTable.max
-      local numSteps = paramsPerPart[partIndex].numStepsBox.value
-      for i,v in ipairs(gem.rampDown(minValue, maxValue, numSteps)) do
-        paramsPerPart[partIndex].seqValueTable:setValue(i, v)
-      end
-    end
-  elseif self.value == 5 then
-    -- Triangle
-    for part=1,numParts do
-      local partIndex = getPartIndex(part)
-      local minValue = paramsPerPart[partIndex].seqValueTable.min
-      local maxValue = paramsPerPart[partIndex].seqValueTable.max
-      local numSteps = paramsPerPart[partIndex].numStepsBox.value
-      for i,v in ipairs(gem.triangle(minValue, maxValue, numSteps)) do
-        paramsPerPart[partIndex].seqValueTable:setValue(i, v)
-      end
-    end
-  elseif self.value == 6 then
-    -- Sine
-    for part=1,numParts do
-      local partIndex = getPartIndex(part)
-      local minValue = paramsPerPart[partIndex].seqValueTable.min
-      local maxValue = paramsPerPart[partIndex].seqValueTable.max
-      local numSteps = paramsPerPart[partIndex].numStepsBox.value
-      for i,v in ipairs(gem.shape(minValue, maxValue, numSteps, 'sin')) do
-        paramsPerPart[partIndex].seqValueTable:setValue(i, v)
-      end
-    end
-  elseif self.value == 7 then
-    -- Cosine
-    for part=1,numParts do
-      local partIndex = getPartIndex(part)
-      local minValue = paramsPerPart[partIndex].seqValueTable.min
-      local maxValue = paramsPerPart[partIndex].seqValueTable.max
-      local numSteps = paramsPerPart[partIndex].numStepsBox.value
-      for i,v in ipairs(gem.shape(minValue, maxValue, numSteps, 'cos')) do
-        paramsPerPart[partIndex].seqValueTable:setValue(i, v)
-      end
-    end
-  elseif self.value == 8 then
-    -- Tangent
-    for part=1,numParts do
-      local partIndex = getPartIndex(part)
-      local minValue = paramsPerPart[partIndex].seqValueTable.min
-      local maxValue = paramsPerPart[partIndex].seqValueTable.max
-      local numSteps = paramsPerPart[partIndex].numStepsBox.value
-      for i,v in ipairs(gem.shape(minValue, maxValue, numSteps, 'tan')) do
-        paramsPerPart[partIndex].seqValueTable:setValue(i, v)
-      end
-    end
-  elseif self.value == 9 then
-    -- Even
-    for part=1,numParts do
-      local partIndex = getPartIndex(part)
-      local minValue = paramsPerPart[partIndex].seqValueTable.min
-      local maxValue = paramsPerPart[partIndex].seqValueTable.max
-      local numSteps = paramsPerPart[partIndex].numStepsBox.value
-      for i=1,numSteps do
-        local val = minValue
-        if i % 2 == 0 then
-          val = maxValue
-        end
-        paramsPerPart[partIndex].seqValueTable:setValue(i, val)
-      end
-    end
-  elseif self.value == 10 then
-    -- Odd
-    for part=1,numParts do
-      local partIndex = getPartIndex(part)
-      local minValue = paramsPerPart[partIndex].seqValueTable.min
-      local maxValue = paramsPerPart[partIndex].seqValueTable.max
-      local numSteps = paramsPerPart[partIndex].numStepsBox.value
-      for i=1,numSteps do
-        local val = maxValue
-        if i % 2 == 0 then
-          val = minValue
-        end
-        paramsPerPart[partIndex].seqValueTable:setValue(i, val)
-      end
-    end
-  elseif self.value == 11 then
-    -- Reduce 50%
-    for part=1,numParts do
-      local partIndex = getPartIndex(part)
-      local seqValueTable = paramsPerPart[partIndex].seqValueTable
-      local minValue = seqValueTable.min
-      local maxValue = seqValueTable.max
-      local numSteps = paramsPerPart[partIndex].numStepsBox.value
-      for i=1,numSteps do
-        local val = seqValueTable:getValue(i) / 2
-        seqValueTable:setValue(i, val)
       end
     end
   else
@@ -465,8 +369,8 @@ actionMenu.changed = function(self)
         target.bipolarButton:setValue(source.bipolarButton.value)
       end
     end
+    self.selected = 1
   end
-  self.selected = 1
 end
 
 local function setTitle(title)

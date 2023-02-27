@@ -3,6 +3,7 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
+local shapes = require "includes.shapes"
 local scales = require "includes.scales"
 local resolutions = require "includes.resolutions"
 local rythmicFragments = require "includes.rythmicFragments"
@@ -83,20 +84,20 @@ local function resetPitches()
   if startMode == "Keep State" then
     return
   elseif startMode == "Ramp Up" then
-    for i,v in ipairs(gem.rampUp(pitchOffsetTable.min, pitchOffsetTable.max, pitchOffsetTableLength)) do
+    for i,v in ipairs(shapes.rampUp(pitchOffsetTable)) do
       pitchOffsetTable:setValue(i, v)
     end
   elseif startMode == "Ramp Down" then
-    for i,v in ipairs(gem.rampDown(pitchOffsetTable.min, pitchOffsetTable.max, pitchOffsetTableLength)) do
+    for i,v in ipairs(shapes.rampDown(pitchOffsetTable)) do
       pitchOffsetTable:setValue(i, v)
     end
   elseif startMode == "Triangle" then
-    for i,v in ipairs(gem.triangle(pitchOffsetTable.min, pitchOffsetTable.max, pitchOffsetTableLength)) do
+    for i,v in ipairs(shapes.triangle(pitchOffsetTable)) do
       pitchOffsetTable:setValue(i, v)
     end
   elseif startMode == "Random" then
-    for i=1,pitchOffsetTableLength do
-      pitchOffsetTable:setValue(i, gem.getRandom(pitchOffsetTable.min, pitchOffsetTable.max))
+    for i,v in ipairs(shapes.random(pitchOffsetTable)) do
+      pitchOffsetTable:setValue(i, v)
     end
   elseif startMode == "Min" then
     for i=1,pitchOffsetTableLength do

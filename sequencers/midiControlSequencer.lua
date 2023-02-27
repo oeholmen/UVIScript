@@ -3,6 +3,7 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
+local shapes = require "includes.shapes"
 local resolutions = require "includes.resolutions"
 local modseq = require "includes.modseq"
 

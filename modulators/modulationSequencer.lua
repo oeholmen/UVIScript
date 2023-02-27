@@ -3,6 +3,7 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
+local shapes = require "includes.shapes"
 local resolutions = require "includes.resolutions"
 local modseq = require "includes.modseq"
 
@@ -52,7 +53,7 @@ for page=1,maxPages do
   for part=1,numParts do
     local isVisible = true
     local i = modseq.getPartIndex(part, page)
-    print("Set paramsPerPart, page/part", page, i)
+    --print("Set paramsPerPart, page/part", page, i)
 
     -- Tables
 
@@ -149,7 +150,7 @@ for page=1,maxPages do
     numStepsBox.x = stepResolution.x + stepResolution.width + buttonSpacing
     numStepsBox.y = inputWidgetY
     numStepsBox.changed = function(self)
-      print("numStepsBox.changed index/value", i, self.value)
+      --print("numStepsBox.changed index/value", i, self.value)
       modseq.setNumSteps(i, self.value)
     end
 
@@ -192,7 +193,7 @@ for page=1,maxPages do
     smoothInput.x = smoothRandomization.x + smoothRandomization.width + buttonSpacing
     smoothInput.y = inputWidgetY
 
-    local bipolarButton = sequencerPanel:OnOffButton("Bipolar" .. i, false)
+    local bipolarButton = sequencerPanel:OnOffButton("Bipolar" .. i, true)
     bipolarButton.displayName = "Bipolar"
     bipolarButton.visible = isVisible
     bipolarButton.backgroundColourOff = "#ff084486"
@@ -209,6 +210,7 @@ for page=1,maxPages do
         seqValueTable:setRange(0,100)
       end
     end
+    bipolarButton:changed()
 
     table.insert(paramsPerPart, {stepButton=stepButton,smoothStepTable=smoothStepTable,smoothInput=smoothInput,valueRandomization=valueRandomization,smoothRandomization=smoothRandomization,seqValueTable=seqValueTable,positionTable=positionTable,stepResolution=stepResolution,numStepsBox=numStepsBox})
 
