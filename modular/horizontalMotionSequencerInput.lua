@@ -25,7 +25,7 @@ local bipolar = true -- Option
 local scalePos = 0
 local activationMode = 1
 local activationModes = {"Max:On,Min:Off", "Max:Toggle", "Min:Toggle", "Zero:Toggle", "Min:On,Max:Off", "Min/Max:Toggle"}
-local playModes = {"Random", "Up", "Down", "Alternate"}
+local playModes = {"Right", "Left", "Drunk", "Random"}
 local playMode = playModes[1]
 local positionTable
 local motionTable
@@ -45,25 +45,6 @@ local shapeWidgets = {} -- Holds the widgets for controlling shape
 --------------------------------------------------------------------------------
 -- Sequencer Functions
 --------------------------------------------------------------------------------
-
-local function resetTableValues(options)
-  scalePos = 0
-
-  -- Reset position
-  tableMotion.setTableZero(positionTable)
-
-  -- TODO Check that shape adjustments are saved correctly!
-
-  -- Set start mode
-  options = tableMotion.setStartMode(motionTable, options)
-
-  -- Update widgets with values from the shape
-  local callChanged = true
-  shapeWidgets.stepRange:setValue(options.stepRange, callChanged)
-  shapeWidgets.phase:setValue(options.phase, callChanged)
-  shapeWidgets.factor:setValue(options.factor, callChanged)
-  shapeWidgets.z:setValue(options.z, callChanged)
-end
 
 local function updateNoteState(i, value)
   -- Only toggle if value is changed
@@ -92,11 +73,23 @@ local function updateNoteState(i, value)
   end
 end
 
-local function manual(uniqueId, stateFunction)
-  while isPlaying and tableMotion.options.manualMode and morphSeqIndex == uniqueId do
-    tableMotion.setStartMode(motionTable, tableMotion.shapeOptions, stateFunction)
-    wait(tableMotion.getWaitDuration())
-  end
+local function resetTableValues(options)
+  scalePos = 0
+
+  -- Reset position
+  tableMotion.setTableZero(positionTable)
+
+  -- TODO Check that shape adjustments are saved correctly!
+
+  -- Set start mode
+  options = tableMotion.setStartMode(motionTable, options, updateNoteState)
+
+  -- Update widgets with values from the shape
+  local callChanged = true
+  shapeWidgets.stepRange:setValue(options.stepRange, callChanged)
+  shapeWidgets.phase:setValue(options.phase, callChanged)
+  shapeWidgets.factor:setValue(options.factor, callChanged)
+  shapeWidgets.z:setValue(options.z, callChanged)
 end
 
 local function morph(uniqueId, stateFunction)
@@ -117,8 +110,12 @@ local function morph(uniqueId, stateFunction)
     }
   }
   while isPlaying and tableMotion.options.useMorph and morphSeqIndex == uniqueId do
-    for _,v in ipairs({"z", "phase"}) do
-      morphSettings[v].value, morphSettings[v].direction = tableMotion.advanceValue(motionTable, morphSettings[v].value, morphSettings[v].min, morphSettings[v].max, morphSettings[v].direction)
+    morphSettings.z.value, morphSettings.z.direction = tableMotion.advanceValue(motionTable, morphSettings.z.value, morphSettings.z.min, morphSettings.z.max, morphSettings.z.direction)
+    if tableMotion.options.factor > 0 then
+      local factor = tableMotion.options.factor / tableMotion.options.factorMax
+      local min = morphSettings.phase.min * factor
+      local max = morphSettings.phase.max * factor
+      morphSettings.phase.value, morphSettings.phase.direction = tableMotion.advanceValue(motionTable, morphSettings.phase.value, min, max, morphSettings.phase.direction)
     end
     local options = {
       z = morphSettings.z.value,
@@ -149,7 +146,7 @@ local function startMoving()
   morphSeqIndex = gem.inc(morphSeqIndex)
   movingCells = {}
   if tableMotion.options.manualMode then
-    spawn(manual, morphSeqIndex, updateNoteState)
+    return -- Nothing needs to be done in manual mode
   elseif tableMotion.options.useMorph then
     spawn(morph, morphSeqIndex, updateNoteState)
   else
@@ -215,7 +212,7 @@ local function getNote()
       local increment = 1
       local resetAt = #activeScale
       local resetTo = 1
-      if playMode == "Down" or (playMode == "Alternate" and gem.getRandomBoolean()) then
+      if playMode == "Down" or (playMode == "Drunk" and gem.getRandomBoolean()) then
         increment = -1
         resetAt = 1
         resetTo = #activeScale
@@ -414,6 +411,7 @@ local activationModeMenu = widgets.menu("Activation Mode", activationMode, activ
 local moveSpeedInput = widgets.numBox("Motion Speed", tableMotion.options.moveSpeed, {
   x = 470,
   name = "MoveSpeed",
+  mapper = Mapper.Quartic,
   tooltip = "Set the speed of the up/down motion in each cell - Controlled by the X-axis on the XY controller",
   min = tableMotion.options.moveSpeedMin,
   max = tableMotion.options.moveSpeedMax,
@@ -437,8 +435,9 @@ widgets.button("Bipolar", bipolar, {
 
 widgets.numBox("Speed Factor", tableMotion.options.factor, {
   name = "Factor",
-  x = moveSpeedInput.x,
+  mapper = Mapper.Cubic,
   tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. When using morph, this controls phase amount. Controlled by the Y-axis on the XY controller",
+  x = moveSpeedInput.x,
   min = tableMotion.options.factorMin,
   max = tableMotion.options.factorMax,
   changed = function(self) tableMotion.options.factor = self.value end

@@ -338,6 +338,9 @@ local function setOptional(widget, options)
   if type(options.unit) == "number" then
     widget.unit = options.unit
   end
+  if type(options.mapper) == "number" then
+    widget.mapper = options.mapper
+  end
   if type(options.showLabel) == "boolean" then
     widget.showLabel = options.showLabel
   end

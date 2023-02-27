@@ -40,38 +40,6 @@ local shapeWidgets = {} -- Holds the widgets for controlling shape
 -- Sequencer Functions
 --------------------------------------------------------------------------------
 
-local function resetTableValues(options)
-  -- Reset event id
-  noteEventId = 0
-
-  -- Reset position
-  tableMotion.setTableZero(positionTable)
-
-  -- TODO Check that shape adjustments are saved correctly!
-
-  -- Set start mode
-  options = tableMotion.setStartMode(motionTable, options)
-
-  --print("options.stepRange, options.phase, options.factor, options.z", options.stepRange, options.phase, options.factor, options.z)
-
-  -- Update widgets with values from the shape
-  local callChanged = true
-  shapeWidgets.stepRange:setValue(options.stepRange, callChanged)
-  shapeWidgets.phase:setValue(options.phase, callChanged)
-  shapeWidgets.factor:setValue(options.factor, callChanged)
-  shapeWidgets.z:setValue(options.z, callChanged)
-
-  currentValue = {}
-  for i=1,motionTable.length do
-    table.insert(currentValue, nil) -- Set initial value
-  end
-end
-
-local function setRange()
-  tableMotion.setRange(motionTable, tableRange, bipolar)
-  resetTableValues(tableMotion.shapeOptions)
-end
-
 local function checkTrigger(i, value)
   -- Send note event according to the selected trigger mode
   local valueHasChanged = value ~= currentValue[i]
@@ -98,12 +66,44 @@ local function checkTrigger(i, value)
   currentValue[i] = value
 end
 
-local function manual(uniqueId, stateFunction)
+local function resetTableValues(options)
+  -- Reset event id
+  noteEventId = 0
+
+  -- Reset position
+  tableMotion.setTableZero(positionTable)
+
+  -- TODO Check that shape adjustments are saved correctly!
+
+  -- Set start mode
+  options = tableMotion.setStartMode(motionTable, options, checkTrigger)
+
+  --print("options.stepRange, options.phase, options.factor, options.z", options.stepRange, options.phase, options.factor, options.z)
+
+  -- Update widgets with values from the shape
+  local callChanged = true
+  shapeWidgets.stepRange:setValue(options.stepRange, callChanged)
+  shapeWidgets.phase:setValue(options.phase, callChanged)
+  shapeWidgets.factor:setValue(options.factor, callChanged)
+  shapeWidgets.z:setValue(options.z, callChanged)
+
+  currentValue = {}
+  for i=1,motionTable.length do
+    table.insert(currentValue, nil) -- Set initial value
+  end
+end
+
+local function setRange()
+  tableMotion.setRange(motionTable, tableRange, bipolar)
+  resetTableValues(tableMotion.shapeOptions)
+end
+
+--[[ local function manual(uniqueId, stateFunction)
   while isPlaying and tableMotion.options.manualMode and morphSeqIndex == uniqueId do
     tableMotion.setStartMode(motionTable, tableMotion.shapeOptions, stateFunction)
     wait(tableMotion.getWaitDuration())
   end
-end
+end ]]
 
 local function morph(uniqueId, stateFunction)
   print("startMorphing")
@@ -123,11 +123,12 @@ local function morph(uniqueId, stateFunction)
     }
   }
   while isPlaying and tableMotion.options.useMorph and morphSeqIndex == uniqueId do
-    for _,v in ipairs({"z", "phase"}) do
-      morphSettings[v].value, morphSettings[v].direction = tableMotion.advanceValue(motionTable, morphSettings[v].value, morphSettings[v].min, morphSettings[v].max, morphSettings[v].direction)
-      if v == "phase" then
-        morphSettings[v].value = morphSettings[v].value * (tableMotion.options.factor / tableMotion.options.factorMax)
-      end
+    morphSettings.z.value, morphSettings.z.direction = tableMotion.advanceValue(motionTable, morphSettings.z.value, morphSettings.z.min, morphSettings.z.max, morphSettings.z.direction)
+    if tableMotion.options.factor > 0 then
+      local factor = tableMotion.options.factor / tableMotion.options.factorMax
+      local min = morphSettings.phase.min * factor
+      local max = morphSettings.phase.max * factor
+      morphSettings.phase.value, morphSettings.phase.direction = tableMotion.advanceValue(motionTable, morphSettings.phase.value, min, max, morphSettings.phase.direction)
     end
     local options = {
       z = morphSettings.z.value,
@@ -158,7 +159,8 @@ local function startMoving()
   morphSeqIndex = gem.inc(morphSeqIndex)
   movingCells = {}
   if tableMotion.options.manualMode then
-    spawn(manual, morphSeqIndex, checkTrigger)
+    --spawn(manual, morphSeqIndex, checkTrigger)
+    return -- Nothing needs to be done in manual mode
   elseif tableMotion.options.useMorph then
     spawn(morph, morphSeqIndex, checkTrigger)
   else
@@ -353,6 +355,7 @@ widgets.menu("Quantize", resolution, resolutionNames, {
 
 local moveSpeedInput = widgets.numBox("Motion Speed", tableMotion.options.moveSpeed, {
   name = "MoveSpeed",
+  mapper = Mapper.Quartic,
   min = tableMotion.options.moveSpeedMin,
   max = tableMotion.options.moveSpeedMax,
   tooltip = "Set the speed of the up/down motion in each cell - Controlled by the X-axis on the XY controller",
@@ -364,8 +367,9 @@ widgets.row()
 widgets.col(3)
 
 widgets.numBox("Speed Factor", tableMotion.options.factor, {
-  x = moveSpeedInput.x,
   name = "Factor",
+  mapper = Mapper.Cubic,
+  x = moveSpeedInput.x,
   min = tableMotion.options.factorMin,
   max = tableMotion.options.factorMax,
   tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. When using morph, this controls phase amount. Controlled by the Y-axis on the XY controller",
