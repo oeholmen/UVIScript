@@ -245,7 +245,7 @@ local function getWidgetName(name, displayName, useDisplayNameAsWidgetName, pane
       widgetNameIndex = widgetNameIndex + 1
     end
   end
-  print("Widget name", name)
+  --print("Widget name", name)
   return name
 end
 
@@ -288,14 +288,6 @@ local function getWidgetBounds(options, increment)
   local y = getValueOrDefault(options.y, currentY)
   local w = getValueOrDefault(options.width, widgetDefaults.width)
   local h = getValueOrDefault(options.height, widgetDefaults.height)
-
-  if type(options.y) == "number" then
-    print("options.y, y", options.y, y)
-  end
-
-  if type(options.x) == "number" then
-    print("options.x, x", options.x, x)
-  end
 
   -- Increment position
   if increment then
@@ -412,6 +404,7 @@ local widgets = {
   end,
   getColours = function() return widgetColours end,
   getPanel = function(options) return widgetDefaults.panel end,
+  getSectionValue = function(k) return widgetDefaults[k] end,
   xOffset = function(val) widgetDefaults.xOffset = val end,
   yOffset = function(val) widgetDefaults.yOffset = val end,
   xSpacing = function(val) widgetDefaults.xSpacing = val end,
@@ -420,8 +413,8 @@ local widgets = {
   posUnder = function(widget) return widget.y + widget.height + widgetDefaults.ySpacing end,
   width = function(val) widgetDefaults.width = val end,
   height = function(val) widgetDefaults.height = val end,
-  col = function(i) incrementCol(i) end,
-  row = function(i) incrementRow(i) end,
+  col = function(i, w, h) incrementCol(i, w, h) end,
+  row = function(i, h) incrementRow(i, h) end,
   panel = function(options)
     if type(options) ~= "table" then
       options = {}
@@ -543,7 +536,7 @@ local shapeNames = {
   "Organ-Ish",
   "Tangent",
   "Triple Sine",
-  "Punk Sine",
+  "Harmonic Sync",
   "Soft Sine",
   "Even",
   "Odd",
@@ -559,9 +552,19 @@ local shapeNames = {
   "HPF-Sqr To Sqr",
   "Wacky",
   "Sine To Noise",
+  "Sine Stretch",
+  "SquareSaw Bit",
+  "LoFi Triangles",
+  "Talkative 1",
+  "Sin Clipper",
+  "Pitfall",
+  "Nasca Lines",
   "Window-y SQR Sync",
+  "Kick",
+  "Sin To Saw",
+  "Zero Crossing",
   "Random",
-  --"Test Shape",
+  "Test Shape",
 }
 
 local shapeFunctions = {
@@ -581,7 +584,7 @@ local shapeFunctions = {
   "organIsh",
   "tangent",
   "tripleSin",
-  "punkSine",
+  "harmonicSync",
   "softSine",
   "even",
   "odd",
@@ -597,7 +600,17 @@ local shapeFunctions = {
   "hpfSqrToSqr",
   "wacky",
   "sinToNoise",
+  "sineStrech",
+  "squareSawBit",
+  "loFiTriangles",
+  "talkative1",
+  "sinClipper",
+  "pitfall",
+  "nascaLines",
   "windowYSqr",
+  "kick",
+  "sinToSaw",
+  "zeroCrossing",
   "random",
   "testShape",
 }
@@ -621,7 +634,7 @@ local shapes = {
   brassy = function(x, z, i) return math.sin(math.pi*gem.sign(x)*(math.abs(x)^(((1-z)+0.1)*math.pi*math.pi))) end,
   taffy = function(x, z, i) return math.sin(x*math.pi*2)*math.cos(x*math.pi)*math.cos(z*math.pi*(math.abs((x*2)^3)-1)*math.pi) end,
   random = function(x, z) return ((gem.getRandom() * 2) - 1) * z end,
-  punkSine = function(x, z) return math.sin(x*math.pi*(2+(62*z*z*z)))*math.sin(x*math.pi) end,
+  harmonicSync = function(x, z) return math.sin(x*math.pi*(2+(62*z*z*z)))*math.sin(x*math.pi) end,
   softSine = function(x, z) return 0.5*(math.cos(x*math.pi/2)*((math.sin((x)*math.pi)+(1-z)*(math.sin(z*((x*x)^z)*math.pi*32))))) end,
   tripleSin = function(x, z) return math.cos(x*math.pi/2)*1.6*(.60*math.sin( ((z*16)+1)*3*x ) + .20*math.sin( ((z*16)+1)*9*x ) + .15*math.sin( ((z*16)+1)*15*x)) end,
   pwm50to100 = function(x, z, i) if x > z then return 1 end return -1 end,
@@ -634,9 +647,19 @@ local shapes = {
   lofiTriangle = function(x, z) return ((gem.round(16*math.abs(x))/8.0)-1) * z end,
   hpfSaw = function(x, z) return (x-(0.635*math.sin(x*math.pi))) * z end,
   squareTri = function(x, z) return (-1*(gem.sign(x)*0.5)+(math.abs(x)-0.5)) * z end,
-  testShape = function(x, z, i)
-    return x
-  end
+  sineStrech = function(x, z, i) return math.sin(x^(1+(gem.round(z*32)*2))*math.pi) end,
+  squareSawBit = function(x, z, i) return math.sin((2-(z/4))*x*x*math.pi)/gem.round(x*32*((z/4)*(z/4)-0.125)) end,
+  loFiTriangles = function(x, z, i) return (gem.round((2+(z*14))*math.abs(x))/(1+(z*7.0)))-1 end,
+  talkative1 = function(x, z, i) return 1.4*math.cos(x*math.pi/2)*(.5*math.sin(((z*5)+1)*3*x)+.10*math.sin(((z*6)+1)*2*x)+.08*math.sin((((1-z)*3)+1)*12*x)) end,
+  sinClipper = function(x, z, i) return math.sin(x*math.pi)*(((z*z)+0.125)*8) end,
+  pitfall = function(x, z, i) return (x*128)%(z*16)*0.25 end,
+  nascaLines = function(x, z, q, min, max) return math.sqrt(1/q)*(((q/max)*(z+0.1)*max)%3)*0.5 end,
+  kick = function(x, z, i, min, max) return math.sin(math.pi*z*z*32*math.log(x+1)) end,
+  sinToSaw = function(x, z, i, min, max) return math.sin(-x*math.pi)*(1-z)+(-x*z) end,
+  zeroCrossing = function(x, z, i, min, max) return math.sin((x+1)*math.pi*(z+1))*(-math.abs(x)^32+1) end,
+  testShape = function(x, z, i, min, max)
+    return math.sin((x+1)*math.pi*(z+1))*(-math.abs(x)^32+1)
+  end,
 }
 
 local function getDefaultShapeOptions()
@@ -799,7 +822,7 @@ local shapes = {
   squareTri = function(t,o) return createShape(t, o, 'squareTri') end,
   hpfSaw = function(t,o) return createShape(t, o, 'hpfSaw') end,
   softSine = function(t,o) return createShape(t, o, 'softSine') end,
-  punkSine = function(t,o) return createShape(t, o, 'punkSine') end,
+  harmonicSync = function(t,o) return createShape(t, o, 'harmonicSync') end,
   lofiTriangle = function(t,o) return createShape(t, o, 'lofiTriangle') end,
   tangent = function(t,o) return createShape(t, o, 'tangent') end,
   even = function(t,o) return createShape(t, o, 'oddAndEven', {z = -1}) end,
@@ -830,6 +853,16 @@ local shapes = {
   filteredSquare = function(t,o) return createShape(t, o, 'filteredSquare') end,
   windowYSqr = function(t,o) return createShape(t, o, 'windowYSqr', {z = 0}) end,
   random = function(t,o) return createShape(t, o, 'random') end,
+  sineStrech = function(t,o) return createShape(t, o, 'sineStrech', {z = 0.03}) end,
+  talkative1 = function(t,o) return createShape(t, o, 'talkative1') end,
+  sinClipper = function(t,o) return createShape(t, o, 'sinClipper', {z = 0}) end,
+  pitfall = function(t,o) return createShape(t, o, 'pitfall', {z = 0.15}) end,
+  nascaLines = function(t,o) return createShape(t, o, 'nascaLines', {z = -0.31}) end,
+  loFiTriangles = function(t,o) return createShape(t, o, 'loFiTriangles', {z = 0}) end,
+  squareSawBit = function(t,o) return createShape(t, o, 'squareSawBit') end,
+  kick = function(t,o) return createShape(t, o, 'kick', {phase = 0, z = -.505}) end,
+  sinToSaw = function(t,o) return createShape(t, o, 'sinToSaw', {z = 0}) end,
+  zeroCrossing = function(t,o) return createShape(t, o, 'zeroCrossing') end,
   testShape = function(t,o) return createShape(t, o, 'testShape') end,
 }
 
@@ -1036,11 +1069,12 @@ local resolutions = {
 local directionStartModes = {"Up", "Down", "Even Up", "Even Down", "Odd Up", "Odd Down", "Random"}
 local speedTypes = {"Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Random"}
 local startModes = shapes.getShapeNames({"Keep State"})
-local movementTypes = {"Evolve", "Morph", "Manual"} -- TODO Implement
+local movementTypes = {"Evolve", "Morph", "Manual"}
 local uniqueIndex = 1 -- Holds the unique id for each moving spawn
 local morphSeqIndex = 0 -- Holds the unique id for the morphing sequencer
 local movingCells = {}
 local isTableMotionActive = false
+local shapeWidgets = {} -- Holds the widgets for controlling shape
 
 local motionOptions = {
   factor = 2,
@@ -1051,11 +1085,10 @@ local motionOptions = {
   moveSpeedMax = 60000,
   speedType = speedTypes[1],
   startMode = startModes[1],
+  movementType = movementTypes[1],
   directionStartMode = directionStartModes[1],
   speedRandomizationAmount = 0,
   tableLength = 32,
-  useMorph = false,
-  manualMode = false,
 }
 
 local shapeOptions = {
@@ -1112,14 +1145,32 @@ local function setTableZero(theTable)
   end  
 end
 
-local function setStartMode(theTable, options, stateFunction)
+local function updateShapeWidgets()
+  -- Update widgets with values from the shape
+  local callChanged = false
+  shapeWidgets.stepRange:setValue(shapeOptions.stepRange, callChanged)
+  shapeWidgets.phase:setValue(shapeOptions.phase, callChanged)
+  shapeWidgets.factor:setValue(shapeOptions.factor, callChanged)
+  shapeWidgets.z:setValue(shapeOptions.z, callChanged)
+end
+
+local function setStartMode(theTable, loadShape, stateFunction)
   -- Reset table according to start mode (unless keep state is selected)
   if motionOptions.startMode ~= "Keep State" then
     local values = {}
     local shapeIndex = gem.getIndexFromValue(motionOptions.startMode, shapes.getShapeNames())
     local shapeFunc = shapes.getShapeFunction(shapeIndex)
     --print("Calling shapeFunc", shapeFunc)
-    values, shapeOptions = shapes[shapeFunc](theTable, options)
+    if type(loadShape) == "table" then
+      -- Load the shape with the settings provided
+      values, shapeOptions = shapes[shapeFunc](theTable, loadShape)
+    elseif loadShape == true then
+      -- Load the shape without settings to get the original form of the shape
+      values, shapeOptions = shapes[shapeFunc](theTable)
+    else
+      -- Load the shape with the default settings
+      values, shapeOptions = shapes[shapeFunc](theTable, shapeOptions)
+    end
     for i,v in ipairs(values) do
       local value = v
       if shapeFunc == "sine" then
@@ -1137,8 +1188,10 @@ local function setStartMode(theTable, options, stateFunction)
         stateFunction(i, value)
       end
     end
+    if type(loadShape) ~= "table" then
+      updateShapeWidgets()
+    end
   end
-  return shapeOptions
 end
 
 local function getWaitDuration()
@@ -1228,7 +1281,7 @@ local function morph(theTable, uniqueId, stateFunction)
       direction = direction,
     }
   }
-  while isTableMotionActive and motionOptions.useMorph and morphSeqIndex == uniqueId do
+  while isTableMotionActive and motionOptions.movementType == "Morph" and morphSeqIndex == uniqueId do
     morphSettings.z.value, morphSettings.z.direction = advanceValue(theTable, morphSettings.z.value, morphSettings.z.min, morphSettings.z.max, morphSettings.z.direction)
     if motionOptions.factor > 0 then
       local factor = motionOptions.factor / motionOptions.factorMax
@@ -1272,10 +1325,10 @@ local function startMoving(theTable, stateFunction)
   -- Reset index to stop motion
   morphSeqIndex = gem.inc(morphSeqIndex)
   movingCells = {}
-  if motionOptions.manualMode then
-    print("In manualMode")
+  if motionOptions.movementType == "Manual" then
+    print("In Manual Mode")
     return -- Nothing needs to be done in manual mode
-  elseif motionOptions.useMorph then
+  elseif motionOptions.movementType == "Morph" then
     print("spawn morph")
     spawn(morph, theTable, morphSeqIndex, stateFunction)
   else
@@ -1301,7 +1354,9 @@ local tableMotion = {
   isNotMoving = function(m) return isTableMotionActive == false end,
   setMoving = function(m) isTableMotionActive = m ~= false end,
   resetUniqueIndex = function() uniqueIndex = 1 end,
-  getShapeWidgets = getShapeWidgets,
+  setShapeWidgets = function(widgets) shapeWidgets = widgets end,
+  getShapeWidgets = function() return shapeWidgets end,
+  getShapeOptions = function() return shapeOptions end,
   getStartDirection = getStartDirection,
   moveTable = moveTable,
   advanceValue = advanceValue,
@@ -1311,8 +1366,8 @@ local tableMotion = {
   directionStartModes = directionStartModes,
   speedTypes = speedTypes,
   startModes = startModes,
+  movementTypes = movementTypes,
   options = motionOptions,
-  shapeOptions = shapeOptions,
 }
 
 --------------------------------------------------------------------------------
@@ -1342,8 +1397,6 @@ local noteEventId = 0 -- Holds the index if the cell in the table that last trig
 local resolutionNames = resolutions.getResolutionNames()
 local resolution = #resolutionNames
 local voiceId = nil -- Holds the id of the created note event
-
-shapeWidgets = {} -- Holds the widgets for controlling shape -- MUST BE GLOBAL
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
@@ -1378,27 +1431,15 @@ local function checkTrigger(i, value)
   --print("Update currentValue", value)
 end
 
-local function resetTableValues(options)
-  print("Starting resetTableValues, type(options)", type(options))
+local function resetTableValues(loadShape)
   -- Reset event id
   noteEventId = 0
 
   -- Reset position
   tableMotion.setTableZero(positionTable)
 
-  -- TODO Check that shape adjustments are saved correctly!
-  local callChanged = type(options) == "nil"
-
   -- Set start mode
-  options = tableMotion.setStartMode(motionTable, options, checkTrigger)
-
-  --print("options.stepRange, options.phase, options.factor, options.z", options.stepRange, options.phase, options.factor, options.z)
-
-  -- Update widgets with values from the shape
-  shapeWidgets.stepRange:setValue(options.stepRange, callChanged)
-  shapeWidgets.phase:setValue(options.phase, callChanged)
-  shapeWidgets.factor:setValue(options.factor, callChanged)
-  shapeWidgets.z:setValue(options.z, callChanged)
+  tableMotion.setStartMode(motionTable, loadShape, checkTrigger)
 
   currentValue = {}
   for i=1,motionTable.length do
@@ -1410,7 +1451,7 @@ local function setRange()
   print("Calling setRange")
   tableMotion.setRange(motionTable, tableRange, bipolar)
   print("Calling resetTableValues")
-  resetTableValues(tableMotion.shapeOptions)
+  resetTableValues()
   print("Done calling resetTableValues")
 end
 
@@ -1439,7 +1480,7 @@ local function playTrigger()
 end
 
 local function startMoving()
-  if tableMotion.options.manualMode and tableMotion.isNotMoving() then
+  if tableMotion.options.movementType == "Manual" and tableMotion.isNotMoving() then
     playTrigger()
   end
   print("StartMoving")
@@ -1468,7 +1509,7 @@ local function stopPlaying()
     return
   end
   tableMotion.setMoving(false)
-  resetTableValues(tableMotion.shapeOptions)
+  resetTableValues()
   if type(voiceId) == "userdata" then
     releaseVoice(voiceId)
     voiceId = nil
@@ -1569,7 +1610,7 @@ local noteWidgetCellSpacing = 12
 local firstRowY = motionTable.y + motionTable.height + (noteWidgetRowSpacing * 1.5)
 
 widgets.setSection({
-  width = noteWidgetWidth,
+  width = 109,
   height = noteWidgetHeight,
   x = noteWidgetCellSpacing,
   y = firstRowY,
@@ -1580,28 +1621,28 @@ widgets.setSection({
 
 widgets.menu("Speed Type", tableMotion.speedTypes, {
   tooltip = "The speed type works with the speed factor to control speed variations across the table. Ramp Up means fast -> slower, Triangle means slower in the center.",
-  width = 82,
+  --width = 100,
   changed = function(self) tableMotion.options.speedType = self.selectedText end
 })
 
-local startShape = widgets.menu("Start Shape", 3, tableMotion.startModes, {
+local startShape = widgets.menu("Start Shape", 4, tableMotion.startModes, {
   tooltip = "Set how the table will look when starting.",
-  width = 82,
+  --width = 100,
   changed = function(self)
     print("Calling startShape:changed", self.selectedText)
     tableMotion.options.startMode = self.selectedText
-    resetTableValues() -- Load a "fresh" shape without adjustments when selecting a shape
+    resetTableValues(true) -- Load a "fresh" shape without adjustments when selecting a shape
   end
 })
 
 widgets.menu("Start Direction", tableMotion.directionStartModes, {
   tooltip = "Select start direction for the bars",
-  width = 82,
+  --width = 100,
   changed = function(self) tableMotion.options.directionStartMode = self.selectedText end
 })
 
 widgets.menu("Trigger Mode", triggerMode, triggerModes, {
-  width = 75,
+  --width = 100,
   changed = function(self) triggerMode = self.value end
 })
 
@@ -1612,6 +1653,7 @@ widgets.menu("Quantize", resolution, resolutionNames, {
 
 local moveSpeedInput = widgets.numBox("Motion Speed", tableMotion.options.moveSpeed, {
   name = "MoveSpeed",
+  width = 130,
   mapper = Mapper.Quartic,
   min = tableMotion.options.moveSpeedMin,
   max = tableMotion.options.moveSpeedMax,
@@ -1625,6 +1667,7 @@ widgets.col(3)
 
 widgets.numBox("Speed Factor", tableMotion.options.factor, {
   name = "Factor",
+  width = 130,
   mapper = Mapper.Cubic,
   x = moveSpeedInput.x,
   min = tableMotion.options.factorMin,
@@ -1647,7 +1690,7 @@ widgets.numBox("Range", tableRange, {
 })
 
 widgets.numBox("Length", tableMotion.options.tableLength, {
-  width = 129,
+  --width = 129,
   min = 2,
   max = 128,
   integer = true,
@@ -1656,13 +1699,13 @@ widgets.numBox("Length", tableMotion.options.tableLength, {
     tableMotion.options.tableLength = self.value
     positionTable.length = tableMotion.options.tableLength
     motionTable.length = tableMotion.options.tableLength
-    resetTableValues(tableMotion.shapeOptions)
+    resetTableValues()
     startMoving()
   end
 })
 
 widgets.button("Bipolar", bipolar, {
-  width = 75,
+  --width = 51,
   changed = function(self)
     bipolar = self.value
     setRange()
@@ -1670,45 +1713,56 @@ widgets.button("Bipolar", bipolar, {
 })
 
 widgets.button("Reset", false, {
-  width = 75,
+  --width = 51,
   changed = function(self)
-    resetTableValues(tableMotion.shapeOptions)
+    resetTableValues()
     startMoving()
     self.value = false
   end
 })
 
+widgets.menu("Motion Type", tableMotion.movementTypes, {
+  width = 75,
+  changed = function(self)
+    tableMotion.options.movementType = self.selectedText
+    startMoving()
+  end
+})
+
 widgets.numBox("Speed Rand", tableMotion.options.speedRandomizationAmount, {
-  unit = Unit.Percent,
   tooltip = "Set the radomization amount applied to speed",
+  width = 130,
+  unit = Unit.Percent,
+  integer = false,
+  mapper = Mapper.Quadratic,
   changed = function(self) tableMotion.options.speedRandomizationAmount = self.value end
 })
 
 widgets.row()
 
-shapeWidgets = shapes.getWidgets(138, true)
+tableMotion.setShapeWidgets(shapes.getWidgets(widgets.getSectionValue('width'), true))
 
-shapeWidgets.stepRange.changed = function(self)
-  tableMotion.shapeOptions.stepRange = self.value
-  resetTableValues(tableMotion.shapeOptions)
+tableMotion.getShapeWidgets().stepRange.changed = function(self)
+  tableMotion.getShapeOptions().stepRange = self.value
+  resetTableValues()
   startMoving()
 end
 
-shapeWidgets.phase.changed = function(self)
-  tableMotion.shapeOptions.phase = self.value
-  resetTableValues(tableMotion.shapeOptions)
+tableMotion.getShapeWidgets().phase.changed = function(self)
+  tableMotion.getShapeOptions().phase = self.value
+  resetTableValues()
   startMoving()
 end
 
-shapeWidgets.factor.changed = function(self)
-  tableMotion.shapeOptions.factor = self.value
-  resetTableValues(tableMotion.shapeOptions)
+tableMotion.getShapeWidgets().factor.changed = function(self)
+  tableMotion.getShapeOptions().factor = self.value
+  resetTableValues()
   startMoving()
 end
 
-shapeWidgets.z.changed = function(self)
-  tableMotion.shapeOptions.z = self.value
-  resetTableValues(tableMotion.shapeOptions)
+tableMotion.getShapeWidgets().z.changed = function(self)
+  tableMotion.getShapeOptions().z = self.value
+  resetTableValues()
   startMoving()
 end
 
@@ -1722,29 +1776,7 @@ local xySpeedFactor = widgets.getPanel():XY('MoveSpeed', 'Factor')
 xySpeedFactor.y = widgets.posUnder(xyShapeMorph)
 xySpeedFactor.x = xyShapeMorph.x
 xySpeedFactor.width = xyShapeMorph.width
-xySpeedFactor.height = (motionTable.height / 2) - 24
-
-local morphButton = widgets.button("Morph", tableMotion.options.useMorph, {
-  tooltip = "When active, use the shape morph for creating motion",
-  y = widgets.posUnder(xySpeedFactor),
-  x = xyShapeMorph.x,
-  width = xyShapeMorph.width / 2,
-  changed = function(self)
-    tableMotion.options.useMorph = self.value
-    startMoving()
-  end
-})
-
-widgets.button("Manual", tableMotion.options.manualMode, {
-  tooltip = "When active, use the shape morph for creating motion",
-  x = xyShapeMorph.x + (xyShapeMorph.width / 2),
-  y = morphButton.y,
-  width = xyShapeMorph.width / 2,
-  changed = function(self)
-    tableMotion.options.manualMode = self.value
-    startMoving()
-  end
-})
+xySpeedFactor.height = (motionTable.height / 2) - 5
 
 --------------------------------------------------------------------------------
 -- Handle events
@@ -1753,10 +1785,8 @@ widgets.button("Manual", tableMotion.options.manualMode, {
 function onInit()
   print("Init sequencer")
   tableMotion.resetUniqueIndex()
+  --tableMotion.setRange(motionTable, tableRange, bipolar)
   setRange()
-  print("Called setRange")
-  startShape:changed()
-  print("Called startShape:changed()")
 end
 
 function onNote(e)

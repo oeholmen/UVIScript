@@ -9,11 +9,12 @@ local widgets = require "includes.widgets"
 local directionStartModes = {"Up", "Down", "Even Up", "Even Down", "Odd Up", "Odd Down", "Random"}
 local speedTypes = {"Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Random"}
 local startModes = shapes.getShapeNames({"Keep State"})
-local movementTypes = {"Evolve", "Morph", "Manual"} -- TODO Implement
+local movementTypes = {"Evolve", "Morph", "Manual"}
 local uniqueIndex = 1 -- Holds the unique id for each moving spawn
 local morphSeqIndex = 0 -- Holds the unique id for the morphing sequencer
 local movingCells = {}
 local isTableMotionActive = false
+local shapeWidgets = {} -- Holds the widgets for controlling shape
 
 local motionOptions = {
   factor = 2,
@@ -24,11 +25,10 @@ local motionOptions = {
   moveSpeedMax = 60000,
   speedType = speedTypes[1],
   startMode = startModes[1],
+  movementType = movementTypes[1],
   directionStartMode = directionStartModes[1],
   speedRandomizationAmount = 0,
   tableLength = 32,
-  useMorph = false,
-  manualMode = false,
 }
 
 local shapeOptions = {
@@ -85,14 +85,32 @@ local function setTableZero(theTable)
   end  
 end
 
-local function setStartMode(theTable, options, stateFunction)
+local function updateShapeWidgets()
+  -- Update widgets with values from the shape
+  local callChanged = false
+  shapeWidgets.stepRange:setValue(shapeOptions.stepRange, callChanged)
+  shapeWidgets.phase:setValue(shapeOptions.phase, callChanged)
+  shapeWidgets.factor:setValue(shapeOptions.factor, callChanged)
+  shapeWidgets.z:setValue(shapeOptions.z, callChanged)
+end
+
+local function setStartMode(theTable, loadShape, stateFunction)
   -- Reset table according to start mode (unless keep state is selected)
   if motionOptions.startMode ~= "Keep State" then
     local values = {}
     local shapeIndex = gem.getIndexFromValue(motionOptions.startMode, shapes.getShapeNames())
     local shapeFunc = shapes.getShapeFunction(shapeIndex)
     --print("Calling shapeFunc", shapeFunc)
-    values, shapeOptions = shapes[shapeFunc](theTable, options)
+    if type(loadShape) == "table" then
+      -- Load the shape with the settings provided
+      values, shapeOptions = shapes[shapeFunc](theTable, loadShape)
+    elseif loadShape == true then
+      -- Load the shape without settings to get the original form of the shape
+      values, shapeOptions = shapes[shapeFunc](theTable)
+    else
+      -- Load the shape with the default settings
+      values, shapeOptions = shapes[shapeFunc](theTable, shapeOptions)
+    end
     for i,v in ipairs(values) do
       local value = v
       if shapeFunc == "sine" then
@@ -110,8 +128,10 @@ local function setStartMode(theTable, options, stateFunction)
         stateFunction(i, value)
       end
     end
+    if type(loadShape) ~= "table" then
+      updateShapeWidgets()
+    end
   end
-  return shapeOptions
 end
 
 local function getWaitDuration()
@@ -201,7 +221,7 @@ local function morph(theTable, uniqueId, stateFunction)
       direction = direction,
     }
   }
-  while isTableMotionActive and motionOptions.useMorph and morphSeqIndex == uniqueId do
+  while isTableMotionActive and motionOptions.movementType == "Morph" and morphSeqIndex == uniqueId do
     morphSettings.z.value, morphSettings.z.direction = advanceValue(theTable, morphSettings.z.value, morphSettings.z.min, morphSettings.z.max, morphSettings.z.direction)
     if motionOptions.factor > 0 then
       local factor = motionOptions.factor / motionOptions.factorMax
@@ -245,10 +265,10 @@ local function startMoving(theTable, stateFunction)
   -- Reset index to stop motion
   morphSeqIndex = gem.inc(morphSeqIndex)
   movingCells = {}
-  if motionOptions.manualMode then
-    print("In manualMode")
+  if motionOptions.movementType == "Manual" then
+    print("In Manual Mode")
     return -- Nothing needs to be done in manual mode
-  elseif motionOptions.useMorph then
+  elseif motionOptions.movementType == "Morph" then
     print("spawn morph")
     spawn(morph, theTable, morphSeqIndex, stateFunction)
   else
@@ -274,7 +294,9 @@ return {--tableMotion--
   isNotMoving = function(m) return isTableMotionActive == false end,
   setMoving = function(m) isTableMotionActive = m ~= false end,
   resetUniqueIndex = function() uniqueIndex = 1 end,
-  getShapeWidgets = getShapeWidgets,
+  setShapeWidgets = function(widgets) shapeWidgets = widgets end,
+  getShapeWidgets = function() return shapeWidgets end,
+  getShapeOptions = function() return shapeOptions end,
   getStartDirection = getStartDirection,
   moveTable = moveTable,
   advanceValue = advanceValue,
@@ -284,6 +306,6 @@ return {--tableMotion--
   directionStartModes = directionStartModes,
   speedTypes = speedTypes,
   startModes = startModes,
+  movementTypes = movementTypes,
   options = motionOptions,
-  shapeOptions = shapeOptions,
 }

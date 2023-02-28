@@ -37,8 +37,6 @@ local currentValue = {} -- Holds the current table value to check for changes
 local forward = false
 local channel = 0
 
-shapeWidgets = {} -- Holds the widgets for controlling shape -- MUST BE GLOBAL
-
 --------------------------------------------------------------------------------
 -- Sequencer Functions
 --------------------------------------------------------------------------------
@@ -70,23 +68,14 @@ local function updateNoteState(i, value)
   end
 end
 
-local function resetTableValues(options)
+local function resetTableValues(loadShape)
   scalePos = 0
 
   -- Reset position
   tableMotion.setTableZero(positionTable)
 
-  -- TODO Check that shape adjustments are saved correctly!
-  local callChanged = type(options) == "nil"
-
   -- Set start mode
-  options = tableMotion.setStartMode(motionTable, options, updateNoteState)
-
-  -- Update widgets with values from the shape
-  shapeWidgets.stepRange:setValue(options.stepRange, callChanged)
-  shapeWidgets.phase:setValue(options.phase, callChanged)
-  shapeWidgets.factor:setValue(options.factor, callChanged)
-  shapeWidgets.z:setValue(options.z, callChanged)
+  tableMotion.setStartMode(motionTable, loadShape, updateNoteState)
 end
 
 local function startMoving()
@@ -95,7 +84,7 @@ end
 
 local function setRange()
   tableMotion.setRange(motionTable, tableRange, bipolar)
-  resetTableValues(tableMotion.shapeOptions)
+  resetTableValues()
 end
 
 local function setScaleTable()
@@ -113,7 +102,7 @@ local function setScaleTable()
   motionTable.length = tableMotion.options.tableLength
 
   -- Reset table values and set start shape
-  resetTableValues(tableMotion.shapeOptions)
+  resetTableValues()
 
   -- Reset note state
   noteState = {}
@@ -205,7 +194,7 @@ local function stopPlaying()
     return
   end
   tableMotion.setMoving(false)
-  resetTableValues(tableMotion.shapeOptions)
+  resetTableValues()
 end
 
 --------------------------------------------------------------------------------
@@ -306,7 +295,7 @@ local noteWidgetCellSpacing = 6
 local firstRowY = motionTable.y + motionTable.height + 6
 
 widgets.setSection({
-  width = noteWidgetWidth,
+  width = 109,
   height = noteWidgetHeight,
   menuHeight = 45,
   x = 10,
@@ -318,34 +307,46 @@ widgets.setSection({
 
 widgets.menu("Speed Type", tableMotion.speedTypes, {
   tooltip = "The speed type works with the speed factor to control speed variations across the table. Ramp Up means fast -> slower, Triangle means slower in the center.",
-  width = 81,
+  --width = 81,
   changed = function(self) tableMotion.options.speedType = self.selectedText end
 })
 
-local startShape = widgets.menu("Start Shape", 3, tableMotion.startModes, {
+local startShape = widgets.menu("Start Shape", 4, tableMotion.startModes, {
   tooltip = "Set how the table will look when starting.",
-  width = 81,
+  --width = 81,
   changed = function(self)
     tableMotion.options.startMode = self.selectedText
-    resetTableValues() -- Load a "fresh" shape without adjustments when selecting a shape
+    resetTableValues(true) -- Load a "fresh" shape without adjustments when selecting a shape
   end
 })
 
 widgets.menu("Start Direction", tableMotion.directionStartModes, {
   tooltip = "Select start direction for the bars",
-  width = 81,
+  --width = 81,
   changed = function(self) tableMotion.options.directionStartMode = self.selectedText end
 })
 
 local activationModeMenu = widgets.menu("Activation Mode", activationMode, activationModes, {
   tooltip = "Activation mode controls when notes in the table are activated and deactivated.",
-  width = 105,
+  --width = 105,
   changed = function(self) activationMode = self.value end
 })
 
+widgets.menu("Motion Type", tableMotion.movementTypes, {
+  --width = 75,
+  changed = function(self)
+    tableMotion.options.movementType = self.selectedText
+    startMoving()
+  end
+})
+
+widgets.row()
+
+widgets.col(5)
+
 local moveSpeedInput = widgets.numBox("Motion Speed", tableMotion.options.moveSpeed, {
-  x = 470,
   name = "MoveSpeed",
+  width = 130,
   mapper = Mapper.Quartic,
   tooltip = "Set the speed of the up/down motion in each cell - Controlled by the X-axis on the XY controller",
   min = tableMotion.options.moveSpeedMin,
@@ -356,32 +357,7 @@ local moveSpeedInput = widgets.numBox("Motion Speed", tableMotion.options.moveSp
 
 widgets.row()
 
-widgets.button("Bipolar", bipolar, {
-  tooltip = "Toggle table bipolar mode",
-  x = widgets.posSide(activationModeMenu),
-  width = 81,
-  changed = function(self)
-    bipolar = self.value
-    setRange()
-    setScaleTable()
-    startMoving()
-  end
-})
-
-widgets.numBox("Speed Factor", tableMotion.options.factor, {
-  name = "Factor",
-  mapper = Mapper.Cubic,
-  tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. When using morph, this controls phase amount. Controlled by the Y-axis on the XY controller",
-  x = moveSpeedInput.x,
-  min = tableMotion.options.factorMin,
-  max = tableMotion.options.factorMax,
-  changed = function(self) tableMotion.options.factor = self.value end
-})
-
-widgets.row()
-
 widgets.numBox("Range", tableRange, {
-  width = 81,
   min = 8,
   max = 128,
   integer = true,
@@ -393,12 +369,10 @@ widgets.numBox("Range", tableRange, {
   end
 })
 
--- TODO Add a menu for automatic reset options?
 widgets.button("Reset", false, {
   tooltip = "Reset the start shape and direction",
-  width = 81,
   changed = function(self)
-    resetTableValues(tableMotion.shapeOptions)
+    resetTableValues()
     setScaleTable()
     startMoving()
     self.value = false
@@ -406,7 +380,7 @@ widgets.button("Reset", false, {
 })
 
 local noteInput = widgets.numBox("Base Note", baseNote, {
-  width = 33,
+  width = 54,
   unit = Unit.MidiKey,
   showLabel = false,
   tooltip = "Set the root note",
@@ -417,7 +391,7 @@ local noteInput = widgets.numBox("Base Note", baseNote, {
 })
 
 widgets.menu("Scale", #scaleNames, scaleNames, {
-  width = 117,
+  width = 137,
   showLabel = false,
   changed = function(self)
     scaleDefinitionIndex = self.value
@@ -426,7 +400,7 @@ widgets.menu("Scale", #scaleNames, scaleNames, {
 })
 
 widgets.numBox("Octave Range", octaveRange, {
-  width = 117,
+  width = 137,
   tooltip = "Set the octave range",
   min = 1,
   max = 4,
@@ -437,48 +411,72 @@ widgets.numBox("Octave Range", octaveRange, {
   end
 })
 
-widgets.numBox("Speed Rand", tableMotion.options.speedRandomizationAmount, {
-  tooltip = "Set the radomization amount applied to speed",
-  x = moveSpeedInput.x,
-  unit = Unit.Percent,
-  changed = function(self) tableMotion.options.speedRandomizationAmount = self.value end
+widgets.numBox("Speed Factor", tableMotion.options.factor, {
+  name = "Factor",
+  width = 130,
+  mapper = Mapper.Cubic,
+  tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. When using morph, this controls phase amount. Controlled by the Y-axis on the XY controller",
+  --x = moveSpeedInput.x,
+  min = tableMotion.options.factorMin,
+  max = tableMotion.options.factorMax,
+  changed = function(self) tableMotion.options.factor = self.value end
 })
 
 widgets.row()
 
-shapeWidgets = shapes.getWidgets(109, true)
+tableMotion.setShapeWidgets(shapes.getWidgets(120, true))
 
-shapeWidgets.stepRange.changed = function(self)
-  tableMotion.shapeOptions.stepRange = self.value
-  resetTableValues(tableMotion.shapeOptions)
+widgets.button("Bipolar", bipolar, {
+  tooltip = "Toggle table bipolar mode",
+  width = 67,
+  changed = function(self)
+    bipolar = self.value
+    setRange()
+    setScaleTable()
+    startMoving()
+  end
+})
+
+widgets.numBox("Speed Rand", tableMotion.options.speedRandomizationAmount, {
+  tooltip = "Set the radomization amount applied to speed",
+  width = 130,
+  unit = Unit.Percent,
+  integer = false,
+  mapper = Mapper.Quadratic,
+  changed = function(self) tableMotion.options.speedRandomizationAmount = self.value end
+})
+
+tableMotion.getShapeWidgets().stepRange.changed = function(self)
+  tableMotion.getShapeOptions().stepRange = self.value
+  resetTableValues()
   setScaleTable()
   startMoving()
 end
 
-shapeWidgets.phase.changed = function(self)
-  tableMotion.shapeOptions.phase = self.value
-  resetTableValues(tableMotion.shapeOptions)
+tableMotion.getShapeWidgets().phase.changed = function(self)
+  tableMotion.getShapeOptions().phase = self.value
+  resetTableValues()
   setScaleTable()
   startMoving()
 end
 
-shapeWidgets.factor.changed = function(self)
-  tableMotion.shapeOptions.factor = self.value
-  resetTableValues(tableMotion.shapeOptions)
+tableMotion.getShapeWidgets().factor.changed = function(self)
+  tableMotion.getShapeOptions().factor = self.value
+  resetTableValues()
   setScaleTable()
   startMoving()
 end
 
-shapeWidgets.z.changed = function(self)
-  tableMotion.shapeOptions.z = self.value
-  resetTableValues(tableMotion.shapeOptions)
+tableMotion.getShapeWidgets().z.changed = function(self)
+  tableMotion.getShapeOptions().z = self.value
+  resetTableValues()
   setScaleTable()
   startMoving()
 end
 
 local xyShapeMorph = widgets.getPanel():XY('ShapePhase', 'ShapeMorph')
 xyShapeMorph.y = motionTable.y
-xyShapeMorph.x = widgets.posSide(moveSpeedInput)
+xyShapeMorph.x = widgets.posSide(motionTable)
 xyShapeMorph.width = 100
 xyShapeMorph.height = motionTable.height / 2
 
@@ -486,9 +484,9 @@ local xySpeedFactor = widgets.getPanel():XY('MoveSpeed', 'Factor')
 xySpeedFactor.y = widgets.posUnder(xyShapeMorph)
 xySpeedFactor.x = xyShapeMorph.x
 xySpeedFactor.width = xyShapeMorph.width
-xySpeedFactor.height = (motionTable.height / 2) - 24
+xySpeedFactor.height = (motionTable.height / 2) - 6
 
-local morphButton = widgets.button("Morph", tableMotion.options.useMorph, {
+--[[ local morphButton = widgets.button("Morph", tableMotion.options.useMorph, {
   tooltip = "When active, use the shape morph for creating motion",
   y = widgets.posUnder(xySpeedFactor),
   x = xyShapeMorph.x,
@@ -508,7 +506,7 @@ widgets.button("Manual", tableMotion.options.manualMode, {
     tableMotion.options.manualMode = self.value
     startMoving()
   end
-})
+}) ]]
 
 --------------------------------------------------------------------------------
 -- Handle events
@@ -518,7 +516,6 @@ function onInit()
   print("Init sequencer")
   tableMotion.resetUniqueIndex()
   setScaleTable()
-  startShape:changed()
 end
 
 function onNote(e)

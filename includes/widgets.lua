@@ -99,7 +99,7 @@ local function getWidgetName(name, displayName, useDisplayNameAsWidgetName, pane
       widgetNameIndex = widgetNameIndex + 1
     end
   end
-  print("Widget name", name)
+  --print("Widget name", name)
   return name
 end
 
@@ -142,14 +142,6 @@ local function getWidgetBounds(options, increment)
   local y = getValueOrDefault(options.y, currentY)
   local w = getValueOrDefault(options.width, widgetDefaults.width)
   local h = getValueOrDefault(options.height, widgetDefaults.height)
-
-  if type(options.y) == "number" then
-    print("options.y, y", options.y, y)
-  end
-
-  if type(options.x) == "number" then
-    print("options.x, x", options.x, x)
-  end
 
   -- Increment position
   if increment then
@@ -266,6 +258,7 @@ return {--widgets--
   end,
   getColours = function() return widgetColours end,
   getPanel = function(options) return widgetDefaults.panel end,
+  getSectionValue = function(k) return widgetDefaults[k] end,
   xOffset = function(val) widgetDefaults.xOffset = val end,
   yOffset = function(val) widgetDefaults.yOffset = val end,
   xSpacing = function(val) widgetDefaults.xSpacing = val end,
@@ -274,8 +267,8 @@ return {--widgets--
   posUnder = function(widget) return widget.y + widget.height + widgetDefaults.ySpacing end,
   width = function(val) widgetDefaults.width = val end,
   height = function(val) widgetDefaults.height = val end,
-  col = function(i) incrementCol(i) end,
-  row = function(i) incrementRow(i) end,
+  col = function(i, w, h) incrementCol(i, w, h) end,
+  row = function(i, h) incrementRow(i, h) end,
   panel = function(options)
     if type(options) ~= "table" then
       options = {}
