@@ -109,7 +109,7 @@ local function getShapeLoadOptions(partIndex, loadNew)
 
   return {
     z = paramsPerPart[partIndex].shapeWidgets.z.value,
-    stepRange = paramsPerPart[partIndex].shapeWidgets.stepRange.value,
+    --stepRange = paramsPerPart[partIndex].shapeWidgets.stepRange.value,
     phase = paramsPerPart[partIndex].shapeWidgets.phase.value,
     factor = paramsPerPart[partIndex].shapeWidgets.factor.value,
   }
@@ -130,7 +130,7 @@ local function loadShape(partIndex, loadNew)
   if loadNew == true then
     -- Update widgets with values from the shape
     local callChanged = true
-    paramsPerPart[partIndex].shapeWidgets.stepRange:setValue(options.stepRange, callChanged)
+    --paramsPerPart[partIndex].shapeWidgets.stepRange:setValue(options.stepRange, callChanged)
     paramsPerPart[partIndex].shapeWidgets.phase:setValue(options.phase, callChanged)
     paramsPerPart[partIndex].shapeWidgets.factor:setValue(options.factor, callChanged)
     paramsPerPart[partIndex].shapeWidgets.z:setValue(options.z, callChanged)

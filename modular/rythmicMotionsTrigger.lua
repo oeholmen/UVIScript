@@ -18,7 +18,6 @@ setBackgroundColour(backgroundColour)
 -- Variables
 --------------------------------------------------------------------------------
 
---local isPlaying = false
 local tableRange = 16
 local bipolar = true
 local positionTable
@@ -237,31 +236,23 @@ motionTable = widgets.table("Motion", 0, tableMotion.options.tableLength, {
   y = widgets.posUnder(positionTable),
 })
 
-local noteWidgetHeight = 20
-local noteWidgetWidth = 130
-local noteWidgetRowSpacing = 5
-local noteWidgetCellSpacing = 12
-local firstRowY = motionTable.y + motionTable.height + (noteWidgetRowSpacing * 1.5)
-
 widgets.setSection({
   width = 109,
-  height = noteWidgetHeight,
-  x = noteWidgetCellSpacing,
-  y = firstRowY,
-  xSpacing = noteWidgetCellSpacing,
-  ySpacing = noteWidgetRowSpacing,
-  cols = 9
+  height = 20,
+  x = 10,
+  y = widgets.posUnder(motionTable) + 6,
+  xSpacing = 12,
+  ySpacing = 5,
+  cols = 7
 })
 
 widgets.menu("Speed Type", tableMotion.speedTypes, {
   tooltip = "The speed type works with the speed factor to control speed variations across the table. Ramp Up means fast -> slower, Triangle means slower in the center.",
-  --width = 100,
   changed = function(self) tableMotion.options.speedType = self.selectedText end
 })
 
-local startShape = widgets.menu("Start Shape", 4, tableMotion.startModes, {
+local startShape = widgets.menu("Start Shape", tableMotion.startModes, {
   tooltip = "Set how the table will look when starting.",
-  --width = 100,
   changed = function(self)
     print("Calling startShape:changed", self.selectedText)
     tableMotion.options.startMode = self.selectedText
@@ -271,12 +262,10 @@ local startShape = widgets.menu("Start Shape", 4, tableMotion.startModes, {
 
 widgets.menu("Start Direction", tableMotion.directionStartModes, {
   tooltip = "Select start direction for the bars",
-  --width = 100,
   changed = function(self) tableMotion.options.directionStartMode = self.selectedText end
 })
 
 widgets.menu("Trigger Mode", triggerMode, triggerModes, {
-  --width = 100,
   changed = function(self) triggerMode = self.value end
 })
 
@@ -284,6 +273,10 @@ widgets.menu("Quantize", resolution, resolutionNames, {
   width = 75,
   changed = function(self) resolution = self.value end
 })
+
+widgets.row()
+widgets.col(4)
+widgets.col(1, 75)
 
 local moveSpeedInput = widgets.numBox("Motion Speed", tableMotion.options.moveSpeed, {
   name = "MoveSpeed",
@@ -294,20 +287,6 @@ local moveSpeedInput = widgets.numBox("Motion Speed", tableMotion.options.moveSp
   tooltip = "Set the speed of the up/down motion in each cell - Controlled by the X-axis on the XY controller",
   unit = Unit.MilliSeconds,
   changed = function(self) tableMotion.options.moveSpeed = self.value end
-})
-
-widgets.row()
-widgets.col(3)
-
-widgets.numBox("Speed Factor", tableMotion.options.factor, {
-  name = "Factor",
-  width = 130,
-  mapper = Mapper.Cubic,
-  x = moveSpeedInput.x,
-  min = tableMotion.options.factorMin,
-  max = tableMotion.options.factorMax,
-  tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. When using morph, this controls phase amount. Controlled by the Y-axis on the XY controller",
-  changed = function(self) tableMotion.options.factor = self.value end
 })
 
 widgets.row()
@@ -324,7 +303,6 @@ widgets.numBox("Range", tableRange, {
 })
 
 widgets.numBox("Length", tableMotion.options.tableLength, {
-  --width = 129,
   min = 2,
   max = 128,
   integer = true,
@@ -339,7 +317,6 @@ widgets.numBox("Length", tableMotion.options.tableLength, {
 })
 
 widgets.button("Bipolar", bipolar, {
-  --width = 51,
   changed = function(self)
     bipolar = self.value
     setRange()
@@ -347,7 +324,6 @@ widgets.button("Bipolar", bipolar, {
 })
 
 widgets.button("Reset", false, {
-  --width = 51,
   changed = function(self)
     resetTableValues()
     startMoving()
@@ -363,6 +339,22 @@ widgets.menu("Motion Type", tableMotion.movementTypes, {
   end
 })
 
+widgets.numBox("Speed Factor", tableMotion.options.factor, {
+  name = "Factor",
+  width = 130,
+  mapper = Mapper.Cubic,
+  min = tableMotion.options.factorMin,
+  max = tableMotion.options.factorMax,
+  tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. When using morph, this controls phase amount. Controlled by the Y-axis on the XY controller",
+  changed = function(self) tableMotion.options.factor = self.value end
+})
+
+widgets.row()
+
+tableMotion.setShapeWidgets(shapes.getWidgets(149.5, true))
+
+widgets.col(1, 75)
+
 widgets.numBox("Speed Rand", tableMotion.options.speedRandomizationAmount, {
   tooltip = "Set the radomization amount applied to speed",
   width = 130,
@@ -371,16 +363,6 @@ widgets.numBox("Speed Rand", tableMotion.options.speedRandomizationAmount, {
   mapper = Mapper.Quadratic,
   changed = function(self) tableMotion.options.speedRandomizationAmount = self.value end
 })
-
-widgets.row()
-
-tableMotion.setShapeWidgets(shapes.getWidgets(widgets.getSectionValue('width'), true))
-
-tableMotion.getShapeWidgets().stepRange.changed = function(self)
-  tableMotion.getShapeOptions().stepRange = self.value
-  resetTableValues()
-  startMoving()
-end
 
 tableMotion.getShapeWidgets().phase.changed = function(self)
   tableMotion.getShapeOptions().phase = self.value
@@ -402,8 +384,8 @@ end
 
 local xyShapeMorph = widgets.getPanel():XY('ShapePhase', 'ShapeMorph')
 xyShapeMorph.y = motionTable.y
-xyShapeMorph.x = widgets.posSide(motionTable)
-xyShapeMorph.width = 102
+xyShapeMorph.x = widgets.posSide(motionTable) - 6
+xyShapeMorph.width = 108
 xyShapeMorph.height = motionTable.height / 2
 
 local xySpeedFactor = widgets.getPanel():XY('MoveSpeed', 'Factor')
@@ -419,7 +401,6 @@ xySpeedFactor.height = (motionTable.height / 2) - 5
 function onInit()
   print("Init sequencer")
   tableMotion.resetUniqueIndex()
-  --tableMotion.setRange(motionTable, tableRange, bipolar)
   setRange()
 end
 

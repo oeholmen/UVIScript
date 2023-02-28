@@ -33,7 +33,6 @@ local motionOptions = {
 
 local shapeOptions = {
     z = 1,
-    stepRange = 2,
     phase = -1,
     factor = 1,
 }
@@ -88,7 +87,6 @@ end
 local function updateShapeWidgets()
   -- Update widgets with values from the shape
   local callChanged = false
-  shapeWidgets.stepRange:setValue(shapeOptions.stepRange, callChanged)
   shapeWidgets.phase:setValue(shapeOptions.phase, callChanged)
   shapeWidgets.factor:setValue(shapeOptions.factor, callChanged)
   shapeWidgets.z:setValue(shapeOptions.z, callChanged)
@@ -98,12 +96,13 @@ local function setStartMode(theTable, loadShape, stateFunction)
   -- Reset table according to start mode (unless keep state is selected)
   if motionOptions.startMode ~= "Keep State" then
     local values = {}
+    local options = {}
     local shapeIndex = gem.getIndexFromValue(motionOptions.startMode, shapes.getShapeNames())
     local shapeFunc = shapes.getShapeFunction(shapeIndex)
     --print("Calling shapeFunc", shapeFunc)
     if type(loadShape) == "table" then
       -- Load the shape with the settings provided
-      values, shapeOptions = shapes[shapeFunc](theTable, loadShape)
+      values, options = shapes[shapeFunc](theTable, loadShape)
     elseif loadShape == true then
       -- Load the shape without settings to get the original form of the shape
       values, shapeOptions = shapes[shapeFunc](theTable)
@@ -237,7 +236,6 @@ local function morph(theTable, uniqueId, stateFunction)
     end
     local options = {
       z = morphSettings.z.value,
-      stepRange = shapeOptions.stepRange,
       phase = morphSettings.phase.value,
       factor = shapeOptions.factor,
     }

@@ -662,6 +662,9 @@ local shapeNames = {
   "Fltr Sqr", 
   "Organ-Ish",
   "Tangent",
+  "Tanh",
+  "Acos",
+  "Atan2",
   "Triple Sine",
   "Harmonic Sync",
   "Soft Sine",
@@ -690,6 +693,7 @@ local shapeNames = {
   "Kick",
   "Sin To Saw",
   "Zero Crossing",
+  "VOSIM",
   "Random",
   "Test Shape",
 }
@@ -710,6 +714,9 @@ local shapeFunctions = {
   "filteredSquare", 
   "organIsh",
   "tangent",
+  "tanh",
+  "acos",
+  "atan2",
   "tripleSin",
   "harmonicSync",
   "softSine",
@@ -738,61 +745,70 @@ local shapeFunctions = {
   "kick",
   "sinToSaw",
   "zeroCrossing",
+  "vosim",
   "random",
   "testShape",
 }
 
--- Holds the shape definitions
--- x = current time-value getting plotted, from -1.0 to 1.0 OR 0.0 to 1.0 (same as (x+1)/2) - depending on stepRange=1|2
--- z = current table number, from -1.0 to 1.0
+local getUnipolar = function(v) return (v + 1) / 2 end
+
+-- Holds the shape definitions - functions get the following variables
+-- x is the current time-value getting plotted, from -1.0 to 1.0
+-- z is the current table number, from -1.0 to 1.0
+-- w is the current time-value getting plotted, from 0.0 to 1.0 (same as (x+1)/2)
+-- y is the current table number, from 0.0 to 1.0 (same as (z+1)/2)
 -- i = current index
 local shapes = {
-  triangleShaper = function(x, z) return math.min(2+2*x, math.abs((x-0.5)*2)-1) * z end,
-  sineShaper = function(x, z) return math.cos(x) * z end,
-  sawInPhase = function(x, z) return (gem.sign(x)-x) * z end,
-  sinToNoise = function(x, z, i) return 2*gem.avg({math.sin(z*x*math.pi),(1-z)*gem.getRandom()}) end,
-  wacky = function(x, z, i) return math.sin(((x)+1)^(z-1)*math.pi) end,
-  hpfSqrToSqr = function(x, z, i) if x < 0 then return math.sin((z*0.5)*math.pi)^(x+1) end return -math.sin((z*0.5)*math.pi)^x end,
-  windowYSqr = function(x, z, i) local v = 1 if math.abs(x) > 0.5 then v = (1-math.abs(x))*2 end return v * math.min(1, math.max(-1,8*math.sin((z+0.02)*x*math.pi*32))) end,
-  filteredSquare = function(x, z, i) return (1.2*math.sin(x*math.pi)+0.31*math.sin(x*math.pi*3)+0.11*math.sin(x*math.pi*5)+0.033*math.sin(x*math.pi*7)) * z end,
-  organIsh = function(x, z) return (math.sin(x*math.pi)+(0.16*(math.sin(2*x*math.pi)+math.sin(3*x*math.pi)+math.sin(4*x*math.pi)))) * z end,
-  sawAnalog = function(x, z) return (2.001 * (math.sin(x * 0.7905) - 0.5)) * z end,
-  dome = function(x, z) return (2 * (math.sin(x * 1.5705) - 0.5)) * z end,
-  brassy = function(x, z, i) return math.sin(math.pi*gem.sign(x)*(math.abs(x)^(((1-z)+0.1)*math.pi*math.pi))) end,
-  taffy = function(x, z, i) return math.sin(x*math.pi*2)*math.cos(x*math.pi)*math.cos(z*math.pi*(math.abs((x*2)^3)-1)*math.pi) end,
-  random = function(x, z) return ((gem.getRandom() * 2) - 1) * z end,
-  harmonicSync = function(x, z) return math.sin(x*math.pi*(2+(62*z*z*z)))*math.sin(x*math.pi) end,
-  softSine = function(x, z) return 0.5*(math.cos(x*math.pi/2)*((math.sin((x)*math.pi)+(1-z)*(math.sin(z*((x*x)^z)*math.pi*32))))) end,
-  tripleSin = function(x, z) return math.cos(x*math.pi/2)*1.6*(.60*math.sin( ((z*16)+1)*3*x ) + .20*math.sin( ((z*16)+1)*9*x ) + .15*math.sin( ((z*16)+1)*15*x)) end,
-  pwm50to100 = function(x, z, i) if x > z then return 1 end return -1 end,
-  chaosToSine = function(x, z, i) return math.sin(math.pi*z*z*32*math.log(x+1)) end,
-  sawSinReveal = function(x, z, i) if x + 1 > z * 2 then return x end return math.sin(x * math.pi) end,
-  domeSmall = function(x, z) return (-1-1.275*math.sin(x*math.pi)) * z end,
-  minMaxZero = function(x, z) return z end,
-  oddAndEven = function(x, z, i) x = 1 if i % 2 == 0 then x = -1 end return x * z end,
-  tangent = function(x, z) return math.tan(x * math.pi) * z end,
-  lofiTriangle = function(x, z) return ((gem.round(16*math.abs(x))/8.0)-1) * z end,
-  hpfSaw = function(x, z) return (x-(0.635*math.sin(x*math.pi))) * z end,
-  squareTri = function(x, z) return (-1*(gem.sign(x)*0.5)+(math.abs(x)-0.5)) * z end,
-  sineStrech = function(x, z, i) return math.sin(x^(1+(gem.round(z*32)*2))*math.pi) end,
-  squareSawBit = function(x, z, i) return math.sin((2-(z/4))*x*x*math.pi)/gem.round(x*32*((z/4)*(z/4)-0.125)) end,
-  loFiTriangles = function(x, z, i) return (gem.round((2+(z*14))*math.abs(x))/(1+(z*7.0)))-1 end,
-  talkative1 = function(x, z, i) return 1.4*math.cos(x*math.pi/2)*(.5*math.sin(((z*5)+1)*3*x)+.10*math.sin(((z*6)+1)*2*x)+.08*math.sin((((1-z)*3)+1)*12*x)) end,
-  sinClipper = function(x, z, i) return math.sin(x*math.pi)*(((z*z)+0.125)*8) end,
-  pitfall = function(x, z, i) return (x*128)%(z*16)*0.25 end,
-  nascaLines = function(x, z, q, min, max) return math.sqrt(1/q)*(((q/max)*(z+0.1)*max)%3)*0.5 end,
-  kick = function(x, z, i, min, max) return math.sin(math.pi*z*z*32*math.log(x+1)) end,
-  sinToSaw = function(x, z, i, min, max) return math.sin(-x*math.pi)*(1-z)+(-x*z) end,
-  zeroCrossing = function(x, z, i, min, max) return math.sin((x+1)*math.pi*(z+1))*(-math.abs(x)^32+1) end,
-  testShape = function(x, z, i, min, max)
-    return math.sin((x+1)*math.pi*(z+1))*(-math.abs(x)^32+1)
+  ramp = function(x, z, w, y, i) return x * z end,
+  triangleShaper = function(x, z, w, y, i) return math.min(2+2*x, math.abs((x-0.5)*2)-1) * z end,
+  sine = function(x, z, w, y, i) return math.sin(x) * z end,
+  tangent = function(x, z, w, y, i) return math.tan(x) * z end,
+  sawInPhase = function(x, z, w, y, i) return (gem.sign(x)-x) * z end,
+  sinToNoise = function(x, z, w, y, i) return 2*gem.avg({math.sin(z*x*math.pi),(1-z)*gem.getRandom()}) end,
+  wacky = function(x, z, w, y, i) return math.sin(((x)+1)^(z-1)*math.pi) end,
+  hpfSqrToSqr = function(x, z, w, y, i) if x < 0 then return math.sin((z*0.5)*math.pi)^(x+1) end return -math.sin((z*0.5)*math.pi)^x end,
+  windowYSqr = function(x, z, w, y, i) local v = 1 if math.abs(x) > 0.5 then v = (1-math.abs(x))*2 end return v * math.min(1, math.max(-1,8*math.sin((z+0.02)*x*math.pi*32))) end,
+  filteredSquare = function(x, z, w, y, i) return (1.2*math.sin(x*math.pi)+0.31*math.sin(x*math.pi*3)+0.11*math.sin(x*math.pi*5)+0.033*math.sin(x*math.pi*7)) * z end,
+  organIsh = function(x, z, w, y, i) return (math.sin(x*math.pi)+(0.16*(math.sin(2*x*math.pi)+math.sin(3*x*math.pi)+math.sin(4*x*math.pi)))) * z end,
+  sawAnalog = function(x, z, w, y, i) return (2.001 * (math.sin(x * 0.7905) - 0.5)) * z end,
+  dome = function(x, z, w, y, i) return (2 * (math.sin(x * 1.5705) - 0.5)) * z end,
+  brassy = function(x, z, w, y, i) return math.sin(math.pi*gem.sign(x)*(math.abs(x)^(((1-z)+0.1)*math.pi*math.pi))) end,
+  taffy = function(x, z, w, y, i) return math.sin(x*math.pi*2)*math.cos(x*math.pi)*math.cos(z*math.pi*(math.abs((x*2)^3)-1)*math.pi) end,
+  random = function(x, z, w, y, i) return ((gem.getRandom() * 2) - 1) * z end,
+  harmonicSync = function(x, z, w, y, i) return math.sin(x*math.pi*(2+(62*z*z*z)))*math.sin(x*math.pi) end,
+  softSine = function(x, z, w, y, i) return 0.5*(math.cos(x*math.pi/2)*((math.sin((x)*math.pi)+(1-z)*(math.sin(z*((x*x)^z)*math.pi*32))))) end,
+  tripleSin = function(x, z, w, y, i) return math.cos(x*math.pi/2)*1.6*(.60*math.sin( ((z*16)+1)*3*x ) + .20*math.sin( ((z*16)+1)*9*x ) + .15*math.sin( ((z*16)+1)*15*x)) end,
+  pwm50to100 = function(x, z, w, y, i) if x > z then return 1 end return -1 end,
+  chaosToSine = function(x, z, w, y, i) return math.sin(math.pi*z*z*32*math.log(x+1)) end,
+  sawSinReveal = function(x, z, w, y, i) if x + 1 > z * 2 then return x end return math.sin(x * math.pi) end,
+  domeSmall = function(x, z, w, y, i) return (-1-1.275*math.sin(w*math.pi)) * z end,
+  minMaxZero = function(x, z, w, y, i) return z end,
+  oddAndEven = function(x, z, w, y, i) x = 1 if i % 2 == 0 then x = -1 end return x * z end,
+  lofiTriangle = function(x, z, w, y, i) return ((gem.round(16*math.abs(x))/8.0)-1) * z end,
+  hpfSaw = function(x, z, w, y, i) return (x-(0.635*math.sin(x*math.pi))) * z end,
+  squareTri = function(x, z, w, y, i) return (-1*(gem.sign(x)*0.5)+(math.abs(x)-0.5)) * z end,
+  sineStrech = function(x, z, w, y, i) return math.sin(x^(1+(gem.round(z*32)*2))*math.pi) end,
+  squareSawBit = function(x, z, w, y, i) return math.sin((2-(z/4))*x*x*math.pi)/gem.round(x*32*((z/4)*(z/4)-0.125)) end,
+  loFiTriangles = function(x, z, w, y, i) return (gem.round((2+(z*14))*math.abs(x))/(1+(z*7.0)))-1 end,
+  talkative1 = function(x, z, w, y, i) return 1.4*math.cos(x*math.pi/2)*(.5*math.sin(((z*5)+1)*3*x)+.10*math.sin(((z*6)+1)*2*x)+.08*math.sin((((1-z)*3)+1)*12*x)) end,
+  sinClipper = function(x, z, w, y, i) return math.sin(x*math.pi)*(((z*z)+0.125)*8) end,
+  pitfall = function(x, z, w, y, i) return (x*128)%(z*16)*0.25 end,
+  nascaLines = function(x, z, q) return math.sqrt(1/q)*(((q/max)*(z+0.1)*max)%3)*0.5 end,
+  kick = function(x, z, w, y, i) return math.sin(math.pi*z*z*32*math.log(x+1)) end,
+  sinToSaw = function(x, z, w, y, i) return math.sin(-x*math.pi)*(1-z)+(-x*z) end,
+  zeroCrossing = function(x, z, w, y, i) return math.sin((x+1)*math.pi*(z+1))*(-math.abs(x)^32+1) end,
+  vosim = function(x, z, w, y, i) return -(w-1)*math.sin(w*math.pi*8*(math.sin(z)+1.5))^2 end,
+  tanh = function(x, z, w, y, i) return math.tanh(x) * z end,
+  acos = function(x, z, w, y, i) return math.acos(x) * z end,
+  atan2 = function(x, z, w, y, i) return math.atan2(y, x) * z end,
+  testShape = function(x, z, w, y, i)
+    return math.atan2(y, x) * z
   end,
 }
 
 local function getDefaultShapeOptions()
   return {
     z = 1,
-    stepRange = 2,
     phase = -1,
     factor = 1,
   }
@@ -811,7 +827,6 @@ local function getShapeOptions(overrides)
     return defaultShapeOptions
   end
   return {
-    stepRange = getValueOrDefault(overrides.stepRange, defaultShapeOptions.stepRange),
     phase = getValueOrDefault(overrides.phase, defaultShapeOptions.phase),
     factor = getValueOrDefault(overrides.factor, defaultShapeOptions.factor),
     z = getValueOrDefault(overrides.z, defaultShapeOptions.z),
@@ -857,32 +872,35 @@ local function getShapeFunction(i)
   return shapeFunctions[i]
 end
 
-local function getShapeBounds(bounds, options)
+local function getShapeBounds(bounds)
   local shapeBounds = {}
   if type(bounds) == "nil" then
     bounds = {}
   end
+  local stepRange = 2
   shapeBounds.min = getValueOrDefault(bounds.min, -1) -- x-azis max value
   shapeBounds.max = getValueOrDefault(bounds.max, 1) -- x-azis min value
   shapeBounds.length = getValueOrDefault(bounds.length, 128) -- y-axis steps
   shapeBounds.unipolar = shapeBounds.min == 0
-  shapeBounds.changePerStep = gem.getChangePerStep(options.stepRange, shapeBounds.length)
+  shapeBounds.changePerStep = gem.getChangePerStep(stepRange, shapeBounds.length)
   return shapeBounds
 end
 
 local function createShape(shapeBounds, options, shapeFunc, shapeTemplate)
+  shapeBounds = getShapeBounds(shapeBounds)
   options = getShapeTemplate(options, shapeTemplate)
-  shapeBounds = getShapeBounds(shapeBounds, options)
   if type(shapeFunc) == "string" then
     shapeFunc = shapes[shapeFunc]
   end
   local shape = {}
-  --print("Create shape, stepRange, phase, factor", options.stepRange, options.phase, options.factor)
+  --print("Create shape, phase, factor, z", options.phase, options.factor, options.z)
   --print("shapeBounds.min, shapeBounds.max, shapeBounds.length, shapeBounds.changePerStep", shapeBounds.min, shapeBounds.max, shapeBounds.length, shapeBounds.changePerStep)
   for i=1,shapeBounds.length do
     local x = options.factor * ((shapeBounds.changePerStep * (i-1)) + options.phase)
     local z = options.z
-    local value = shapeFunc(x, z, i, shapeBounds.min, shapeBounds.max)
+    local w = getUnipolar(x)
+    local y = getUnipolar(z)
+    local value = shapeFunc(x, z, w, y, i)
     if shapeBounds.unipolar then
       value = ((shapeBounds.max * value) + shapeBounds.max) / 2
     else
@@ -905,14 +923,6 @@ local function getShapeWidgets(width, showLabel, i)
   end
   local shapeOptions = getShapeOptions()
   return {
-    stepRange = widgets.numBox("Step Range", shapeOptions.stepRange, {
-      name = "ShapeStepRange" .. i,
-      tooltip = "Set step range for the shape. Mostly affects polarity of the shape.",
-      width = width,
-      showLabel = showLabel == true,
-      min = 0,
-      max = 4,
-    }),
     factor = widgets.numBox("Shape Factor", shapeOptions.factor, {
       name = "ShapeFactor" .. i,
       tooltip = "Set the factor (multiplier) applied to the value of each step.",
@@ -957,17 +967,20 @@ local shapes = {
   min = function(t,o) return createShape(t, o, 'minMaxZero', {z = -1}) end,
   max = function(t,o) return createShape(t, o, 'minMaxZero') end,
   zero = function(t,o) return createShape(t, o, 'minMaxZero', {z = 0}) end,
-  domeSmall = function(t,o) return createShape(t, o, 'domeSmall', {stepRange = 1}) end,
-  sawSinReveal = function(t,o) return createShape(t, o, 'sawSinReveal', {phase = -1}) end,
   dome = function(t,o) return createShape(t, o, 'dome', {phase = 0}) end,
+  domeSmall = function(t,o) return createShape(t, o, 'domeSmall', {phase = 1}) end,
+  sawSinReveal = function(t,o) return createShape(t, o, 'sawSinReveal', {phase = -1}) end,
   sawAnalog = function(t,o) return createShape(t, o, 'sawAnalog', {phase = 0}) end,
   sawInPhase = function(t,o) return createShape(t, o, 'sawInPhase') end,
   organIsh = function(t,o) return createShape(t, o, 'organIsh') end,
   triangle = function(t,o) return createShape(t, o, 'triangleShaper') end,
-  rampUp = function(t,o) return createShape(t, o, 'triangleShaper', {stepRange = 1, phase = 0.5}) end,
-  rampDown = function(t,o) return createShape(t, o, 'triangleShaper', {stepRange = 1, phase = -0.5}) end,
+  tanh = function(t,o) return createShape(t, o, 'tanh') end,
+  atan2 = function(t,o) return createShape(t, o, 'atan2') end,
+  acos = function(t,o) return createShape(t, o, 'acos') end,
   triangleOffPhase = function(t,o) return createShape(t, o, 'triangleShaper', {phase = -0.5}) end,
-  sine = function(t,o) return createShape(t, o, 'sineShaper', {phase = -0.5, factor = math.pi}) end,
+  rampUp = function(t,o) return createShape(t, o, 'ramp', {z = 1}) end,
+  rampDown = function(t,o) return createShape(t, o, 'ramp', {z = -1}) end,
+  sine = function(t,o) return createShape(t, o, 'sine', {phase = -0.5, factor = math.pi}) end,
   chaosToSine = function(t,o) return createShape(t, o, 'chaosToSine') end,
   pwm50to100 = function(t,o) return createShape(t, o, 'pwm50to100') end,
   tripleSin = function(t,o) return createShape(t, o, 'tripleSin') end,
@@ -990,6 +1003,7 @@ local shapes = {
   kick = function(t,o) return createShape(t, o, 'kick', {phase = 0, z = -.505}) end,
   sinToSaw = function(t,o) return createShape(t, o, 'sinToSaw', {z = 0}) end,
   zeroCrossing = function(t,o) return createShape(t, o, 'zeroCrossing') end,
+  vosim = function(t,o) return createShape(t, o, 'vosim') end,
   testShape = function(t,o) return createShape(t, o, 'testShape') end,
 }
 
@@ -1024,7 +1038,6 @@ local motionOptions = {
 
 local shapeOptions = {
     z = 1,
-    stepRange = 2,
     phase = -1,
     factor = 1,
 }
@@ -1079,7 +1092,6 @@ end
 local function updateShapeWidgets()
   -- Update widgets with values from the shape
   local callChanged = false
-  shapeWidgets.stepRange:setValue(shapeOptions.stepRange, callChanged)
   shapeWidgets.phase:setValue(shapeOptions.phase, callChanged)
   shapeWidgets.factor:setValue(shapeOptions.factor, callChanged)
   shapeWidgets.z:setValue(shapeOptions.z, callChanged)
@@ -1089,12 +1101,13 @@ local function setStartMode(theTable, loadShape, stateFunction)
   -- Reset table according to start mode (unless keep state is selected)
   if motionOptions.startMode ~= "Keep State" then
     local values = {}
+    local options = {}
     local shapeIndex = gem.getIndexFromValue(motionOptions.startMode, shapes.getShapeNames())
     local shapeFunc = shapes.getShapeFunction(shapeIndex)
     --print("Calling shapeFunc", shapeFunc)
     if type(loadShape) == "table" then
       -- Load the shape with the settings provided
-      values, shapeOptions = shapes[shapeFunc](theTable, loadShape)
+      values, options = shapes[shapeFunc](theTable, loadShape)
     elseif loadShape == true then
       -- Load the shape without settings to get the original form of the shape
       values, shapeOptions = shapes[shapeFunc](theTable)
@@ -1228,7 +1241,6 @@ local function morph(theTable, uniqueId, stateFunction)
     end
     local options = {
       z = morphSettings.z.value,
-      stepRange = shapeOptions.stepRange,
       phase = morphSettings.phase.value,
       factor = shapeOptions.factor,
     }
@@ -1468,10 +1480,11 @@ local channelInput = widgets.menu("Channel", widgets.channels(), {
 
 widgets.setSection({
   width = widgets.getPanel().width,
-  xOffset = 0,
-  yOffset = 0,
+  x = 0,
+  y = 0,
   xSpacing = 0,
   ySpacing = 0,
+  cols = 7
 })
 
 widgets.panel({
@@ -1503,27 +1516,23 @@ motionTable = widgets.table("Motion", 0, tableMotion.options.tableLength, {
   integer = true,
 })
 
-local noteWidgetHeight = 20
-local noteWidgetWidth = 130
-local noteWidgetRowSpacing = 5
-local noteWidgetCellSpacing = 14
-local firstRowY = motionTable.y + motionTable.height + 10
+local noteWidgetWidth = 129
 
 widgets.setSection({
   width = noteWidgetWidth,
-  height = noteWidgetHeight,
+  height = 20,
   menuHeight = 45,
-  xOffset = 10,
-  yOffset = firstRowY,
-  xSpacing = noteWidgetCellSpacing,
-  ySpacing = noteWidgetRowSpacing,
+  x = 10,
+  y = widgets.posUnder(motionTable) + 6,
+  xSpacing = 14,
+  ySpacing = 5,
 })
 
 widgets.menu("Speed Type", tableMotion.speedTypes, {
   changed = function(self) tableMotion.options.speedType = self.selectedText end
 })
 
-local startShape = widgets.menu("Start Mode", 4, tableMotion.startModes, {
+local startShape = widgets.menu("Start Shape", tableMotion.startModes, {
   changed = function(self)
     tableMotion.options.startMode = self.selectedText
     resetPitches(true) -- Load a "fresh" shape without adjustments when selecting a shape
@@ -1531,55 +1540,30 @@ local startShape = widgets.menu("Start Mode", 4, tableMotion.startModes, {
 })
 
 local scaleMenu = widgets.menu("Scale", #scalesNames, scalesNames, {
-  width = 90,
   changed = function(self)
     scaleDefinitionIndex = self.value
     setScale()
   end
 })
 
-local noteInput = widgets.numBox("Base Note", baseNote, {
-  width = 33,
-  x = widgets.posSide(scaleMenu) - 7,
-  y = firstRowY + 25,
-  unit = Unit.MidiKey,
-  showLabel = false,
-  tooltip = "Set the root note",
-  changed = function(self)
-    baseNote = self.value
-    setScale()
-  end
-})
-
---[[ widgets.menu("Motion Type", tableMotion.movementTypes, {
-  width = 75,
+widgets.menu("Motion Type", tableMotion.movementTypes, {
   changed = function(self)
     tableMotion.options.movementType = self.selectedText
     startMoving()
   end
-}) ]]
+})
+
+widgets.row()
+widgets.col(4)
 
 local moveSpeedInput = widgets.numBox("Motion Speed", tableMotion.options.moveSpeed, {
   name = "MoveSpeed",
   mapper = Mapper.Quartic,
-  x = widgets.posSide(noteInput),
   min = tableMotion.options.moveSpeedMin,
   max = tableMotion.options.moveSpeedMax,
   tooltip = "Set the speed of the up/down motion in each cell - Controlled by the X-axis on the XY controller",
   unit = Unit.MilliSeconds,
   changed = function(self) tableMotion.options.moveSpeed = self.value end
-})
-
-widgets.row()
-widgets.col(3)
-
-widgets.numBox("Speed Factor", tableMotion.options.factor, {
-  name = "Factor",
-  mapper = Mapper.Cubic,
-  min = tableMotion.options.factorMin,
-  max = tableMotion.options.factorMax,
-  tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. When using morph, this controls phase amount. Controlled by the Y-axis on the XY controller",
-  changed = function(self) tableMotion.options.factor = self.value end
 })
 
 widgets.row()
@@ -1599,22 +1583,42 @@ widgets.numBox("Length", tableMotion.options.tableLength, {
   end
 })
 
-local bipolarButton = widgets.button("Bipolar", bipolar, {
-  width = (noteWidgetWidth / 2) - (noteWidgetCellSpacing / 2),
-  changed = function(self)
-    bipolar = self.value
-    setScale()
-  end
-})
-
 widgets.button("Reset", false, {
-  width = bipolarButton.width,
   changed = function(self)
     resetPitches()
     startMoving()
     self.value = false
   end
 })
+
+local noteInput = widgets.numBox("Base Note", baseNote, {
+  unit = Unit.MidiKey,
+  tooltip = "Set the root note",
+  changed = function(self)
+    baseNote = self.value
+    setScale()
+  end
+})
+
+widgets.button("Bipolar", bipolar, {
+  changed = function(self)
+    bipolar = self.value
+    setScale()
+  end
+})
+
+widgets.numBox("Speed Factor", tableMotion.options.factor, {
+  name = "Factor",
+  mapper = Mapper.Cubic,
+  min = tableMotion.options.factorMin,
+  max = tableMotion.options.factorMax,
+  tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. When using morph, this controls phase amount. Controlled by the Y-axis on the XY controller",
+  changed = function(self) tableMotion.options.factor = self.value end
+})
+
+widgets.row()
+
+tableMotion.setShapeWidgets(shapes.getWidgets(noteWidgetWidth, true))
 
 widgets.numBox("Octave Range", octaveRange, {
   tooltip = "Set the octave range",
@@ -1634,16 +1638,6 @@ widgets.numBox("Speed Rand", tableMotion.options.speedRandomizationAmount, {
   mapper = Mapper.Quadratic,
   changed = function(self) tableMotion.options.speedRandomizationAmount = self.value end
 })
-
-widgets.row()
-
-tableMotion.setShapeWidgets(shapes.getWidgets(noteWidgetWidth, true))
-
-tableMotion.getShapeWidgets().stepRange.changed = function(self)
-  tableMotion.getShapeOptions().stepRange = self.value
-  setScale()
-  startMoving()
-end
 
 tableMotion.getShapeWidgets().phase.changed = function(self)
   tableMotion.getShapeOptions().phase = self.value
@@ -1674,28 +1668,6 @@ xySpeedFactor.y = widgets.posUnder(xyShapeMorph)
 xySpeedFactor.x = xyShapeMorph.x
 xySpeedFactor.width = xyShapeMorph.width
 xySpeedFactor.height = (motionTable.height / 2) - 5
-
---[[ local morphButton = widgets.button("Morph", tableMotion.options.useMorph, {
-  tooltip = "When active, use the shape morph for creating motion",
-  y = widgets.posUnder(xySpeedFactor),
-  x = xyShapeMorph.x,
-  width = xyShapeMorph.width / 2,
-  changed = function(self)
-    tableMotion.options.useMorph = self.value
-    startMoving()
-  end
-})
-
-widgets.button("Manual", tableMotion.options.manualMode, {
-  tooltip = "When active, use the shape morph for creating motion",
-  x = xyShapeMorph.x + (xyShapeMorph.width / 2),
-  y = morphButton.y,
-  width = xyShapeMorph.width / 2,
-  changed = function(self)
-    tableMotion.options.manualMode = self.value
-    startMoving()
-  end
-}) ]]
 
 --------------------------------------------------------------------------------
 -- Handle events

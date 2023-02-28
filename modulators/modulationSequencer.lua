@@ -228,9 +228,9 @@ for page=1,maxPages do
 
     local shapeWidgets = shapes.getWidgets(121, true, i)
 
-    shapeWidgets.stepRange.changed = function(self)
+    --[[ shapeWidgets.stepRange.changed = function(self)
       modseq.loadShape(i)
-    end
+    end ]]
 
     shapeWidgets.phase.changed = function(self)
       modseq.loadShape(i)
