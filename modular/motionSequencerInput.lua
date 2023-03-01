@@ -254,12 +254,11 @@ widgets.numBox("Length", tableMotion.options.tableLength, {
   min = 2,
   max = 128,
   integer = true,
-  tooltip = "Set the table length",
+  tooltip = "Set the sequence length",
   changed = function(self)
     tableMotion.options.tableLength = self.value
     positionTable.length = tableMotion.options.tableLength
     motionTable.length = tableMotion.options.tableLength
-    pitchOffsetPos = 1 -- Reset pos on length change
     resetPitches()
     startMoving()
   end

@@ -642,6 +642,69 @@ local scales = {
 }
 
 --------------------------------------------------------------------------------
+-- Common functions for notes
+--------------------------------------------------------------------------------
+
+local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
+
+local notes = {
+  getNoteNames = function()
+    return notenames
+  end,
+  
+  -- Used for mapping - does not include octave, only name of note (C, C#...)
+  getNoteMapping = function()
+    local noteNumberToNoteName = {}
+    local notenamePos = 1
+    for i=0,127 do
+      table.insert(noteNumberToNoteName, notenames[notenamePos])
+      notenamePos = notenamePos + 1
+      if notenamePos > #notenames then
+        notenamePos = 1
+      end
+    end
+    return noteNumberToNoteName
+  end,
+  
+  transpose = function(note, min, max)
+    --print("Check transpose", note)
+    if note < min then
+      print("note < min", note, min)
+      while note < min do
+        note = note + 12
+        print("transpose note up", note)
+      end
+    elseif note > max then
+      print("note > max", note, max)
+      while note > max do
+        note = note - 12
+        print("transpose note down", note)
+      end
+    end
+    -- Ensure note is inside given min/max values
+    note = math.max(min, math.min(max, note))
+    -- Ensure note is inside valid values
+    return math.max(0, math.min(127, note))
+  end,
+  
+  getSemitonesBetweenNotes = function(note1, note2)
+    return math.max(note1, note2) - math.min(note1, note1)
+  end,
+  
+  getNoteAccordingToScale = function(scale, noteToPlay)
+    for _,note in ipairs(scale) do
+      if note == noteToPlay then
+        return noteToPlay
+      elseif note > noteToPlay then
+        print("Change from noteToPlay to note", noteToPlay, note)
+        return note
+      end
+    end
+    return noteToPlay
+  end,
+}
+
+--------------------------------------------------------------------------------
 -- Methods for working with shapes
 --------------------------------------------------------------------------------
 
@@ -760,6 +823,7 @@ local getUnipolar = function(v) return (v + 1) / 2 end
 -- w is the current time-value getting plotted, from 0.0 to 1.0 (same as (x+1)/2)
 -- y is the current table number, from 0.0 to 1.0 (same as (z+1)/2)
 -- i = current index
+-- b = bounds (min, max, length, bipolar)
 local shapes = {
   ramp = function(x, z, w, y, i) return x * z end,
   triangleShaper = function(x, z, w, y, i) return math.min(2+2*x, math.abs((x-0.5)*2)-1) * z end,
@@ -795,7 +859,7 @@ local shapes = {
   talkative1 = function(x, z, w, y, i) return 1.4*math.cos(x*math.pi/2)*(.5*math.sin(((z*5)+1)*3*x)+.10*math.sin(((z*6)+1)*2*x)+.08*math.sin((((1-z)*3)+1)*12*x)) end,
   sinClipper = function(x, z, w, y, i) return math.sin(x*math.pi)*(((z*z)+0.125)*8) end,
   pitfall = function(x, z, w, y, i) return (x*128)%(z*16)*0.25 end,
-  nascaLines = function(x, z, w, y, i, max) return math.sqrt(1/i)*(((i/max)*(z+0.1)*max)%3)*0.5 end,
+  nascaLines = function(x, z, w, y, i, b) return math.sqrt(1/i)*(((i/b.max)*(z+0.1)*b.max)%3)*0.5 end,
   kick = function(x, z, w, y, i) return math.sin(math.pi*z*z*32*math.log(x+1)) end,
   sinToSaw = function(x, z, w, y, i) return math.sin(-x*math.pi)*(1-z)+(-x*z) end,
   zeroCrossing = function(x, z, w, y, i) return math.sin((x+1)*math.pi*(z+1))*(-math.abs(x)^32+1) end,
@@ -805,7 +869,7 @@ local shapes = {
   atan2 = function(x, z, w, y, i) return math.atan2(y, x) * z end,
   crosser = function(x, z, w, y, i) return gem.avg({x, w}) * z end,
   testShape = function(x, z, w, y, i)
-    return math.sin(i) * z
+    return x / 2
   end,
 }
 
@@ -814,6 +878,7 @@ local function getDefaultShapeOptions()
     z = 1,
     phase = -1,
     factor = 1,
+    amount = 100,
   }
 end
 
@@ -830,9 +895,10 @@ local function getShapeOptions(overrides)
     return defaultShapeOptions
   end
   return {
+    z = getValueOrDefault(overrides.z, defaultShapeOptions.z),
     phase = getValueOrDefault(overrides.phase, defaultShapeOptions.phase),
     factor = getValueOrDefault(overrides.factor, defaultShapeOptions.factor),
-    z = getValueOrDefault(overrides.z, defaultShapeOptions.z),
+    amount = getValueOrDefault(overrides.amount, defaultShapeOptions.amount),
   }
 end
 
@@ -884,7 +950,7 @@ local function getShapeBounds(bounds)
   shapeBounds.min = getValueOrDefault(bounds.min, -1) -- x-azis max value
   shapeBounds.max = getValueOrDefault(bounds.max, 1) -- x-azis min value
   shapeBounds.length = getValueOrDefault(bounds.length, 128) -- y-axis steps
-  shapeBounds.unipolar = shapeBounds.min == 0
+  shapeBounds.unipolar = shapeBounds.min >= 0
   return shapeBounds
 end
 
@@ -900,16 +966,31 @@ local function createShape(shapeBounds, options, shapeFunc, shapeTemplate)
     local z = options.z
     local w = getUnipolar(x)
     local y = getUnipolar(z)
-    --local value = shapeFunc(x, z, w, y, ((i/shapeBounds.length)*options.factor))
-    local value = shapeFunc(x, z, w, y, i, shapeBounds.max)
+    local value = shapeFunc(x, z, w, y, i, shapeBounds)
     if shapeBounds.unipolar then
-      value = ((shapeBounds.max * value) + shapeBounds.max) / 2
-    else
-      value = shapeBounds.max * value
+      value = getUnipolar(value)
     end
+    value = (shapeBounds.max * value) * (options.amount / 100)
     table.insert(shape, math.max(shapeBounds.min, math.min(shapeBounds.max, value)))
   end
   return shape, options
+end
+
+local function getAmountWidget(width, showLabel, i)
+  -- Widget for controlling shape amount
+  if type(width) == "nil" then
+    width = 120
+  end
+  if type(i) == "nil" then
+    i = ""
+  end
+  return widgets.numBox("Amount", getShapeOptions().amount, {
+    name = "ShapeAmount" .. i,
+    tooltip = "Set the shape amount.",
+    width = width,
+    showLabel = showLabel == true,
+    unit = Unit.Percent,
+  })
 end
 
 local function getShapeWidgets(width, showLabel, i)
@@ -951,6 +1032,7 @@ end
 
 local shapes = {
   getWidgets = getShapeWidgets,
+  getAmountWidget = getAmountWidget,
   getShapeNames = getShapeNames,
   getShapeFunctions = getShapeFunctions,
   getShapeFunction = getShapeFunction,
@@ -1242,7 +1324,7 @@ local shapeOptions = {
 local function getSpeedSpreadWidget(width)
   return widgets.menu("Speed Spread", speedTypes, {
     width = width,
-    tooltip = "The speed type works with the speed factor to control speed variations across the table. Ramp Up means fast -> slower, Triangle means slower in the center.",
+    tooltip = "The speed spread works with the speed factor to control speed variations across the table. Ramp Up means fast -> slower, Triangle means slower in the center. (Note: Only used for motion type 'evolve')",
     changed = function(self) motionOptions.speedType = self.selectedText end
   })
 end

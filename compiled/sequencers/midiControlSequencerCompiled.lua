@@ -145,6 +145,376 @@ local gem = {
 }
 
 --------------------------------------------------------------------------------
+-- Functions for creating an positioning widgets
+--------------------------------------------------------------------------------
+
+local panelNameIndex = 1
+local widgetNameIndex = 1
+local currentX = 0
+local currentY = 0
+
+local widgetDefaults = {
+  panel = Panel("DefaultPanel"),
+  width = 120,
+  height = 20,
+  menuHeight = 45,
+  xOffset = 0,
+  yOffset = 0,
+  xSpacing = 0,
+  ySpacing = 0,
+  col = 0,
+  row = 0,
+  cols = 6
+}
+
+local widgetColours = {
+  backgroundColour = "202020",
+  widgetBackgroundColour = "01011F", -- Dark
+  menuBackgroundColour = "01011F", -- widgetBackgroundColour
+  widgetTextColour = "9f02ACFE", -- Light
+  tableBackgroundColour = "191E25",
+  sliderColour = "5FB5FF", -- Table slider colour
+  labelTextColour = "black", -- Light
+  labelBackgroundColour = "CFFFFE",
+  menuArrowColour = "66AEFEFF", -- labelTextColour
+  menuOutlineColour = "5f9f02ACFE", -- widgetTextColour
+  menuTextColour = "9f02ACFE",
+  backgroundColourOff = "ff084486",
+  backgroundColourOn = "ff02ACFE",
+  textColourOff = "ff22FFFF",
+  textColourOn = "efFFFFFF",
+}
+
+local function getValueOrDefault(value, default)
+  if type(value) == "nil" then
+    return default
+  end
+  return value
+end
+
+local function setColours(colours)
+  widgetColours.backgroundColour = getValueOrDefault(colours.backgroundColour, widgetColours.backgroundColour)
+  widgetColours.widgetBackgroundColour = getValueOrDefault(colours.widgetBackgroundColour, widgetColours.widgetBackgroundColour)
+  widgetColours.menuBackgroundColour = getValueOrDefault(colours.menuBackgroundColour, widgetColours.menuBackgroundColour)
+  widgetColours.widgetTextColour = getValueOrDefault(colours.widgetTextColour, widgetColours.widgetTextColour)
+  widgetColours.tableBackgroundColour = getValueOrDefault(colours.tableBackgroundColour, widgetColours.tableBackgroundColour)
+  widgetColours.sliderColour = getValueOrDefault(colours.sliderColour, widgetColours.sliderColour)
+  widgetColours.labelTextColour = getValueOrDefault(colours.labelTextColour, widgetColours.labelTextColour)
+  widgetColours.labelBackgroundColour = getValueOrDefault(colours.labelBackgroundColour, widgetColours.labelBackgroundColour)
+  widgetColours.menuArrowColour = getValueOrDefault(colours.menuArrowColour, widgetColours.menuArrowColour)
+  widgetColours.menuOutlineColour = getValueOrDefault(colours.menuOutlineColour, widgetColours.menuOutlineColour)
+  widgetColours.menuTextColour = getValueOrDefault(colours.menuTextColour, widgetColours.menuTextColour)
+  widgetColours.backgroundColourOff = getValueOrDefault(colours.backgroundColourOff, widgetColours.backgroundColourOff)
+  widgetColours.backgroundColourOn = getValueOrDefault(colours.backgroundColourOn, widgetColours.backgroundColourOn)
+  widgetColours.textColourOff = getValueOrDefault(colours.textColourOff, widgetColours.textColourOff)
+  widgetColours.textColourOn = getValueOrDefault(colours.textColourOn, widgetColours.textColourOn)
+end
+
+local function setSection(settings)
+  if type(settings) ~= "table" then
+    settings = {}
+  end
+  widgetDefaults.width = getValueOrDefault(settings.width, widgetDefaults.width)
+  widgetDefaults.height = getValueOrDefault(settings.height, widgetDefaults.height)
+  widgetDefaults.menuHeight = getValueOrDefault(settings.menuHeight, widgetDefaults.menuHeight)
+  widgetDefaults.xOffset = getValueOrDefault(settings.xOffset, widgetDefaults.xOffset)
+  widgetDefaults.yOffset = getValueOrDefault(settings.yOffset, widgetDefaults.yOffset)
+  widgetDefaults.xOffset = getValueOrDefault(settings.x, widgetDefaults.xOffset)
+  widgetDefaults.yOffset = getValueOrDefault(settings.y, widgetDefaults.yOffset)
+  widgetDefaults.xSpacing = getValueOrDefault(settings.xSpacing, widgetDefaults.xSpacing)
+  widgetDefaults.ySpacing = getValueOrDefault(settings.ySpacing, widgetDefaults.ySpacing)
+  widgetDefaults.cols = getValueOrDefault(settings.cols, widgetDefaults.cols)
+  widgetDefaults.col = getValueOrDefault(settings.col, 0)
+  widgetDefaults.row = getValueOrDefault(settings.row, 0)
+  setColours(settings)
+  currentX = widgetDefaults.xOffset
+  currentY = widgetDefaults.yOffset
+end
+
+local function getWidgetName(name, displayName, useDisplayNameAsWidgetName, panel)
+  if panel then
+    name = getValueOrDefault(name, "Panel" .. panelNameIndex)
+    panelNameIndex = panelNameIndex + 1
+  elseif type(name) == "nil" then
+    name = ""
+    if useDisplayNameAsWidgetName and type(displayName) == "string" then
+      name = string.gsub(displayName, "[^a-zA-Z]+", "")
+    end
+    if string.len(name) == 0 then
+      name = "Widget" .. widgetNameIndex
+      widgetNameIndex = widgetNameIndex + 1
+    end
+  end
+  --print("Widget name", name)
+  return name
+end
+
+local function incrementRow(row, h)
+  if type(row) == "nil" then
+    row = 1
+  end
+  if type(h) == "nil" then
+    h = widgetDefaults.height
+  end
+  widgetDefaults.row = widgetDefaults.row + row
+  widgetDefaults.col = 0
+  currentX = widgetDefaults.xOffset
+
+  local height = math.max(1, row) * h
+  local ySpacing = math.max(1, row) * widgetDefaults.ySpacing
+  currentY = currentY + height + ySpacing
+end
+
+local function incrementCol(col, w, h)
+  if type(col) == "nil" then
+    col = 1
+  end
+  if type(w) == "nil" then
+    w = widgetDefaults.width
+  end
+
+  local width = math.max(1, col) * w
+  local xSpacing = math.max(1, col) * widgetDefaults.xSpacing
+  currentX = currentX + width + xSpacing
+
+  widgetDefaults.col = widgetDefaults.col + col
+  if widgetDefaults.col >= widgetDefaults.cols then
+    incrementRow(1, h)
+  end
+end
+
+local function getWidgetBounds(options, increment)
+  local x = getValueOrDefault(options.x, currentX)
+  local y = getValueOrDefault(options.y, currentY)
+  local w = getValueOrDefault(options.width, widgetDefaults.width)
+  local h = getValueOrDefault(options.height, widgetDefaults.height)
+
+  -- Increment position
+  if increment then
+    if type(options.increment) == "boolean" then
+      if options.increment then
+        options.increment = 1
+      else
+        options.increment = 0
+      end
+    end
+    local i = getValueOrDefault(options.increment, 1)
+    incrementCol(i, w, h)
+  end
+
+  return {x, y, w, h}
+end
+
+local function getWidgetOptions(options, displayName, default, panel)
+  if type(options) ~= "table" then
+    options = {}
+  end
+  options.default = getValueOrDefault(default, options.default)
+  options.name = getWidgetName(options.name, displayName, type(default) ~= "nil", panel)
+  options.displayName = getValueOrDefault(displayName, options.name)
+  options.tooltip = getValueOrDefault(options.tooltip, options.displayName)
+  options.integer = getValueOrDefault(options.integer, (options.unit == Unit.Percent or options.unit == Unit.MidiKey))
+  options.min = getValueOrDefault(options.min, 0)
+  options.default = getValueOrDefault(options.default, options.min)
+  if options.unit == Unit.MidiKey then
+    options.max = getValueOrDefault(options.max, 127)
+  elseif options.unit == Unit.Percent then
+    options.max = getValueOrDefault(options.max, 100)
+  else
+    options.max = getValueOrDefault(options.max, 1)
+  end
+  return options
+end
+
+local function setOptional(widget, options)
+  if type(options.changed) == "function" then
+    widget.changed = options.changed
+  end
+  if type(options.alpha) == "number" then
+    widget.alpha = options.alpha
+  end
+  if type(options.fontSize) == "number" then
+    widget.fontSize = options.fontSize
+  end
+  if type(options.unit) == "number" then
+    widget.unit = options.unit
+  end
+  if type(options.mapper) == "number" then
+    widget.mapper = options.mapper
+  end
+  if type(options.showLabel) == "boolean" then
+    widget.showLabel = options.showLabel
+  end
+  if type(options.persistent) == "boolean" then
+    widget.persistent = options.persistent
+  end
+  if type(options.enabled) == "boolean" then
+    widget.enabled = options.enabled
+  end
+  if type(options.showPopupDisplay) == "boolean" then
+    widget.showPopupDisplay = options.showPopupDisplay
+  end
+  if type(options.editable) == "boolean" then
+    widget.editable = options.editable
+  end
+  if type(options.visible) == "boolean" then
+    widget.visible = options.visible
+  end
+  if type(options.backgroundColour) == "string" then
+    widget.backgroundColour = options.backgroundColour
+  end
+  if type(options.fillStyle) == "string" then
+    widget.fillStyle = options.fillStyle
+  end
+  if type(options.sliderColour) == "string" then
+    widget.sliderColour = options.sliderColour
+  end
+  if type(options.backgroundColourWhenEditing) == "string" then
+    widget.backgroundColourWhenEditing = options.backgroundColourWhenEditing
+  end
+  if type(options.textColourWhenEditing) == "string" then
+    widget.textColourWhenEditing = options.textColourWhenEditing
+  end
+  if type(options.textColour) == "string" then
+    widget.textColour = options.textColour
+  end
+  if type(options.backgroundColourOff) == "string" then
+    widget.backgroundColourOff = options.backgroundColourOff
+  end
+  if type(options.backgroundColourOn) == "string" then
+    widget.backgroundColourOn = options.backgroundColourOn
+  end
+  if type(options.textColourOff) == "string" then
+    widget.textColourOff = options.textColourOff
+  end
+  if type(options.textColourOn) == "string" then
+    widget.textColourOn = options.textColourOn
+  end
+end
+
+local widgets = {
+  setColours = setColours,
+  setSection = setSection,
+  channels = function()
+    local channels = {"Omni"}
+    for j=1,16 do
+      table.insert(channels, "" .. j)
+    end
+    return channels
+  end,
+  getColours = function() return widgetColours end,
+  getPanel = function(options) return widgetDefaults.panel end,
+  getSectionValue = function(k) return widgetDefaults[k] end,
+  xOffset = function(val) widgetDefaults.xOffset = val end,
+  yOffset = function(val) widgetDefaults.yOffset = val end,
+  xSpacing = function(val) widgetDefaults.xSpacing = val end,
+  ySpacing = function(val) widgetDefaults.ySpacing = val end,
+  posSide = function(widget) return widget.x + widget.width + widgetDefaults.xSpacing end,
+  posUnder = function(widget) return widget.y + widget.height + widgetDefaults.ySpacing end,
+  width = function(val) widgetDefaults.width = val end,
+  height = function(val) widgetDefaults.height = val end,
+  col = function(i, w, h) incrementCol(i, w, h) end,
+  row = function(i, h) incrementRow(i, h) end,
+  panel = function(options)
+    if type(options) ~= "table" then
+      options = {}
+    end
+    -- The first time, we use the default panel
+    local create = panelNameIndex > 1
+    if create == false then
+      options.name = widgetDefaults.panel.name
+    end
+    options = getWidgetOptions(options, nil, nil, true)
+    if create then
+      widgetDefaults.panel = Panel(options.name)
+      --print("Created panel", options.name)
+    end
+    widgetDefaults.panel.backgroundColour = widgetColours.backgroundColour
+    widgetDefaults.panel.bounds = getWidgetBounds(options, false)
+    setOptional(widgetDefaults.panel, options)
+    return widgetDefaults.panel
+  end,
+  button = function(displayName, default, options)
+    local isOnOff = true
+    if type(default) == "table" then
+      options = default
+      default = nil
+      isOnOff = false
+    end
+    options = getWidgetOptions(options, displayName, default)
+    local widget
+    if isOnOff then
+      widget = widgetDefaults.panel:OnOffButton(options.name, (options.default == true))
+    else
+      widget = widgetDefaults.panel:Button(options.name)
+    end
+    widget.backgroundColourOff = widgetColours.backgroundColourOff
+    widget.backgroundColourOn = widgetColours.backgroundColourOn
+    widget.textColourOff = widgetColours.textColourOff
+    widget.textColourOn = widgetColours.textColourOn
+    widget.displayName = options.displayName
+    widget.tooltip = options.tooltip
+    widget.bounds = getWidgetBounds(options, true)
+    setOptional(widget, options)
+    return widget
+  end,
+  label = function(displayName, options)
+    options = getWidgetOptions(options, displayName)
+    local widget = widgetDefaults.panel:Label("Label")
+    widget.text = options.displayName
+    widget.tooltip = options.tooltip
+    widget.backgroundColour = widgetColours.labelBackgroundColour
+    widget.textColour = widgetColours.labelTextColour
+    widget.bounds = getWidgetBounds(options, true)
+    setOptional(widget, options)
+    return widget
+  end,
+  menu = function(displayName, default, items, options)
+    if type(default) == "table" then
+      options = items
+      items = default
+      default = 1
+    end
+    options = getWidgetOptions(options, displayName, default)
+    local widget = widgetDefaults.panel:Menu(options.name, items)
+    widget.selected = options.default
+    widget.displayName = options.displayName
+    widget.tooltip = options.tooltip
+    widget.backgroundColour = widgetColours.menuBackgroundColour
+    widget.textColour = widgetColours.menuTextColour
+    widget.arrowColour = widgetColours.menuArrowColour
+    widget.outlineColour = widgetColours.menuOutlineColour
+    setOptional(widget, options)
+    if widget.showLabel == true then
+      options.height = getValueOrDefault(options.height, widgetDefaults.menuHeight)
+    end
+    widget.bounds = getWidgetBounds(options, true)
+    return widget
+  end,
+  numBox = function(displayName, default, options)
+    options = getWidgetOptions(options, displayName, default)
+    local widget = widgetDefaults.panel:NumBox(options.name, options.default, options.min, options.max, options.integer)
+    widget.displayName = options.displayName
+    widget.tooltip = options.tooltip
+    widget.backgroundColour = widgetColours.widgetBackgroundColour
+    widget.textColour = widgetColours.widgetTextColour
+    widget.bounds = getWidgetBounds(options, true)
+    setOptional(widget, options)
+    return widget
+  end,
+  table = function(displayName, default, size, options)
+    options = getWidgetOptions(options, displayName, default)
+    local widget = widgetDefaults.panel:Table(options.name, size, options.default, options.min, options.max, options.integer)
+    widget.fillStyle = "solid"
+    widget.backgroundColour = widgetColours.tableBackgroundColour
+    widget.sliderColour = widgetColours.sliderColour
+    widget.bounds = getWidgetBounds(options, true)
+    setOptional(widget, options)
+    return widget
+  end,
+}
+
+--------------------------------------------------------------------------------
 -- Methods for working with shapes
 --------------------------------------------------------------------------------
 
@@ -263,6 +633,7 @@ local getUnipolar = function(v) return (v + 1) / 2 end
 -- w is the current time-value getting plotted, from 0.0 to 1.0 (same as (x+1)/2)
 -- y is the current table number, from 0.0 to 1.0 (same as (z+1)/2)
 -- i = current index
+-- b = bounds (min, max, length, bipolar)
 local shapes = {
   ramp = function(x, z, w, y, i) return x * z end,
   triangleShaper = function(x, z, w, y, i) return math.min(2+2*x, math.abs((x-0.5)*2)-1) * z end,
@@ -298,7 +669,7 @@ local shapes = {
   talkative1 = function(x, z, w, y, i) return 1.4*math.cos(x*math.pi/2)*(.5*math.sin(((z*5)+1)*3*x)+.10*math.sin(((z*6)+1)*2*x)+.08*math.sin((((1-z)*3)+1)*12*x)) end,
   sinClipper = function(x, z, w, y, i) return math.sin(x*math.pi)*(((z*z)+0.125)*8) end,
   pitfall = function(x, z, w, y, i) return (x*128)%(z*16)*0.25 end,
-  nascaLines = function(x, z, w, y, i, max) return math.sqrt(1/i)*(((i/max)*(z+0.1)*max)%3)*0.5 end,
+  nascaLines = function(x, z, w, y, i, b) return math.sqrt(1/i)*(((i/b.max)*(z+0.1)*b.max)%3)*0.5 end,
   kick = function(x, z, w, y, i) return math.sin(math.pi*z*z*32*math.log(x+1)) end,
   sinToSaw = function(x, z, w, y, i) return math.sin(-x*math.pi)*(1-z)+(-x*z) end,
   zeroCrossing = function(x, z, w, y, i) return math.sin((x+1)*math.pi*(z+1))*(-math.abs(x)^32+1) end,
@@ -308,7 +679,7 @@ local shapes = {
   atan2 = function(x, z, w, y, i) return math.atan2(y, x) * z end,
   crosser = function(x, z, w, y, i) return gem.avg({x, w}) * z end,
   testShape = function(x, z, w, y, i)
-    return math.sin(i) * z
+    return x / 2
   end,
 }
 
@@ -317,6 +688,7 @@ local function getDefaultShapeOptions()
     z = 1,
     phase = -1,
     factor = 1,
+    amount = 100,
   }
 end
 
@@ -333,9 +705,10 @@ local function getShapeOptions(overrides)
     return defaultShapeOptions
   end
   return {
+    z = getValueOrDefault(overrides.z, defaultShapeOptions.z),
     phase = getValueOrDefault(overrides.phase, defaultShapeOptions.phase),
     factor = getValueOrDefault(overrides.factor, defaultShapeOptions.factor),
-    z = getValueOrDefault(overrides.z, defaultShapeOptions.z),
+    amount = getValueOrDefault(overrides.amount, defaultShapeOptions.amount),
   }
 end
 
@@ -387,7 +760,7 @@ local function getShapeBounds(bounds)
   shapeBounds.min = getValueOrDefault(bounds.min, -1) -- x-azis max value
   shapeBounds.max = getValueOrDefault(bounds.max, 1) -- x-azis min value
   shapeBounds.length = getValueOrDefault(bounds.length, 128) -- y-axis steps
-  shapeBounds.unipolar = shapeBounds.min == 0
+  shapeBounds.unipolar = shapeBounds.min >= 0
   return shapeBounds
 end
 
@@ -403,16 +776,31 @@ local function createShape(shapeBounds, options, shapeFunc, shapeTemplate)
     local z = options.z
     local w = getUnipolar(x)
     local y = getUnipolar(z)
-    --local value = shapeFunc(x, z, w, y, ((i/shapeBounds.length)*options.factor))
-    local value = shapeFunc(x, z, w, y, i, shapeBounds.max)
+    local value = shapeFunc(x, z, w, y, i, shapeBounds)
     if shapeBounds.unipolar then
-      value = ((shapeBounds.max * value) + shapeBounds.max) / 2
-    else
-      value = shapeBounds.max * value
+      value = getUnipolar(value)
     end
+    value = (shapeBounds.max * value) * (options.amount / 100)
     table.insert(shape, math.max(shapeBounds.min, math.min(shapeBounds.max, value)))
   end
   return shape, options
+end
+
+local function getAmountWidget(width, showLabel, i)
+  -- Widget for controlling shape amount
+  if type(width) == "nil" then
+    width = 120
+  end
+  if type(i) == "nil" then
+    i = ""
+  end
+  return widgets.numBox("Amount", getShapeOptions().amount, {
+    name = "ShapeAmount" .. i,
+    tooltip = "Set the shape amount.",
+    width = width,
+    showLabel = showLabel == true,
+    unit = Unit.Percent,
+  })
 end
 
 local function getShapeWidgets(width, showLabel, i)
@@ -454,6 +842,7 @@ end
 
 local shapes = {
   getWidgets = getShapeWidgets,
+  getAmountWidget = getAmountWidget,
   getShapeNames = getShapeNames,
   getShapeFunctions = getShapeFunctions,
   getShapeFunction = getShapeFunction,
@@ -812,9 +1201,9 @@ local function getShapeLoadOptions(partIndex, loadNew)
 
   return {
     z = paramsPerPart[partIndex].shapeWidgets.z.value,
-    --stepRange = paramsPerPart[partIndex].shapeWidgets.stepRange.value,
     phase = paramsPerPart[partIndex].shapeWidgets.phase.value,
     factor = paramsPerPart[partIndex].shapeWidgets.factor.value,
+    amount = paramsPerPart[partIndex].shapeWidgets.amount.value,
   }
 end
 
@@ -822,8 +1211,8 @@ local function loadShape(partIndex, loadNew)
   local options = getShapeLoadOptions(partIndex, loadNew)
   local values = {}
   if paramsPerPart[partIndex].shapeMenu.value == 1 then
-    -- If not shape was selected, we load the first
-    paramsPerPart[partIndex].shapeMenu.value = 2
+    -- If not shape was selected, just return
+    return
   end
   local shapeFunc = shapes.getShapeFunction(paramsPerPart[partIndex].shapeMenu.value - 1)
   values, options = shapes[shapeFunc](paramsPerPart[partIndex].seqValueTable, options)
@@ -832,11 +1221,11 @@ local function loadShape(partIndex, loadNew)
   end
   if loadNew == true then
     -- Update widgets with values from the shape
-    local callChanged = true
-    --paramsPerPart[partIndex].shapeWidgets.stepRange:setValue(options.stepRange, callChanged)
+    local callChanged = false
+    paramsPerPart[partIndex].shapeWidgets.z:setValue(options.z, callChanged)
     paramsPerPart[partIndex].shapeWidgets.phase:setValue(options.phase, callChanged)
     paramsPerPart[partIndex].shapeWidgets.factor:setValue(options.factor, callChanged)
-    paramsPerPart[partIndex].shapeWidgets.z:setValue(options.z, callChanged)
+    paramsPerPart[partIndex].shapeWidgets.amount:setValue(options.amount, callChanged)
   end
 end
 
@@ -1123,6 +1512,12 @@ local modseq = {
 -- A sequencer sending midi control change values
 --------------------------------------------------------------------------------
 
+local shapeNames = shapes.getShapeNames()
+local shapeMenuItems = {"Select shape..."}
+for _,v in ipairs(shapeNames) do
+  table.insert(shapeMenuItems, v)
+end
+
 modseq.setTitle("Midi CC Sequencer")
 
 setBackgroundColour(pageBackgoundColour)
@@ -1135,17 +1530,17 @@ setBackgroundColour(pageBackgoundColour)
 for page=1,maxPages do
   local tableX = 0
   local tableY = 0
-  local tableWidth = 700
-  local tableHeight = 64
-  local buttonRowHeight = 36
+  local tableWidth = 640
+  local tableHeight = 63
+  local buttonRowHeight = 60
   local buttonSpacing = 10
   local defaultSteps = 16
 
   if numParts == 1 then
-    tableHeight = tableHeight * 2
+    tableHeight = tableHeight * 1.5
   end
 
-  local sequencerPanel = Panel("SequencerPage" .. page)
+  local sequencerPanel = widgets.panel({name="SequencerPage" .. page})
   sequencerPanel.visible = page == 1
   sequencerPanel.backgroundColour = menuOutlineColour
   sequencerPanel.x = 10
@@ -1201,7 +1596,7 @@ for page=1,maxPages do
     partLabelInput.backgroundColourWhenEditing = "white"
     partLabelInput.textColourWhenEditing = "black"
     partLabelInput.fontSize = 16
-    partLabelInput.width = 75
+    partLabelInput.width = 81
     partLabelInput.height = 20
     partLabelInput.x = 0
     partLabelInput.y = inputWidgetY
@@ -1222,13 +1617,13 @@ for page=1,maxPages do
     end
 
     local stepResolution = sequencerPanel:Menu("StepResolution" .. i, resolutions.getResolutionNames())
-    stepResolution.tooltip = "Set the step resolution"
+    stepResolution.tooltip = "Set the resolution for each round (or step, if selected)"
     stepResolution.showLabel = false
     stepResolution.visible = isVisible
     stepResolution.selected = 11
     stepResolution.x = stepButton.x + stepButton.width + buttonSpacing
     stepResolution.y = inputWidgetY
-    stepResolution.size = {60,20}
+    stepResolution.size = {66,20}
     stepResolution.backgroundColour = menuBackgroundColour
     stepResolution.textColour = menuTextColour
     stepResolution.arrowColour = menuArrowColour
@@ -1251,6 +1646,7 @@ for page=1,maxPages do
     numStepsBox.changed = function(self)
       print("numStepsBox.changed index/value", i, self.value)
       modseq.setNumSteps(i, self.value)
+      modseq.loadShape(i)
     end
 
     local valueRandomization = sequencerPanel:NumBox("ValueRandomization" .. i, 0, 0, 100, true)
@@ -1262,7 +1658,7 @@ for page=1,maxPages do
     valueRandomization.textColour = menuTextColour
     valueRandomization.arrowColour = menuArrowColour
     valueRandomization.outlineColour = menuOutlineColour
-    valueRandomization.size = {115,20}
+    valueRandomization.size = {114,20}
     valueRandomization.x = numStepsBox.x + numStepsBox.width + buttonSpacing
     valueRandomization.y = inputWidgetY
 
@@ -1272,35 +1668,58 @@ for page=1,maxPages do
     midiControlNumber.visible = isVisible
     midiControlNumber.backgroundColour = menuBackgroundColour
     midiControlNumber.textColour = menuTextColour
-    midiControlNumber.size = {90,20}
+    midiControlNumber.size = valueRandomization.size
     midiControlNumber.x = valueRandomization.x + valueRandomization.width + buttonSpacing
     midiControlNumber.y = inputWidgetY
 
     local channelBox = sequencerPanel:NumBox("Channel" .. i, 0, 0, 16, true)
-    channelBox.displayName = "Ch"
+    channelBox.displayName = "Channel"
     channelBox.tooltip = "Midi channel that receives CC from this part. 0 = omni"
     channelBox.visible = isVisible
     channelBox.backgroundColour = menuBackgroundColour
     channelBox.textColour = menuTextColour
     channelBox.arrowColour = menuArrowColour
     channelBox.outlineColour = menuOutlineColour
-    channelBox.size = {75,20}
+    channelBox.size = valueRandomization.size
     channelBox.x = midiControlNumber.x + midiControlNumber.width + buttonSpacing
     channelBox.y = inputWidgetY
 
-    local smoothButton = sequencerPanel:OnOffButton("Smooth" .. i, false)
-    smoothButton.displayName = "Smooth"
-    smoothButton.tooltip = "Use smoothing (non destructive) to even out the transition between value changes"
-    smoothButton.visible = isVisible
-    smoothButton.backgroundColourOff = "#ff084486"
-    smoothButton.backgroundColourOn = "#ff02ACFE"
-    smoothButton.textColourOff = "#ff22FFFF"
-    smoothButton.textColourOn = "#efFFFFFF"
-    smoothButton.size = {60,20}
-    smoothButton.x = channelBox.x + channelBox.width + buttonSpacing
-    smoothButton.y = inputWidgetY
+    widgets.setSection({
+      x = 0,
+      y = widgets.posUnder(partLabelInput) + 6,
+      xSpacing = buttonSpacing,
+    })
 
-    table.insert(paramsPerPart, {stepButton=stepButton,smoothButton=smoothButton,valueRandomization=valueRandomization,midiControlNumber=midiControlNumber,seqValueTable=seqValueTable,channelBox=channelBox,positionTable=positionTable,stepResolution=stepResolution,numStepsBox=numStepsBox,partLabelInput=partLabelInput})
+    local shapeMenu = widgets.menu("Shape", shapeMenuItems, {
+      name = "shape" .. i,
+      showLabel = false,
+      width = 131,
+      changed = function(self)
+        modseq.loadShape(i, true)
+      end
+    })
+
+    local shapeWidgets = shapes.getWidgets(115, true, i)
+    shapeWidgets.amount = shapes.getAmountWidget(115, true, i)
+
+    local smoothButton = widgets.button("Smooth", false, {
+      name = "Smooth" .. i,
+      tooltip = "Use smoothing (non destructive) to even out the transition between value changes",
+      width = 58,
+    })
+
+    shapeWidgets.phase.changed = function(self) modseq.loadShape(i) end
+    shapeWidgets.factor.changed = function(self) modseq.loadShape(i) end
+    shapeWidgets.z.changed = function(self) modseq.loadShape(i) end
+    shapeWidgets.amount.changed = function(self) modseq.loadShape(i) end
+
+    local xyShapeMorph = widgets.getPanel():XY('ShapePhase' .. i, 'ShapeMorph' .. i)
+    xyShapeMorph.x = widgets.posSide(seqValueTable) - 8
+    xyShapeMorph.y = seqValueTable.y
+    xyShapeMorph.width = 58
+    xyShapeMorph.height = seqValueTable.height
+
+    table.insert(paramsPerPart, {shapeWidgets=shapeWidgets,shapeAmount=shapeAmount,shapeMenu=shapeMenu,stepButton=stepButton,smoothButton=smoothButton,valueRandomization=valueRandomization,midiControlNumber=midiControlNumber,seqValueTable=seqValueTable,channelBox=channelBox,positionTable=positionTable,stepResolution=stepResolution,numStepsBox=numStepsBox,partLabelInput=partLabelInput})
 
     tableY = tableY + tableHeight + buttonRowHeight
   end
@@ -1315,7 +1734,7 @@ for page=1,maxPages do
   minRepeats.arrowColour = menuArrowColour
   minRepeats.outlineColour = menuOutlineColour
   minRepeats.size = {100,20}
-  minRepeats.x = modseq.actionMenu.x + modseq.actionMenu.width + 9
+  minRepeats.x = modseq.actionMenu.x + modseq.actionMenu.width + 8
   minRepeats.y = modseq.actionMenu.y
 
   table.insert(paramsPerPage, {sequencerPanel=sequencerPanel,minRepeats=minRepeats,pageDuration=4,active=(page==1)})

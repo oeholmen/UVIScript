@@ -4,8 +4,15 @@
 
 local gem = require "includes.common"
 local shapes = require "includes.shapes"
+local widgets = require "includes.widgets"
 local resolutions = require "includes.resolutions"
 local modseq = require "includes.modseq"
+
+local shapeNames = shapes.getShapeNames()
+local shapeMenuItems = {"Select shape..."}
+for _,v in ipairs(shapeNames) do
+  table.insert(shapeMenuItems, v)
+end
 
 modseq.setTitle("Midi CC Sequencer")
 
@@ -19,17 +26,17 @@ setBackgroundColour(pageBackgoundColour)
 for page=1,maxPages do
   local tableX = 0
   local tableY = 0
-  local tableWidth = 700
-  local tableHeight = 64
-  local buttonRowHeight = 36
+  local tableWidth = 640
+  local tableHeight = 63
+  local buttonRowHeight = 60
   local buttonSpacing = 10
   local defaultSteps = 16
 
   if numParts == 1 then
-    tableHeight = tableHeight * 2
+    tableHeight = tableHeight * 1.5
   end
 
-  local sequencerPanel = Panel("SequencerPage" .. page)
+  local sequencerPanel = widgets.panel({name="SequencerPage" .. page})
   sequencerPanel.visible = page == 1
   sequencerPanel.backgroundColour = menuOutlineColour
   sequencerPanel.x = 10
@@ -85,7 +92,7 @@ for page=1,maxPages do
     partLabelInput.backgroundColourWhenEditing = "white"
     partLabelInput.textColourWhenEditing = "black"
     partLabelInput.fontSize = 16
-    partLabelInput.width = 75
+    partLabelInput.width = 81
     partLabelInput.height = 20
     partLabelInput.x = 0
     partLabelInput.y = inputWidgetY
@@ -106,13 +113,13 @@ for page=1,maxPages do
     end
 
     local stepResolution = sequencerPanel:Menu("StepResolution" .. i, resolutions.getResolutionNames())
-    stepResolution.tooltip = "Set the step resolution"
+    stepResolution.tooltip = "Set the resolution for each round (or step, if selected)"
     stepResolution.showLabel = false
     stepResolution.visible = isVisible
     stepResolution.selected = 11
     stepResolution.x = stepButton.x + stepButton.width + buttonSpacing
     stepResolution.y = inputWidgetY
-    stepResolution.size = {60,20}
+    stepResolution.size = {66,20}
     stepResolution.backgroundColour = menuBackgroundColour
     stepResolution.textColour = menuTextColour
     stepResolution.arrowColour = menuArrowColour
@@ -135,6 +142,7 @@ for page=1,maxPages do
     numStepsBox.changed = function(self)
       print("numStepsBox.changed index/value", i, self.value)
       modseq.setNumSteps(i, self.value)
+      modseq.loadShape(i)
     end
 
     local valueRandomization = sequencerPanel:NumBox("ValueRandomization" .. i, 0, 0, 100, true)
@@ -146,7 +154,7 @@ for page=1,maxPages do
     valueRandomization.textColour = menuTextColour
     valueRandomization.arrowColour = menuArrowColour
     valueRandomization.outlineColour = menuOutlineColour
-    valueRandomization.size = {115,20}
+    valueRandomization.size = {114,20}
     valueRandomization.x = numStepsBox.x + numStepsBox.width + buttonSpacing
     valueRandomization.y = inputWidgetY
 
@@ -156,35 +164,58 @@ for page=1,maxPages do
     midiControlNumber.visible = isVisible
     midiControlNumber.backgroundColour = menuBackgroundColour
     midiControlNumber.textColour = menuTextColour
-    midiControlNumber.size = {90,20}
+    midiControlNumber.size = valueRandomization.size
     midiControlNumber.x = valueRandomization.x + valueRandomization.width + buttonSpacing
     midiControlNumber.y = inputWidgetY
 
     local channelBox = sequencerPanel:NumBox("Channel" .. i, 0, 0, 16, true)
-    channelBox.displayName = "Ch"
+    channelBox.displayName = "Channel"
     channelBox.tooltip = "Midi channel that receives CC from this part. 0 = omni"
     channelBox.visible = isVisible
     channelBox.backgroundColour = menuBackgroundColour
     channelBox.textColour = menuTextColour
     channelBox.arrowColour = menuArrowColour
     channelBox.outlineColour = menuOutlineColour
-    channelBox.size = {75,20}
+    channelBox.size = valueRandomization.size
     channelBox.x = midiControlNumber.x + midiControlNumber.width + buttonSpacing
     channelBox.y = inputWidgetY
 
-    local smoothButton = sequencerPanel:OnOffButton("Smooth" .. i, false)
-    smoothButton.displayName = "Smooth"
-    smoothButton.tooltip = "Use smoothing (non destructive) to even out the transition between value changes"
-    smoothButton.visible = isVisible
-    smoothButton.backgroundColourOff = "#ff084486"
-    smoothButton.backgroundColourOn = "#ff02ACFE"
-    smoothButton.textColourOff = "#ff22FFFF"
-    smoothButton.textColourOn = "#efFFFFFF"
-    smoothButton.size = {60,20}
-    smoothButton.x = channelBox.x + channelBox.width + buttonSpacing
-    smoothButton.y = inputWidgetY
+    widgets.setSection({
+      x = 0,
+      y = widgets.posUnder(partLabelInput) + 6,
+      xSpacing = buttonSpacing,
+    })
 
-    table.insert(paramsPerPart, {stepButton=stepButton,smoothButton=smoothButton,valueRandomization=valueRandomization,midiControlNumber=midiControlNumber,seqValueTable=seqValueTable,channelBox=channelBox,positionTable=positionTable,stepResolution=stepResolution,numStepsBox=numStepsBox,partLabelInput=partLabelInput})
+    local shapeMenu = widgets.menu("Shape", shapeMenuItems, {
+      name = "shape" .. i,
+      showLabel = false,
+      width = 131,
+      changed = function(self)
+        modseq.loadShape(i, true)
+      end
+    })
+
+    local shapeWidgets = shapes.getWidgets(115, true, i)
+    shapeWidgets.amount = shapes.getAmountWidget(115, true, i)
+
+    local smoothButton = widgets.button("Smooth", false, {
+      name = "Smooth" .. i,
+      tooltip = "Use smoothing (non destructive) to even out the transition between value changes",
+      width = 58,
+    })
+
+    shapeWidgets.phase.changed = function(self) modseq.loadShape(i) end
+    shapeWidgets.factor.changed = function(self) modseq.loadShape(i) end
+    shapeWidgets.z.changed = function(self) modseq.loadShape(i) end
+    shapeWidgets.amount.changed = function(self) modseq.loadShape(i) end
+
+    local xyShapeMorph = widgets.getPanel():XY('ShapePhase' .. i, 'ShapeMorph' .. i)
+    xyShapeMorph.x = widgets.posSide(seqValueTable) - 8
+    xyShapeMorph.y = seqValueTable.y
+    xyShapeMorph.width = 58
+    xyShapeMorph.height = seqValueTable.height
+
+    table.insert(paramsPerPart, {shapeWidgets=shapeWidgets,shapeAmount=shapeAmount,shapeMenu=shapeMenu,stepButton=stepButton,smoothButton=smoothButton,valueRandomization=valueRandomization,midiControlNumber=midiControlNumber,seqValueTable=seqValueTable,channelBox=channelBox,positionTable=positionTable,stepResolution=stepResolution,numStepsBox=numStepsBox,partLabelInput=partLabelInput})
 
     tableY = tableY + tableHeight + buttonRowHeight
   end
@@ -199,7 +230,7 @@ for page=1,maxPages do
   minRepeats.arrowColour = menuArrowColour
   minRepeats.outlineColour = menuOutlineColour
   minRepeats.size = {100,20}
-  minRepeats.x = modseq.actionMenu.x + modseq.actionMenu.width + 9
+  minRepeats.x = modseq.actionMenu.x + modseq.actionMenu.width + 8
   minRepeats.y = modseq.actionMenu.y
 
   table.insert(paramsPerPage, {sequencerPanel=sequencerPanel,minRepeats=minRepeats,pageDuration=4,active=(page==1)})

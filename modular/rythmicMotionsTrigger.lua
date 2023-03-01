@@ -253,12 +253,12 @@ end
 tableMotion.getStartDirectionWidget()
 
 widgets.menu("Trigger Mode", triggerMode, triggerModes, {
-  tooltip = "Trigger mode determines when a trigger is actived for polling (see Quantize)",
+  tooltip = "Trigger mode determines when a trigger is actived for output (see Quantize)",
   changed = function(self) triggerMode = self.value end
 })
 
 widgets.menu("Quantize", resolution, resolutionNames, {
-  tooltip = "Quantization affects how often triggers are polled",
+  tooltip = "Quantize the outputted triggers to the selected resolution",
   width = 75,
   changed = function(self) resolution = self.value end
 })

@@ -3,6 +3,7 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
+local shapes = require "includes.shapes"
 local widgets = require "includes.widgets"
 local resolutions = require "includes.resolutions"
 
@@ -30,13 +31,29 @@ local resolutionNames = resolutions.getResolutionNames({'Follow Input'})
 local resolution = #resolutionNames
 local sequencerPos = 1
 local channel = 0 -- 0 = Omni
+local shapeMenuItems = {"Select preset..."}
+for _,v in ipairs(shapes.getShapeNames()) do
+  table.insert(shapeMenuItems, v)
+end
+
+local loadShape = function(shapeIndex)
+  shapeIndex = shapeIndex - 1
+  if shapeIndex == 0 then
+    return
+  end
+  local shapeFunc = shapes.getShapeFunction(shapeIndex)
+  local values = shapes[shapeFunc](sequencerTable)
+  for i,v in ipairs(values) do
+    sequencerTable:setValue(i, v)
+  end
+end
 
 setBackgroundColour(backgroundColour)
 
 local panel = widgets.panel({
   tooltip = "A sequencer that sets a velocity pattern on incoming notes",
   width = 700,
-  height = 90,
+  height = 96,
   x = 10,
   y = 10,
 })
@@ -53,19 +70,6 @@ widgets.setSection({
   x = widgets.posSide(sequencerLabel) + 13,
   y = sequencerLabel.y,
   xSpacing = 5,
-})
-
-widgets.label("Channel", {
-  width = 51,
-  backgroundColour = "transparent",
-  textColour = "silver"
-})
-
-local channelInput = widgets.menu("Channel", widgets.channels(), {
-  tooltip = "Only adjust the velocity for events sent on this channel",
-  width = 54,
-  showLabel = false,
-  changed = function(self) channel = self.value - 1 end
 })
 
 widgets.label("Resolution", {
@@ -86,27 +90,48 @@ local resolutionInput = widgets.menu("Resolution", resolution, resolutionNames, 
   end
 })
 
-widgets.numBox("Pattern Length", 8, {
-  tooltip = "Length of velocity pattern table",
+local shape = widgets.menu("Start Shape", shapeMenuItems, {
+  tooltip = "Set how the table will look when starting.",
+  width = 120,
+  showLabel = false,
+  changed = function(self)
+    loadShape(self.value)
+  end
+})
+
+widgets.numBox("Steps", 8, {
+  tooltip = "Set the length of velocity pattern",
+  width = 78,
   min = 1,
   max = 128,
   integer = true,
   changed = function(self)
     sequencerTable.length = self.value
     positionTable.length = self.value
+    if shape.value > 1 then
+      loadShape(shape.value)
+    end
   end
 })
 
-local velocityRandomization = widgets.numBox("Randomization", 0, {
+local velocityRandomization = widgets.numBox("Rand", 0, {
   tooltip = "Amount of radomization applied to the velocity",
+  width = 96,
   unit = Unit.Percent,
 })
 
+widgets.menu("Channel", widgets.channels(), {
+  tooltip = "Only adjust the velocity for events sent on this channel",
+  width = 53,
+  showLabel = false,
+  changed = function(self) channel = self.value - 1 end
+})
+
 widgets.setSection({
-  width = 710,
-  xOffset = 5,
-  yOffset = widgets.posUnder(sequencerLabel) + 5,
-  xSpacing = 5,
+  width = 700,
+  x = 0,
+  y = widgets.posUnder(sequencerLabel) + 5,
+  xSpacing = 0,
   ySpacing = 0,
 })
 
@@ -125,7 +150,7 @@ widgets.setSection({
   height = 60,
 })
 
-sequencerTable = widgets.table("Velocity", 90, 8, {
+sequencerTable = widgets.table("Velocity", 127, 8, {
   tooltip = "Set the velocity pattern",
   showPopupDisplay = true,
   backgroundColour = "191E25",

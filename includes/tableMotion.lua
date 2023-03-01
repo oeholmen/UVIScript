@@ -42,7 +42,7 @@ local shapeOptions = {
 local function getSpeedSpreadWidget(width)
   return widgets.menu("Speed Spread", speedTypes, {
     width = width,
-    tooltip = "The speed type works with the speed factor to control speed variations across the table. Ramp Up means fast -> slower, Triangle means slower in the center.",
+    tooltip = "The speed spread works with the speed factor to control speed variations across the table. Ramp Up means fast -> slower, Triangle means slower in the center. (Note: Only used for motion type 'evolve')",
     changed = function(self) motionOptions.speedType = self.selectedText end
   })
 end

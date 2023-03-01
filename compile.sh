@@ -70,7 +70,6 @@ output_program="./compiled/synths/programs/Tweak Synth Additive.uvip"
 
 cp "$input_program" "$output_program"
 echo "Copied $input_program to $output_program"
-echo
 
 ##########
 
@@ -127,7 +126,7 @@ for luaScript in "${luaScripts[@]}"; do
   # Find the required includes - common is always included
   includes=(common)
 
-  availableIncludes=(widgets modular scales notes, shapes noteSelector resolutions modseq tableMotion rythmicFragments subdivision resolutionSelector)
+  availableIncludes=(widgets modular scales notes shapes noteSelector resolutions modseq tableMotion rythmicFragments subdivision resolutionSelector)
 
   # Search for includes in the script
   for include in "${availableIncludes[@]}"; do

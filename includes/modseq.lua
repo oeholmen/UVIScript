@@ -109,9 +109,9 @@ local function getShapeLoadOptions(partIndex, loadNew)
 
   return {
     z = paramsPerPart[partIndex].shapeWidgets.z.value,
-    --stepRange = paramsPerPart[partIndex].shapeWidgets.stepRange.value,
     phase = paramsPerPart[partIndex].shapeWidgets.phase.value,
     factor = paramsPerPart[partIndex].shapeWidgets.factor.value,
+    amount = paramsPerPart[partIndex].shapeWidgets.amount.value,
   }
 end
 
@@ -119,8 +119,8 @@ local function loadShape(partIndex, loadNew)
   local options = getShapeLoadOptions(partIndex, loadNew)
   local values = {}
   if paramsPerPart[partIndex].shapeMenu.value == 1 then
-    -- If not shape was selected, we load the first
-    paramsPerPart[partIndex].shapeMenu.value = 2
+    -- If not shape was selected, just return
+    return
   end
   local shapeFunc = shapes.getShapeFunction(paramsPerPart[partIndex].shapeMenu.value - 1)
   values, options = shapes[shapeFunc](paramsPerPart[partIndex].seqValueTable, options)
@@ -129,11 +129,11 @@ local function loadShape(partIndex, loadNew)
   end
   if loadNew == true then
     -- Update widgets with values from the shape
-    local callChanged = true
-    --paramsPerPart[partIndex].shapeWidgets.stepRange:setValue(options.stepRange, callChanged)
+    local callChanged = false
+    paramsPerPart[partIndex].shapeWidgets.z:setValue(options.z, callChanged)
     paramsPerPart[partIndex].shapeWidgets.phase:setValue(options.phase, callChanged)
     paramsPerPart[partIndex].shapeWidgets.factor:setValue(options.factor, callChanged)
-    paramsPerPart[partIndex].shapeWidgets.z:setValue(options.z, callChanged)
+    paramsPerPart[partIndex].shapeWidgets.amount:setValue(options.amount, callChanged)
   end
 end
 

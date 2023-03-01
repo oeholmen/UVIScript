@@ -122,7 +122,7 @@ for page=1,maxPages do
     stepButton.backgroundColourOn = "#ff02ACFE"
     stepButton.textColourOff = "#ff22FFFF"
     stepButton.textColourOn = "#efFFFFFF"
-    stepButton.size = {53,20}
+    stepButton.size = {60,20}
     stepButton.x = 0
     stepButton.y = inputWidgetY
     stepButton.changed = function(self)
@@ -136,7 +136,7 @@ for page=1,maxPages do
     stepResolution.selected = 11
     stepResolution.x = stepButton.x + stepButton.width + buttonSpacing
     stepResolution.y = inputWidgetY
-    stepResolution.size = {60,20}
+    stepResolution.size = {75,20}
     stepResolution.backgroundColour = menuBackgroundColour
     stepResolution.textColour = menuTextColour
     stepResolution.arrowColour = menuArrowColour
@@ -153,11 +153,10 @@ for page=1,maxPages do
     numStepsBox.textColour = menuTextColour
     numStepsBox.arrowColour = menuArrowColour
     numStepsBox.outlineColour = menuOutlineColour
-    numStepsBox.size = {80,20}
+    numStepsBox.size = {100,20}
     numStepsBox.x = stepResolution.x + stepResolution.width + buttonSpacing
     numStepsBox.y = inputWidgetY
     numStepsBox.changed = function(self)
-      --print("numStepsBox.changed index/value", i, self.value)
       modseq.setNumSteps(i, self.value)
       modseq.loadShape(i)
     end
@@ -171,7 +170,7 @@ for page=1,maxPages do
     valueRandomization.textColour = menuTextColour
     valueRandomization.arrowColour = menuArrowColour
     valueRandomization.outlineColour = menuOutlineColour
-    valueRandomization.size = {150,20}
+    valueRandomization.size = {140,20}
     valueRandomization.x = numStepsBox.x + numStepsBox.width + buttonSpacing
     valueRandomization.y = inputWidgetY
 
@@ -184,7 +183,7 @@ for page=1,maxPages do
     smoothRandomization.textColour = menuTextColour
     smoothRandomization.arrowColour = menuArrowColour
     smoothRandomization.outlineColour = menuOutlineColour
-    smoothRandomization.size = {150,20}
+    smoothRandomization.size = valueRandomization.size
     smoothRandomization.x = valueRandomization.x + valueRandomization.width + buttonSpacing
     smoothRandomization.y = inputWidgetY
 
@@ -197,20 +196,36 @@ for page=1,maxPages do
     smoothInput.textColour = menuTextColour
     smoothInput.arrowColour = menuArrowColour
     smoothInput.outlineColour = menuOutlineColour
-    smoothInput.size = {100,20}
+    smoothInput.size = valueRandomization.size
     smoothInput.x = smoothRandomization.x + smoothRandomization.width + buttonSpacing
     smoothInput.y = inputWidgetY
 
-    local bipolarButton = sequencerPanel:OnOffButton("Bipolar" .. i, true)
-    bipolarButton.displayName = "Bipolar"
-    bipolarButton.visible = isVisible
-    bipolarButton.backgroundColourOff = "#ff084486"
-    bipolarButton.backgroundColourOn = "#ff02ACFE"
-    bipolarButton.textColourOff = "#ff22FFFF"
-    bipolarButton.textColourOn = "#efFFFFFF"
-    bipolarButton.size = {53,20}
-    bipolarButton.x = smoothInput.x + smoothInput.width + buttonSpacing
-    bipolarButton.y = inputWidgetY
+    widgets.setSection({
+      x = 0,
+      y = widgets.posUnder(stepButton) + 10,
+      xSpacing = buttonSpacing,
+    })
+
+    local shapeMenu = widgets.menu("Shape", shapeMenuItems, {
+      name = "shape" .. i,
+      showLabel = false,
+      width = 140,
+      changed = function(self)
+        modseq.loadShape(i, true)
+      end
+    })
+
+    local shapeWidgets = shapes.getWidgets(114, true, i)
+    shapeWidgets.amount = shapes.getAmountWidget(114, true, i)
+    shapeWidgets.phase.changed = function(self) modseq.loadShape(i) end
+    shapeWidgets.factor.changed = function(self) modseq.loadShape(i) end
+    shapeWidgets.z.changed = function(self) modseq.loadShape(i) end
+    shapeWidgets.amount.changed = function(self) modseq.loadShape(i) end
+
+    local bipolarButton = widgets.button("Bipolar", true, {
+      name = "Bipolar" .. i,
+      width = 59,
+    })
     bipolarButton.changed = function(self)
       if self.value then
         seqValueTable:setRange(-100,100)
@@ -219,18 +234,6 @@ for page=1,maxPages do
       end
     end
     bipolarButton:changed()
-
-    widgets.setSection({
-      x = 0,
-      y = widgets.posUnder(stepButton) + 10,
-      xSpacing = buttonSpacing
-    })
-
-    local shapeWidgets = shapes.getWidgets(121, true, i)
-
-    --[[ shapeWidgets.stepRange.changed = function(self)
-      modseq.loadShape(i)
-    end ]]
 
     shapeWidgets.phase.changed = function(self)
       modseq.loadShape(i)
@@ -243,14 +246,6 @@ for page=1,maxPages do
     shapeWidgets.z.changed = function(self)
       modseq.loadShape(i)
     end
-
-    local shapeMenu = widgets.menu("Shape", shapeMenuItems, {
-      name = "shape" .. i,
-      showLabel = false,
-      changed = function(self)
-        modseq.loadShape(i, true)
-      end
-    })
 
     local xyShapeMorph = widgets.getPanel():XY('ShapePhase' .. i, 'ShapeMorph' .. i)
     xyShapeMorph.x = widgets.posSide(seqValueTable)
