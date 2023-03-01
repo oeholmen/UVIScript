@@ -306,14 +306,13 @@ widgets.setSection({
   cols = 9
 })
 
-tableMotion.getSpeedSpreadWidget()
 
-local startShape = tableMotion.getStartShapeWidget()
-startShape.changed = function(self)
+tableMotion.getStartShapeWidget().changed = function(self)
   tableMotion.options.startMode = self.selectedText
   setScaleTable(true) -- Load a "fresh" shape without adjustments when selecting a shape
 end
 
+tableMotion.getSpeedSpreadWidget()
 tableMotion.getStartDirectionWidget()
 
 local activationModeMenu = widgets.menu("Activation Mode", activationMode, activationModes, {

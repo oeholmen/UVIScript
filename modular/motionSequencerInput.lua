@@ -221,14 +221,12 @@ widgets.setSection({
   ySpacing = 5,
 })
 
-tableMotion.getSpeedSpreadWidget(85)
-
-local startShape = tableMotion.getStartShapeWidget()
-startShape.changed = function(self)
+tableMotion.getStartShapeWidget().changed = function(self)
   tableMotion.options.startMode = self.selectedText
   resetPitches(true) -- Load a "fresh" shape without adjustments when selecting a shape
 end
 
+tableMotion.getSpeedSpreadWidget(85)
 tableMotion.getStartDirectionWidget(84)
 
 widgets.menu("Motion Type", tableMotion.movementTypes, {

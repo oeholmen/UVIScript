@@ -269,7 +269,11 @@ local shapeNames = {
   "Sin To Saw",
   "Zero Crossing",
   "VOSIM",
+  "VOSIM (Norm)",
   "Crosser",
+  "Wings",
+  "Dirac Delta (exp)",
+  "Dirac Delta (frexp)",
   "Random",
   "Test Shape",
 }
@@ -322,7 +326,11 @@ local shapeFunctions = {
   "sinToSaw",
   "zeroCrossing",
   "vosim",
+  "vosimNormalized",
   "crosser",
+  "wings",
+  "diracDelta",
+  "diracDeltaFrexp",
   "random",
   "testShape",
 }
@@ -336,6 +344,7 @@ local getUnipolar = function(v) return (v + 1) / 2 end
 -- y is the current table number, from 0.0 to 1.0 (same as (z+1)/2)
 -- i = current index
 -- b = bounds (min, max, length, bipolar)
+-- q = gem.round(1+((x+1)/2)*511)
 local shapes = {
   ramp = function(x, z, w, y, i) return x * z end,
   triangleShaper = function(x, z, w, y, i) return math.min(2+2*x, math.abs((x-0.5)*2)-1) * z end,
@@ -376,12 +385,17 @@ local shapes = {
   sinToSaw = function(x, z, w, y, i) return math.sin(-x*math.pi)*(1-z)+(-x*z) end,
   zeroCrossing = function(x, z, w, y, i) return math.sin((x+1)*math.pi*(z+1))*(-math.abs(x)^32+1) end,
   vosim = function(x, z, w, y, i) return -(w-1)*math.sin(w*math.pi*8*(math.sin(z)+1.5))^2 end,
+  vosimNormalized = function(x, z, w, y, i) return (-(w-1)*math.sin(w*math.pi*9*(math.sin(y)+1.3))^2-.5)*2 end,
   tanh = function(x, z, w, y, i) return math.tanh(x) * z end,
   acos = function(x, z, w, y, i) return math.acos(x) * z end,
+  wings = function(x, z, w, y, i) return math.acos((math.abs(-math.abs(x)+1) + -math.abs(x)+1)/2) * z end,
   atan2 = function(x, z, w, y, i) return math.atan2(y, x) * z end,
   crosser = function(x, z, w, y, i) return gem.avg({x, w}) * z end,
+  diracDelta = function(x, z, w, y, i) return (math.exp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*16) end,
+  diracDeltaFrexp = function(x, z, w, y, i) return (math.frexp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*16) end,
   testShape = function(x, z, w, y, i)
-    return x / 2
+    --q = gem.round(1+((x+1)/2)*511)
+    return x * z
   end,
 }
 
@@ -570,7 +584,7 @@ local shapes = {
   tanh = function(t,o) return createShape(t, o, 'tanh') end,
   atan2 = function(t,o) return createShape(t, o, 'atan2') end,
   acos = function(t,o) return createShape(t, o, 'acos') end,
-  triangleOffPhase = function(t,o) return createShape(t, o, 'triangleShaper', {phase = -0.5}) end,
+  triangleOffPhase = function(t,o) return createShape(t, o, 'triangleShaper', {phase = -.5}) end,
   rampUp = function(t,o) return createShape(t, o, 'ramp', {z = 1}) end,
   rampDown = function(t,o) return createShape(t, o, 'ramp', {z = -1}) end,
   sine = function(t,o) return createShape(t, o, 'sine', {factor = math.pi}) end,
@@ -580,24 +594,28 @@ local shapes = {
   tripleSinWindow = function(t,o) return createShape(t, o, 'tripleSin', {z = 0}) end,
   taffy = function(t,o) return createShape(t, o, 'taffy', {z = 0}) end,
   brassy = function(t,o) return createShape(t, o, 'brassy', {z = 0}) end,
-  hpfSqrToSqr = function(t,o) return createShape(t, o, 'hpfSqrToSqr', {z = 0.01}) end,
-  wacky = function(t,o) return createShape(t, o, 'wacky', {z = 0.84}) end,
+  hpfSqrToSqr = function(t,o) return createShape(t, o, 'hpfSqrToSqr', {z = .01}) end,
+  wacky = function(t,o) return createShape(t, o, 'wacky', {z = .84}) end,
   sinToNoise = function(t,o) return createShape(t, o, 'sinToNoise') end,
   filteredSquare = function(t,o) return createShape(t, o, 'filteredSquare') end,
   windowYSqr = function(t,o) return createShape(t, o, 'windowYSqr', {z = 0}) end,
   random = function(t,o) return createShape(t, o, 'random') end,
-  sineStrech = function(t,o) return createShape(t, o, 'sineStrech', {z = 0.03}) end,
+  sineStrech = function(t,o) return createShape(t, o, 'sineStrech', {z = .03}) end,
   talkative1 = function(t,o) return createShape(t, o, 'talkative1') end,
   sinClipper = function(t,o) return createShape(t, o, 'sinClipper', {z = 0}) end,
-  pitfall = function(t,o) return createShape(t, o, 'pitfall', {z = 0.15}) end,
-  nascaLines = function(t,o) return createShape(t, o, 'nascaLines', {z = -0.31}) end,
+  pitfall = function(t,o) return createShape(t, o, 'pitfall', {z = .15}) end,
+  nascaLines = function(t,o) return createShape(t, o, 'nascaLines', {z = -.31}) end,
   loFiTriangles = function(t,o) return createShape(t, o, 'loFiTriangles', {z = 0}) end,
   squareSawBit = function(t,o) return createShape(t, o, 'squareSawBit') end,
   kick = function(t,o) return createShape(t, o, 'kick', {phase = 0, z = -.505}) end,
   sinToSaw = function(t,o) return createShape(t, o, 'sinToSaw', {z = 0}) end,
   zeroCrossing = function(t,o) return createShape(t, o, 'zeroCrossing') end,
   vosim = function(t,o) return createShape(t, o, 'vosim') end,
+  vosimNormalized = function(t,o) return createShape(t, o, 'vosimNormalized') end,
+  diracDelta = function(t,o) return createShape(t, o, 'diracDelta', {factor = .3, z = .03}) end,
+  diracDeltaFrexp = function(t,o) return createShape(t, o, 'diracDeltaFrexp', {z = .03}) end,
   crosser = function(t,o) return createShape(t, o, 'crosser', {z = 0, factor = 4}) end,
+  wings = function(t,o) return createShape(t, o, 'wings', {factor = .5}) end,
   testShape = function(t,o) return createShape(t, o, 'testShape') end,
 }
 
