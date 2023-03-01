@@ -7,6 +7,7 @@ local shapes = require "includes.shapes"
 local widgets = require "includes.widgets"
 local scales = require "includes.scales"
 local notes = require "includes.notes"
+local resolutions = require "includes.resolutions"
 local modular = require "includes.modular"
 local tableMotion = require "includes.tableMotion"
 
@@ -305,29 +306,15 @@ widgets.setSection({
   cols = 9
 })
 
-widgets.menu("Speed Type", tableMotion.speedTypes, {
-  tooltip = "The speed type works with the speed factor to control speed variations across the table. Ramp Up means fast -> slower, Triangle means slower in the center.",
-  changed = function(self)
-    tableMotion.options.speedType = self.selectedText
-    setScaleTable()
-  end
-})
+tableMotion.getSpeedSpreadWidget()
 
-local startShape = widgets.menu("Start Shape", tableMotion.startModes, {
-  tooltip = "Set how the table will look when starting.",
-  changed = function(self)
-    tableMotion.options.startMode = self.selectedText
-    setScaleTable(true) -- Load a "fresh" shape without adjustments when selecting a shape
-  end
-})
+local startShape = tableMotion.getStartShapeWidget()
+startShape.changed = function(self)
+  tableMotion.options.startMode = self.selectedText
+  setScaleTable(true) -- Load a "fresh" shape without adjustments when selecting a shape
+end
 
-widgets.menu("Start Direction", tableMotion.directionStartModes, {
-  tooltip = "Select start direction for the bars",
-  changed = function(self)
-    tableMotion.options.directionStartMode = self.selectedText
-    setScaleTable()
-  end
-})
+tableMotion.getStartDirectionWidget()
 
 local activationModeMenu = widgets.menu("Activation Mode", activationMode, activationModes, {
   tooltip = "Activation mode controls when notes in the table are activated and deactivated.",
@@ -344,22 +331,9 @@ widgets.menu("Motion Type", tableMotion.movementTypes, {
   end
 })
 
-widgets.row()
+tableMotion.getMotionSpeedWidget(130)
 
-widgets.col(5)
-
-local moveSpeedInput = widgets.numBox("Motion Speed", tableMotion.options.moveSpeed, {
-  name = "MoveSpeed",
-  width = 130,
-  mapper = Mapper.Quartic,
-  tooltip = "Set the speed of the up/down motion in each cell - Controlled by the X-axis on the XY controller",
-  min = tableMotion.options.moveSpeedMin,
-  max = tableMotion.options.moveSpeedMax,
-  unit = Unit.MilliSeconds,
-  changed = function(self) tableMotion.options.moveSpeed = self.value end
-})
-
-widgets.row()
+widgets.row(2)
 
 widgets.numBox("Range", tableRange, {
   min = 8,
@@ -413,18 +387,7 @@ widgets.numBox("Octave Range", octaveRange, {
   end
 })
 
-widgets.numBox("Speed Factor", tableMotion.options.factor, {
-  name = "Factor",
-  width = 130,
-  mapper = Mapper.Cubic,
-  tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. When using morph, this controls phase amount. Controlled by the Y-axis on the XY controller",
-  min = tableMotion.options.factorMin,
-  max = tableMotion.options.factorMax,
-  changed = function(self)
-    tableMotion.options.factor = self.value
-    setScaleTable()
-  end
-})
+tableMotion.getSpeedFactorWidget(130)
 
 widgets.row()
 
@@ -440,14 +403,7 @@ widgets.button("Bipolar", bipolar, {
   end
 })
 
-widgets.numBox("Speed Rand", tableMotion.options.speedRandomizationAmount, {
-  tooltip = "Set the radomization amount applied to speed",
-  width = 130,
-  unit = Unit.Percent,
-  integer = false,
-  mapper = Mapper.Quadratic,
-  changed = function(self) tableMotion.options.speedRandomizationAmount = self.value end
-})
+tableMotion.getSpeedRandWidget(130)
 
 tableMotion.getShapeWidgets().phase.changed = function(self)
   tableMotion.getShapeOptions().phase = self.value
@@ -470,7 +426,7 @@ xyShapeMorph.x = widgets.posSide(motionTable)
 xyShapeMorph.width = 100
 xyShapeMorph.height = motionTable.height / 2
 
-local xySpeedFactor = widgets.getPanel():XY('MoveSpeed', 'Factor')
+local xySpeedFactor = widgets.getPanel():XY('MotionResolution', 'SpeedFactor')
 xySpeedFactor.y = widgets.posUnder(xyShapeMorph)
 xySpeedFactor.x = xyShapeMorph.x
 xySpeedFactor.width = xyShapeMorph.width

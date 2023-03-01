@@ -6,6 +6,7 @@ local gem = require "includes.common"
 local shapes = require "includes.shapes"
 local widgets = require "includes.widgets"
 local scales = require "includes.scales"
+local resolutions = require "includes.resolutions"
 local modular = require "includes.modular"
 local tableMotion = require "includes.tableMotion"
 
@@ -220,14 +221,21 @@ widgets.setSection({
   ySpacing = 5,
 })
 
-widgets.menu("Speed Type", tableMotion.speedTypes, {
-  changed = function(self) tableMotion.options.speedType = self.selectedText end
-})
+tableMotion.getSpeedSpreadWidget(85)
 
-local startShape = widgets.menu("Start Shape", tableMotion.startModes, {
+local startShape = tableMotion.getStartShapeWidget()
+startShape.changed = function(self)
+  tableMotion.options.startMode = self.selectedText
+  resetPitches(true) -- Load a "fresh" shape without adjustments when selecting a shape
+end
+
+tableMotion.getStartDirectionWidget(84)
+
+widgets.menu("Motion Type", tableMotion.movementTypes, {
+  width = 75,
   changed = function(self)
-    tableMotion.options.startMode = self.selectedText
-    resetPitches(true) -- Load a "fresh" shape without adjustments when selecting a shape
+    tableMotion.options.movementType = self.selectedText
+    startMoving()
   end
 })
 
@@ -238,27 +246,9 @@ local scaleMenu = widgets.menu("Scale", #scalesNames, scalesNames, {
   end
 })
 
-widgets.menu("Motion Type", tableMotion.movementTypes, {
-  changed = function(self)
-    tableMotion.options.movementType = self.selectedText
-    startMoving()
-  end
-})
+tableMotion.getMotionSpeedWidget(noteWidgetWidth)
 
-widgets.row()
-widgets.col(4)
-
-local moveSpeedInput = widgets.numBox("Motion Speed", tableMotion.options.moveSpeed, {
-  name = "MoveSpeed",
-  mapper = Mapper.Quartic,
-  min = tableMotion.options.moveSpeedMin,
-  max = tableMotion.options.moveSpeedMax,
-  tooltip = "Set the speed of the up/down motion in each cell - Controlled by the X-axis on the XY controller",
-  unit = Unit.MilliSeconds,
-  changed = function(self) tableMotion.options.moveSpeed = self.value end
-})
-
-widgets.row()
+widgets.row(2)
 
 widgets.numBox("Length", tableMotion.options.tableLength, {
   min = 2,
@@ -283,6 +273,13 @@ widgets.button("Reset", false, {
   end
 })
 
+widgets.button("Bipolar", bipolar, {
+  changed = function(self)
+    bipolar = self.value
+    setScale()
+  end
+})
+
 local noteInput = widgets.numBox("Base Note", baseNote, {
   unit = Unit.MidiKey,
   tooltip = "Set the root note",
@@ -292,21 +289,7 @@ local noteInput = widgets.numBox("Base Note", baseNote, {
   end
 })
 
-widgets.button("Bipolar", bipolar, {
-  changed = function(self)
-    bipolar = self.value
-    setScale()
-  end
-})
-
-widgets.numBox("Speed Factor", tableMotion.options.factor, {
-  name = "Factor",
-  mapper = Mapper.Cubic,
-  min = tableMotion.options.factorMin,
-  max = tableMotion.options.factorMax,
-  tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. When using morph, this controls phase amount. Controlled by the Y-axis on the XY controller",
-  changed = function(self) tableMotion.options.factor = self.value end
-})
+tableMotion.getSpeedFactorWidget(noteWidgetWidth)
 
 widgets.row()
 
@@ -323,13 +306,7 @@ widgets.numBox("Octave Range", octaveRange, {
   end
 })
 
-widgets.numBox("Speed Rand", tableMotion.options.speedRandomizationAmount, {
-  tooltip = "Set the radomization amount applied to speed",
-  unit = Unit.Percent,
-  integer = false,
-  mapper = Mapper.Quadratic,
-  changed = function(self) tableMotion.options.speedRandomizationAmount = self.value end
-})
+tableMotion.getSpeedRandWidget(noteWidgetWidth)
 
 tableMotion.getShapeWidgets().phase.changed = function(self)
   tableMotion.getShapeOptions().phase = self.value
@@ -351,11 +328,11 @@ end
 
 local xyShapeMorph = widgets.getPanel():XY('ShapePhase', 'ShapeMorph')
 xyShapeMorph.y = motionTable.y
-xyShapeMorph.x = widgets.posSide(motionTable) - 5
-xyShapeMorph.width = noteWidgetWidth
+xyShapeMorph.x = widgets.posSide(motionTable) - 9
+xyShapeMorph.width = noteWidgetWidth + 5
 xyShapeMorph.height = motionTable.height / 2
 
-local xySpeedFactor = widgets.getPanel():XY('MoveSpeed', 'Factor')
+local xySpeedFactor = widgets.getPanel():XY('MotionResolution', 'SpeedFactor')
 xySpeedFactor.y = widgets.posUnder(xyShapeMorph)
 xySpeedFactor.x = xyShapeMorph.x
 xySpeedFactor.width = xyShapeMorph.width

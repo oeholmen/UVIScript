@@ -567,6 +567,7 @@ local shapeNames = {
   "Sin To Saw",
   "Zero Crossing",
   "VOSIM",
+  "Crosser",
   "Random",
   "Test Shape",
 }
@@ -619,6 +620,7 @@ local shapeFunctions = {
   "sinToSaw",
   "zeroCrossing",
   "vosim",
+  "crosser",
   "random",
   "testShape",
 }
@@ -666,7 +668,7 @@ local shapes = {
   talkative1 = function(x, z, w, y, i) return 1.4*math.cos(x*math.pi/2)*(.5*math.sin(((z*5)+1)*3*x)+.10*math.sin(((z*6)+1)*2*x)+.08*math.sin((((1-z)*3)+1)*12*x)) end,
   sinClipper = function(x, z, w, y, i) return math.sin(x*math.pi)*(((z*z)+0.125)*8) end,
   pitfall = function(x, z, w, y, i) return (x*128)%(z*16)*0.25 end,
-  nascaLines = function(x, z, q) return math.sqrt(1/q)*(((q/max)*(z+0.1)*max)%3)*0.5 end,
+  nascaLines = function(x, z, w, y, i, max) return math.sqrt(1/i)*(((i/max)*(z+0.1)*max)%3)*0.5 end,
   kick = function(x, z, w, y, i) return math.sin(math.pi*z*z*32*math.log(x+1)) end,
   sinToSaw = function(x, z, w, y, i) return math.sin(-x*math.pi)*(1-z)+(-x*z) end,
   zeroCrossing = function(x, z, w, y, i) return math.sin((x+1)*math.pi*(z+1))*(-math.abs(x)^32+1) end,
@@ -674,8 +676,9 @@ local shapes = {
   tanh = function(x, z, w, y, i) return math.tanh(x) * z end,
   acos = function(x, z, w, y, i) return math.acos(x) * z end,
   atan2 = function(x, z, w, y, i) return math.atan2(y, x) * z end,
+  crosser = function(x, z, w, y, i) return gem.avg({x, w}) * z end,
   testShape = function(x, z, w, y, i)
-    return math.atan2(y, x) * z
+    return math.sin(i) * z
   end,
 }
 
@@ -755,7 +758,6 @@ local function getShapeBounds(bounds)
   shapeBounds.max = getValueOrDefault(bounds.max, 1) -- x-azis min value
   shapeBounds.length = getValueOrDefault(bounds.length, 128) -- y-axis steps
   shapeBounds.unipolar = shapeBounds.min == 0
-  shapeBounds.changePerStep = gem.getChangePerStep(stepRange, shapeBounds.length)
   return shapeBounds
 end
 
@@ -766,22 +768,19 @@ local function createShape(shapeBounds, options, shapeFunc, shapeTemplate)
     shapeFunc = shapes[shapeFunc]
   end
   local shape = {}
-  --print("Create shape, phase, factor, z", options.phase, options.factor, options.z)
-  --print("shapeBounds.min, shapeBounds.max, shapeBounds.length, shapeBounds.changePerStep", shapeBounds.min, shapeBounds.max, shapeBounds.length, shapeBounds.changePerStep)
   for i=1,shapeBounds.length do
-    local x = options.factor * ((shapeBounds.changePerStep * (i-1)) + options.phase)
+    local x = options.factor * (gem.getChangePerStep(((i-1)*2), shapeBounds.length) + options.phase)
     local z = options.z
     local w = getUnipolar(x)
     local y = getUnipolar(z)
-    local value = shapeFunc(x, z, w, y, i)
+    --local value = shapeFunc(x, z, w, y, ((i/shapeBounds.length)*options.factor))
+    local value = shapeFunc(x, z, w, y, i, shapeBounds.max)
     if shapeBounds.unipolar then
       value = ((shapeBounds.max * value) + shapeBounds.max) / 2
     else
       value = shapeBounds.max * value
     end
-    --print("step, value, x", i, value, x)
     table.insert(shape, math.max(shapeBounds.min, math.min(shapeBounds.max, value)))
-    --table.insert(shape, value)
   end
   return shape, options
 end
@@ -853,7 +852,7 @@ local shapes = {
   triangleOffPhase = function(t,o) return createShape(t, o, 'triangleShaper', {phase = -0.5}) end,
   rampUp = function(t,o) return createShape(t, o, 'ramp', {z = 1}) end,
   rampDown = function(t,o) return createShape(t, o, 'ramp', {z = -1}) end,
-  sine = function(t,o) return createShape(t, o, 'sine', {phase = -0.5, factor = math.pi}) end,
+  sine = function(t,o) return createShape(t, o, 'sine', {factor = math.pi}) end,
   chaosToSine = function(t,o) return createShape(t, o, 'chaosToSine') end,
   pwm50to100 = function(t,o) return createShape(t, o, 'pwm50to100') end,
   tripleSin = function(t,o) return createShape(t, o, 'tripleSin') end,
@@ -877,6 +876,7 @@ local shapes = {
   sinToSaw = function(t,o) return createShape(t, o, 'sinToSaw', {z = 0}) end,
   zeroCrossing = function(t,o) return createShape(t, o, 'zeroCrossing') end,
   vosim = function(t,o) return createShape(t, o, 'vosim') end,
+  crosser = function(t,o) return createShape(t, o, 'crosser', {z = 0, factor = 4}) end,
   testShape = function(t,o) return createShape(t, o, 'testShape') end,
 }
 
@@ -1089,14 +1089,15 @@ local morphSeqIndex = 0 -- Holds the unique id for the morphing sequencer
 local movingCells = {}
 local isTableMotionActive = false
 local shapeWidgets = {} -- Holds the widgets for controlling shape
+local resolutionNames = resolutions.getResolutionNames()
 
 local motionOptions = {
   factor = 2,
   factorMin = 0,
   factorMax = 10,
-  moveSpeed = 25,
-  moveSpeedMin = 5,
-  moveSpeedMax = 60000,
+  moveSpeed = gem.getIndexFromValue("1/16", resolutionNames),
+  moveSpeedMin = 1,
+  moveSpeedMax = #resolutionNames,
   speedType = speedTypes[1],
   startMode = startModes[1],
   movementType = movementTypes[1],
@@ -1110,6 +1111,75 @@ local shapeOptions = {
     phase = -1,
     factor = 1,
 }
+
+local function getSpeedSpreadWidget(width)
+  return widgets.menu("Speed Spread", speedTypes, {
+    width = width,
+    tooltip = "The speed type works with the speed factor to control speed variations across the table. Ramp Up means fast -> slower, Triangle means slower in the center.",
+    changed = function(self) motionOptions.speedType = self.selectedText end
+  })
+end
+
+local function getStartDirectionWidget(width)
+  return widgets.menu("Start Direction", directionStartModes, {
+    width = width,
+    tooltip = "Select start direction for the bars",
+    changed = function(self) motionOptions.directionStartMode = self.selectedText end
+  })
+end
+
+local function getMotionSpeedWidget(width)
+  local motionResolutionMenu
+  local motionResolutionInput
+
+  motionResolutionMenu = widgets.menu("Motion Speed", motionOptions.moveSpeed, resolutionNames, {
+    width = width,
+    tooltip = "Set the speed of the up/down motion in each cell - Controlled by the X-axis on the XY controller",
+    changed = function(self) motionResolutionInput:setValue(self.value) end
+  })
+
+  motionResolutionInput = widgets.numBox("Motion Resolution", motionOptions.moveSpeed, {
+    visible = false,
+    increment = false,
+    min = 1,
+    max = #resolutionNames,
+    changed = function(self)
+      motionOptions.moveSpeed = gem.round(self.value)
+      motionResolutionMenu:setValue(motionOptions.moveSpeed)
+    end
+  })
+
+  return motionResolutionMenu
+end
+
+local function getSpeedFactorWidget(width)
+  return widgets.numBox("Speed Factor", motionOptions.factor, {
+    width = width,
+    mapper = Mapper.Cubic,
+    min = motionOptions.factorMin,
+    max = motionOptions.factorMax,
+    tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. When using morph, this controls phase amount. Controlled by the Y-axis on the XY controller",
+    changed = function(self) motionOptions.factor = self.value end
+  })
+end
+
+local function getSpeedRandWidget(width)
+  return widgets.numBox("Speed Rand", motionOptions.speedRandomizationAmount, {
+    tooltip = "Set the radomization amount applied to speed",
+    width = width,
+    unit = Unit.Percent,
+    integer = false,
+    mapper = Mapper.Quadratic,
+    changed = function(self) motionOptions.speedRandomizationAmount = self.value end
+  })
+end
+
+local function getStartShapeWidget(width)
+  return widgets.menu("Start Shape", startModes, {
+    width = width,
+    tooltip = "Set how the table will look when starting.",
+  })
+end
 
 local function getStartDirection(i)
   if type(i) == "nil" then
@@ -1208,7 +1278,8 @@ local function setStartMode(theTable, loadShape, stateFunction)
 end
 
 local function getWaitDuration()
-  return gem.randomizeValue(motionOptions.moveSpeed, motionOptions.moveSpeedMin, motionOptions.moveSpeedMax, motionOptions.speedRandomizationAmount)
+  local resolutionIndex = gem.randomizeValue(motionOptions.moveSpeed, motionOptions.moveSpeedMin, motionOptions.moveSpeedMax, motionOptions.speedRandomizationAmount)
+  return beat2ms(resolutions.getResolution(resolutionIndex))
 end
 
 local function advanceValue(theTable, value, min, max, direction)
@@ -1361,6 +1432,12 @@ local tableMotion = {
       theTable:setRange(0, tableRange)
     end
   end,
+  getSpeedSpreadWidget = getSpeedSpreadWidget,
+  getStartShapeWidget = getStartShapeWidget,
+  getStartDirectionWidget = getStartDirectionWidget,
+  getMotionSpeedWidget = getMotionSpeedWidget,
+  getSpeedFactorWidget = getSpeedFactorWidget,
+  getSpeedRandWidget = getSpeedRandWidget,
   startMoving = startMoving,
   isMoving = function(m) return isTableMotionActive == true end,
   isNotMoving = function(m) return isTableMotionActive == false end,
@@ -1491,10 +1568,6 @@ local function playTrigger()
 end
 
 local function startMoving()
-  if tableMotion.options.movementType == "Manual" and tableMotion.isNotMoving() then
-    playTrigger()
-  end
-  print("StartMoving")
   tableMotion.startMoving(motionTable, checkTrigger)
 end
 
@@ -1624,50 +1697,30 @@ widgets.setSection({
   cols = 7
 })
 
-widgets.menu("Speed Type", tableMotion.speedTypes, {
-  tooltip = "The speed type works with the speed factor to control speed variations across the table. Ramp Up means fast -> slower, Triangle means slower in the center.",
-  changed = function(self) tableMotion.options.speedType = self.selectedText end
-})
+tableMotion.getSpeedSpreadWidget()
 
-local startShape = widgets.menu("Start Shape", tableMotion.startModes, {
-  tooltip = "Set how the table will look when starting.",
-  changed = function(self)
-    print("Calling startShape:changed", self.selectedText)
-    tableMotion.options.startMode = self.selectedText
-    resetTableValues(true) -- Load a "fresh" shape without adjustments when selecting a shape
-  end
-})
+local startShape = tableMotion.getStartShapeWidget()
+startShape.changed = function(self)
+  tableMotion.options.startMode = self.selectedText
+  resetTableValues(true) -- Load a "fresh" shape without adjustments when selecting a shape
+end
 
-widgets.menu("Start Direction", tableMotion.directionStartModes, {
-  tooltip = "Select start direction for the bars",
-  changed = function(self) tableMotion.options.directionStartMode = self.selectedText end
-})
+tableMotion.getStartDirectionWidget()
 
 widgets.menu("Trigger Mode", triggerMode, triggerModes, {
+  tooltip = "Trigger mode determines when a trigger is actived for polling (see Quantize)",
   changed = function(self) triggerMode = self.value end
 })
 
 widgets.menu("Quantize", resolution, resolutionNames, {
+  tooltip = "Quantization affects how often triggers are polled",
   width = 75,
   changed = function(self) resolution = self.value end
 })
 
-widgets.row()
-widgets.col(4)
-widgets.col(1, 75)
+tableMotion.getMotionSpeedWidget(130)
 
-local moveSpeedInput = widgets.numBox("Motion Speed", tableMotion.options.moveSpeed, {
-  name = "MoveSpeed",
-  width = 130,
-  mapper = Mapper.Quartic,
-  min = tableMotion.options.moveSpeedMin,
-  max = tableMotion.options.moveSpeedMax,
-  tooltip = "Set the speed of the up/down motion in each cell - Controlled by the X-axis on the XY controller",
-  unit = Unit.MilliSeconds,
-  changed = function(self) tableMotion.options.moveSpeed = self.value end
-})
-
-widgets.row()
+widgets.row(2)
 
 widgets.numBox("Range", tableRange, {
   min = 8,
@@ -1717,15 +1770,7 @@ widgets.menu("Motion Type", tableMotion.movementTypes, {
   end
 })
 
-widgets.numBox("Speed Factor", tableMotion.options.factor, {
-  name = "Factor",
-  width = 130,
-  mapper = Mapper.Cubic,
-  min = tableMotion.options.factorMin,
-  max = tableMotion.options.factorMax,
-  tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. When using morph, this controls phase amount. Controlled by the Y-axis on the XY controller",
-  changed = function(self) tableMotion.options.factor = self.value end
-})
+tableMotion.getSpeedFactorWidget(130)
 
 widgets.row()
 
@@ -1733,14 +1778,7 @@ tableMotion.setShapeWidgets(shapes.getWidgets(149.5, true))
 
 widgets.col(1, 75)
 
-widgets.numBox("Speed Rand", tableMotion.options.speedRandomizationAmount, {
-  tooltip = "Set the radomization amount applied to speed",
-  width = 130,
-  unit = Unit.Percent,
-  integer = false,
-  mapper = Mapper.Quadratic,
-  changed = function(self) tableMotion.options.speedRandomizationAmount = self.value end
-})
+tableMotion.getSpeedRandWidget(130)
 
 tableMotion.getShapeWidgets().phase.changed = function(self)
   tableMotion.getShapeOptions().phase = self.value
@@ -1766,7 +1804,7 @@ xyShapeMorph.x = widgets.posSide(motionTable) - 6
 xyShapeMorph.width = 108
 xyShapeMorph.height = motionTable.height / 2
 
-local xySpeedFactor = widgets.getPanel():XY('MoveSpeed', 'Factor')
+local xySpeedFactor = widgets.getPanel():XY('MotionResolution', 'SpeedFactor')
 xySpeedFactor.y = widgets.posUnder(xyShapeMorph)
 xySpeedFactor.x = xyShapeMorph.x
 xySpeedFactor.width = xyShapeMorph.width

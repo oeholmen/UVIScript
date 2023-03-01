@@ -567,6 +567,7 @@ local shapeNames = {
   "Sin To Saw",
   "Zero Crossing",
   "VOSIM",
+  "Crosser",
   "Random",
   "Test Shape",
 }
@@ -619,6 +620,7 @@ local shapeFunctions = {
   "sinToSaw",
   "zeroCrossing",
   "vosim",
+  "crosser",
   "random",
   "testShape",
 }
@@ -666,7 +668,7 @@ local shapes = {
   talkative1 = function(x, z, w, y, i) return 1.4*math.cos(x*math.pi/2)*(.5*math.sin(((z*5)+1)*3*x)+.10*math.sin(((z*6)+1)*2*x)+.08*math.sin((((1-z)*3)+1)*12*x)) end,
   sinClipper = function(x, z, w, y, i) return math.sin(x*math.pi)*(((z*z)+0.125)*8) end,
   pitfall = function(x, z, w, y, i) return (x*128)%(z*16)*0.25 end,
-  nascaLines = function(x, z, q) return math.sqrt(1/q)*(((q/max)*(z+0.1)*max)%3)*0.5 end,
+  nascaLines = function(x, z, w, y, i, max) return math.sqrt(1/i)*(((i/max)*(z+0.1)*max)%3)*0.5 end,
   kick = function(x, z, w, y, i) return math.sin(math.pi*z*z*32*math.log(x+1)) end,
   sinToSaw = function(x, z, w, y, i) return math.sin(-x*math.pi)*(1-z)+(-x*z) end,
   zeroCrossing = function(x, z, w, y, i) return math.sin((x+1)*math.pi*(z+1))*(-math.abs(x)^32+1) end,
@@ -674,8 +676,9 @@ local shapes = {
   tanh = function(x, z, w, y, i) return math.tanh(x) * z end,
   acos = function(x, z, w, y, i) return math.acos(x) * z end,
   atan2 = function(x, z, w, y, i) return math.atan2(y, x) * z end,
+  crosser = function(x, z, w, y, i) return gem.avg({x, w}) * z end,
   testShape = function(x, z, w, y, i)
-    return math.atan2(y, x) * z
+    return math.sin(i) * z
   end,
 }
 
@@ -755,7 +758,6 @@ local function getShapeBounds(bounds)
   shapeBounds.max = getValueOrDefault(bounds.max, 1) -- x-azis min value
   shapeBounds.length = getValueOrDefault(bounds.length, 128) -- y-axis steps
   shapeBounds.unipolar = shapeBounds.min == 0
-  shapeBounds.changePerStep = gem.getChangePerStep(stepRange, shapeBounds.length)
   return shapeBounds
 end
 
@@ -766,22 +768,19 @@ local function createShape(shapeBounds, options, shapeFunc, shapeTemplate)
     shapeFunc = shapes[shapeFunc]
   end
   local shape = {}
-  --print("Create shape, phase, factor, z", options.phase, options.factor, options.z)
-  --print("shapeBounds.min, shapeBounds.max, shapeBounds.length, shapeBounds.changePerStep", shapeBounds.min, shapeBounds.max, shapeBounds.length, shapeBounds.changePerStep)
   for i=1,shapeBounds.length do
-    local x = options.factor * ((shapeBounds.changePerStep * (i-1)) + options.phase)
+    local x = options.factor * (gem.getChangePerStep(((i-1)*2), shapeBounds.length) + options.phase)
     local z = options.z
     local w = getUnipolar(x)
     local y = getUnipolar(z)
-    local value = shapeFunc(x, z, w, y, i)
+    --local value = shapeFunc(x, z, w, y, ((i/shapeBounds.length)*options.factor))
+    local value = shapeFunc(x, z, w, y, i, shapeBounds.max)
     if shapeBounds.unipolar then
       value = ((shapeBounds.max * value) + shapeBounds.max) / 2
     else
       value = shapeBounds.max * value
     end
-    --print("step, value, x", i, value, x)
     table.insert(shape, math.max(shapeBounds.min, math.min(shapeBounds.max, value)))
-    --table.insert(shape, value)
   end
   return shape, options
 end
@@ -853,7 +852,7 @@ local shapes = {
   triangleOffPhase = function(t,o) return createShape(t, o, 'triangleShaper', {phase = -0.5}) end,
   rampUp = function(t,o) return createShape(t, o, 'ramp', {z = 1}) end,
   rampDown = function(t,o) return createShape(t, o, 'ramp', {z = -1}) end,
-  sine = function(t,o) return createShape(t, o, 'sine', {phase = -0.5, factor = math.pi}) end,
+  sine = function(t,o) return createShape(t, o, 'sine', {factor = math.pi}) end,
   chaosToSine = function(t,o) return createShape(t, o, 'chaosToSine') end,
   pwm50to100 = function(t,o) return createShape(t, o, 'pwm50to100') end,
   tripleSin = function(t,o) return createShape(t, o, 'tripleSin') end,
@@ -877,6 +876,7 @@ local shapes = {
   sinToSaw = function(t,o) return createShape(t, o, 'sinToSaw', {z = 0}) end,
   zeroCrossing = function(t,o) return createShape(t, o, 'zeroCrossing') end,
   vosim = function(t,o) return createShape(t, o, 'vosim') end,
+  crosser = function(t,o) return createShape(t, o, 'crosser', {z = 0, factor = 4}) end,
   testShape = function(t,o) return createShape(t, o, 'testShape') end,
 }
 

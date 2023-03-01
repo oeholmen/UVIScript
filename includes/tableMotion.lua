@@ -5,6 +5,7 @@
 local gem = require "includes.common"
 local shapes = require "includes.shapes"
 local widgets = require "includes.widgets"
+local resolutions = require "includes.resolutions"
 
 local directionStartModes = {"Up", "Down", "Even Up", "Even Down", "Odd Up", "Odd Down", "Random"}
 local speedTypes = {"Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Random"}
@@ -15,14 +16,15 @@ local morphSeqIndex = 0 -- Holds the unique id for the morphing sequencer
 local movingCells = {}
 local isTableMotionActive = false
 local shapeWidgets = {} -- Holds the widgets for controlling shape
+local resolutionNames = resolutions.getResolutionNames()
 
 local motionOptions = {
   factor = 2,
   factorMin = 0,
   factorMax = 10,
-  moveSpeed = 25,
-  moveSpeedMin = 5,
-  moveSpeedMax = 60000,
+  moveSpeed = gem.getIndexFromValue("1/16", resolutionNames),
+  moveSpeedMin = 1,
+  moveSpeedMax = #resolutionNames,
   speedType = speedTypes[1],
   startMode = startModes[1],
   movementType = movementTypes[1],
@@ -36,6 +38,75 @@ local shapeOptions = {
     phase = -1,
     factor = 1,
 }
+
+local function getSpeedSpreadWidget(width)
+  return widgets.menu("Speed Spread", speedTypes, {
+    width = width,
+    tooltip = "The speed type works with the speed factor to control speed variations across the table. Ramp Up means fast -> slower, Triangle means slower in the center.",
+    changed = function(self) motionOptions.speedType = self.selectedText end
+  })
+end
+
+local function getStartDirectionWidget(width)
+  return widgets.menu("Start Direction", directionStartModes, {
+    width = width,
+    tooltip = "Select start direction for the bars",
+    changed = function(self) motionOptions.directionStartMode = self.selectedText end
+  })
+end
+
+local function getMotionSpeedWidget(width)
+  local motionResolutionMenu
+  local motionResolutionInput
+
+  motionResolutionMenu = widgets.menu("Motion Speed", motionOptions.moveSpeed, resolutionNames, {
+    width = width,
+    tooltip = "Set the speed of the up/down motion in each cell - Controlled by the X-axis on the XY controller",
+    changed = function(self) motionResolutionInput:setValue(self.value) end
+  })
+
+  motionResolutionInput = widgets.numBox("Motion Resolution", motionOptions.moveSpeed, {
+    visible = false,
+    increment = false,
+    min = 1,
+    max = #resolutionNames,
+    changed = function(self)
+      motionOptions.moveSpeed = gem.round(self.value)
+      motionResolutionMenu:setValue(motionOptions.moveSpeed)
+    end
+  })
+
+  return motionResolutionMenu
+end
+
+local function getSpeedFactorWidget(width)
+  return widgets.numBox("Speed Factor", motionOptions.factor, {
+    width = width,
+    mapper = Mapper.Cubic,
+    min = motionOptions.factorMin,
+    max = motionOptions.factorMax,
+    tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. When using morph, this controls phase amount. Controlled by the Y-axis on the XY controller",
+    changed = function(self) motionOptions.factor = self.value end
+  })
+end
+
+local function getSpeedRandWidget(width)
+  return widgets.numBox("Speed Rand", motionOptions.speedRandomizationAmount, {
+    tooltip = "Set the radomization amount applied to speed",
+    width = width,
+    unit = Unit.Percent,
+    integer = false,
+    mapper = Mapper.Quadratic,
+    changed = function(self) motionOptions.speedRandomizationAmount = self.value end
+  })
+end
+
+local function getStartShapeWidget(width)
+  return widgets.menu("Start Shape", startModes, {
+    width = width,
+    tooltip = "Set how the table will look when starting.",
+  })
+end
 
 local function getStartDirection(i)
   if type(i) == "nil" then
@@ -134,7 +205,8 @@ local function setStartMode(theTable, loadShape, stateFunction)
 end
 
 local function getWaitDuration()
-  return gem.randomizeValue(motionOptions.moveSpeed, motionOptions.moveSpeedMin, motionOptions.moveSpeedMax, motionOptions.speedRandomizationAmount)
+  local resolutionIndex = gem.randomizeValue(motionOptions.moveSpeed, motionOptions.moveSpeedMin, motionOptions.moveSpeedMax, motionOptions.speedRandomizationAmount)
+  return beat2ms(resolutions.getResolution(resolutionIndex))
 end
 
 local function advanceValue(theTable, value, min, max, direction)
@@ -287,6 +359,12 @@ return {--tableMotion--
       theTable:setRange(0, tableRange)
     end
   end,
+  getSpeedSpreadWidget = getSpeedSpreadWidget,
+  getStartShapeWidget = getStartShapeWidget,
+  getStartDirectionWidget = getStartDirectionWidget,
+  getMotionSpeedWidget = getMotionSpeedWidget,
+  getSpeedFactorWidget = getSpeedFactorWidget,
+  getSpeedRandWidget = getSpeedRandWidget,
   startMoving = startMoving,
   isMoving = function(m) return isTableMotionActive == true end,
   isNotMoving = function(m) return isTableMotionActive == false end,

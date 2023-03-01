@@ -113,10 +113,6 @@ local function playTrigger()
 end
 
 local function startMoving()
-  if tableMotion.options.movementType == "Manual" and tableMotion.isNotMoving() then
-    playTrigger()
-  end
-  print("StartMoving")
   tableMotion.startMoving(motionTable, checkTrigger)
 end
 
@@ -246,50 +242,30 @@ widgets.setSection({
   cols = 7
 })
 
-widgets.menu("Speed Type", tableMotion.speedTypes, {
-  tooltip = "The speed type works with the speed factor to control speed variations across the table. Ramp Up means fast -> slower, Triangle means slower in the center.",
-  changed = function(self) tableMotion.options.speedType = self.selectedText end
-})
+tableMotion.getSpeedSpreadWidget()
 
-local startShape = widgets.menu("Start Shape", tableMotion.startModes, {
-  tooltip = "Set how the table will look when starting.",
-  changed = function(self)
-    print("Calling startShape:changed", self.selectedText)
-    tableMotion.options.startMode = self.selectedText
-    resetTableValues(true) -- Load a "fresh" shape without adjustments when selecting a shape
-  end
-})
+local startShape = tableMotion.getStartShapeWidget()
+startShape.changed = function(self)
+  tableMotion.options.startMode = self.selectedText
+  resetTableValues(true) -- Load a "fresh" shape without adjustments when selecting a shape
+end
 
-widgets.menu("Start Direction", tableMotion.directionStartModes, {
-  tooltip = "Select start direction for the bars",
-  changed = function(self) tableMotion.options.directionStartMode = self.selectedText end
-})
+tableMotion.getStartDirectionWidget()
 
 widgets.menu("Trigger Mode", triggerMode, triggerModes, {
+  tooltip = "Trigger mode determines when a trigger is actived for polling (see Quantize)",
   changed = function(self) triggerMode = self.value end
 })
 
 widgets.menu("Quantize", resolution, resolutionNames, {
+  tooltip = "Quantization affects how often triggers are polled",
   width = 75,
   changed = function(self) resolution = self.value end
 })
 
-widgets.row()
-widgets.col(4)
-widgets.col(1, 75)
+tableMotion.getMotionSpeedWidget(130)
 
-local moveSpeedInput = widgets.numBox("Motion Speed", tableMotion.options.moveSpeed, {
-  name = "MoveSpeed",
-  width = 130,
-  mapper = Mapper.Quartic,
-  min = tableMotion.options.moveSpeedMin,
-  max = tableMotion.options.moveSpeedMax,
-  tooltip = "Set the speed of the up/down motion in each cell - Controlled by the X-axis on the XY controller",
-  unit = Unit.MilliSeconds,
-  changed = function(self) tableMotion.options.moveSpeed = self.value end
-})
-
-widgets.row()
+widgets.row(2)
 
 widgets.numBox("Range", tableRange, {
   min = 8,
@@ -339,15 +315,7 @@ widgets.menu("Motion Type", tableMotion.movementTypes, {
   end
 })
 
-widgets.numBox("Speed Factor", tableMotion.options.factor, {
-  name = "Factor",
-  width = 130,
-  mapper = Mapper.Cubic,
-  min = tableMotion.options.factorMin,
-  max = tableMotion.options.factorMax,
-  tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. When using morph, this controls phase amount. Controlled by the Y-axis on the XY controller",
-  changed = function(self) tableMotion.options.factor = self.value end
-})
+tableMotion.getSpeedFactorWidget(130)
 
 widgets.row()
 
@@ -355,14 +323,7 @@ tableMotion.setShapeWidgets(shapes.getWidgets(149.5, true))
 
 widgets.col(1, 75)
 
-widgets.numBox("Speed Rand", tableMotion.options.speedRandomizationAmount, {
-  tooltip = "Set the radomization amount applied to speed",
-  width = 130,
-  unit = Unit.Percent,
-  integer = false,
-  mapper = Mapper.Quadratic,
-  changed = function(self) tableMotion.options.speedRandomizationAmount = self.value end
-})
+tableMotion.getSpeedRandWidget(130)
 
 tableMotion.getShapeWidgets().phase.changed = function(self)
   tableMotion.getShapeOptions().phase = self.value
@@ -388,7 +349,7 @@ xyShapeMorph.x = widgets.posSide(motionTable) - 6
 xyShapeMorph.width = 108
 xyShapeMorph.height = motionTable.height / 2
 
-local xySpeedFactor = widgets.getPanel():XY('MoveSpeed', 'Factor')
+local xySpeedFactor = widgets.getPanel():XY('MotionResolution', 'SpeedFactor')
 xySpeedFactor.y = widgets.posUnder(xyShapeMorph)
 xySpeedFactor.x = xyShapeMorph.x
 xySpeedFactor.width = xyShapeMorph.width
