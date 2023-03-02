@@ -19,7 +19,7 @@ end
 modseq.setTitle("Modulation Sequencer")
 modseq.setTitleTooltip("A sequencer sending script event modulation in broadcast mode")
 
-setBackgroundColour(pageBackgoundColour)
+setBackgroundColour(modseq.colours.backgroundColour)
 
 --------------------------------------------------------------------------------
 -- Sequencer
@@ -27,36 +27,35 @@ setBackgroundColour(pageBackgoundColour)
 
 local sourceIndex = modseq.headerPanel:NumBox("SourceIndex", 0, 0, 127, true)
 sourceIndex.displayName = "Event Id"
-sourceIndex.backgroundColour = menuBackgroundColour
-sourceIndex.textColour = menuTextColour
+sourceIndex.backgroundColour = modseq.colours.menuBackgroundColour
+sourceIndex.textColour = modseq.colours.menuTextColour
 sourceIndex.size = {102,22}
 sourceIndex.x = modseq.autoplayButton.x - modseq.autoplayButton.width - 5
 sourceIndex.y = modseq.autoplayButton.y
 
 -- Add params that are to be editable per page / part
-for page=1,maxPages do
+for page=1,modseq.getMaxPages() do
   local tableX = 0
   local tableY = 0
   local tableWidth = 640
   local tableHeight = 64
   local buttonRowHeight = 36
   local buttonSpacing = 9
-  local inputWidgetSize = {90,20}
   local defaultSteps = 16
 
-  if numParts == 1 then
+  if modseq.getNumParts() == 1 then
     tableHeight = tableHeight * 2
   end
 
   local sequencerPanel = widgets.panel({name="SequencerPage" .. page})
   sequencerPanel.visible = page == 1
-  sequencerPanel.backgroundColour = menuOutlineColour
+  sequencerPanel.backgroundColour = modseq.colours.menuOutlineColour
   sequencerPanel.x = 10
   sequencerPanel.y = modseq.headerPanel.height + 15
   sequencerPanel.width = 700
-  sequencerPanel.height = numParts * (tableHeight + 60 + buttonRowHeight)
+  sequencerPanel.height = modseq.getNumParts() * (tableHeight + 60 + buttonRowHeight)
 
-  for part=1,numParts do
+  for part=1,modseq.getNumParts() do
     local isVisible = true
     local i = modseq.getPartIndex(part, page)
     --print("Set paramsPerPart, page/part", page, i)
@@ -69,7 +68,7 @@ for page=1,maxPages do
     positionTable.persistent = false
     positionTable.fillStyle = "solid"
     positionTable.backgroundColour = "#9f02ACFE"
-    positionTable.sliderColour = outlineColour
+    positionTable.sliderColour = "#FFB5FF"
     positionTable.width = tableWidth
     positionTable.height = 3
     positionTable.x = tableX
@@ -137,10 +136,10 @@ for page=1,maxPages do
     stepResolution.x = stepButton.x + stepButton.width + buttonSpacing
     stepResolution.y = inputWidgetY
     stepResolution.size = {75,20}
-    stepResolution.backgroundColour = menuBackgroundColour
-    stepResolution.textColour = menuTextColour
-    stepResolution.arrowColour = menuArrowColour
-    stepResolution.outlineColour = menuOutlineColour
+    stepResolution.backgroundColour = modseq.colours.menuBackgroundColour
+    stepResolution.textColour = modseq.colours.menuTextColour
+    stepResolution.arrowColour = modseq.colours.menuArrowColour
+    stepResolution.outlineColour = modseq.colours.menuOutlineColour
     stepResolution.changed = function(self)
       modseq.setPageDuration(page)
     end
@@ -149,10 +148,10 @@ for page=1,maxPages do
     numStepsBox.displayName = "Steps"
     numStepsBox.tooltip = "The Number of steps in the part"
     numStepsBox.visible = isVisible
-    numStepsBox.backgroundColour = menuBackgroundColour
-    numStepsBox.textColour = menuTextColour
-    numStepsBox.arrowColour = menuArrowColour
-    numStepsBox.outlineColour = menuOutlineColour
+    numStepsBox.backgroundColour = modseq.colours.menuBackgroundColour
+    numStepsBox.textColour = modseq.colours.menuTextColour
+    numStepsBox.arrowColour = modseq.colours.menuArrowColour
+    numStepsBox.outlineColour = modseq.colours.menuOutlineColour
     numStepsBox.size = {100,20}
     numStepsBox.x = stepResolution.x + stepResolution.width + buttonSpacing
     numStepsBox.y = inputWidgetY
@@ -166,10 +165,10 @@ for page=1,maxPages do
     valueRandomization.tooltip = "Level of randomization applied to the control value"
     valueRandomization.unit = Unit.Percent
     valueRandomization.visible = isVisible
-    valueRandomization.backgroundColour = menuBackgroundColour
-    valueRandomization.textColour = menuTextColour
-    valueRandomization.arrowColour = menuArrowColour
-    valueRandomization.outlineColour = menuOutlineColour
+    valueRandomization.backgroundColour = modseq.colours.menuBackgroundColour
+    valueRandomization.textColour = modseq.colours.menuTextColour
+    valueRandomization.arrowColour = modseq.colours.menuArrowColour
+    valueRandomization.outlineColour = modseq.colours.menuOutlineColour
     valueRandomization.size = {140,20}
     valueRandomization.x = numStepsBox.x + numStepsBox.width + buttonSpacing
     valueRandomization.y = inputWidgetY
@@ -179,10 +178,10 @@ for page=1,maxPages do
     smoothRandomization.tooltip = "Level of randomization applied to smooth level"
     smoothRandomization.unit = Unit.Percent
     smoothRandomization.visible = isVisible
-    smoothRandomization.backgroundColour = menuBackgroundColour
-    smoothRandomization.textColour = menuTextColour
-    smoothRandomization.arrowColour = menuArrowColour
-    smoothRandomization.outlineColour = menuOutlineColour
+    smoothRandomization.backgroundColour = modseq.colours.menuBackgroundColour
+    smoothRandomization.textColour = modseq.colours.menuTextColour
+    smoothRandomization.arrowColour = modseq.colours.menuArrowColour
+    smoothRandomization.outlineColour = modseq.colours.menuOutlineColour
     smoothRandomization.size = valueRandomization.size
     smoothRandomization.x = valueRandomization.x + valueRandomization.width + buttonSpacing
     smoothRandomization.y = inputWidgetY
@@ -192,10 +191,10 @@ for page=1,maxPages do
     smoothInput.tooltip = "Use smoothing (non destructive) to even out the transition between value changes"
     smoothInput.unit = Unit.Percent
     smoothInput.visible = isVisible
-    smoothInput.backgroundColour = menuBackgroundColour
-    smoothInput.textColour = menuTextColour
-    smoothInput.arrowColour = menuArrowColour
-    smoothInput.outlineColour = menuOutlineColour
+    smoothInput.backgroundColour = modseq.colours.menuBackgroundColour
+    smoothInput.textColour = modseq.colours.menuTextColour
+    smoothInput.arrowColour = modseq.colours.menuArrowColour
+    smoothInput.outlineColour = modseq.colours.menuOutlineColour
     smoothInput.size = valueRandomization.size
     smoothInput.x = smoothRandomization.x + smoothRandomization.width + buttonSpacing
     smoothInput.y = inputWidgetY
@@ -210,9 +209,7 @@ for page=1,maxPages do
       name = "shape" .. i,
       showLabel = false,
       width = 140,
-      changed = function(self)
-        modseq.loadShape(i, true)
-      end
+      changed = function(self) modseq.loadShape(i, true) end
     })
 
     local shapeWidgets = shapes.getWidgets(114, true, i)
@@ -235,25 +232,13 @@ for page=1,maxPages do
     end
     bipolarButton:changed()
 
-    shapeWidgets.phase.changed = function(self)
-      modseq.loadShape(i)
-    end
-
-    shapeWidgets.factor.changed = function(self)
-      modseq.loadShape(i)
-    end
-
-    shapeWidgets.z.changed = function(self)
-      modseq.loadShape(i)
-    end
-
     local xyShapeMorph = widgets.getPanel():XY('ShapePhase' .. i, 'ShapeMorph' .. i)
     xyShapeMorph.x = widgets.posSide(seqValueTable)
     xyShapeMorph.y = seqValueTable.y
     xyShapeMorph.width = 51
     xyShapeMorph.height = seqValueTable.height
 
-    table.insert(paramsPerPart, {shapeWidgets=shapeWidgets,shapeMenu=shapeMenu,bipolarButton=bipolarButton,stepButton=stepButton,smoothStepTable=smoothStepTable,smoothInput=smoothInput,valueRandomization=valueRandomization,smoothRandomization=smoothRandomization,seqValueTable=seqValueTable,positionTable=positionTable,stepResolution=stepResolution,numStepsBox=numStepsBox})
+    modseq.addPartParams({shapeWidgets=shapeWidgets,shapeMenu=shapeMenu,bipolarButton=bipolarButton,stepButton=stepButton,smoothStepTable=smoothStepTable,smoothInput=smoothInput,valueRandomization=valueRandomization,smoothRandomization=smoothRandomization,seqValueTable=seqValueTable,positionTable=positionTable,stepResolution=stepResolution,numStepsBox=numStepsBox})
 
     tableY = tableY + tableHeight + buttonRowHeight
   end
@@ -263,45 +248,45 @@ for page=1,maxPages do
   minRepeats.tooltip = "The minimum number of repeats before page will be changed (only relevant when multiple pages are activated)"
   minRepeats.visible = page == 1
   minRepeats.enabled = false
-  minRepeats.backgroundColour = menuBackgroundColour
-  minRepeats.textColour = menuTextColour
-  minRepeats.arrowColour = menuArrowColour
-  minRepeats.outlineColour = menuOutlineColour
+  minRepeats.backgroundColour = modseq.colours.menuBackgroundColour
+  minRepeats.textColour = modseq.colours.menuTextColour
+  minRepeats.arrowColour = modseq.colours.menuArrowColour
+  minRepeats.outlineColour = modseq.colours.menuOutlineColour
   minRepeats.size = {100,20}
   minRepeats.x = modseq.actionMenu.x + modseq.actionMenu.width + 9
   minRepeats.y = modseq.actionMenu.y
 
-  table.insert(paramsPerPage, {sequencerPanel=sequencerPanel,minRepeats=minRepeats,pageDuration=nil,active=(page==1)})
+  modseq.addPageParams({sequencerPanel=sequencerPanel,minRepeats=minRepeats,pageDuration=nil,active=(page==1)})
   modseq.setPageDuration(page)
 end
 
-modseq.footerPanel.y = paramsPerPage[1].sequencerPanel.y + paramsPerPage[1].sequencerPanel.height
+modseq.footerPanel.y = modseq.getPageParams(1).sequencerPanel.y + modseq.getPageParams(1).sequencerPanel.height
 
 --------------------------------------------------------------------------------
 -- Sequencer
 --------------------------------------------------------------------------------
 
-function arpeg(part)
+modseq.setArpFunc(function(part)
   local index = 0
-  while isPlaying do
+  while modseq.isPlaying() do
     local partIndex = modseq.getPartIndex(part)
-    local numStepsInPart = paramsPerPart[partIndex].numStepsBox.value
+    local numStepsInPart = modseq.getPartParams(partIndex).numStepsBox.value
     local currentPosition = (index % numStepsInPart) + 1
-    local smooth = paramsPerPart[partIndex].smoothInput.value
-    local step = paramsPerPart[partIndex].stepButton.value
-    local duration = resolutions.getResolution(paramsPerPart[partIndex].stepResolution.value)
-    local seqValueTable = paramsPerPart[partIndex].seqValueTable
-    local smoothStepTable = paramsPerPart[partIndex].smoothStepTable
-    local valueRandomizationAmount = paramsPerPart[partIndex].valueRandomization.value
-    local smoothRandomizationAmount = paramsPerPart[partIndex].smoothRandomization.value
+    local smooth = modseq.getPartParams(partIndex).smoothInput.value
+    local step = modseq.getPartParams(partIndex).stepButton.value
+    local duration = resolutions.getResolution(modseq.getPartParams(partIndex).stepResolution.value)
+    local seqValueTable = modseq.getPartParams(partIndex).seqValueTable
+    local smoothStepTable = modseq.getPartParams(partIndex).smoothStepTable
+    local valueRandomizationAmount = modseq.getPartParams(partIndex).valueRandomization.value
+    local smoothRandomizationAmount = modseq.getPartParams(partIndex).smoothRandomization.value
 
     -- Set position
     for i=1, numStepsInPart do
       local isActiveStep = i >= currentPosition and i < currentPosition + 1
       if isActiveStep then
-        paramsPerPart[partIndex].positionTable:setValue(i, 1)
+        modseq.getPartParams(partIndex).positionTable:setValue(i, 1)
       else
-        paramsPerPart[partIndex].positionTable:setValue(i, 0)
+        modseq.getPartParams(partIndex).positionTable:setValue(i, 0)
       end
     end
 
@@ -329,13 +314,13 @@ function arpeg(part)
     -- Wait for next beat
     waitBeat(duration)
   end
-end
+end)
 
 --------------------------------------------------------------------------------
 -- Events
 --------------------------------------------------------------------------------
 
-function remove(voiceId)
+local function remove(voiceId)
   for i,v in ipairs(heldNotes) do
     if v == voiceId then
       table.remove(heldNotes, i)
@@ -376,7 +361,7 @@ function onSave()
   local seqValueTableData = {}
   local smoothStepTableData = {}
 
-  for _,v in ipairs(paramsPerPart) do
+  for _,v in ipairs(modseq.getPartParams()) do
     table.insert(numStepsData, v.numStepsBox.value)
     for j=1, v.numStepsBox.value do
       table.insert(seqValueTableData, v.seqValueTable:getValue(j))
@@ -400,16 +385,16 @@ function onLoad(data)
 
   local dataCounter = 1
   for i,v in ipairs(numStepsData) do
-    paramsPerPart[i].numStepsBox:setValue(v)
-    paramsPerPart[i].seqValueTable.length = v
-    paramsPerPart[i].smoothStepTable.length = v
+    modseq.getPartParams(i).numStepsBox:setValue(v)
+    modseq.getPartParams(i).seqValueTable.length = v
+    modseq.getPartParams(i).smoothStepTable.length = v
     for j=1, v do
-      paramsPerPart[i].seqValueTable:setValue(j, seqValueTableData[dataCounter])
-      paramsPerPart[i].smoothStepTable:setValue(j, smoothStepTableData[dataCounter])
+      modseq.getPartParams(i).seqValueTable:setValue(j, seqValueTableData[dataCounter])
+      modseq.getPartParams(i).smoothStepTable:setValue(j, smoothStepTableData[dataCounter])
       dataCounter = dataCounter + 1
     end
   end
-  for page=1,numPages do
+  for page=1,modseq.getNumPages() do
     modseq.setPageDuration(page)
   end
 end

@@ -29,6 +29,7 @@ local positionTable
 local sequencerTable
 local resolutionNames = resolutions.getResolutionNames({'Follow Input'})
 local resolution = #resolutionNames
+local shapeAmount = 100
 local sequencerPos = 1
 local channel = 0 -- 0 = Omni
 local shapeMenuItems = {"Select preset..."}
@@ -41,8 +42,7 @@ local loadShape = function(shapeIndex)
   if shapeIndex == 0 then
     return
   end
-  local shapeFunc = shapes.getShapeFunction(shapeIndex)
-  local values = shapes[shapeFunc](sequencerTable)
+  local values = shapes.get(shapeIndex, sequencerTable, {amount=shapeAmount})
   for i,v in ipairs(values) do
     sequencerTable:setValue(i, v)
   end
@@ -50,7 +50,7 @@ end
 
 setBackgroundColour(backgroundColour)
 
-local panel = widgets.panel({
+widgets.panel({
   tooltip = "A sequencer that sets a velocity pattern on incoming notes",
   width = 700,
   height = 96,
@@ -78,7 +78,7 @@ widgets.label("Resolution", {
   textColour = "silver"
 })
 
-local resolutionInput = widgets.menu("Resolution", resolution, resolutionNames, {
+widgets.menu("Resolution", resolution, resolutionNames, {
   tooltip = "Set the resolution of the sequencer",
   width = 90,
   showLabel = false,
@@ -99,6 +99,16 @@ local shape = widgets.menu("Start Shape", shapeMenuItems, {
   end
 })
 
+widgets.numBox("Amount", shapeAmount, {
+  tooltip = "Set the shape amount",
+  width = 96,
+  unit = Unit.Percent,
+  changed = function(self)
+    shapeAmount = self.value
+    loadShape(shape.value)
+  end
+})
+
 widgets.numBox("Steps", 8, {
   tooltip = "Set the length of velocity pattern",
   width = 78,
@@ -112,12 +122,6 @@ widgets.numBox("Steps", 8, {
       loadShape(shape.value)
     end
   end
-})
-
-local velocityRandomization = widgets.numBox("Rand", 0, {
-  tooltip = "Amount of radomization applied to the velocity",
-  width = 96,
-  unit = Unit.Percent,
 })
 
 widgets.menu("Channel", widgets.channels(), {
@@ -202,7 +206,8 @@ local function stopPlaying()
 end
 
 local function randomizeVelocity(velocity)
-  return gem.randomizeValue(velocity, sequencerTable.min, sequencerTable.max, velocityRandomization.value)
+  --return gem.randomizeValue(velocity, sequencerTable.min, sequencerTable.max, velocityRandomization.value)
+  return velocity
 end
 
 local function getVelocity()

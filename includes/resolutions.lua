@@ -136,7 +136,7 @@ return {--resolutions--
   
     local res = {}
   
-    for _,r in ipairs(resolutionNames) do
+    for i,r in ipairs(resolutionNames) do
       table.insert(res, r)
       if i == max then
         break

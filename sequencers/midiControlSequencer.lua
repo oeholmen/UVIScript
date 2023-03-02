@@ -16,14 +16,14 @@ end
 
 modseq.setTitle("Midi CC Sequencer")
 
-setBackgroundColour(pageBackgoundColour)
+setBackgroundColour(modseq.colours.backgroundColour)
 
 --------------------------------------------------------------------------------
 -- Sequencer
 --------------------------------------------------------------------------------
 
 -- Add params that are to be editable per page / part
-for page=1,maxPages do
+for page=1,modseq.getMaxPages() do
   local tableX = 0
   local tableY = 0
   local tableWidth = 640
@@ -32,19 +32,19 @@ for page=1,maxPages do
   local buttonSpacing = 10
   local defaultSteps = 16
 
-  if numParts == 1 then
+  if modseq.getNumParts() == 1 then
     tableHeight = tableHeight * 1.5
   end
 
   local sequencerPanel = widgets.panel({name="SequencerPage" .. page})
   sequencerPanel.visible = page == 1
-  sequencerPanel.backgroundColour = menuOutlineColour
+  sequencerPanel.backgroundColour = modseq.colours.menuOutlineColour
   sequencerPanel.x = 10
   sequencerPanel.y = modseq.headerPanel.height + 15
   sequencerPanel.width = 700
-  sequencerPanel.height = numParts * (tableHeight + buttonRowHeight)
+  sequencerPanel.height = modseq.getNumParts() * (tableHeight + buttonRowHeight)
 
-  for part=1,numParts do
+  for part=1,modseq.getNumParts() do
     local isVisible = true
     local i = modseq.getPartIndex(part, page)
     print("Set paramsPerPart, page/part", page, i)
@@ -57,7 +57,7 @@ for page=1,maxPages do
     positionTable.persistent = false
     positionTable.fillStyle = "solid"
     positionTable.backgroundColour = "#9f02ACFE"
-    positionTable.sliderColour = outlineColour
+    positionTable.sliderColour = "#FFB5FF"
     positionTable.width = tableWidth
     positionTable.height = 3
     positionTable.x = tableX
@@ -87,7 +87,7 @@ for page=1,maxPages do
     local partLabelInput = sequencerPanel:Label("Label")
     partLabelInput.text = "CC " .. (part+101)
     partLabelInput.editable = true
-    partLabelInput.backgroundColour = pageBackgoundColour
+    partLabelInput.backgroundColour = modseq.colours.backgroundColour
     partLabelInput.textColour = "808080"
     partLabelInput.backgroundColourWhenEditing = "white"
     partLabelInput.textColourWhenEditing = "black"
@@ -120,10 +120,10 @@ for page=1,maxPages do
     stepResolution.x = stepButton.x + stepButton.width + buttonSpacing
     stepResolution.y = inputWidgetY
     stepResolution.size = {66,20}
-    stepResolution.backgroundColour = menuBackgroundColour
-    stepResolution.textColour = menuTextColour
-    stepResolution.arrowColour = menuArrowColour
-    stepResolution.outlineColour = menuOutlineColour
+    stepResolution.backgroundColour = modseq.colours.menuBackgroundColour
+    stepResolution.textColour = modseq.colours.menuTextColour
+    stepResolution.arrowColour = modseq.colours.menuArrowColour
+    stepResolution.outlineColour = modseq.colours.menuOutlineColour
     stepResolution.changed = function(self)
       modseq.setPageDuration(page)
     end
@@ -132,10 +132,10 @@ for page=1,maxPages do
     numStepsBox.displayName = "Steps"
     numStepsBox.tooltip = "The Number of steps in the part"
     numStepsBox.visible = isVisible
-    numStepsBox.backgroundColour = menuBackgroundColour
-    numStepsBox.textColour = menuTextColour
-    numStepsBox.arrowColour = menuArrowColour
-    numStepsBox.outlineColour = menuOutlineColour
+    numStepsBox.backgroundColour = modseq.colours.menuBackgroundColour
+    numStepsBox.textColour = modseq.colours.menuTextColour
+    numStepsBox.arrowColour = modseq.colours.menuArrowColour
+    numStepsBox.outlineColour = modseq.colours.menuOutlineColour
     numStepsBox.size = {90,20}
     numStepsBox.x = stepResolution.x + stepResolution.width + buttonSpacing
     numStepsBox.y = inputWidgetY
@@ -150,10 +150,10 @@ for page=1,maxPages do
     valueRandomization.tooltip = "Level of randomization applied to the control value"
     valueRandomization.unit = Unit.Percent
     valueRandomization.visible = isVisible
-    valueRandomization.backgroundColour = menuBackgroundColour
-    valueRandomization.textColour = menuTextColour
-    valueRandomization.arrowColour = menuArrowColour
-    valueRandomization.outlineColour = menuOutlineColour
+    valueRandomization.backgroundColour = modseq.colours.menuBackgroundColour
+    valueRandomization.textColour = modseq.colours.menuTextColour
+    valueRandomization.arrowColour = modseq.colours.menuArrowColour
+    valueRandomization.outlineColour = modseq.colours.menuOutlineColour
     valueRandomization.size = {114,20}
     valueRandomization.x = numStepsBox.x + numStepsBox.width + buttonSpacing
     valueRandomization.y = inputWidgetY
@@ -162,8 +162,8 @@ for page=1,maxPages do
     midiControlNumber.displayName = "CC"
     midiControlNumber.tooltip = "The midi control number to send the value to"
     midiControlNumber.visible = isVisible
-    midiControlNumber.backgroundColour = menuBackgroundColour
-    midiControlNumber.textColour = menuTextColour
+    midiControlNumber.backgroundColour = modseq.colours.menuBackgroundColour
+    midiControlNumber.textColour = modseq.colours.menuTextColour
     midiControlNumber.size = valueRandomization.size
     midiControlNumber.x = valueRandomization.x + valueRandomization.width + buttonSpacing
     midiControlNumber.y = inputWidgetY
@@ -172,10 +172,10 @@ for page=1,maxPages do
     channelBox.displayName = "Channel"
     channelBox.tooltip = "Midi channel that receives CC from this part. 0 = omni"
     channelBox.visible = isVisible
-    channelBox.backgroundColour = menuBackgroundColour
-    channelBox.textColour = menuTextColour
-    channelBox.arrowColour = menuArrowColour
-    channelBox.outlineColour = menuOutlineColour
+    channelBox.backgroundColour = modseq.colours.menuBackgroundColour
+    channelBox.textColour = modseq.colours.menuTextColour
+    channelBox.arrowColour = modseq.colours.menuArrowColour
+    channelBox.outlineColour = modseq.colours.menuOutlineColour
     channelBox.size = valueRandomization.size
     channelBox.x = midiControlNumber.x + midiControlNumber.width + buttonSpacing
     channelBox.y = inputWidgetY
@@ -215,7 +215,7 @@ for page=1,maxPages do
     xyShapeMorph.width = 58
     xyShapeMorph.height = seqValueTable.height
 
-    table.insert(paramsPerPart, {shapeWidgets=shapeWidgets,shapeAmount=shapeAmount,shapeMenu=shapeMenu,stepButton=stepButton,smoothButton=smoothButton,valueRandomization=valueRandomization,midiControlNumber=midiControlNumber,seqValueTable=seqValueTable,channelBox=channelBox,positionTable=positionTable,stepResolution=stepResolution,numStepsBox=numStepsBox,partLabelInput=partLabelInput})
+    modseq.addPartParams({shapeWidgets=shapeWidgets,shapeMenu=shapeMenu,stepButton=stepButton,smoothButton=smoothButton,valueRandomization=valueRandomization,midiControlNumber=midiControlNumber,seqValueTable=seqValueTable,channelBox=channelBox,positionTable=positionTable,stepResolution=stepResolution,numStepsBox=numStepsBox,partLabelInput=partLabelInput})
 
     tableY = tableY + tableHeight + buttonRowHeight
   end
@@ -225,25 +225,25 @@ for page=1,maxPages do
   minRepeats.tooltip = "The minimum number of repeats before page will be changed (only relevant when multiple pages are activated)"
   minRepeats.visible = page == 1
   minRepeats.enabled = false
-  minRepeats.backgroundColour = menuBackgroundColour
-  minRepeats.textColour = menuTextColour
-  minRepeats.arrowColour = menuArrowColour
-  minRepeats.outlineColour = menuOutlineColour
+  minRepeats.backgroundColour = modseq.colours.menuBackgroundColour
+  minRepeats.textColour = modseq.colours.menuTextColour
+  minRepeats.arrowColour = modseq.colours.menuArrowColour
+  minRepeats.outlineColour = modseq.colours.menuOutlineColour
   minRepeats.size = {100,20}
   minRepeats.x = modseq.actionMenu.x + modseq.actionMenu.width + 8
   minRepeats.y = modseq.actionMenu.y
 
-  table.insert(paramsPerPage, {sequencerPanel=sequencerPanel,minRepeats=minRepeats,pageDuration=4,active=(page==1)})
+  modseq.addPageParams({sequencerPanel=sequencerPanel,minRepeats=minRepeats,pageDuration=4,active=(page==1)})
   modseq.setPageDuration(page)
 end
 
-modseq.footerPanel.y = paramsPerPage[1].sequencerPanel.y + paramsPerPage[1].sequencerPanel.height
+modseq.footerPanel.y = modseq.getPageParams(1).sequencerPanel.y + modseq.getPageParams(1).sequencerPanel.height
 
 --------------------------------------------------------------------------------
 -- Sequencer
 --------------------------------------------------------------------------------
 
-function sendControlChange(duration, startValue, targetValue, controlChangeNumber, channel)
+local function sendControlChange(duration, startValue, targetValue, controlChangeNumber, channel)
   local durationInMs = beat2ms(duration)
   local numberOfIterations = math.max(startValue, targetValue) - math.min(startValue, targetValue)
   local durationPerIteration = math.ceil(durationInMs / numberOfIterations)
@@ -264,7 +264,7 @@ function sendControlChange(duration, startValue, targetValue, controlChangeNumbe
   print("value == targetValue or i >= numberOfIterations", value, targetValue, i, numberOfIterations)
 end
 
-function getNextValue(seqValueTable, currentPosition, numStepsInPart)
+local function getNextValue(seqValueTable, currentPosition, numStepsInPart)
   local nextPosition = currentPosition + 1
   if nextPosition > numStepsInPart then
     nextPosition = 1
@@ -272,29 +272,29 @@ function getNextValue(seqValueTable, currentPosition, numStepsInPart)
   return seqValueTable:getValue(nextPosition)
 end
 
-function arpeg(part)
+modseq.setArpFunc(function(part)
   local index = 0
   local startValue = nil
   local targetValue = nil
-  while isPlaying do
+  while modseq.isPlaying() do
     local partIndex = modseq.getPartIndex(part)
-    local numStepsInPart = paramsPerPart[partIndex].numStepsBox.value
+    local numStepsInPart = modseq.getPartParams(partIndex).numStepsBox.value
     local currentPosition = (index % numStepsInPart) + 1
-    local smooth = paramsPerPart[partIndex].smoothButton.value
-    local step = paramsPerPart[partIndex].stepButton.value
-    local duration = resolutions.getResolution(paramsPerPart[partIndex].stepResolution.value)
-    local seqValueTable = paramsPerPart[partIndex].seqValueTable
-    local controlChangeNumber = paramsPerPart[partIndex].midiControlNumber.value
-    local channel = paramsPerPart[partIndex].channelBox.value
-    local valueRandomizationAmount = paramsPerPart[partIndex].valueRandomization.value
+    local smooth = modseq.getPartParams(partIndex).smoothButton.value
+    local step = modseq.getPartParams(partIndex).stepButton.value
+    local duration = resolutions.getResolution(modseq.getPartParams(partIndex).stepResolution.value)
+    local seqValueTable = modseq.getPartParams(partIndex).seqValueTable
+    local controlChangeNumber = modseq.getPartParams(partIndex).midiControlNumber.value
+    local channel = modseq.getPartParams(partIndex).channelBox.value
+    local valueRandomizationAmount = modseq.getPartParams(partIndex).valueRandomization.value
 
     -- Set position
     for i=1, numStepsInPart do
       local isActiveStep = i >= currentPosition and i < currentPosition + 1
       if isActiveStep then
-        paramsPerPart[partIndex].positionTable:setValue(i, 1)
+        modseq.getPartParams(partIndex).positionTable:setValue(i, 1)
       else
-        paramsPerPart[partIndex].positionTable:setValue(i, 0)
+        modseq.getPartParams(partIndex).positionTable:setValue(i, 0)
       end
     end
 
@@ -327,7 +327,7 @@ function arpeg(part)
     -- Wait for next beat
     waitBeat(duration)
   end
-end
+end)
 
 --------------------------------------------------------------------------------
 -- Events
@@ -364,7 +364,7 @@ function onSave()
   local seqValueTableData = {}
   local partLabelInputData = {}
 
-  for _,v in ipairs(paramsPerPart) do
+  for _,v in ipairs(modseq.getPartParams()) do
     table.insert(numStepsData, v.numStepsBox.value)
     table.insert(partLabelInputData, v.partLabelInput.text)
     for j=1, v.numStepsBox.value do
@@ -389,15 +389,15 @@ function onLoad(data)
 
   local dataCounter = 1
   for i,v in ipairs(numStepsData) do
-    paramsPerPart[i].numStepsBox:setValue(v)
-    paramsPerPart[i].partLabelInput.text = partLabelInputData[i]
-    paramsPerPart[i].seqValueTable.length = v
+    modseq.getPartParams(i).numStepsBox:setValue(v)
+    modseq.getPartParams(i).partLabelInput.text = partLabelInputData[i]
+    modseq.getPartParams(i).seqValueTable.length = v
     for j=1, v do
-      paramsPerPart[i].seqValueTable:setValue(j, seqValueTableData[dataCounter])
+      modseq.getPartParams(i).seqValueTable:setValue(j, seqValueTableData[dataCounter])
       dataCounter = dataCounter + 1
     end
   end
-  for page=1,numPages do
+  for page=1,modseq.getNumPages() do
     modseq.setPageDuration(page)
   end
 end

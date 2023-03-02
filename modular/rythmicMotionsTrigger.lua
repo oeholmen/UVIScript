@@ -243,7 +243,7 @@ widgets.setSection({
 })
 
 tableMotion.getStartShapeWidget().changed = function(self)
-  tableMotion.options.startMode = self.selectedText
+  tableMotion.options.startMode = self.value
   resetTableValues(true) -- Load a "fresh" shape without adjustments when selecting a shape
 end
 
@@ -266,7 +266,7 @@ tableMotion.getMotionSpeedWidget(130)
 widgets.row(2)
 
 widgets.numBox("Range", tableRange, {
-  min = 8,
+  min = 2,
   max = 128,
   integer = true,
   tooltip = "Set the table range - high range = fewer events, low range = more events",

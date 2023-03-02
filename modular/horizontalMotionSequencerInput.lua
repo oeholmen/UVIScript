@@ -289,33 +289,27 @@ motionTable = widgets.table("Motion", 0, tableMotion.options.tableLength, {
   integer = true,
 })
 
-local noteWidgetHeight = 20
-local noteWidgetWidth = 138
-local noteWidgetRowSpacing = 6
-local noteWidgetCellSpacing = 6
-local firstRowY = motionTable.y + motionTable.height + 6
-
 widgets.setSection({
   width = 109,
-  height = noteWidgetHeight,
+  height = 20,
   menuHeight = 45,
+  xSpacing = 6,
+  ySpacing = 6,
   x = 10,
-  y = firstRowY,
-  xSpacing = noteWidgetCellSpacing,
-  ySpacing = noteWidgetRowSpacing,
+  y = widgets.posUnder(motionTable),
   cols = 9
 })
 
 
 tableMotion.getStartShapeWidget().changed = function(self)
-  tableMotion.options.startMode = self.selectedText
+  tableMotion.options.startMode = self.value
   setScaleTable(true) -- Load a "fresh" shape without adjustments when selecting a shape
 end
 
 tableMotion.getSpeedSpreadWidget()
 tableMotion.getStartDirectionWidget()
 
-local activationModeMenu = widgets.menu("Activation Mode", activationMode, activationModes, {
+widgets.menu("Activation Mode", activationMode, activationModes, {
   tooltip = "Activation mode controls when notes in the table are activated and deactivated.",
   changed = function(self)
     activationMode = self.value
@@ -335,7 +329,7 @@ tableMotion.getMotionSpeedWidget(130)
 widgets.row(2)
 
 widgets.numBox("Range", tableRange, {
-  min = 8,
+  min = 2,
   max = 128,
   integer = true,
   tooltip = "Set the table range - high range = fewer events, low range = more events",

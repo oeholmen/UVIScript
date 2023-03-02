@@ -84,9 +84,11 @@ local function createFragmentFromText(fragmentText)
   if string.len(fragmentText) > 0 then
     for w in string.gmatch(fragmentText, "[^,]+") do
       --print("Before parse", w)
-      w = parseToBeatValue(gem.trimStartAndEnd(w))
+      local beat = parseToBeatValue(gem.trimStartAndEnd(w))
       --print("Add to fragment", w)
-      table.insert(fragment, w)
+      if type(beat) == "number" then
+        table.insert(fragment, beat)
+      end
     end
   end
   return fragment

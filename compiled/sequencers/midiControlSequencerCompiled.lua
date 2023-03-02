@@ -403,10 +403,12 @@ local widgets = {
     return channels
   end,
   getColours = function() return widgetColours end,
-  getPanel = function(options) return widgetDefaults.panel end,
+  getPanel = function() return widgetDefaults.panel end,
   getSectionValue = function(k) return widgetDefaults[k] end,
   xOffset = function(val) widgetDefaults.xOffset = val end,
   yOffset = function(val) widgetDefaults.yOffset = val end,
+  x = function(val) widgetDefaults.xOffset = val end,
+  y = function(val) widgetDefaults.yOffset = val end,
   xSpacing = function(val) widgetDefaults.xSpacing = val end,
   ySpacing = function(val) widgetDefaults.ySpacing = val end,
   posSide = function(widget) return widget.x + widget.width + widgetDefaults.xSpacing end,
@@ -569,9 +571,15 @@ local shapeNames = {
   "VOSIM",
   "VOSIM (Norm)",
   "Crosser",
+  "Mayhem Middle",
+  "Zero Dancer",
   "Wings",
   "Dirac Delta (exp)",
   "Dirac Delta (frexp)",
+  "Swipe 1",
+  "Swipe 2",
+  "Swipe 3",
+  "Swipe 4",
   "Random",
   "Test Shape",
 }
@@ -626,14 +634,18 @@ local shapeFunctions = {
   "vosim",
   "vosimNormalized",
   "crosser",
+  "mayhemInTheMiddle",
+  "zeroDancer",
   "wings",
   "diracDelta",
   "diracDeltaFrexp",
+  "swipe1",
+  "swipe2",
+  "swipe3",
+  "swipe4",
   "random",
   "testShape",
 }
-
-local getUnipolar = function(v) return (v + 1) / 2 end
 
 -- Holds the shape definitions - functions get the following variables
 -- x is the current time-value getting plotted, from -1.0 to 1.0
@@ -646,7 +658,7 @@ local getUnipolar = function(v) return (v + 1) / 2 end
 local shapes = {
   ramp = function(x, z, w, y, i) return x * z end,
   triangleShaper = function(x, z, w, y, i) return math.min(2+2*x, math.abs((x-0.5)*2)-1) * z end,
-  sine = function(x, z, w, y, i) return math.sin(x) * z end,
+  sine = function(x, z, w, y, i) return math.sin(x*math.pi) * z end,
   tangent = function(x, z, w, y, i) return math.tan(x) * z end,
   sawInPhase = function(x, z, w, y, i) return (gem.sign(x)-x) * z end,
   sinToNoise = function(x, z, w, y, i) return 2*gem.avg({math.sin(z*x*math.pi),(1-z)*gem.getRandom()}) end,
@@ -691,9 +703,22 @@ local shapes = {
   crosser = function(x, z, w, y, i) return gem.avg({x, w}) * z end,
   diracDelta = function(x, z, w, y, i) return (math.exp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*16) end,
   diracDeltaFrexp = function(x, z, w, y, i) return (math.frexp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*16) end,
-  testShape = function(x, z, w, y, i)
-    --q = gem.round(1+((x+1)/2)*511)
-    return x * z
+  swipe1 = function(x, z, w, y, i) return math.exp(math.abs(x)/y) * z end,
+  swipe2 = function(x, z, w, y, i) return math.exp(math.tan(x)/math.pi) * z end,
+  swipe3 = function(x, z, w, y, i) return math.exp(x-y) * z end,
+  swipe4 = function(x, z, w, y, i) return (math.exp(x)) * gem.avg({z, x}) end,
+  mayhemInTheMiddle = function(x, z, w, y, i) return math.sin((x * math.pi) + (z * math.tan(w * math.pi))) end,
+  zeroDancer = function(x, z, w, y, i) return math.sin(x / z + z) * z end,
+  testShape = function(x, z, w, y, i, b)
+    -- Shaky sine
+    local f = 0
+    local g = b.rand * ((i-1) / b.length)
+    if z < 0 then
+      f = z - g
+    elseif z > 0 then
+      f = z + g
+    end
+    return math.sin(x * math.pi) * f
   end,
 }
 
@@ -740,7 +765,7 @@ local function getShapeNames(options, max)
 
   local res = {}
 
-  for _,r in ipairs(shapeNames) do
+  for i,r in ipairs(shapeNames) do
     table.insert(res, r)
     if i == max then
       break
@@ -757,6 +782,8 @@ local function getShapeNames(options, max)
   return res
 end
 
+local getUnipolar = function(v) return (v + 1) / 2 end
+
 local function getShapeFunctions()
   return shapeFunctions
 end
@@ -770,11 +797,11 @@ local function getShapeBounds(bounds)
   if type(bounds) == "nil" then
     bounds = {}
   end
-  local stepRange = 2
   shapeBounds.min = getValueOrDefault(bounds.min, -1) -- x-azis max value
   shapeBounds.max = getValueOrDefault(bounds.max, 1) -- x-azis min value
   shapeBounds.length = getValueOrDefault(bounds.length, 128) -- y-axis steps
-  shapeBounds.unipolar = shapeBounds.min >= 0
+  shapeBounds.unipolar = shapeBounds.min >= 0 --  Whether the shape is unipolar
+  shapeBounds.rand = gem.getRandom() -- A random number that will be equal across all steps
   return shapeBounds
 end
 
@@ -885,7 +912,7 @@ local shapes = {
   triangleOffPhase = function(t,o) return createShape(t, o, 'triangleShaper', {phase = -.5}) end,
   rampUp = function(t,o) return createShape(t, o, 'ramp', {z = 1}) end,
   rampDown = function(t,o) return createShape(t, o, 'ramp', {z = -1}) end,
-  sine = function(t,o) return createShape(t, o, 'sine', {factor = math.pi}) end,
+  sine = function(t,o) return createShape(t, o, 'sine') end,
   chaosToSine = function(t,o) return createShape(t, o, 'chaosToSine') end,
   pwm50to100 = function(t,o) return createShape(t, o, 'pwm50to100') end,
   tripleSin = function(t,o) return createShape(t, o, 'tripleSin') end,
@@ -914,6 +941,12 @@ local shapes = {
   diracDeltaFrexp = function(t,o) return createShape(t, o, 'diracDeltaFrexp', {z = .03}) end,
   crosser = function(t,o) return createShape(t, o, 'crosser', {z = 0, factor = 4}) end,
   wings = function(t,o) return createShape(t, o, 'wings', {factor = .5}) end,
+  mayhemInTheMiddle = function(t,o) return createShape(t, o, 'mayhemInTheMiddle') end,
+  zeroDancer = function(t,o) return createShape(t, o, 'zeroDancer') end,
+  swipe1 = function(t,o) return createShape(t, o, 'swipe1') end,
+  swipe2 = function(t,o) return createShape(t, o, 'swipe2') end,
+  swipe3 = function(t,o) return createShape(t, o, 'swipe3') end,
+  swipe4 = function(t,o) return createShape(t, o, 'swipe4', {z = -.25}) end,
   testShape = function(t,o) return createShape(t, o, 'testShape') end,
 }
 
@@ -1055,7 +1088,7 @@ local resolutions = {
   
     local res = {}
   
-    for _,r in ipairs(resolutionNames) do
+    for i,r in ipairs(resolutionNames) do
       table.insert(res, r)
       if i == max then
         break
@@ -1117,26 +1150,30 @@ local resolutions = {
 -- Common functions and widgets that are shared for the modulation sequencers
 --------------------------------------------------------------------------------
 
-outlineColour = "#FFB5FF"
-menuBackgroundColour = "#bf01011F"
-menuTextColour = "#9f02ACFE"
-menuArrowColour = "#9f09A3F4"
-menuOutlineColour = "#00000000"
-pageBackgoundColour = "222222"
-numParts = 1
-numPages = 1
-maxPages = 8
-activePage = 1
-nextUp = 1
-paramsPerPart = {}
-paramsPerPage = {}
-isPlaying = false
+local arpeg -- Holds the arpeggiator function. Must be defined in the script that includes modseq.
+local isPlaying = false
+local activePage = 1
+local numParts = 1
+local numPages = 1
+local maxPages = 8
+local nextUp = 1
+local paramsPerPage = {}
+local paramsPerPart = {}
+
+widgets.setColours({
+  menuBackgroundColour = "#bf01011F",
+  menuTextColour = "#9f02ACFE",
+  menuArrowColour = "#9f09A3F4",
+  menuOutlineColour = "#00000000",
+  backgroundColour = "222222",
+})
 
 --------------------------------------------------------------------------------
 -- Define widgets
 --------------------------------------------------------------------------------
 
 local pageButtons = {}
+local colours = widgets.getColours()
 local headerPanel = widgets.panel()
 local footerPanel = widgets.panel()
 local cyclePagesButton = footerPanel:OnOffButton("CyclePagesButton")
@@ -1308,7 +1345,7 @@ end
 -- Common Widgets
 --------------------------------------------------------------------------------
 
-headerPanel.backgroundColour = menuOutlineColour
+headerPanel.backgroundColour = colours.menuOutlineColour
 headerPanel.x = 10
 headerPanel.y = 10
 headerPanel.width = 700
@@ -1316,7 +1353,7 @@ headerPanel.height = 30
 
 local label = headerPanel:Label("Label")
 label.backgroundColour = "808080"
-label.textColour = pageBackgoundColour
+label.textColour = colours.backgroundColour
 label.fontSize = 22
 label.position = {0,0}
 label.size = {190,25}
@@ -1324,7 +1361,7 @@ label.size = {190,25}
 local labelInput = headerPanel:Label("Label")
 labelInput.text = ""
 labelInput.editable = true
-labelInput.backgroundColour = pageBackgoundColour
+labelInput.backgroundColour = colours.backgroundColour
 labelInput.textColour = "808080"
 labelInput.backgroundColourWhenEditing = "white"
 labelInput.textColourWhenEditing = "black"
@@ -1362,7 +1399,7 @@ autoplayButton.size = {102,22}
 autoplayButton.x = playButton.x - playButton.width - 5
 autoplayButton.y = playButton.y
 
-footerPanel.backgroundColour = menuOutlineColour
+footerPanel.backgroundColour = colours.menuOutlineColour
 footerPanel.x = 10
 footerPanel.width = 700
 if maxPages == 1 then
@@ -1403,8 +1440,8 @@ cyclePagesButton.size = pageButtonSize
 
 local numPagesBox = footerPanel:NumBox("Pages", numPages, 1, maxPages, true)
 numPagesBox.tooltip = "Number of active pages"
-numPagesBox.backgroundColour = menuBackgroundColour
-numPagesBox.textColour = menuTextColour
+numPagesBox.backgroundColour = colours.menuBackgroundColour
+numPagesBox.textColour = colours.menuTextColour
 numPagesBox.size = {90,22}
 numPagesBox.x = 0
 numPagesBox.changed = function(self)
@@ -1461,10 +1498,10 @@ nextPageButton.x = cyclePagesButton.x + cyclePagesButton.width + xPadding
 
 actionMenu.persistent = false
 actionMenu.tooltip = "Select an action. NOTE: This changes data in the affected tables"
-actionMenu.backgroundColour = menuBackgroundColour
-actionMenu.textColour = menuTextColour
-actionMenu.arrowColour = menuArrowColour
-actionMenu.outlineColour = menuOutlineColour
+actionMenu.backgroundColour = colours.menuBackgroundColour
+actionMenu.textColour = colours.menuTextColour
+actionMenu.arrowColour = colours.menuArrowColour
+actionMenu.outlineColour = colours.menuOutlineColour
 actionMenu.showLabel = false
 actionMenu.x = changePageProbability.x + changePageProbability.width + 5
 actionMenu.size = {110,22}
@@ -1512,6 +1549,18 @@ end
 --------------------------------------------------------------------------------
 
 local modseq = {
+  colours = colours,
+  isPlaying = function() return isPlaying == true end,
+  isNotPlaying = function() return isPlaying == false end,
+  setArpFunc = function(f) arpeg = f end,
+  setPlaying = function(m) isPlaying = m ~= false end,
+  getNumParts = function() return numParts end,
+  getNumPages = function() return numPages end,
+  getMaxPages = function() return maxPages end,
+  getPageParams = function(p) return paramsPerPage[p] end,
+  addPageParams = function(params) table.insert(paramsPerPage, params) end,
+  getPartParams = function(p) if type(p) == "number" then return paramsPerPart[p] end return paramsPerPart end,
+  addPartParams = function(params) table.insert(paramsPerPart, params) end,
   headerPanel = headerPanel,
   footerPanel = footerPanel,
   actionMenu = actionMenu,
@@ -1538,14 +1587,14 @@ end
 
 modseq.setTitle("Midi CC Sequencer")
 
-setBackgroundColour(pageBackgoundColour)
+setBackgroundColour(modseq.colours.backgroundColour)
 
 --------------------------------------------------------------------------------
 -- Sequencer
 --------------------------------------------------------------------------------
 
 -- Add params that are to be editable per page / part
-for page=1,maxPages do
+for page=1,modseq.getMaxPages() do
   local tableX = 0
   local tableY = 0
   local tableWidth = 640
@@ -1554,19 +1603,19 @@ for page=1,maxPages do
   local buttonSpacing = 10
   local defaultSteps = 16
 
-  if numParts == 1 then
+  if modseq.getNumParts() == 1 then
     tableHeight = tableHeight * 1.5
   end
 
   local sequencerPanel = widgets.panel({name="SequencerPage" .. page})
   sequencerPanel.visible = page == 1
-  sequencerPanel.backgroundColour = menuOutlineColour
+  sequencerPanel.backgroundColour = modseq.colours.menuOutlineColour
   sequencerPanel.x = 10
   sequencerPanel.y = modseq.headerPanel.height + 15
   sequencerPanel.width = 700
-  sequencerPanel.height = numParts * (tableHeight + buttonRowHeight)
+  sequencerPanel.height = modseq.getNumParts() * (tableHeight + buttonRowHeight)
 
-  for part=1,numParts do
+  for part=1,modseq.getNumParts() do
     local isVisible = true
     local i = modseq.getPartIndex(part, page)
     print("Set paramsPerPart, page/part", page, i)
@@ -1579,7 +1628,7 @@ for page=1,maxPages do
     positionTable.persistent = false
     positionTable.fillStyle = "solid"
     positionTable.backgroundColour = "#9f02ACFE"
-    positionTable.sliderColour = outlineColour
+    positionTable.sliderColour = "#FFB5FF"
     positionTable.width = tableWidth
     positionTable.height = 3
     positionTable.x = tableX
@@ -1609,7 +1658,7 @@ for page=1,maxPages do
     local partLabelInput = sequencerPanel:Label("Label")
     partLabelInput.text = "CC " .. (part+101)
     partLabelInput.editable = true
-    partLabelInput.backgroundColour = pageBackgoundColour
+    partLabelInput.backgroundColour = modseq.colours.backgroundColour
     partLabelInput.textColour = "808080"
     partLabelInput.backgroundColourWhenEditing = "white"
     partLabelInput.textColourWhenEditing = "black"
@@ -1642,10 +1691,10 @@ for page=1,maxPages do
     stepResolution.x = stepButton.x + stepButton.width + buttonSpacing
     stepResolution.y = inputWidgetY
     stepResolution.size = {66,20}
-    stepResolution.backgroundColour = menuBackgroundColour
-    stepResolution.textColour = menuTextColour
-    stepResolution.arrowColour = menuArrowColour
-    stepResolution.outlineColour = menuOutlineColour
+    stepResolution.backgroundColour = modseq.colours.menuBackgroundColour
+    stepResolution.textColour = modseq.colours.menuTextColour
+    stepResolution.arrowColour = modseq.colours.menuArrowColour
+    stepResolution.outlineColour = modseq.colours.menuOutlineColour
     stepResolution.changed = function(self)
       modseq.setPageDuration(page)
     end
@@ -1654,10 +1703,10 @@ for page=1,maxPages do
     numStepsBox.displayName = "Steps"
     numStepsBox.tooltip = "The Number of steps in the part"
     numStepsBox.visible = isVisible
-    numStepsBox.backgroundColour = menuBackgroundColour
-    numStepsBox.textColour = menuTextColour
-    numStepsBox.arrowColour = menuArrowColour
-    numStepsBox.outlineColour = menuOutlineColour
+    numStepsBox.backgroundColour = modseq.colours.menuBackgroundColour
+    numStepsBox.textColour = modseq.colours.menuTextColour
+    numStepsBox.arrowColour = modseq.colours.menuArrowColour
+    numStepsBox.outlineColour = modseq.colours.menuOutlineColour
     numStepsBox.size = {90,20}
     numStepsBox.x = stepResolution.x + stepResolution.width + buttonSpacing
     numStepsBox.y = inputWidgetY
@@ -1672,10 +1721,10 @@ for page=1,maxPages do
     valueRandomization.tooltip = "Level of randomization applied to the control value"
     valueRandomization.unit = Unit.Percent
     valueRandomization.visible = isVisible
-    valueRandomization.backgroundColour = menuBackgroundColour
-    valueRandomization.textColour = menuTextColour
-    valueRandomization.arrowColour = menuArrowColour
-    valueRandomization.outlineColour = menuOutlineColour
+    valueRandomization.backgroundColour = modseq.colours.menuBackgroundColour
+    valueRandomization.textColour = modseq.colours.menuTextColour
+    valueRandomization.arrowColour = modseq.colours.menuArrowColour
+    valueRandomization.outlineColour = modseq.colours.menuOutlineColour
     valueRandomization.size = {114,20}
     valueRandomization.x = numStepsBox.x + numStepsBox.width + buttonSpacing
     valueRandomization.y = inputWidgetY
@@ -1684,8 +1733,8 @@ for page=1,maxPages do
     midiControlNumber.displayName = "CC"
     midiControlNumber.tooltip = "The midi control number to send the value to"
     midiControlNumber.visible = isVisible
-    midiControlNumber.backgroundColour = menuBackgroundColour
-    midiControlNumber.textColour = menuTextColour
+    midiControlNumber.backgroundColour = modseq.colours.menuBackgroundColour
+    midiControlNumber.textColour = modseq.colours.menuTextColour
     midiControlNumber.size = valueRandomization.size
     midiControlNumber.x = valueRandomization.x + valueRandomization.width + buttonSpacing
     midiControlNumber.y = inputWidgetY
@@ -1694,10 +1743,10 @@ for page=1,maxPages do
     channelBox.displayName = "Channel"
     channelBox.tooltip = "Midi channel that receives CC from this part. 0 = omni"
     channelBox.visible = isVisible
-    channelBox.backgroundColour = menuBackgroundColour
-    channelBox.textColour = menuTextColour
-    channelBox.arrowColour = menuArrowColour
-    channelBox.outlineColour = menuOutlineColour
+    channelBox.backgroundColour = modseq.colours.menuBackgroundColour
+    channelBox.textColour = modseq.colours.menuTextColour
+    channelBox.arrowColour = modseq.colours.menuArrowColour
+    channelBox.outlineColour = modseq.colours.menuOutlineColour
     channelBox.size = valueRandomization.size
     channelBox.x = midiControlNumber.x + midiControlNumber.width + buttonSpacing
     channelBox.y = inputWidgetY
@@ -1737,7 +1786,7 @@ for page=1,maxPages do
     xyShapeMorph.width = 58
     xyShapeMorph.height = seqValueTable.height
 
-    table.insert(paramsPerPart, {shapeWidgets=shapeWidgets,shapeAmount=shapeAmount,shapeMenu=shapeMenu,stepButton=stepButton,smoothButton=smoothButton,valueRandomization=valueRandomization,midiControlNumber=midiControlNumber,seqValueTable=seqValueTable,channelBox=channelBox,positionTable=positionTable,stepResolution=stepResolution,numStepsBox=numStepsBox,partLabelInput=partLabelInput})
+    modseq.addPartParams({shapeWidgets=shapeWidgets,shapeMenu=shapeMenu,stepButton=stepButton,smoothButton=smoothButton,valueRandomization=valueRandomization,midiControlNumber=midiControlNumber,seqValueTable=seqValueTable,channelBox=channelBox,positionTable=positionTable,stepResolution=stepResolution,numStepsBox=numStepsBox,partLabelInput=partLabelInput})
 
     tableY = tableY + tableHeight + buttonRowHeight
   end
@@ -1747,25 +1796,25 @@ for page=1,maxPages do
   minRepeats.tooltip = "The minimum number of repeats before page will be changed (only relevant when multiple pages are activated)"
   minRepeats.visible = page == 1
   minRepeats.enabled = false
-  minRepeats.backgroundColour = menuBackgroundColour
-  minRepeats.textColour = menuTextColour
-  minRepeats.arrowColour = menuArrowColour
-  minRepeats.outlineColour = menuOutlineColour
+  minRepeats.backgroundColour = modseq.colours.menuBackgroundColour
+  minRepeats.textColour = modseq.colours.menuTextColour
+  minRepeats.arrowColour = modseq.colours.menuArrowColour
+  minRepeats.outlineColour = modseq.colours.menuOutlineColour
   minRepeats.size = {100,20}
   minRepeats.x = modseq.actionMenu.x + modseq.actionMenu.width + 8
   minRepeats.y = modseq.actionMenu.y
 
-  table.insert(paramsPerPage, {sequencerPanel=sequencerPanel,minRepeats=minRepeats,pageDuration=4,active=(page==1)})
+  modseq.addPageParams({sequencerPanel=sequencerPanel,minRepeats=minRepeats,pageDuration=4,active=(page==1)})
   modseq.setPageDuration(page)
 end
 
-modseq.footerPanel.y = paramsPerPage[1].sequencerPanel.y + paramsPerPage[1].sequencerPanel.height
+modseq.footerPanel.y = modseq.getPageParams(1).sequencerPanel.y + modseq.getPageParams(1).sequencerPanel.height
 
 --------------------------------------------------------------------------------
 -- Sequencer
 --------------------------------------------------------------------------------
 
-function sendControlChange(duration, startValue, targetValue, controlChangeNumber, channel)
+local function sendControlChange(duration, startValue, targetValue, controlChangeNumber, channel)
   local durationInMs = beat2ms(duration)
   local numberOfIterations = math.max(startValue, targetValue) - math.min(startValue, targetValue)
   local durationPerIteration = math.ceil(durationInMs / numberOfIterations)
@@ -1786,7 +1835,7 @@ function sendControlChange(duration, startValue, targetValue, controlChangeNumbe
   print("value == targetValue or i >= numberOfIterations", value, targetValue, i, numberOfIterations)
 end
 
-function getNextValue(seqValueTable, currentPosition, numStepsInPart)
+local function getNextValue(seqValueTable, currentPosition, numStepsInPart)
   local nextPosition = currentPosition + 1
   if nextPosition > numStepsInPart then
     nextPosition = 1
@@ -1794,29 +1843,29 @@ function getNextValue(seqValueTable, currentPosition, numStepsInPart)
   return seqValueTable:getValue(nextPosition)
 end
 
-function arpeg(part)
+modseq.setArpFunc(function(part)
   local index = 0
   local startValue = nil
   local targetValue = nil
-  while isPlaying do
+  while modseq.isPlaying() do
     local partIndex = modseq.getPartIndex(part)
-    local numStepsInPart = paramsPerPart[partIndex].numStepsBox.value
+    local numStepsInPart = modseq.getPartParams(partIndex).numStepsBox.value
     local currentPosition = (index % numStepsInPart) + 1
-    local smooth = paramsPerPart[partIndex].smoothButton.value
-    local step = paramsPerPart[partIndex].stepButton.value
-    local duration = resolutions.getResolution(paramsPerPart[partIndex].stepResolution.value)
-    local seqValueTable = paramsPerPart[partIndex].seqValueTable
-    local controlChangeNumber = paramsPerPart[partIndex].midiControlNumber.value
-    local channel = paramsPerPart[partIndex].channelBox.value
-    local valueRandomizationAmount = paramsPerPart[partIndex].valueRandomization.value
+    local smooth = modseq.getPartParams(partIndex).smoothButton.value
+    local step = modseq.getPartParams(partIndex).stepButton.value
+    local duration = resolutions.getResolution(modseq.getPartParams(partIndex).stepResolution.value)
+    local seqValueTable = modseq.getPartParams(partIndex).seqValueTable
+    local controlChangeNumber = modseq.getPartParams(partIndex).midiControlNumber.value
+    local channel = modseq.getPartParams(partIndex).channelBox.value
+    local valueRandomizationAmount = modseq.getPartParams(partIndex).valueRandomization.value
 
     -- Set position
     for i=1, numStepsInPart do
       local isActiveStep = i >= currentPosition and i < currentPosition + 1
       if isActiveStep then
-        paramsPerPart[partIndex].positionTable:setValue(i, 1)
+        modseq.getPartParams(partIndex).positionTable:setValue(i, 1)
       else
-        paramsPerPart[partIndex].positionTable:setValue(i, 0)
+        modseq.getPartParams(partIndex).positionTable:setValue(i, 0)
       end
     end
 
@@ -1849,7 +1898,7 @@ function arpeg(part)
     -- Wait for next beat
     waitBeat(duration)
   end
-end
+end)
 
 --------------------------------------------------------------------------------
 -- Events
@@ -1886,7 +1935,7 @@ function onSave()
   local seqValueTableData = {}
   local partLabelInputData = {}
 
-  for _,v in ipairs(paramsPerPart) do
+  for _,v in ipairs(modseq.getPartParams()) do
     table.insert(numStepsData, v.numStepsBox.value)
     table.insert(partLabelInputData, v.partLabelInput.text)
     for j=1, v.numStepsBox.value do
@@ -1911,15 +1960,15 @@ function onLoad(data)
 
   local dataCounter = 1
   for i,v in ipairs(numStepsData) do
-    paramsPerPart[i].numStepsBox:setValue(v)
-    paramsPerPart[i].partLabelInput.text = partLabelInputData[i]
-    paramsPerPart[i].seqValueTable.length = v
+    modseq.getPartParams(i).numStepsBox:setValue(v)
+    modseq.getPartParams(i).partLabelInput.text = partLabelInputData[i]
+    modseq.getPartParams(i).seqValueTable.length = v
     for j=1, v do
-      paramsPerPart[i].seqValueTable:setValue(j, seqValueTableData[dataCounter])
+      modseq.getPartParams(i).seqValueTable:setValue(j, seqValueTableData[dataCounter])
       dataCounter = dataCounter + 1
     end
   end
-  for page=1,numPages do
+  for page=1,modseq.getNumPages() do
     modseq.setPageDuration(page)
   end
 end

@@ -403,10 +403,12 @@ local widgets = {
     return channels
   end,
   getColours = function() return widgetColours end,
-  getPanel = function(options) return widgetDefaults.panel end,
+  getPanel = function() return widgetDefaults.panel end,
   getSectionValue = function(k) return widgetDefaults[k] end,
   xOffset = function(val) widgetDefaults.xOffset = val end,
   yOffset = function(val) widgetDefaults.yOffset = val end,
+  x = function(val) widgetDefaults.xOffset = val end,
+  y = function(val) widgetDefaults.yOffset = val end,
   xSpacing = function(val) widgetDefaults.xSpacing = val end,
   ySpacing = function(val) widgetDefaults.ySpacing = val end,
   posSide = function(widget) return widget.x + widget.width + widgetDefaults.xSpacing end,
@@ -759,9 +761,15 @@ local shapeNames = {
   "VOSIM",
   "VOSIM (Norm)",
   "Crosser",
+  "Mayhem Middle",
+  "Zero Dancer",
   "Wings",
   "Dirac Delta (exp)",
   "Dirac Delta (frexp)",
+  "Swipe 1",
+  "Swipe 2",
+  "Swipe 3",
+  "Swipe 4",
   "Random",
   "Test Shape",
 }
@@ -816,14 +824,18 @@ local shapeFunctions = {
   "vosim",
   "vosimNormalized",
   "crosser",
+  "mayhemInTheMiddle",
+  "zeroDancer",
   "wings",
   "diracDelta",
   "diracDeltaFrexp",
+  "swipe1",
+  "swipe2",
+  "swipe3",
+  "swipe4",
   "random",
   "testShape",
 }
-
-local getUnipolar = function(v) return (v + 1) / 2 end
 
 -- Holds the shape definitions - functions get the following variables
 -- x is the current time-value getting plotted, from -1.0 to 1.0
@@ -836,7 +848,7 @@ local getUnipolar = function(v) return (v + 1) / 2 end
 local shapes = {
   ramp = function(x, z, w, y, i) return x * z end,
   triangleShaper = function(x, z, w, y, i) return math.min(2+2*x, math.abs((x-0.5)*2)-1) * z end,
-  sine = function(x, z, w, y, i) return math.sin(x) * z end,
+  sine = function(x, z, w, y, i) return math.sin(x*math.pi) * z end,
   tangent = function(x, z, w, y, i) return math.tan(x) * z end,
   sawInPhase = function(x, z, w, y, i) return (gem.sign(x)-x) * z end,
   sinToNoise = function(x, z, w, y, i) return 2*gem.avg({math.sin(z*x*math.pi),(1-z)*gem.getRandom()}) end,
@@ -881,9 +893,22 @@ local shapes = {
   crosser = function(x, z, w, y, i) return gem.avg({x, w}) * z end,
   diracDelta = function(x, z, w, y, i) return (math.exp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*16) end,
   diracDeltaFrexp = function(x, z, w, y, i) return (math.frexp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*16) end,
-  testShape = function(x, z, w, y, i)
-    --q = gem.round(1+((x+1)/2)*511)
-    return x * z
+  swipe1 = function(x, z, w, y, i) return math.exp(math.abs(x)/y) * z end,
+  swipe2 = function(x, z, w, y, i) return math.exp(math.tan(x)/math.pi) * z end,
+  swipe3 = function(x, z, w, y, i) return math.exp(x-y) * z end,
+  swipe4 = function(x, z, w, y, i) return (math.exp(x)) * gem.avg({z, x}) end,
+  mayhemInTheMiddle = function(x, z, w, y, i) return math.sin((x * math.pi) + (z * math.tan(w * math.pi))) end,
+  zeroDancer = function(x, z, w, y, i) return math.sin(x / z + z) * z end,
+  testShape = function(x, z, w, y, i, b)
+    -- Shaky sine
+    local f = 0
+    local g = b.rand * ((i-1) / b.length)
+    if z < 0 then
+      f = z - g
+    elseif z > 0 then
+      f = z + g
+    end
+    return math.sin(x * math.pi) * f
   end,
 }
 
@@ -930,7 +955,7 @@ local function getShapeNames(options, max)
 
   local res = {}
 
-  for _,r in ipairs(shapeNames) do
+  for i,r in ipairs(shapeNames) do
     table.insert(res, r)
     if i == max then
       break
@@ -947,6 +972,8 @@ local function getShapeNames(options, max)
   return res
 end
 
+local getUnipolar = function(v) return (v + 1) / 2 end
+
 local function getShapeFunctions()
   return shapeFunctions
 end
@@ -960,11 +987,11 @@ local function getShapeBounds(bounds)
   if type(bounds) == "nil" then
     bounds = {}
   end
-  local stepRange = 2
   shapeBounds.min = getValueOrDefault(bounds.min, -1) -- x-azis max value
   shapeBounds.max = getValueOrDefault(bounds.max, 1) -- x-azis min value
   shapeBounds.length = getValueOrDefault(bounds.length, 128) -- y-axis steps
-  shapeBounds.unipolar = shapeBounds.min >= 0
+  shapeBounds.unipolar = shapeBounds.min >= 0 --  Whether the shape is unipolar
+  shapeBounds.rand = gem.getRandom() -- A random number that will be equal across all steps
   return shapeBounds
 end
 
@@ -1075,7 +1102,7 @@ local shapes = {
   triangleOffPhase = function(t,o) return createShape(t, o, 'triangleShaper', {phase = -.5}) end,
   rampUp = function(t,o) return createShape(t, o, 'ramp', {z = 1}) end,
   rampDown = function(t,o) return createShape(t, o, 'ramp', {z = -1}) end,
-  sine = function(t,o) return createShape(t, o, 'sine', {factor = math.pi}) end,
+  sine = function(t,o) return createShape(t, o, 'sine') end,
   chaosToSine = function(t,o) return createShape(t, o, 'chaosToSine') end,
   pwm50to100 = function(t,o) return createShape(t, o, 'pwm50to100') end,
   tripleSin = function(t,o) return createShape(t, o, 'tripleSin') end,
@@ -1104,6 +1131,12 @@ local shapes = {
   diracDeltaFrexp = function(t,o) return createShape(t, o, 'diracDeltaFrexp', {z = .03}) end,
   crosser = function(t,o) return createShape(t, o, 'crosser', {z = 0, factor = 4}) end,
   wings = function(t,o) return createShape(t, o, 'wings', {factor = .5}) end,
+  mayhemInTheMiddle = function(t,o) return createShape(t, o, 'mayhemInTheMiddle') end,
+  zeroDancer = function(t,o) return createShape(t, o, 'zeroDancer') end,
+  swipe1 = function(t,o) return createShape(t, o, 'swipe1') end,
+  swipe2 = function(t,o) return createShape(t, o, 'swipe2') end,
+  swipe3 = function(t,o) return createShape(t, o, 'swipe3') end,
+  swipe4 = function(t,o) return createShape(t, o, 'swipe4', {z = -.25}) end,
   testShape = function(t,o) return createShape(t, o, 'testShape') end,
 }
 
@@ -1245,7 +1278,7 @@ local resolutions = {
   
     local res = {}
   
-    for _,r in ipairs(resolutionNames) do
+    for i,r in ipairs(resolutionNames) do
       table.insert(res, r)
       if i == max then
         break
@@ -1666,8 +1699,8 @@ local tableMotion = {
   getSpeedFactorWidget = getSpeedFactorWidget,
   getSpeedRandWidget = getSpeedRandWidget,
   startMoving = startMoving,
-  isMoving = function(m) return isTableMotionActive == true end,
-  isNotMoving = function(m) return isTableMotionActive == false end,
+  isMoving = function() return isTableMotionActive == true end,
+  isNotMoving = function() return isTableMotionActive == false end,
   setMoving = function(m) isTableMotionActive = m ~= false end,
   resetUniqueIndex = function() uniqueIndex = 1 end,
   setShapeWidgets = function(widgets) shapeWidgets = widgets end,
@@ -1968,20 +2001,14 @@ motionTable = widgets.table("Motion", 0, tableMotion.options.tableLength, {
   integer = true,
 })
 
-local noteWidgetHeight = 20
-local noteWidgetWidth = 138
-local noteWidgetRowSpacing = 6
-local noteWidgetCellSpacing = 6
-local firstRowY = motionTable.y + motionTable.height + 6
-
 widgets.setSection({
   width = 109,
-  height = noteWidgetHeight,
+  height = 20,
   menuHeight = 45,
+  xSpacing = 6,
+  ySpacing = 6,
   x = 10,
-  y = firstRowY,
-  xSpacing = noteWidgetCellSpacing,
-  ySpacing = noteWidgetRowSpacing,
+  y = widgets.posUnder(motionTable),
   cols = 9
 })
 
@@ -1993,7 +2020,7 @@ end
 tableMotion.getSpeedSpreadWidget()
 tableMotion.getStartDirectionWidget()
 
-local activationModeMenu = widgets.menu("Activation Mode", activationMode, activationModes, {
+widgets.menu("Activation Mode", activationMode, activationModes, {
   tooltip = "Activation mode controls when notes in the table are activated and deactivated.",
   changed = function(self)
     activationMode = self.value
@@ -2013,7 +2040,7 @@ tableMotion.getMotionSpeedWidget(130)
 widgets.row(2)
 
 widgets.numBox("Range", tableRange, {
-  min = 8,
+  min = 2,
   max = 128,
   integer = true,
   tooltip = "Set the table range - high range = fewer events, low range = more events",

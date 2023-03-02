@@ -271,9 +271,15 @@ local shapeNames = {
   "VOSIM",
   "VOSIM (Norm)",
   "Crosser",
+  "Mayhem Middle",
+  "Zero Dancer",
   "Wings",
   "Dirac Delta (exp)",
   "Dirac Delta (frexp)",
+  "Swipe 1",
+  "Swipe 2",
+  "Swipe 3",
+  "Swipe 4",
   "Random",
   "Test Shape",
 }
@@ -328,14 +334,18 @@ local shapeFunctions = {
   "vosim",
   "vosimNormalized",
   "crosser",
+  "mayhemInTheMiddle",
+  "zeroDancer",
   "wings",
   "diracDelta",
   "diracDeltaFrexp",
+  "swipe1",
+  "swipe2",
+  "swipe3",
+  "swipe4",
   "random",
   "testShape",
 }
-
-local getUnipolar = function(v) return (v + 1) / 2 end
 
 -- Holds the shape definitions - functions get the following variables
 -- x is the current time-value getting plotted, from -1.0 to 1.0
@@ -348,7 +358,7 @@ local getUnipolar = function(v) return (v + 1) / 2 end
 local shapes = {
   ramp = function(x, z, w, y, i) return x * z end,
   triangleShaper = function(x, z, w, y, i) return math.min(2+2*x, math.abs((x-0.5)*2)-1) * z end,
-  sine = function(x, z, w, y, i) return math.sin(x) * z end,
+  sine = function(x, z, w, y, i) return math.sin(x*math.pi) * z end,
   tangent = function(x, z, w, y, i) return math.tan(x) * z end,
   sawInPhase = function(x, z, w, y, i) return (gem.sign(x)-x) * z end,
   sinToNoise = function(x, z, w, y, i) return 2*gem.avg({math.sin(z*x*math.pi),(1-z)*gem.getRandom()}) end,
@@ -393,9 +403,22 @@ local shapes = {
   crosser = function(x, z, w, y, i) return gem.avg({x, w}) * z end,
   diracDelta = function(x, z, w, y, i) return (math.exp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*16) end,
   diracDeltaFrexp = function(x, z, w, y, i) return (math.frexp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*16) end,
-  testShape = function(x, z, w, y, i)
-    --q = gem.round(1+((x+1)/2)*511)
-    return x * z
+  swipe1 = function(x, z, w, y, i) return math.exp(math.abs(x)/y) * z end,
+  swipe2 = function(x, z, w, y, i) return math.exp(math.tan(x)/math.pi) * z end,
+  swipe3 = function(x, z, w, y, i) return math.exp(x-y) * z end,
+  swipe4 = function(x, z, w, y, i) return (math.exp(x)) * gem.avg({z, x}) end,
+  mayhemInTheMiddle = function(x, z, w, y, i) return math.sin((x * math.pi) + (z * math.tan(w * math.pi))) end,
+  zeroDancer = function(x, z, w, y, i) return math.sin(x / z + z) * z end,
+  testShape = function(x, z, w, y, i, b)
+    -- Shaky sine
+    local f = 0
+    local g = b.rand * ((i-1) / b.length)
+    if z < 0 then
+      f = z - g
+    elseif z > 0 then
+      f = z + g
+    end
+    return math.sin(x * math.pi) * f
   end,
 }
 
@@ -442,7 +465,7 @@ local function getShapeNames(options, max)
 
   local res = {}
 
-  for _,r in ipairs(shapeNames) do
+  for i,r in ipairs(shapeNames) do
     table.insert(res, r)
     if i == max then
       break
@@ -459,6 +482,8 @@ local function getShapeNames(options, max)
   return res
 end
 
+local getUnipolar = function(v) return (v + 1) / 2 end
+
 local function getShapeFunctions()
   return shapeFunctions
 end
@@ -472,11 +497,11 @@ local function getShapeBounds(bounds)
   if type(bounds) == "nil" then
     bounds = {}
   end
-  local stepRange = 2
   shapeBounds.min = getValueOrDefault(bounds.min, -1) -- x-azis max value
   shapeBounds.max = getValueOrDefault(bounds.max, 1) -- x-azis min value
   shapeBounds.length = getValueOrDefault(bounds.length, 128) -- y-axis steps
-  shapeBounds.unipolar = shapeBounds.min >= 0
+  shapeBounds.unipolar = shapeBounds.min >= 0 --  Whether the shape is unipolar
+  shapeBounds.rand = gem.getRandom() -- A random number that will be equal across all steps
   return shapeBounds
 end
 
@@ -587,7 +612,7 @@ local shapes = {
   triangleOffPhase = function(t,o) return createShape(t, o, 'triangleShaper', {phase = -.5}) end,
   rampUp = function(t,o) return createShape(t, o, 'ramp', {z = 1}) end,
   rampDown = function(t,o) return createShape(t, o, 'ramp', {z = -1}) end,
-  sine = function(t,o) return createShape(t, o, 'sine', {factor = math.pi}) end,
+  sine = function(t,o) return createShape(t, o, 'sine') end,
   chaosToSine = function(t,o) return createShape(t, o, 'chaosToSine') end,
   pwm50to100 = function(t,o) return createShape(t, o, 'pwm50to100') end,
   tripleSin = function(t,o) return createShape(t, o, 'tripleSin') end,
@@ -616,6 +641,12 @@ local shapes = {
   diracDeltaFrexp = function(t,o) return createShape(t, o, 'diracDeltaFrexp', {z = .03}) end,
   crosser = function(t,o) return createShape(t, o, 'crosser', {z = 0, factor = 4}) end,
   wings = function(t,o) return createShape(t, o, 'wings', {factor = .5}) end,
+  mayhemInTheMiddle = function(t,o) return createShape(t, o, 'mayhemInTheMiddle') end,
+  zeroDancer = function(t,o) return createShape(t, o, 'zeroDancer') end,
+  swipe1 = function(t,o) return createShape(t, o, 'swipe1') end,
+  swipe2 = function(t,o) return createShape(t, o, 'swipe2') end,
+  swipe3 = function(t,o) return createShape(t, o, 'swipe3') end,
+  swipe4 = function(t,o) return createShape(t, o, 'swipe4', {z = -.25}) end,
   testShape = function(t,o) return createShape(t, o, 'testShape') end,
 }
 
@@ -757,7 +788,7 @@ local resolutions = {
   
     local res = {}
   
-    for _,r in ipairs(resolutionNames) do
+    for i,r in ipairs(resolutionNames) do
       table.insert(res, r)
       if i == max then
         break
@@ -899,9 +930,11 @@ local function createFragmentFromText(fragmentText)
   if string.len(fragmentText) > 0 then
     for w in string.gmatch(fragmentText, "[^,]+") do
       --print("Before parse", w)
-      w = parseToBeatValue(gem.trimStartAndEnd(w))
+      local beat = parseToBeatValue(gem.trimStartAndEnd(w))
       --print("Add to fragment", w)
-      table.insert(fragment, w)
+      if type(beat) == "number" then
+        table.insert(fragment, beat)
+      end
     end
   end
   return fragment

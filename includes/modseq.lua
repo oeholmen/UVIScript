@@ -7,26 +7,30 @@ local shapes = require "includes.shapes"
 local widgets = require "includes.widgets"
 local resolutions = require "includes.resolutions"
 
-outlineColour = "#FFB5FF"
-menuBackgroundColour = "#bf01011F"
-menuTextColour = "#9f02ACFE"
-menuArrowColour = "#9f09A3F4"
-menuOutlineColour = "#00000000"
-pageBackgoundColour = "222222"
-numParts = 1
-numPages = 1
-maxPages = 8
-activePage = 1
-nextUp = 1
-paramsPerPart = {}
-paramsPerPage = {}
-isPlaying = false
+local arpeg -- Holds the arpeggiator function. Must be defined in the script that includes modseq.
+local isPlaying = false
+local activePage = 1
+local numParts = 1
+local numPages = 1
+local maxPages = 8
+local nextUp = 1
+local paramsPerPage = {}
+local paramsPerPart = {}
+
+widgets.setColours({
+  menuBackgroundColour = "#bf01011F",
+  menuTextColour = "#9f02ACFE",
+  menuArrowColour = "#9f09A3F4",
+  menuOutlineColour = "#00000000",
+  backgroundColour = "222222",
+})
 
 --------------------------------------------------------------------------------
 -- Define widgets
 --------------------------------------------------------------------------------
 
 local pageButtons = {}
+local colours = widgets.getColours()
 local headerPanel = widgets.panel()
 local footerPanel = widgets.panel()
 local cyclePagesButton = footerPanel:OnOffButton("CyclePagesButton")
@@ -122,8 +126,8 @@ local function loadShape(partIndex, loadNew)
     -- If not shape was selected, just return
     return
   end
-  local shapeFunc = shapes.getShapeFunction(paramsPerPart[partIndex].shapeMenu.value - 1)
-  values, options = shapes[shapeFunc](paramsPerPart[partIndex].seqValueTable, options)
+  local shapeIndex = paramsPerPart[partIndex].shapeMenu.value - 1
+  values, options = shapes.get(shapeIndex, paramsPerPart[partIndex].seqValueTable, options)
   for i,v in ipairs(values) do
     paramsPerPart[partIndex].seqValueTable:setValue(i, v)
   end
@@ -198,7 +202,7 @@ end
 -- Common Widgets
 --------------------------------------------------------------------------------
 
-headerPanel.backgroundColour = menuOutlineColour
+headerPanel.backgroundColour = colours.menuOutlineColour
 headerPanel.x = 10
 headerPanel.y = 10
 headerPanel.width = 700
@@ -206,7 +210,7 @@ headerPanel.height = 30
 
 local label = headerPanel:Label("Label")
 label.backgroundColour = "808080"
-label.textColour = pageBackgoundColour
+label.textColour = colours.backgroundColour
 label.fontSize = 22
 label.position = {0,0}
 label.size = {190,25}
@@ -214,7 +218,7 @@ label.size = {190,25}
 local labelInput = headerPanel:Label("Label")
 labelInput.text = ""
 labelInput.editable = true
-labelInput.backgroundColour = pageBackgoundColour
+labelInput.backgroundColour = colours.backgroundColour
 labelInput.textColour = "808080"
 labelInput.backgroundColourWhenEditing = "white"
 labelInput.textColourWhenEditing = "black"
@@ -252,7 +256,7 @@ autoplayButton.size = {102,22}
 autoplayButton.x = playButton.x - playButton.width - 5
 autoplayButton.y = playButton.y
 
-footerPanel.backgroundColour = menuOutlineColour
+footerPanel.backgroundColour = colours.menuOutlineColour
 footerPanel.x = 10
 footerPanel.width = 700
 if maxPages == 1 then
@@ -293,8 +297,8 @@ cyclePagesButton.size = pageButtonSize
 
 local numPagesBox = footerPanel:NumBox("Pages", numPages, 1, maxPages, true)
 numPagesBox.tooltip = "Number of active pages"
-numPagesBox.backgroundColour = menuBackgroundColour
-numPagesBox.textColour = menuTextColour
+numPagesBox.backgroundColour = colours.menuBackgroundColour
+numPagesBox.textColour = colours.menuTextColour
 numPagesBox.size = {90,22}
 numPagesBox.x = 0
 numPagesBox.changed = function(self)
@@ -351,10 +355,10 @@ nextPageButton.x = cyclePagesButton.x + cyclePagesButton.width + xPadding
 
 actionMenu.persistent = false
 actionMenu.tooltip = "Select an action. NOTE: This changes data in the affected tables"
-actionMenu.backgroundColour = menuBackgroundColour
-actionMenu.textColour = menuTextColour
-actionMenu.arrowColour = menuArrowColour
-actionMenu.outlineColour = menuOutlineColour
+actionMenu.backgroundColour = colours.menuBackgroundColour
+actionMenu.textColour = colours.menuTextColour
+actionMenu.arrowColour = colours.menuArrowColour
+actionMenu.outlineColour = colours.menuOutlineColour
 actionMenu.showLabel = false
 actionMenu.x = changePageProbability.x + changePageProbability.width + 5
 actionMenu.size = {110,22}
@@ -402,6 +406,18 @@ end
 --------------------------------------------------------------------------------
 
 return {--modseq--
+  colours = colours,
+  isPlaying = function() return isPlaying == true end,
+  isNotPlaying = function() return isPlaying == false end,
+  setArpFunc = function(f) arpeg = f end,
+  setPlaying = function(m) isPlaying = m ~= false end,
+  getNumParts = function() return numParts end,
+  getNumPages = function() return numPages end,
+  getMaxPages = function() return maxPages end,
+  getPageParams = function(p) return paramsPerPage[p] end,
+  addPageParams = function(params) table.insert(paramsPerPage, params) end,
+  getPartParams = function(p) if type(p) == "number" then return paramsPerPart[p] end return paramsPerPart end,
+  addPartParams = function(params) table.insert(paramsPerPart, params) end,
   headerPanel = headerPanel,
   footerPanel = footerPanel,
   actionMenu = actionMenu,

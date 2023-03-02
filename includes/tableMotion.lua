@@ -26,7 +26,7 @@ local motionOptions = {
   moveSpeedMin = 1,
   moveSpeedMax = #resolutionNames,
   speedType = speedTypes[1],
-  startMode = startModes[1],
+  startMode = 1,
   movementType = movementTypes[1],
   directionStartMode = directionStartModes[1],
   speedRandomizationAmount = 0,
@@ -165,28 +165,26 @@ end
 
 local function setStartMode(theTable, loadShape, stateFunction)
   -- Reset table according to start mode (unless keep state is selected)
-  if motionOptions.startMode ~= "Keep State" then
+  if motionOptions.startMode < #startModes then
     local values = {}
-    local options = {}
-    local shapeIndex = gem.getIndexFromValue(motionOptions.startMode, shapes.getShapeNames())
-    local shapeFunc = shapes.getShapeFunction(shapeIndex)
+    local shapeIndex = motionOptions.startMode
     --print("Calling shapeFunc", shapeFunc)
     if type(loadShape) == "table" then
       -- Load the shape with the settings provided
-      values, options = shapes[shapeFunc](theTable, loadShape)
+      values = shapes.get(shapeIndex, theTable, loadShape)
     elseif loadShape == true then
       -- Load the shape without settings to get the original form of the shape
-      values, shapeOptions = shapes[shapeFunc](theTable)
+      values, shapeOptions = shapes.get(shapeIndex, theTable)
     else
       -- Load the shape with the default settings
-      values, shapeOptions = shapes[shapeFunc](theTable, shapeOptions)
+      values, shapeOptions = shapes.get(shapeIndex, theTable, shapeOptions)
     end
     for i,v in ipairs(values) do
       local value = v
-      if shapeFunc == "sine" then
+      --[[ if shapeFunc == "sine" then
         -- Sine prefers round
         value = gem.round(v)
-      elseif v > 1 then
+      else ]]if v > 1 then
         value = math.ceil(v)
       else
         value = math.floor(v)
@@ -366,8 +364,8 @@ return {--tableMotion--
   getSpeedFactorWidget = getSpeedFactorWidget,
   getSpeedRandWidget = getSpeedRandWidget,
   startMoving = startMoving,
-  isMoving = function(m) return isTableMotionActive == true end,
-  isNotMoving = function(m) return isTableMotionActive == false end,
+  isMoving = function() return isTableMotionActive == true end,
+  isNotMoving = function() return isTableMotionActive == false end,
   setMoving = function(m) isTableMotionActive = m ~= false end,
   resetUniqueIndex = function() uniqueIndex = 1 end,
   setShapeWidgets = function(widgets) shapeWidgets = widgets end,

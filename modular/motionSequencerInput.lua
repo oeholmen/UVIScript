@@ -222,7 +222,7 @@ widgets.setSection({
 })
 
 tableMotion.getStartShapeWidget().changed = function(self)
-  tableMotion.options.startMode = self.selectedText
+  tableMotion.options.startMode = self.value
   resetPitches(true) -- Load a "fresh" shape without adjustments when selecting a shape
 end
 

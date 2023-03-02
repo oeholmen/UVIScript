@@ -403,10 +403,12 @@ local widgets = {
     return channels
   end,
   getColours = function() return widgetColours end,
-  getPanel = function(options) return widgetDefaults.panel end,
+  getPanel = function() return widgetDefaults.panel end,
   getSectionValue = function(k) return widgetDefaults[k] end,
   xOffset = function(val) widgetDefaults.xOffset = val end,
   yOffset = function(val) widgetDefaults.yOffset = val end,
+  x = function(val) widgetDefaults.xOffset = val end,
+  y = function(val) widgetDefaults.yOffset = val end,
   xSpacing = function(val) widgetDefaults.xSpacing = val end,
   ySpacing = function(val) widgetDefaults.ySpacing = val end,
   posSide = function(widget) return widget.x + widget.width + widgetDefaults.xSpacing end,
