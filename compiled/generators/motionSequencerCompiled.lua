@@ -220,143 +220,16 @@ local scales = {
 -- Methods for working with shapes
 --------------------------------------------------------------------------------
 
--- Keep in sync with function names
-local shapeNames = {
-  "Ramp Up",
-  "Ramp Down",
-  "Sine",
-  "Triangle",
-  "Triangle (Off Phs)",
-  "LoFi Triangle",
-  "Sqr/Tri",
-  "Dome",
-  "Dome Small",
-  "Saw",
-  "HPF Saw",
-  "Analog Saw",
-  "Fltr Sqr", 
-  "Organ-Ish",
-  "Tangent",
-  "Tanh",
-  "Acos",
-  "Atan2",
-  "Triple Sine",
-  "Harmonic Sync",
-  "Soft Sine",
-  "Even",
-  "Odd",
-  "Zero",
-  "Min",
-  "Max",
-  "Chaos To Sine",
-  "Saw/Sin Reveal",
-  "PWM 50 to 100",
-  "Triple-Sin Window",
-  "Taffy",
-  "Brassy",
-  "HPF-Sqr To Sqr",
-  "Wacky",
-  "Sine To Noise",
-  "Sine Stretch",
-  "SquareSaw Bit",
-  "LoFi Triangles",
-  "Talkative 1",
-  "Sin Clipper",
-  "Pitfall",
-  "Nasca Lines",
-  "Window-y SQR Sync",
-  "Kick",
-  "Sin To Saw",
-  "Zero Crossing",
-  "VOSIM",
-  "VOSIM (Norm)",
-  "Crosser",
-  "Mayhem Middle",
-  "Zero Dancer",
-  "Wings",
-  "Dirac Delta (exp)",
-  "Dirac Delta (frexp)",
-  "Swipe 1",
-  "Swipe 2",
-  "Swipe 3",
-  "Swipe 4",
-  "Random",
-  "Test Shape",
-}
-
-local shapeFunctions = {
-  "rampUp",
-  "rampDown",
-  "sine",
-  "triangle",
-  "triangleOffPhase",
-  "lofiTriangle",
-  "squareTri",
-  "dome",
-  "domeSmall",
-  "sawInPhase",
-  "hpfSaw",
-  "sawAnalog",
-  "filteredSquare", 
-  "organIsh",
-  "tangent",
-  "tanh",
-  "acos",
-  "atan2",
-  "tripleSin",
-  "harmonicSync",
-  "softSine",
-  "even",
-  "odd",
-  "zero",
-  "min",
-  "max",
-  "chaosToSine",
-  "sawSinReveal",
-  "pwm50to100",
-  "tripleSinWindow",
-  "taffy",
-  "brassy",
-  "hpfSqrToSqr",
-  "wacky",
-  "sinToNoise",
-  "sineStrech",
-  "squareSawBit",
-  "loFiTriangles",
-  "talkative1",
-  "sinClipper",
-  "pitfall",
-  "nascaLines",
-  "windowYSqr",
-  "kick",
-  "sinToSaw",
-  "zeroCrossing",
-  "vosim",
-  "vosimNormalized",
-  "crosser",
-  "mayhemInTheMiddle",
-  "zeroDancer",
-  "wings",
-  "diracDelta",
-  "diracDeltaFrexp",
-  "swipe1",
-  "swipe2",
-  "swipe3",
-  "swipe4",
-  "random",
-  "testShape",
-}
-
 -- Holds the shape definitions - functions get the following variables
 -- x is the current time-value getting plotted, from -1.0 to 1.0
 -- z is the current table number, from -1.0 to 1.0
 -- w is the current time-value getting plotted, from 0.0 to 1.0 (same as (x+1)/2)
 -- y is the current table number, from 0.0 to 1.0 (same as (z+1)/2)
 -- i = current index
--- b = bounds (min, max, length, bipolar)
+-- b = bounds (min, max, length, unipolar)
 -- q = gem.round(1+((x+1)/2)*511)
 local shapes = {
-  ramp = function(x, z, w, y, i) return x * z end,
+  ramp = function(x, z, w, y, i, b) return x * z end,
   triangleShaper = function(x, z, w, y, i) return math.min(2+2*x, math.abs((x-0.5)*2)-1) * z end,
   sine = function(x, z, w, y, i) return math.sin(x*math.pi) * z end,
   tangent = function(x, z, w, y, i) return math.tan(x) * z end,
@@ -379,7 +252,8 @@ local shapes = {
   chaosToSine = function(x, z, w, y, i) return math.sin(math.pi*z*z*32*math.log(x+1)) end,
   sawSinReveal = function(x, z, w, y, i) if x + 1 > z * 2 then return x end return math.sin(x * math.pi) end,
   domeSmall = function(x, z, w, y, i) return (-1-1.275*math.sin(w*math.pi)) * z end,
-  minMaxZero = function(x, z, w, y, i) return z end,
+  zero = function(x, z, w, y, i, b) if b.unipolar then return -1 end return 0 end,
+  minMax = function(x, z, w, y, i) return z end,
   oddAndEven = function(x, z, w, y, i) x = 1 if i % 2 == 0 then x = -1 end return x * z end,
   lofiTriangle = function(x, z, w, y, i) return ((gem.round(16*math.abs(x))/8.0)-1) * z end,
   hpfSaw = function(x, z, w, y, i) return (x-(0.635*math.sin(x*math.pi))) * z end,
@@ -410,7 +284,7 @@ local shapes = {
   mayhemInTheMiddle = function(x, z, w, y, i) return math.sin((x * math.pi) + (z * math.tan(w * math.pi))) end,
   zeroDancer = function(x, z, w, y, i) return math.sin(x / z + z) * z end,
   testShape = function(x, z, w, y, i, b)
-    -- Shaky sine
+    -- TODO Add "Shaky sine"
     local f = 0
     local g = b.rand * ((i-1) / b.length)
     if z < 0 then
@@ -419,7 +293,70 @@ local shapes = {
       f = z + g
     end
     return math.sin(x * math.pi) * f
-  end,
+  end
+}
+
+local shapeDefinitions = {
+  {name = "Ramp Up", f = shapes.ramp, o = {z = 1}},
+  {name = "Ramp Down", f = shapes.ramp, o = {z = -1}},
+  {name = "Sine", f = shapes.sine},
+  {name = "Triangle", f = shapes.triangleShaper},
+  {name = "Triangle (Off Phs)", f = shapes.triangleShaper, o = {phase = -.5}},
+  {name = "LoFi Triangle", f = shapes.lofiTriangle},
+  {name = "Sqr/Tri", f = shapes.squareTri},
+  {name = "Dome", f = shapes.dome},
+  {name = "Dome Small", f = shapes.domeSmall},
+  {name = "Saw", f = shapes.sawInPhase},
+  {name = "HPF Saw", f = shapes.hpfSaw},
+  {name = "Analog Saw", f = shapes.sawAnalog},
+  {name = "Fltr Sqr",  f = shapes.filteredSquare},
+  {name = "Organ-Ish", f = shapes.organIsh},
+  {name = "Tangent", f = shapes.tangent},
+  {name = "Tanh", f = shapes.tanh},
+  {name = "Acos", f = shapes.acos},
+  {name = "Atan2", f = shapes.atan2},
+  {name = "Triple Sine", f = shapes.tripleSin},
+  {name = "Harmonic Sync", f = shapes.harmonicSync},
+  {name = "Soft Sine", f = shapes.softSine},
+  {name = "Even", f = shapes.oddAndEven, o = {z = -1}},
+  {name = "Odd", f = shapes.oddAndEven},
+  {name = "Zero", f = shapes.zero},
+  {name = "Min", f = shapes.minMax, o = {z = -1}},
+  {name = "Max", f = shapes.minMax},
+  {name = "Chaos To Sine", f = shapes.chaosToSine},
+  {name = "Saw/Sin Reveal", f = shapes.sawSinReveal, o = {phase = -1}},
+  {name = "PWM 50 to 100", f = shapes.pwm50to100},
+  {name = "Triple-Sin Window", f = shapes.tripleSin, o = {z = 0}},
+  {name = "Taffy", f = shapes.taffy, o = {z = 0}},
+  {name = "Brassy", f = shapes.brassy, o = {z = 0}},
+  {name = "HPF-Sqr To Sqr", f = shapes.hpfSqrToSqr, o = {z = .01}},
+  {name = "Wacky", f = shapes.wacky, o = {z = .84}},
+  {name = "Sine To Noise", f = shapes.sinToNoise},
+  {name = "Sine Stretch", f = shapes.sineStrech, o = {z = .03}},
+  {name = "SquareSaw Bit", f = shapes.squareSawBit},
+  {name = "LoFi Triangles", f = shapes.loFiTriangles, o = {z = 0}},
+  {name = "Talkative 1", f = shapes.talkative1},
+  {name = "Sin Clipper", f = shapes.sinClipper, o = {z = 0}},
+  {name = "Pitfall", f = shapes.pitfall, o = {z = .15}},
+  {name = "Nasca Lines", f = shapes.nascaLines, o = {z = -.31}},
+  {name = "Window-y SQR Sync", f = shapes.windowYSqr, o = {z = 0}},
+  {name = "Kick", f = shapes.kick, o = {phase = 0, z = -.505}},
+  {name = "Sin To Saw", f = shapes.sinToSaw, o = {z = 0}},
+  {name = "Zero Crossing", f = shapes.zeroCrossing},
+  {name = "VOSIM", f = shapes.vosim},
+  {name = "VOSIM (Norm)", f = shapes.vosimNormalized},
+  {name = "Crosser", f = shapes.crosser, o = {z = 0, factor = 4}},
+  {name = "Mayhem Middle", f = shapes.mayhemInTheMiddle},
+  {name = "Zero Dancer", f = shapes.zeroDancer},
+  {name = "Wings", f = shapes.wings, o = {factor = .5}},
+  {name = "Dirac Delta (exp)", f = shapes.diracDelta, o = {factor = .3, z = .03}},
+  {name = "Dirac Delta (frexp)", f = shapes.diracDeltaFrexp, o = {z = .03}},
+  {name = "Swipe 1", f = shapes.swipe1},
+  {name = "Swipe 2", f = shapes.swipe2},
+  {name = "Swipe 3", f = shapes.swipe3},
+  {name = "Swipe 4", f = shapes.swipe4, o = {z = -.25}},
+  {name = "Random", f = shapes.random},
+  {name = "Test Shape", f = shapes.testShape},
 }
 
 local function getDefaultShapeOptions()
@@ -460,13 +397,13 @@ end
 
 local function getShapeNames(options, max)
   if type(max) ~= "number" then
-    max = #shapeNames
+    max = #shapeDefinitions
   end
 
-  local res = {}
+  local items = {}
 
-  for i,r in ipairs(shapeNames) do
-    table.insert(res, r)
+  for i,s in ipairs(shapeDefinitions) do
+    table.insert(items, s.name)
     if i == max then
       break
     end
@@ -475,54 +412,44 @@ local function getShapeNames(options, max)
   -- Add any options
   if type(options) == "table" then
     for _,o in ipairs(options) do
-      table.insert(res, o)
+      table.insert(items, o)
     end
   end
 
-  return res
+  return items
 end
 
 local getUnipolar = function(v) return (v + 1) / 2 end
 
-local function getShapeFunctions()
-  return shapeFunctions
-end
-
-local function getShapeFunction(i)
-  return shapeFunctions[i]
-end
-
-local function getShapeBounds(bounds)
-  local shapeBounds = {}
-  if type(bounds) == "nil" then
-    bounds = {}
+local function getShapeBounds(shapeBounds)
+  local bounds = {}
+  if type(shapeBounds) == "nil" then
+    shapeBounds = {}
   end
-  shapeBounds.min = getValueOrDefault(bounds.min, -1) -- x-azis max value
-  shapeBounds.max = getValueOrDefault(bounds.max, 1) -- x-azis min value
-  shapeBounds.length = getValueOrDefault(bounds.length, 128) -- y-axis steps
-  shapeBounds.unipolar = shapeBounds.min >= 0 --  Whether the shape is unipolar
-  shapeBounds.rand = gem.getRandom() -- A random number that will be equal across all steps
-  return shapeBounds
+  bounds.min = getValueOrDefault(shapeBounds.min, -1) -- x-azis max value
+  bounds.max = getValueOrDefault(shapeBounds.max, 1) -- x-azis min value
+  bounds.length = getValueOrDefault(shapeBounds.length, 128) -- y-axis steps
+  bounds.unipolar = bounds.min >= 0 --  Whether the shape is unipolar
+  bounds.rand = gem.getRandom() -- A random number that will be equal across all steps
+  return bounds
 end
 
-local function createShape(shapeBounds, options, shapeFunc, shapeTemplate)
-  shapeBounds = getShapeBounds(shapeBounds)
-  options = getShapeTemplate(options, shapeTemplate)
-  if type(shapeFunc) == "string" then
-    shapeFunc = shapes[shapeFunc]
-  end
+local function createShape(shapeIndex, shapeBounds, shapeOptions)
+  local shapeDefinition = shapeDefinitions[shapeIndex]
+  local bounds = getShapeBounds(shapeBounds)
+  local options = getShapeTemplate(shapeOptions, shapeDefinition.o)
   local shape = {}
-  for i=1,shapeBounds.length do
-    local x = options.factor * (gem.getChangePerStep(((i-1)*2), shapeBounds.length) + options.phase)
+  for i=1,bounds.length do
+    local x = options.factor * (gem.getChangePerStep(((i-1)*2), bounds.length) + options.phase)
     local z = options.z
     local w = getUnipolar(x)
     local y = getUnipolar(z)
-    local value = shapeFunc(x, z, w, y, i, shapeBounds)
-    if shapeBounds.unipolar then
+    local value = shapeDefinition.f(x, z, w, y, i, bounds)
+    if bounds.unipolar then
       value = getUnipolar(value)
     end
-    value = (shapeBounds.max * value) * (options.amount / 100)
-    table.insert(shape, math.max(shapeBounds.min, math.min(shapeBounds.max, value)))
+    value = (bounds.max * value) * (options.amount / 100)
+    table.insert(shape, math.max(bounds.min, math.min(bounds.max, value)))
   end
   return shape, options
 end
@@ -585,69 +512,8 @@ local shapes = {
   getWidgets = getShapeWidgets,
   getAmountWidget = getAmountWidget,
   getShapeNames = getShapeNames,
-  getShapeFunctions = getShapeFunctions,
-  getShapeFunction = getShapeFunction,
   getShapeOptions = getShapeOptions,
-  squareTri = function(t,o) return createShape(t, o, 'squareTri') end,
-  hpfSaw = function(t,o) return createShape(t, o, 'hpfSaw') end,
-  softSine = function(t,o) return createShape(t, o, 'softSine') end,
-  harmonicSync = function(t,o) return createShape(t, o, 'harmonicSync') end,
-  lofiTriangle = function(t,o) return createShape(t, o, 'lofiTriangle') end,
-  tangent = function(t,o) return createShape(t, o, 'tangent') end,
-  even = function(t,o) return createShape(t, o, 'oddAndEven', {z = -1}) end,
-  odd = function(t,o) return createShape(t, o, 'oddAndEven') end,
-  min = function(t,o) return createShape(t, o, 'minMaxZero', {z = -1}) end,
-  max = function(t,o) return createShape(t, o, 'minMaxZero') end,
-  zero = function(t,o) return createShape(t, o, 'minMaxZero', {z = 0}) end,
-  dome = function(t,o) return createShape(t, o, 'dome', {phase = 0}) end,
-  domeSmall = function(t,o) return createShape(t, o, 'domeSmall', {phase = 1}) end,
-  sawSinReveal = function(t,o) return createShape(t, o, 'sawSinReveal', {phase = -1}) end,
-  sawAnalog = function(t,o) return createShape(t, o, 'sawAnalog', {phase = 0}) end,
-  sawInPhase = function(t,o) return createShape(t, o, 'sawInPhase') end,
-  organIsh = function(t,o) return createShape(t, o, 'organIsh') end,
-  triangle = function(t,o) return createShape(t, o, 'triangleShaper') end,
-  tanh = function(t,o) return createShape(t, o, 'tanh') end,
-  atan2 = function(t,o) return createShape(t, o, 'atan2') end,
-  acos = function(t,o) return createShape(t, o, 'acos') end,
-  triangleOffPhase = function(t,o) return createShape(t, o, 'triangleShaper', {phase = -.5}) end,
-  rampUp = function(t,o) return createShape(t, o, 'ramp', {z = 1}) end,
-  rampDown = function(t,o) return createShape(t, o, 'ramp', {z = -1}) end,
-  sine = function(t,o) return createShape(t, o, 'sine') end,
-  chaosToSine = function(t,o) return createShape(t, o, 'chaosToSine') end,
-  pwm50to100 = function(t,o) return createShape(t, o, 'pwm50to100') end,
-  tripleSin = function(t,o) return createShape(t, o, 'tripleSin') end,
-  tripleSinWindow = function(t,o) return createShape(t, o, 'tripleSin', {z = 0}) end,
-  taffy = function(t,o) return createShape(t, o, 'taffy', {z = 0}) end,
-  brassy = function(t,o) return createShape(t, o, 'brassy', {z = 0}) end,
-  hpfSqrToSqr = function(t,o) return createShape(t, o, 'hpfSqrToSqr', {z = .01}) end,
-  wacky = function(t,o) return createShape(t, o, 'wacky', {z = .84}) end,
-  sinToNoise = function(t,o) return createShape(t, o, 'sinToNoise') end,
-  filteredSquare = function(t,o) return createShape(t, o, 'filteredSquare') end,
-  windowYSqr = function(t,o) return createShape(t, o, 'windowYSqr', {z = 0}) end,
-  random = function(t,o) return createShape(t, o, 'random') end,
-  sineStrech = function(t,o) return createShape(t, o, 'sineStrech', {z = .03}) end,
-  talkative1 = function(t,o) return createShape(t, o, 'talkative1') end,
-  sinClipper = function(t,o) return createShape(t, o, 'sinClipper', {z = 0}) end,
-  pitfall = function(t,o) return createShape(t, o, 'pitfall', {z = .15}) end,
-  nascaLines = function(t,o) return createShape(t, o, 'nascaLines', {z = -.31}) end,
-  loFiTriangles = function(t,o) return createShape(t, o, 'loFiTriangles', {z = 0}) end,
-  squareSawBit = function(t,o) return createShape(t, o, 'squareSawBit') end,
-  kick = function(t,o) return createShape(t, o, 'kick', {phase = 0, z = -.505}) end,
-  sinToSaw = function(t,o) return createShape(t, o, 'sinToSaw', {z = 0}) end,
-  zeroCrossing = function(t,o) return createShape(t, o, 'zeroCrossing') end,
-  vosim = function(t,o) return createShape(t, o, 'vosim') end,
-  vosimNormalized = function(t,o) return createShape(t, o, 'vosimNormalized') end,
-  diracDelta = function(t,o) return createShape(t, o, 'diracDelta', {factor = .3, z = .03}) end,
-  diracDeltaFrexp = function(t,o) return createShape(t, o, 'diracDeltaFrexp', {z = .03}) end,
-  crosser = function(t,o) return createShape(t, o, 'crosser', {z = 0, factor = 4}) end,
-  wings = function(t,o) return createShape(t, o, 'wings', {factor = .5}) end,
-  mayhemInTheMiddle = function(t,o) return createShape(t, o, 'mayhemInTheMiddle') end,
-  zeroDancer = function(t,o) return createShape(t, o, 'zeroDancer') end,
-  swipe1 = function(t,o) return createShape(t, o, 'swipe1') end,
-  swipe2 = function(t,o) return createShape(t, o, 'swipe2') end,
-  swipe3 = function(t,o) return createShape(t, o, 'swipe3') end,
-  swipe4 = function(t,o) return createShape(t, o, 'swipe4', {z = -.25}) end,
-  testShape = function(t,o) return createShape(t, o, 'testShape') end,
+  get = function(i,t,o) return createShape(i,t,o) end,
 }
 
 --------------------------------------------------------------------------------
