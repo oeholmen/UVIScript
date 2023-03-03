@@ -354,6 +354,9 @@ local function setOptional(widget, options)
   if type(options.showPopupDisplay) == "boolean" then
     widget.showPopupDisplay = options.showPopupDisplay
   end
+  if type(options.hierarchical) == "boolean" then
+    widget.hierarchical = options.hierarchical
+  end
   if type(options.editable) == "boolean" then
     widget.editable = options.editable
   end
@@ -570,10 +573,10 @@ local shapes = {
   zeroCrossing = function(x, z, w, y, i) return math.sin((x+1)*math.pi*(z+1))*(-math.abs(x)^32+1) end,
   vosim = function(x, z, w, y, i) return -(w-1)*math.sin(w*math.pi*8*(math.sin(z)+1.5))^2 end,
   vosimNormalized = function(x, z, w, y, i) return (-(w-1)*math.sin(w*math.pi*9*(math.sin(y)+1.3))^2-.5)*2 end,
-  tanh = function(x, z, w, y, i) return math.tanh(x) * z end,
+  --tanh = function(x, z, w, y, i) return math.tanh(x) * z end,
   acos = function(x, z, w, y, i) return math.acos(x) * z end,
   wings = function(x, z, w, y, i) return math.acos((math.abs(-math.abs(x)+1) + -math.abs(x)+1)/2) * z end,
-  atan2 = function(x, z, w, y, i) return math.atan2(y, x) * z end,
+  --atan2 = function(x, z, w, y, i) return math.atan2(y, x) * z end,
   crosser = function(x, z, w, y, i) return gem.avg({x, w}) * z end,
   diracDelta = function(x, z, w, y, i) return (math.exp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*16) end,
   diracDeltaFrexp = function(x, z, w, y, i) return (math.frexp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*16) end,
@@ -583,8 +586,7 @@ local shapes = {
   swipe4 = function(x, z, w, y, i) return (math.exp(x)) * gem.avg({z, x}) end,
   mayhemInTheMiddle = function(x, z, w, y, i) return math.sin((x * math.pi) + (z * math.tan(w * math.pi))) end,
   zeroDancer = function(x, z, w, y, i) return math.sin(x / z + z) * z end,
-  testShape = function(x, z, w, y, i, b)
-    -- TODO Add "Shaky sine"
+  shakySine = function(x, z, w, y, i, b)
     local f = 0
     local g = b.rand * ((i-1) / b.length)
     if z < 0 then
@@ -593,6 +595,9 @@ local shapes = {
       f = z + g
     end
     return math.sin(x * math.pi) * f
+  end,
+  testShape = function(x, z, w, y, i, b)
+    return x * z
   end
 }
 
@@ -604,17 +609,17 @@ local shapeDefinitions = {
   {name = "Triangle (Off Phs)", f = shapes.triangleShaper, o = {phase = -.5}},
   {name = "LoFi Triangle", f = shapes.lofiTriangle},
   {name = "Sqr/Tri", f = shapes.squareTri},
-  {name = "Dome", f = shapes.dome},
-  {name = "Dome Small", f = shapes.domeSmall},
+  {name = "Dome", f = shapes.dome, o = {phase = 0}},
+  {name = "Dome Small", f = shapes.domeSmall, o = {phase = 1}},
   {name = "Saw", f = shapes.sawInPhase},
   {name = "HPF Saw", f = shapes.hpfSaw},
-  {name = "Analog Saw", f = shapes.sawAnalog},
+  {name = "Analog Saw", f = shapes.sawAnalog, o = {phase = 0}},
   {name = "Fltr Sqr",  f = shapes.filteredSquare},
   {name = "Organ-Ish", f = shapes.organIsh},
   {name = "Tangent", f = shapes.tangent},
-  {name = "Tanh", f = shapes.tanh},
+  --{name = "Tanh", f = shapes.tanh},
   {name = "Acos", f = shapes.acos},
-  {name = "Atan2", f = shapes.atan2},
+  --{name = "Atan2", f = shapes.atan2},
   {name = "Triple Sine", f = shapes.tripleSin},
   {name = "Harmonic Sync", f = shapes.harmonicSync},
   {name = "Soft Sine", f = shapes.softSine},
@@ -649,12 +654,13 @@ local shapeDefinitions = {
   {name = "Mayhem Middle", f = shapes.mayhemInTheMiddle},
   {name = "Zero Dancer", f = shapes.zeroDancer},
   {name = "Wings", f = shapes.wings, o = {factor = .5}},
-  {name = "Dirac Delta (exp)", f = shapes.diracDelta, o = {factor = .3, z = .03}},
+  {name = "Dirac Delta", f = shapes.diracDelta, o = {factor = .3, z = .03}},
   {name = "Dirac Delta (frexp)", f = shapes.diracDeltaFrexp, o = {z = .03}},
   {name = "Swipe 1", f = shapes.swipe1},
   {name = "Swipe 2", f = shapes.swipe2},
   {name = "Swipe 3", f = shapes.swipe3},
   {name = "Swipe 4", f = shapes.swipe4, o = {z = -.25}},
+  {name = "Shaky Sine", f = shapes.shakySine},
   {name = "Random", f = shapes.random},
   {name = "Test Shape", f = shapes.testShape},
 }
@@ -1034,6 +1040,7 @@ widgets.setColours({
   menuArrowColour = menuArrowColour,
 })
 
+local isPlaying = false
 local positionTable
 local sequencerTable
 local resolutionNames = resolutions.getResolutionNames({'Follow Input'})

@@ -7,6 +7,7 @@ local widgets = require "includes.widgets"
 local modular = require "includes.modular"
 local notes = require "includes.notes"
 local scales = require "includes.scales"
+local resolutions = require "includes.resolutions"
 
 local channel = 0 -- 0 = Omni
 local forward = false
@@ -27,6 +28,10 @@ local noteMax = noteMin + 24
 local scaleDefinitions = scales.getScaleDefinitions()
 local scaleDefinition = scaleDefinitions[#scaleDefinitions]
 local rangeOverlapAmount = 50
+local numSlots = 8
+local isPlaying = false
+local resolutionNames = resolutions.getResolutionNames()
+local resolution = 11
 
 -- Strategies are ways to play chords and scales
 local strategies = {
@@ -65,7 +70,7 @@ local function setNotes()
       table.insert(selectedNotes, note)
     end
   end
-  print("Found selectedNotes within selected scale/range", #selectedNotes)
+  --print("Found selectedNotes within selected scale/range", #selectedNotes)
 end
 
 local function createStrategy()
@@ -97,7 +102,7 @@ local function getStrategyFromSlot(voice)
     end
     if #slots > 0 then
       local slot = gem.getRandomFromTable(slots)
-      slot:setValue(true)
+      --slot:setValue(true)
       return slot.tooltip
     end
   end
@@ -119,19 +124,19 @@ local function getNotePosition(noteCount, voice)
   if noteCount > 7 then
     noteCount = math.ceil(noteCount / 2)
   end
-  print("maxIndex, noteCount, preferLowerHalf", maxIndex, noteCount, preferLowerHalf)
+  --print("maxIndex, noteCount, preferLowerHalf", maxIndex, noteCount, preferLowerHalf)
   if maxIndex > noteCount then
     if preferLowerHalf then
       -- Lower half
-      print("Resetting in lower half", 1, noteCount)
+      --print("Resetting in lower half", 1, noteCount)
       return gem.getRandom(1, noteCount)
     else
       -- Upper half
-      print("Resetting in upper half", noteCount, maxIndex)
+      --print("Resetting in upper half", noteCount, maxIndex)
       return gem.getRandom(noteCount, maxIndex)
     end
   elseif maxIndex > 1 then
-    print("Resetting within full range", maxIndex)
+    --print("Resetting within full range", maxIndex)
     return gem.getRandom(maxIndex)
   end
   return 1
@@ -148,46 +153,46 @@ local function getNoteFromStrategy(filteredNotes, voice)
     for w in string.gmatch(strategyText, "-?%d+") do
       table.insert(strategy, tonumber(w))
     end
-    print("Get strategy from input or slot, voice", #strategy, voice)
+    --print("Get strategy from input or slot, voice", #strategy, voice)
   end
   -- Get random strategy from default strategies
   if #strategy == 0 then
     strategy = gem.getRandomFromTable(strategies)
-    print("No strategy found - use random strategy from default strategies")
+    --print("No strategy found - use random strategy from default strategies")
   end
   -- Reset strategy position if required
   if type(strategyPos[voice]) == "nil" or strategyPos[voice] > #strategy then
     strategyPos[voice] = 1
-    print("Reset strategy position for voice", voice)
-    if strategyRestart == 2 then
+    --print("Reset strategy position for voice", voice)
+    if strategyRestart == 3 or strategyRestart == 4 then
       notePosition[voice] = nil -- Reset counter for note position
-      print("Reset note position for voice due to strategyRestart == 2", voice)
+      --print("Reset note position for voice due to strategyRestart == 2", voice)
     end
   end
   if type(notePosition[voice]) == "nil" or #strategy == 0 then
     -- Start at a random notePosition
     notePosition[voice] = getNotePosition(#filteredNotes, voice)
-    print("Set random notePosition, voice", notePosition[voice], voice)
+    --print("Set random notePosition, voice", notePosition[voice], voice)
     if strategyRestart == 2 then
       strategyPos[voice] = 1
     end
   else
     -- Get next notePosition from strategy
-    print("Increment notePosition, voice", notePosition[voice], voice)
+    --print("Increment notePosition, voice", notePosition[voice], voice)
     notePosition[voice] = gem.inc(notePosition[voice], strategy[strategyPos[voice]])
-    print("After increment notePosition, voice", notePosition[voice], voice)
+    --print("After increment notePosition, voice", notePosition[voice], voice)
     if notePosition[voice] > #filteredNotes or notePosition[voice] < 1 then
       notePosition[voice] = getNotePosition(#filteredNotes, voice)
-      print("Out of range - set random note position for voice", notePosition[voice], voice)
-      if strategyRestart == 1 then
+      --print("Out of range - set random note position for voice", notePosition[voice], voice)
+      if strategyRestart == 2 then
         strategyPos[voice] = 1
-        print("Reset strategy position for voice due to strategyRestart == 1", voice)
+        --print("Reset strategy position for voice due to strategyRestart == 2", voice)
       end
     else
       -- Increment strategy pos
       if #strategy > 1 then
         strategyPos[voice] = gem.inc(strategyPos[voice])
-        print("Increment strategy position for voice", strategyPos[voice], voice)
+        --print("Increment strategy position for voice", strategyPos[voice], voice)
       end
     end
   end
@@ -312,22 +317,21 @@ widgets.setSection({
   y = widgets.posUnder(sequencerPanel),
 })
 
-local strategyPanel = widgets.panel({
-  height = 81,
+widgets.panel({
+  height = 84,
   backgroundColour = "404040"
 })
 
 -- Strategy input field
 local strategyInputField = widgets.label(getStrategyInputText(gem.getRandomFromTable(strategies)), {
-  tooltip = "Strategies are ways to play scales. Numbers represent steps up or down the scale that is currently playing. Feel free to type your own strategies here.",
+  tooltip = "Strategies are ways to play notes in a scale. Numbers represent steps up or down the scale that is currently selected. Feel free to type your own strategies here.",
   editable = true,
-  fontSize = 30,
   backgroundColour = "black",
   backgroundColourWhenEditing = "white",
   textColourWhenEditing = "black",
   textColour = "white",
   width = 276,
-  height = 45,
+  height = 20,
   x = 5,
   y = 5,
   changed = function(self) strategyInput = self.text end
@@ -343,7 +347,6 @@ widgets.setSection({
   cols = 8,
 })
 
-local numSlots = 8
 local actions = {"Actions..."}
 for j=1,numSlots do
   local strategySlot = widgets.button("" .. j, false, {
@@ -363,25 +366,48 @@ for _,v in ipairs(strategies) do
   table.insert(actions, getStrategyInputText(v))
 end
 
+widgets.setSection({
+  width = 116,
+  height = 20,
+  x = strategyInputField.x,
+  y = widgets.posUnder(strategyInputField) + 24,
+  cols = 6,
+})
+
+widgets.menu("Play Mode", {"Active Input", "Random Slot", "Voice->Slot"}, {
+  tooltip = "Select the strategy to use for note selection. The default is using the strategy displayed in the input.",
+  showLabel = false,
+  changed = function(self)
+    randomSlotStrategy = self.value == 2
+    voiceSlotStrategy = self.value == 3
+    notePosition = {}
+  end
+})
+
+local strategyActions = widgets.menu("Actions", actions, {
+  tooltip = "Available actions for strategies",
+  width = 90,
+  showLabel = false,
+})
+
+widgets.button("Create", {
+  tooltip = "Replace the current strategy with a randomly created strategy.",
+  width = 60,
+  changed = function()
+    local strategy = createStrategy()
+    strategyInputField.text = table.concat(strategy, ",")
+  end
+})
+
 -- Options
 widgets.setSection({
   width = 120,
   height = 20,
   x = widgets.posSide(strategyInputField) + 2,
   y = strategyInputField.y,
-  cols = 6,
 })
 
-widgets.menu("Play Mode", {"Active Input", "Random Slot", "Voice->Slot"}, {
-  tooltip = "Select the strategy to use for note selection. The default is using the strategy displayed in the input.",
-  changed = function(self)
-    randomSlotStrategy = self.text == "Random"
-    voiceSlotStrategy = self.text == "Voice"
-    notePosition = {}
-  end
-})
-
-widgets.menu("Strategy Restart", strategyRestart, {"Out of range", "When finished"}, {
+widgets.menu("Strategy", strategyRestart, {"Restart each round", "Out of range", "When finished", "Finished+round"}, {
   tooltip = "Controls when the strategy is restarted",
   changed = function(self) strategyRestart = self.value end
 })
@@ -394,29 +420,18 @@ widgets.menu("Key", key, notes.getNoteNames(), {
   end
 })
 
-widgets.menu("Scale", #scaleDefinitions, scales.getScaleNames(), {
-  changed = function(self)
-    scaleDefinition = scaleDefinitions[self.value]
-    setNotes()
-  end
+local scaleMenu = scales.widget(120, true)
+
+widgets.label("Scale Definition", {
+  textColour = "#d0d0d0"
 })
 
-widgets.row(2)
+widgets.row()
 
-local strategyActions = widgets.menu("Actions", actions, {
-  tooltip = "Available actions for strategies",
-  width = 70,
-  showLabel = false,
-})
+local scaleInput = scales.inputWidget(scaleDefinition, 120)
+scaleInput.x = widgets.posSide(scaleMenu)
 
-widgets.button("Create", {
-  tooltip = "Replace the current strategy with a randomly created strategy.",
-  width = 45,
-  changed = function()
-    local strategy = createStrategy()
-    strategyInputField.text = table.concat(strategy, ",")
-  end
-})
+widgets.row()
 
 widgets.numBox("Probability", strategyPropbability, {
   tooltip = "Probability that the active playing strategy will be used to select the next note. Otherwise notes are selected by random.",
@@ -439,17 +454,38 @@ local noteMaxInput = widgets.numBox("Max", noteMax, {
   unit = Unit.MidiKey,
 })
 
-widgets.numBox("Range Overlap", rangeOverlapAmount, {
-  width = 30,
-  showLabel = false,
+widgets.numBox("Overlap", rangeOverlapAmount, {
   tooltip = "Set the overlap range for the voices. 100 = all voices use the full range, 0 = separate ranges. Requires at least 5 notes per voice.",
+  width = 90,
+  --showLabel = false,
   unit = Unit.Percent,
   changed = function(self) rangeOverlapAmount = self.value end
+})
+
+--widgets.row()
+
+widgets.menu("Resolution", resolution, resolutionNames, {
+  tooltip = "Set the round duration that is used for strategy restart.",
+  width = 60,
+  showLabel = false,
+  changed = function(self)
+    resolution = self.value
+  end
 })
 
 --------------------------------------------------------------------------------
 -- Changed functions for widgets
 --------------------------------------------------------------------------------
+
+scaleMenu.changed = function(self)
+  scaleInput.text = scales.getTextFromScaleDefinition(scaleDefinitions[self.value])
+end
+
+scaleInput.changed = function(self)
+  scaleDefinition = scales.getScaleDefinitionFromText(self.text)
+  print("#scaleDefinition", #scaleDefinition)
+  setNotes()
+end
 
 noteMinInput.changed = function(self)
   noteMaxInput:setRange(self.value, 127)
@@ -493,6 +529,40 @@ end
 -- Handle Events
 --------------------------------------------------------------------------------
 
+local function sequenceRunner()
+  print("Starting sequenceRunner")
+  local round = 1
+  while isPlaying do
+    if strategyRestart == 1 or strategyRestart == 4 then
+      notePosition = {} -- Reset counter for note position
+      if strategyRestart == 4 then
+        strategyPos = {} -- Reset strategy position
+      end
+    end
+    print("Round", round)
+    waitBeat(resolutions.getResolution(resolution))
+    round = gem.inc(round)
+  end
+end
+
+local function startPlaying()
+  if isPlaying then
+    return
+  end
+  isPlaying = true
+  run(sequenceRunner)
+end
+
+local function stopPlaying()
+  print("Stop playing")
+  if type(voiceId) == "userdata" then
+    releaseVoice(voiceId)
+  end
+  isPlaying = false
+  voiceId = nil
+  currentEvent = nil
+end
+
 local function flashVoicesLabel()
   voicesLabel.textColour = "303030"
   waitBeat(.125)
@@ -516,6 +586,7 @@ function onNote(e)
       end
       spawn(flashVoicesLabel)
       voicesLabel.visible = true
+      startPlaying()
     end
   else
     postEvent(e)
@@ -534,10 +605,13 @@ function onRelease(e)
 end
 
 function onTransport(start)
-  if start == false then
+  if start then
+    startPlaying()
+  else
     voices = 1 -- Reset voices when stopping
     voicesLabel.visible = false
     modular.releaseVoices()
+    stopPlaying()
   end
 end
 

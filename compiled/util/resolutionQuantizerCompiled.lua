@@ -1,4 +1,4 @@
--- modular/bounceTrigger -- 
+-- util/resolutionQuantizer -- 
 --------------------------------------------------------------------------------
 -- Common methods
 --------------------------------------------------------------------------------
@@ -716,220 +716,160 @@ local resolutions = {
 }
 
 --------------------------------------------------------------------------------
--- Bounce Trigger - Sends note events using note 0 as trigger
+-- Resolution Quantizer
 --------------------------------------------------------------------------------
 
-local backgroundColour = "404040"
+-- TODO Quantize duration/set gate?
+
+local backgroundColour = "595959" -- Light or Dark
+local labelTextColour = "15133C" -- Dark
+local labelBackgoundColour = "66ff99" -- Light
+local sliderColour = "5FB5FF"
+local menuBackgroundColour = "01011F"
+local menuTextColour = "#9f02ACFE"
+local menuArrowColour = "66" .. labelTextColour
+
+widgets.setColours({
+  backgroundColour = backgroundColour,
+  labelTextColour = labelTextColour,
+  labelBackgoundColour = labelBackgoundColour,
+  sliderColour = sliderColour,
+  menuBackgroundColour = menuBackgroundColour,
+  menuTextColour = menuTextColour,
+  menuArrowColour = menuArrowColour,
+})
+
 setBackgroundColour(backgroundColour)
 
---------------------------------------------------------------------------------
--- Variables
---------------------------------------------------------------------------------
-
+local currentEvent = nil
+local voiceId = nil
 local isPlaying = false
-local channel = 1
-local resolutionNames = resolutions.getResolutionNames()
-local velocity = 64
-local waitResolution = 17
-local waitResolutionMin = 26
-local bounceProbability = 100
-local skipProbability = 0
-local oneDirection = false -- TODO Make it possible to go only on direction before resetting
-local waitBetweenRounds = false -- TODO Make it possible to insert a wait between bounces
+local resolutionNames = resolutions.getResolutionNames({'Bypass'})
+local resolution = 23
+local legato = false
+local channel = 0 -- 0 = Omni
 
 --------------------------------------------------------------------------------
--- Sequencer Functions
+-- Functions
 --------------------------------------------------------------------------------
 
-local function getStartResolutionIndex()
-  if waitResolution < waitResolutionMin then
-    return math.min(waitResolutionMin, waitResolution)
-  else
-    return math.max(waitResolutionMin, waitResolution)
-  end
-end
-
-local function getDuration(isRising, currentResolutionIndex)
-  local minResolution = math.max(waitResolutionMin, waitResolution)
-  local maxResolution = math.min(waitResolutionMin, waitResolution)
-  if isRising == true then
-    currentResolutionIndex = currentResolutionIndex + 1
-    if currentResolutionIndex > minResolution then
-      currentResolutionIndex = minResolution
-      isRising = false
-    end
-  else
-    currentResolutionIndex = currentResolutionIndex - 1
-    if currentResolutionIndex < maxResolution then
-      currentResolutionIndex = maxResolution
-      isRising = true
-    end
-  end
-  return isRising, currentResolutionIndex
-end
-
-local function bounce()
-  local isRising = waitResolution < waitResolutionMin
-  local currentResolutionIndex = getStartResolutionIndex()
-  local duration = resolutions.getResolution(currentResolutionIndex)
-  local note = 0
+local function sequenceRunner()
+  print("Starting sequenceRunner")
   while isPlaying do
-    if gem.getRandomBoolean(skipProbability) == false then
-      playNote(note, velocity, beat2ms(duration))
+    local hasEvent = type(currentEvent) == "table"
+    if type(voiceId) == "userdata" and ((legato and hasEvent) or legato == false) then
+      releaseVoice(voiceId)
+      voiceId = nil
+      --print("Releasing voice")
     end
-    waitBeat(duration)
-    isRising, currentResolutionIndex = getDuration(isRising, currentResolutionIndex)
-    if gem.getRandomBoolean(bounceProbability) then
-      duration = resolutions.getResolution(currentResolutionIndex)
+    if hasEvent then
+      voiceId = playNote(currentEvent.note, currentEvent.velocity, -1, nil, currentEvent.channel)
+      currentEvent = nil
+      --print("Event posted!")
     end
+    waitBeat(resolutions.getResolution(resolution))
   end
 end
 
 local function startPlaying()
-  if isPlaying then
+  if isPlaying or resolution == #resolutionNames then
     return
   end
   isPlaying = true
-  run(bounce)
+  run(sequenceRunner)
 end
 
 local function stopPlaying()
-  if isPlaying == false then
-    return
+  print("Stop playing")
+  if type(voiceId) == "userdata" then
+    releaseVoice(voiceId)
   end
   isPlaying = false
+  voiceId = nil
+  currentEvent = nil
+end
+
+local function isTrigger(e)
+  return channel == 0 or channel == e.channel
 end
 
 --------------------------------------------------------------------------------
--- Header Panel
+-- Widgets
 --------------------------------------------------------------------------------
 
 widgets.panel({
-  width = 720,
-  height = 30,
+  width = 700,
+  height = 60,
+  x = 0,
+  y = 0,
 })
 
 widgets.setSection({
-  xSpacing = 5,
-  ySpacing = 5,
+  x = 15,
+  y = 18,
+  xSpacing = 30,
 })
 
-widgets.label("Bounce Trigger", {
-  tooltip = "A sequencer that triggers rythmic pulses (using note 0) that note inputs can listen to",
-  width = widgets.getPanel().width,
-  height = 30,
+local sequencerLabel = widgets.label("Resolution Quantizer", {
+  tooltip = "Quantize incoming notes to the given resolution",
+  editable = true,
   alpha = 0.5,
   fontSize = 22,
+  width = 180,
+  height = 25,
 })
 
 widgets.setSection({
-  width = 100,
-  height = 22,
-  x = (widgets.getPanel().width / 2) + 45,
+  x = widgets.posSide(sequencerLabel) + 15,
   y = 5,
 })
 
-widgets.numBox('Channel', channel, {
-  tooltip = "Send note events starting on this channel",
-  min = 1,
-  max = 16,
-  integer = true,
-  changed = function(self) channel = self.value end
-})
-
-local autoplayButton = widgets.button('Auto Play', true, {
-  tooltip = "Play automatically on transport",
-})
-
-local playButton = widgets.button('Play', false, {
+widgets.menu("Resolution", resolution, resolutionNames, {
+  tooltip = "Set the quantize resolution",
   changed = function(self)
-    if self.value == true then
-      startPlaying()
-    else
+    resolution = self.value
+    if isPlaying and resolution == #resolutionNames then
       stopPlaying()
     end
   end
 })
 
---------------------------------------------------------------------------------
--- Options Panel
---------------------------------------------------------------------------------
-
-widgets.setSection({
-  xSpacing = 0,
-  ySpacing = 0,
+widgets.menu("Channel", widgets.channels(), {
+  tooltip = "Only quantize events sent on this channel",
+  changed = function(self) channel = self.value - 1 end
 })
 
-widgets.panel({
-  backgroundColour = backgroundColour,
-  x = widgets.getPanel().x,
-  y = widgets.posUnder(widgets.getPanel()),
-  width = widgets.getPanel().width,
-  height = 60,
-})
-
-widgets.setSection({
-  width = 150,
-  height = 45,
-  xOffset = 10,
-  yOffset = 5,
-  xSpacing = 5,
-  ySpacing = 5,
-})
-
-local waitResolutionInput = widgets.menu("Start Duration", waitResolution, resolutionNames, {
-  tooltip = "Start the bounce from this resolution",
-  changed = function(self) waitResolution = self.value end
-})
-
-local waitResolutionMinInput = widgets.menu("Turn Duration", waitResolutionMin, resolutionNames, {
-  tooltip = "When this resolution is reached, the bounce turns",
-  changed = function(self) waitResolutionMin = self.value end
-})
-
-widgets.setSection({
-  width = 190,
-  height = 20,
-  xOffset = widgets.posSide(waitResolutionMinInput),
-  yOffset = waitResolutionMinInput.y + 24,
-})
-
-widgets.numBox("Bounce Probability", bounceProbability, {
-  name = "BounceProbability",
-  unit = Unit.Percent,
-  tooltip = "Probability that we advance to the next bounce resolution",
-  changed = function(self) bounceProbability = self.value end
-})
-
-widgets.numBox("Skip Probability", skipProbability, {
-  name = "SkipProbability",
-  unit = Unit.Percent,
-  tooltip = "Probability that a note is skipped (paused)",
-  changed = function(self) skipProbability = self.value end
+widgets.button("Legato", legato, {
+  tooltip = "Note events are held until the next event is received and ready to play",
+  y = 30,
+  changed = function(self) legato = self.value end
 })
 
 --------------------------------------------------------------------------------
--- Handle events
+-- Handle note events
 --------------------------------------------------------------------------------
 
 function onNote(e)
-  if autoplayButton.value == true then
-    postEvent(e)
+  if isTrigger(e) and resolution < #resolutionNames then
+    currentEvent = e
+    print("Event received!")
+    startPlaying()
   else
-    playButton:setValue(true)
+    postEvent(e)
   end
 end
 
 function onRelease(e)
-  if autoplayButton.value == true then
+  if isTrigger(e) == false or resolution == #resolutionNames then
     postEvent(e)
-  else
-    playButton:setValue(false)
   end
 end
 
 function onTransport(start)
-  if autoplayButton.value == true then
-    playButton:setValue(start)
+  if start then
+    stopPlaying()
+    startPlaying()
+  else
+    stopPlaying()
   end
 end

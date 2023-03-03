@@ -25,6 +25,7 @@ widgets.setColours({
   menuArrowColour = menuArrowColour,
 })
 
+local isPlaying = false
 local positionTable
 local sequencerTable
 local resolutionNames = resolutions.getResolutionNames({'Follow Input'})

@@ -2,7 +2,6 @@
 -- Remove channel on note events
 ------------------------------------------------------------------
 
-local gem = require "includes.common"
 local widgets = require "includes.widgets"
 
 local sequencerPanel = widgets.panel({

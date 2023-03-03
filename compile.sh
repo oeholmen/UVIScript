@@ -43,6 +43,7 @@ luaScripts=(
   util/noteVelocity
   util/randomGate
   util/randomOctave
+  util/resolutionQuantizer
   util/scaleQuantizer
   util/sieve
   util/velocityLimiter

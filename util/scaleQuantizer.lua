@@ -2,7 +2,6 @@
 -- Scale Quantizer
 ------------------------------------------------------------------
 
-local gem = require "includes.common"
 local widgets = require "includes.widgets"
 local notes = require "includes.notes"
 local scales = require "includes.scales"

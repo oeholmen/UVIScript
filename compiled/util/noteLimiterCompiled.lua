@@ -354,6 +354,9 @@ local function setOptional(widget, options)
   if type(options.showPopupDisplay) == "boolean" then
     widget.showPopupDisplay = options.showPopupDisplay
   end
+  if type(options.hierarchical) == "boolean" then
+    widget.hierarchical = options.hierarchical
+  end
   if type(options.editable) == "boolean" then
     widget.editable = options.editable
   end
@@ -526,7 +529,7 @@ local notes = {
   getNoteNames = function()
     return notenames
   end,
-  
+
   -- Used for mapping - does not include octave, only name of note (C, C#...)
   getNoteMapping = function()
     local noteNumberToNoteName = {}
@@ -540,7 +543,7 @@ local notes = {
     end
     return noteNumberToNoteName
   end,
-  
+
   transpose = function(note, min, max)
     --print("Check transpose", note)
     if note < min then
@@ -561,11 +564,11 @@ local notes = {
     -- Ensure note is inside valid values
     return math.max(0, math.min(127, note))
   end,
-  
+
   getSemitonesBetweenNotes = function(note1, note2)
     return math.max(note1, note2) - math.min(note1, note1)
   end,
-  
+
   getNoteAccordingToScale = function(scale, noteToPlay)
     for _,note in ipairs(scale) do
       if note == noteToPlay then

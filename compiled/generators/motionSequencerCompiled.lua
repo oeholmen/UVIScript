@@ -151,56 +151,115 @@ local gem = {
 -- Make sure these are in sync with the scale names
 -- Scales are defined by distance to the next step
 local scaleDefinitions = {
-  {2,2,1,2,2,2,1}, -- Major (Ionian mode)
-  {2,1,2,2,1,2,2}, -- Minor (Aeolian mode)
-  {2,1,2,2,2,1,2}, -- Dorian mode
-  {1,2,2,2,1,2,2}, -- Phrygian mode
-  {2,2,2,1,2,2,1}, -- Lydian mode
-  {2,2,1,2,2,1,2}, -- Mixolydian mode
-  {1,2,2,1,2,2,2}, -- Locrian mode
-  {2,2,2,1,2,1,2}, -- Acoustic
-  {2,1,2,1,1,3,2}, -- Blues
-  {1,2,1,3,1,2,2}, -- Alterated
-  {2,2,3,2,3}, -- Major Pentatonic
-  {3,2,2,3,2}, -- Minor Pentatonic
-  {3}, -- Diminished
-  {2}, -- Whole tone scale
-  {1}, -- Chomatic
+  {def={2,2,1,2,2,2,1},name="7 Notes/Major (Ionian)",},
+  {def={2,1,2,2,1,2,2},name="7 Notes/Minor (Aeolian)",},
+  {def={2,1,2,2,2,1,2},name="7 Notes/Dorian",},
+  {def={1,2,2,2,1,2,2},name="7 Notes/Phrygian",},
+  {def={2,2,2,1,2,2,1},name="7 Notes/Lydian",},
+  {def={2,2,1,2,2,1,2},name="7 Notes/Mixolydian",},
+  {def={1,2,2,1,2,2,2},name="7 Notes/Locrian",},
+  {def={2,2,2,1,2,1,2},name="7 Notes/Acoustic",},
+  {def={2,1,2,1,1,3,2},name="7 Notes/Blues",},
+  {def={1,2,1,3,1,2,2},name="7 Notes/Alterated",},
+  {def={2,2,3,2,3},name="5 Notes/Major Pentatonic",},
+  {def={3,2,2,3,2},name="5 Notes/Minor Pentatonic",},
+  {def={1,4,1,4,2},name="5 Notes/Hirajoshi",},
+  {def={1,4,2,1,4},name="5 Notes/Miyako-Bushi",},
+  {def={1,4,3,2,2},name="5 Notes/Iwato",},
+  {def={3},name="Misc/Diminished",},
+  {def={2},name="Misc/Whole tone",},
+  {def={1},name="Misc/Chomatic",},
 }
 
-local scaleNames = {
-  "Major (Ionian)",
-  "Minor (Aeolian)",
-  "Dorian",
-  "Phrygian",
-  "Lydian",
-  "Mixolydian",
-  "Locrian",
-  "Acoustic",
-  "Blues",
-  "Alterated",
-  "Major Pentatonic",
-  "Minor Pentatonic",
-  "Diminished",
-  "Whole tone",
-  "Chomatic",
-}
+local function getScaleNames()
+  local items = {}
+  for _,s in ipairs(scaleDefinitions) do
+    table.insert(items, s.name)
+  end
+  return items
+end
+
+local function getScaleDefinitions()
+  local items = {}
+  for _,s in ipairs(scaleDefinitions) do
+    table.insert(items, s.def)
+  end
+  return items
+end
+
+local function getTextFromScaleDefinition(scaleDefinition)
+  if type(scaleDefinition) == nil or #scaleDefinition == 0 then
+    return ""
+  end
+  return table.concat(scaleDefinition, ",")
+end
+
+local function getScaleDefinitionFromText(scaleText)
+  local scale = {}
+  if string.len(scaleText) > 0 then
+    for w in string.gmatch(scaleText, "%d+") do
+      table.insert(scale, tonumber(w))
+    end
+    print("Get scale from input", #scale)
+  end
+  return scale
+end
+
+local function getScaleWidget(width, showLabel, i)
+  -- Scale widget
+  if type(width) == "nil" then
+    width = 120
+  end
+  if type(i) == "nil" then
+    i = ""
+  end
+  return widgets.menu("Scale", #scaleDefinitions, getScaleNames(), {
+    name = "Scale" .. i,
+    tooltip = "Select a scale",
+    hierarchical = true,
+    width = width,
+    showLabel = showLabel ~= false,
+  })
+end
+
+local function getScaleInputWidget(scaleDefinition, width, i)
+  -- Scale input widget
+  if type(width) == "nil" then
+    width = 120
+  end
+  if type(i) == "nil" then
+    i = ""
+  end
+  return widgets.label(getTextFromScaleDefinition(scaleDefinition), {
+    tooltip = "Scales are defined by setting semitones up from the previous note, separated by comma. If the definition sum is divisible by 12, it will resolve every octave.",
+    editable = true,
+    backgroundColour = "black",
+    backgroundColourWhenEditing = "white",
+    textColourWhenEditing = "black",
+    textColour = "white",
+    width = width
+  })
+end
 
 local scales = {
-  getScaleDefinitions = function()
-    return scaleDefinitions
-  end,
-
-  getScaleNames = function()
-    return scaleNames
-  end,
-
+  widget = getScaleWidget,
+  inputWidget = getScaleInputWidget,
+  getTextFromScaleDefinition = getTextFromScaleDefinition,
+  getScaleDefinitionFromText = getScaleDefinitionFromText,
+  getScaleDefinitions = getScaleDefinitions,
+  getScaleNames = getScaleNames,
   createScale = function(scaleDefinition, rootNote, maxNote)
     if type(maxNote) ~= "number" then
       maxNote = 127
     end
-    rootNote = math.max(0, rootNote)
-    maxNote = math.min(127, maxNote)
+    while rootNote < 0 do
+      rootNote = rootNote + 12
+      print("Transpose root note up to within range", rootNote)
+    end
+    while maxNote > 127 do
+      maxNote = maxNote - 12
+      print("Transpose max note down to within range", maxNote)
+    end
     local scale = {}
     -- Find notes for scale
     local pos = 1
@@ -270,10 +329,10 @@ local shapes = {
   zeroCrossing = function(x, z, w, y, i) return math.sin((x+1)*math.pi*(z+1))*(-math.abs(x)^32+1) end,
   vosim = function(x, z, w, y, i) return -(w-1)*math.sin(w*math.pi*8*(math.sin(z)+1.5))^2 end,
   vosimNormalized = function(x, z, w, y, i) return (-(w-1)*math.sin(w*math.pi*9*(math.sin(y)+1.3))^2-.5)*2 end,
-  tanh = function(x, z, w, y, i) return math.tanh(x) * z end,
+  --tanh = function(x, z, w, y, i) return math.tanh(x) * z end,
   acos = function(x, z, w, y, i) return math.acos(x) * z end,
   wings = function(x, z, w, y, i) return math.acos((math.abs(-math.abs(x)+1) + -math.abs(x)+1)/2) * z end,
-  atan2 = function(x, z, w, y, i) return math.atan2(y, x) * z end,
+  --atan2 = function(x, z, w, y, i) return math.atan2(y, x) * z end,
   crosser = function(x, z, w, y, i) return gem.avg({x, w}) * z end,
   diracDelta = function(x, z, w, y, i) return (math.exp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*16) end,
   diracDeltaFrexp = function(x, z, w, y, i) return (math.frexp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*16) end,
@@ -283,8 +342,7 @@ local shapes = {
   swipe4 = function(x, z, w, y, i) return (math.exp(x)) * gem.avg({z, x}) end,
   mayhemInTheMiddle = function(x, z, w, y, i) return math.sin((x * math.pi) + (z * math.tan(w * math.pi))) end,
   zeroDancer = function(x, z, w, y, i) return math.sin(x / z + z) * z end,
-  testShape = function(x, z, w, y, i, b)
-    -- TODO Add "Shaky sine"
+  shakySine = function(x, z, w, y, i, b)
     local f = 0
     local g = b.rand * ((i-1) / b.length)
     if z < 0 then
@@ -293,6 +351,9 @@ local shapes = {
       f = z + g
     end
     return math.sin(x * math.pi) * f
+  end,
+  testShape = function(x, z, w, y, i, b)
+    return x * z
   end
 }
 
@@ -304,17 +365,17 @@ local shapeDefinitions = {
   {name = "Triangle (Off Phs)", f = shapes.triangleShaper, o = {phase = -.5}},
   {name = "LoFi Triangle", f = shapes.lofiTriangle},
   {name = "Sqr/Tri", f = shapes.squareTri},
-  {name = "Dome", f = shapes.dome},
-  {name = "Dome Small", f = shapes.domeSmall},
+  {name = "Dome", f = shapes.dome, o = {phase = 0}},
+  {name = "Dome Small", f = shapes.domeSmall, o = {phase = 1}},
   {name = "Saw", f = shapes.sawInPhase},
   {name = "HPF Saw", f = shapes.hpfSaw},
-  {name = "Analog Saw", f = shapes.sawAnalog},
+  {name = "Analog Saw", f = shapes.sawAnalog, o = {phase = 0}},
   {name = "Fltr Sqr",  f = shapes.filteredSquare},
   {name = "Organ-Ish", f = shapes.organIsh},
   {name = "Tangent", f = shapes.tangent},
-  {name = "Tanh", f = shapes.tanh},
+  --{name = "Tanh", f = shapes.tanh},
   {name = "Acos", f = shapes.acos},
-  {name = "Atan2", f = shapes.atan2},
+  --{name = "Atan2", f = shapes.atan2},
   {name = "Triple Sine", f = shapes.tripleSin},
   {name = "Harmonic Sync", f = shapes.harmonicSync},
   {name = "Soft Sine", f = shapes.softSine},
@@ -349,12 +410,13 @@ local shapeDefinitions = {
   {name = "Mayhem Middle", f = shapes.mayhemInTheMiddle},
   {name = "Zero Dancer", f = shapes.zeroDancer},
   {name = "Wings", f = shapes.wings, o = {factor = .5}},
-  {name = "Dirac Delta (exp)", f = shapes.diracDelta, o = {factor = .3, z = .03}},
+  {name = "Dirac Delta", f = shapes.diracDelta, o = {factor = .3, z = .03}},
   {name = "Dirac Delta (frexp)", f = shapes.diracDeltaFrexp, o = {z = .03}},
   {name = "Swipe 1", f = shapes.swipe1},
   {name = "Swipe 2", f = shapes.swipe2},
   {name = "Swipe 3", f = shapes.swipe3},
   {name = "Swipe 4", f = shapes.swipe4, o = {z = -.25}},
+  {name = "Shaky Sine", f = shapes.shakySine},
   {name = "Random", f = shapes.random},
   {name = "Test Shape", f = shapes.testShape},
 }

@@ -2,7 +2,6 @@
 -- Rythmic Motions - Sends note events using note 0 as trigger
 --------------------------------------------------------------------------------
 
-local gem = require "includes.common"
 local shapes = require "includes.shapes"
 local widgets = require "includes.widgets"
 local resolutions = require "includes.resolutions"

@@ -8,7 +8,7 @@ return {--notes--
   getNoteNames = function()
     return notenames
   end,
-  
+
   -- Used for mapping - does not include octave, only name of note (C, C#...)
   getNoteMapping = function()
     local noteNumberToNoteName = {}
@@ -22,7 +22,7 @@ return {--notes--
     end
     return noteNumberToNoteName
   end,
-  
+
   transpose = function(note, min, max)
     --print("Check transpose", note)
     if note < min then
@@ -43,11 +43,11 @@ return {--notes--
     -- Ensure note is inside valid values
     return math.max(0, math.min(127, note))
   end,
-  
+
   getSemitonesBetweenNotes = function(note1, note2)
     return math.max(note1, note2) - math.min(note1, note1)
   end,
-  
+
   getNoteAccordingToScale = function(scale, noteToPlay)
     for _,note in ipairs(scale) do
       if note == noteToPlay then

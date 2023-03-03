@@ -2,7 +2,6 @@
 -- Block all incoming note events
 ------------------------------------------------------------------
 
-local gem = require "includes.common"
 local widgets = require "includes.widgets"
 local channel = 0 -- 0 = Omni
 

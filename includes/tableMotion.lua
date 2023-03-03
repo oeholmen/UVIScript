@@ -33,11 +33,7 @@ local motionOptions = {
   tableLength = 32,
 }
 
-local shapeOptions = {
-    z = 1,
-    phase = -1,
-    factor = 1,
-}
+local shapeOptions = shapes.getShapeOptions()
 
 local function getSpeedSpreadWidget(width)
   return widgets.menu("Speed Spread", speedTypes, {

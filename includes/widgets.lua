@@ -208,6 +208,9 @@ local function setOptional(widget, options)
   if type(options.showPopupDisplay) == "boolean" then
     widget.showPopupDisplay = options.showPopupDisplay
   end
+  if type(options.hierarchical) == "boolean" then
+    widget.hierarchical = options.hierarchical
+  end
   if type(options.editable) == "boolean" then
     widget.editable = options.editable
   end

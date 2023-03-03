@@ -2,7 +2,6 @@
 -- Pulse Trigger - Sends note events using note 0 as trigger
 --------------------------------------------------------------------------------
 
-local gem = require "includes.common"
 local widgets = require "includes.widgets"
 local resolutions = require "includes.resolutions"
 

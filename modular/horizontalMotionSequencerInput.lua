@@ -37,6 +37,9 @@ local noteState = {} -- Holds the state (on/off) for notes in the scale
 local currentValue = {} -- Holds the current table value to check for changes
 local forward = false
 local channel = 0
+local numNoteLabels = 9 -- Holds the maximum amount of note labels that are required when full range is used
+local noteLabels = {} -- Holds the labels for the notes
+local noteNumberToNoteName = notes.getNoteMapping()
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
@@ -88,6 +91,10 @@ local function setRange()
   resetTableValues()
 end
 
+local function getOctave(noteNumber)
+  return math.floor(noteNumber / 12) - 2
+end
+
 local function setScaleTable(loadShape)
   local scaleDefinition = scaleDefinitions[scaleDefinitionIndex]
   local startNote = baseNote
@@ -105,10 +112,21 @@ local function setScaleTable(loadShape)
   -- Reset table values and set start shape
   resetTableValues(loadShape)
 
+  local distance = (#activeScale - 1) / (#noteLabels - 1)
+  --print("distance", distance)
+  local scaleIndex = 1
+  for _,v in ipairs(noteLabels) do
+    local i = gem.round(scaleIndex)
+    --print("Round, scaleIndex, i", scaleIndex, i)
+    v.text = noteNumberToNoteName[activeScale[i] + 1] .. getOctave(activeScale[i])
+    scaleIndex = gem.inc(scaleIndex, distance)
+    --print("After inc: scaleIndex, #activeScale", scaleIndex, #activeScale)
+  end
+
   -- Reset note state
   noteState = {}
   currentValue = {}
-  for i,v in ipairs(activeScale) do
+  for i=1, #activeScale do
     table.insert(noteState, false) -- Notes start deactivated
     table.insert(currentValue, nil) -- Set initial value
     updateNoteState(i, motionTable:getValue(i))
@@ -148,19 +166,19 @@ local function getNote()
         counter = gem.inc(counter)
       until noteState[scalePos] or counter > #activeScale
       if noteState[scalePos] == false then
-        scalePos = nil
+        scalePos = 0
       end
     elseif #activePositions == 1 then
       scalePos = activePositions[1]
     else
-      scalePos = nil
+      scalePos = 0
     end
   end
 
   --print("type(scalePos)", type(scalePos), scalePos)
 
   -- No active notes
-  if type(scalePos) == "nil" then
+  if scalePos == 1 or type(scalePos) == "nil" then
     scalePos = 0 -- Reset if no note was found
     return
   end
@@ -260,7 +278,7 @@ widgets.setSection({
 local settingsPanel = widgets.panel({
   backgroundColour = backgroundColour,
   y = widgets.posUnder(sequencerPanel),
-  height = 280,
+  height = 300,
 })
 
 positionTable = widgets.table("Position", 0, tableMotion.options.tableLength, {
@@ -290,16 +308,36 @@ motionTable = widgets.table("Motion", 0, tableMotion.options.tableLength, {
 })
 
 widgets.setSection({
+  width = 24,
+  height = 15,
+  xSpacing = 1,
+  ySpacing = 0,
+  x = 0,
+  y = widgets.posUnder(motionTable),
+  cols = 27
+})
+
+for i=1,numNoteLabels do
+  local factor = (i - 1) / (numNoteLabels - 1.04)
+  --print("i, factor", i, factor)
+  table.insert(noteLabels, widgets.label(noteNumberToNoteName[i], {
+    fontSize = 11,
+    textColour = "#a0a0a0",
+    backgroundColour = "transparent",
+    x = math.floor(motionTable.width * factor) - math.ceil(18 * factor)
+  }))
+end
+
+widgets.setSection({
   width = 109,
   height = 20,
   menuHeight = 45,
-  xSpacing = 6,
-  ySpacing = 6,
-  x = 10,
-  y = widgets.posUnder(motionTable),
+  xSpacing = 5,
+  ySpacing = 5,
+  x = 9,
+  y = widgets.posUnder(motionTable) + 20,
   cols = 9
 })
-
 
 tableMotion.getStartShapeWidget().changed = function(self)
   tableMotion.options.startMode = self.value
@@ -348,7 +386,7 @@ widgets.button("Reset", false, {
   end
 })
 
-local noteInput = widgets.numBox("Base Note", baseNote, {
+widgets.numBox("Base Note", baseNote, {
   width = 54,
   unit = Unit.MidiKey,
   showLabel = false,
