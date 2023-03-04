@@ -21,6 +21,7 @@ setBackgroundColour(backgroundColour)
 --------------------------------------------------------------------------------
 
 local isPlaying = false
+local seqIndex = 0 -- Holds the unique id for the sequencer
 local channel = 1
 local resolutionNames = resolutions.getResolutionNames()
 local resolution = 23
@@ -46,8 +47,8 @@ local function release()
   end
 end
 
-local function sequenceRunner()
-  while isPlaying do
+local function sequenceRunner(uniqueId)
+  while isPlaying and seqIndex == uniqueId do
     local beat = resolutions.getResolution(resolution)
     if gem.getRandomBoolean(probability) then
       release()
@@ -75,7 +76,8 @@ local function startPlaying()
     return
   end
   isPlaying = true
-  run(sequenceRunner)
+  seqIndex = gem.inc(seqIndex)
+  run(sequenceRunner, seqIndex)
 end
 
 local function stopPlaying()
@@ -228,6 +230,10 @@ widgets.numBox("Velocity", velocity, {
 --------------------------------------------------------------------------------
 -- Handle events
 --------------------------------------------------------------------------------
+
+function onInit()
+  seqIndex = 0
+end
 
 function onNote(e)
   if autoplayButton.value == true then

@@ -266,9 +266,9 @@ modseq.footerPanel.y = modseq.getPageParams(1).sequencerPanel.y + modseq.getPage
 -- Sequencer
 --------------------------------------------------------------------------------
 
-modseq.setArpFunc(function(part)
+modseq.setArpFunc(function(part, uniqueId)
   local index = 0
-  while modseq.isPlaying() do
+  while modseq.isPartPlaying(part, uniqueId) do
     local partIndex = modseq.getPartIndex(part)
     local numStepsInPart = modseq.getPartParams(partIndex).numStepsBox.value
     local currentPosition = (index % numStepsInPart) + 1

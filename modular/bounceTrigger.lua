@@ -14,6 +14,7 @@ setBackgroundColour(backgroundColour)
 --------------------------------------------------------------------------------
 
 local isPlaying = false
+local seqIndex = 0 -- Holds the unique id for the sequencer
 local channel = 1
 local resolutionNames = resolutions.getResolutionNames()
 local velocity = 64
@@ -55,12 +56,12 @@ local function getDuration(isRising, currentResolutionIndex)
   return isRising, currentResolutionIndex
 end
 
-local function bounce()
+local function bounce(uniqueId)
   local isRising = waitResolution < waitResolutionMin
   local currentResolutionIndex = getStartResolutionIndex()
   local duration = resolutions.getResolution(currentResolutionIndex)
   local note = 0
-  while isPlaying do
+  while isPlaying and seqIndex == uniqueId do
     if gem.getRandomBoolean(skipProbability) == false then
       playNote(note, velocity, beat2ms(duration))
     end
@@ -77,7 +78,8 @@ local function startPlaying()
     return
   end
   isPlaying = true
-  run(bounce)
+  seqIndex = gem.inc(seqIndex)
+  run(bounce, seqIndex)
 end
 
 local function stopPlaying()
@@ -198,6 +200,10 @@ widgets.numBox("Skip Probability", skipProbability, {
 --------------------------------------------------------------------------------
 -- Handle events
 --------------------------------------------------------------------------------
+
+function onInit()
+  seqIndex = 0
+end
 
 function onNote(e)
   if autoplayButton.value == true then

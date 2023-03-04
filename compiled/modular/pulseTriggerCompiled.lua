@@ -724,6 +724,7 @@ local resolutions = {
 --------------------------------------------------------------------------------
 
 local isPlaying = false
+local seqIndex = 0 -- Holds the unique id for the sequencer
 local channel = 1
 local resolutionNames = resolutions.getResolutionNames()
 local velocity = 75
@@ -734,9 +735,9 @@ local gate = 100
 -- Sequencer Functions
 --------------------------------------------------------------------------------
 
-local function pulse()
+local function pulse(uniqueId)
   local note = 0
-  while isPlaying do
+  while isPlaying and seqIndex == uniqueId do
     local duration = resolutions.getResolution(resolution)
     playNote(note, velocity, beat2ms(resolutions.getPlayDuration(duration, gate)), nil, channel)
     waitBeat(duration)
@@ -748,7 +749,8 @@ local function startPlaying()
     return
   end
   isPlaying = true
-  run(pulse)
+  seqIndex = gem.inc(seqIndex)
+  run(pulse, seqIndex)
 end
 
 local function stopPlaying()
@@ -824,6 +826,10 @@ local playButton = widgets.button('Play', false, {
 --------------------------------------------------------------------------------
 -- Handle events
 --------------------------------------------------------------------------------
+
+function onInit()
+  seqIndex = 0
+end
 
 function onNote(e)
   if autoplayButton.value == true then

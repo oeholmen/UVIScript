@@ -580,6 +580,7 @@ local shapes = {
   crosser = function(x, z, w, y, i) return gem.avg({x, w}) * z end,
   diracDelta = function(x, z, w, y, i) return (math.exp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*16) end,
   diracDeltaFrexp = function(x, z, w, y, i) return (math.frexp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*16) end,
+  diracDeltaRand = function(x, z, w, y, i, b) return (math.exp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*math.min(8, b.rand*32)) end,
   swipe1 = function(x, z, w, y, i) return math.exp(math.abs(x)/y) * z end,
   swipe2 = function(x, z, w, y, i) return math.exp(math.tan(x)/math.pi) * z end,
   swipe3 = function(x, z, w, y, i) return math.exp(x-y) * z end,
@@ -656,6 +657,7 @@ local shapeDefinitions = {
   {name = "Wings", f = shapes.wings, o = {factor = .5}},
   {name = "Dirac Delta", f = shapes.diracDelta, o = {factor = .2, z = .02}},
   {name = "Dirac Delta (frexp)", f = shapes.diracDeltaFrexp, o = {z = .03}},
+  {name = "Dirac Delta Rand", f = shapes.diracDeltaRand, o = {z = .06}},
   {name = "Swipe 1", f = shapes.swipe1},
   {name = "Swipe 2", f = shapes.swipe2},
   {name = "Swipe 3", f = shapes.swipe3},
@@ -1031,6 +1033,9 @@ local maxPages = 8
 local nextUp = 1
 local paramsPerPage = {}
 local paramsPerPart = {}
+local pageRunnerUniqueId = 0
+local arpUniqueId = 0
+local partsUniqueId = {}
 
 widgets.setColours({
   menuBackgroundColour = "#bf01011F",
@@ -1167,12 +1172,12 @@ local function setNumSteps(partIndex, numSteps)
   setPageDuration(page)
 end
 
-local function pageRunner()
+local function pageRunner(uniqeId)
   local repeatCounter = -1
-  while isPlaying do
+  while isPlaying and pageRunnerUniqueId == uniqeId do
     repeatCounter = repeatCounter + 1
     local repeats = paramsPerPage[activePage].minRepeats.value
-    --print("New round on page/duration/repeats/repeatCounter", activePage, paramsPerPage[activePage].pageDuration, repeats, repeatCounter)
+    print("New round on page/duration/repeats/repeatCounter", activePage, paramsPerPage[activePage].pageDuration, repeats, repeatCounter)
     if repeatCounter >= repeats and nextUp == activePage then
       if gem.getRandomBoolean(changePageProbability.value) then
         nextUp = gem.getRandom(numPages)
@@ -1195,10 +1200,14 @@ local function startPlaying()
   if isPlaying == true then
     return
   end
-  spawn(pageRunner)
+  pageRunnerUniqueId = gem.inc(pageRunnerUniqueId)
+  spawn(pageRunner, pageRunnerUniqueId)
+  partsUniqueId = {} -- Reset
   for i=1,numParts do
     --print("Start playing", i)
-    spawn(arpeg, i)
+    arpUniqueId = gem.inc(arpUniqueId)
+    table.insert(partsUniqueId, arpUniqueId)
+    spawn(arpeg, i, arpUniqueId)
   end
   isPlaying = true
 end
@@ -1423,7 +1432,7 @@ end
 local modseq = {
   colours = colours,
   isPlaying = function() return isPlaying == true end,
-  isNotPlaying = function() return isPlaying == false end,
+  isPartPlaying = function(part, uniqueId) return isPlaying == true and partsUniqueId[part] == uniqueId end,
   setArpFunc = function(f) arpeg = f end,
   setPlaying = function(m) isPlaying = m ~= false end,
   getNumParts = function() return numParts end,
@@ -1709,9 +1718,9 @@ modseq.footerPanel.y = modseq.getPageParams(1).sequencerPanel.y + modseq.getPage
 -- Sequencer
 --------------------------------------------------------------------------------
 
-modseq.setArpFunc(function(part)
+modseq.setArpFunc(function(part, uniqueId)
   local index = 0
-  while modseq.isPlaying() do
+  while modseq.isPartPlaying(part, uniqueId) do
     local partIndex = modseq.getPartIndex(part)
     local numStepsInPart = modseq.getPartParams(partIndex).numStepsBox.value
     local currentPosition = (index % numStepsInPart) + 1

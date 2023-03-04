@@ -759,9 +759,11 @@ widgets.label("Scale Quantizer", {
 })
 
 widgets.setSection({
-  width = 120,
-  x = 320,
+  x = 216,
   xSpacing = 15,
+  ySpacing = 5,
+  width = 110,
+  labelBackgroundColour = "transparent",
 })
 
 widgets.menu("Key", key, notes.getNoteNames(), {
@@ -771,17 +773,31 @@ widgets.menu("Key", key, notes.getNoteNames(), {
   end
 })
 
-widgets.menu("Scale", #scaleDefinitions, scaleNames, {
-  changed = function(self)
-    scaleDefinition = scaleDefinitions[self.value]
-    setScale()
-  end
+local scaleMenu = scales.widget(110)
+
+widgets.label("Scale Definition", {
+  textColour = "#d0d0d0"
 })
 
-local channelInput = widgets.menu("Channel", widgets.channels(), {
+widgets.menu("Channel", widgets.channels(), {
   tooltip = "Only quantize incoming notes on this channel",
   changed = function(self) channel = self.value - 1 end
 })
+
+widgets.row()
+
+widgets.col(2)
+
+local scaleInput = scales.inputWidget(scaleDefinition, 110)
+
+scaleMenu.changed = function(self)
+  scaleInput.text = scales.getTextFromScaleDefinition(scaleDefinitions[self.value])
+end
+
+scaleInput.changed = function(self)
+  scaleDefinition = scales.getScaleDefinitionFromText(self.text)
+  setScale()
+end
 
 --------------------------------------------------------------------------------
 -- Handle Events

@@ -726,6 +726,7 @@ setBackgroundColour("101010")
 --------------------------------------------------------------------------------
 
 local isPlaying = false
+local seqIndex = 0 -- Holds the unique id for the sequencer
 local channel = 1 -- Send trigger on this channel
 local voiceId = nil -- Holds the id of the created note event
 local velocity = 64
@@ -751,10 +752,10 @@ local function release()
   end
 end
 
-local function sequencer()
+local function sequencer(uniqueId)
   local swarmActive = false
   local swarmDuration = 0
-  while isPlaying do
+  while isPlaying and seqIndex == uniqueId do
     local swarmNoteDuration = resolutions.getResolution(resolution)
     if swarmActive or gem.getRandomBoolean(swarmProbability) then
       release() -- Release voice if still active
@@ -802,7 +803,8 @@ local function startPlaying()
     return
   end
   isPlaying = true
-  run(sequencer)
+  seqIndex = gem.inc(seqIndex)
+  run(sequencer, seqIndex)
 end
 
 local function stopPlaying()
@@ -937,6 +939,10 @@ widgets.button("Legato", legato, {
 --------------------------------------------------------------------------------
 -- Handle events
 --------------------------------------------------------------------------------
+
+function onInit()
+  seqIndex = 0
+end
 
 function onNote(e)
   if autoplayButton.value == true then

@@ -1273,6 +1273,7 @@ local noteListen = nil
 local numNotes = 8
 local voices = 8
 local isPlaying = false
+local seqIndex = 0 -- Holds the unique id for the sequencer
 local playingVoices = {}
 local playingIndex = {}
 local roundCounterPerVoice = {}
@@ -2512,7 +2513,8 @@ function startPlaying()
   if isPlaying then
     return
   end
-  run(sequenceRunner)
+  seqIndex = gem.inc(seqIndex)
+  run(sequenceRunner, seqIndex)
 end
 
 function stopPlaying()
@@ -2674,7 +2676,7 @@ function setPartOrder(partOrderText)
   return partOrder
 end
 
-function sequenceRunner()
+function sequenceRunner(uniqueId)
   local previous = nil -- Previous resolution when using evolve
   local partOrderPos = 1 -- Position in the part order
   local partOrderRepeatCounter = 0 -- Counter for part repeats
@@ -2687,7 +2689,7 @@ function sequenceRunner()
   playIndex = 1 -- Reset play index
   isPlaying = true
   initNotes()
-  while isPlaying do
+  while isPlaying and seqIndex == uniqueId do
     if beatCounter == 1 then
       if partOrderButton.value and #partOrder > 0 then
         if partOrderRepeatCounter == 0 then

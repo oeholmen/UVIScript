@@ -16,6 +16,9 @@ local pageButtons = {}
 local paramsPerPart = {}
 local paramsPerPage = {}
 local isPlaying = false
+local seqIndex = 0 -- Holds the unique id for the sequencer
+local playIndex = 0 -- Holds the unique id for each playing voice
+local playingIndex = {}
 local numPages = 1
 local numParts = 4
 local maxPages = 8
@@ -101,10 +104,14 @@ function startPlaying()
   if isPlaying == true then
     return
   end
-  spawn(pageRunner)
+  playingIndex = {}
+  seqIndex = gem.inc(seqIndex)
+  spawn(pageRunner, seqIndex)
   for i=1,numParts do
     print("Start playing", i)
-    spawn(arpeg, i)
+    playIndex = gem.inc(playIndex)
+    table.insert(playingIndex, playIndex)
+    spawn(arpeg, i, playIndex)
   end
   isPlaying = true
 end
@@ -692,9 +699,9 @@ footerPanel.y = paramsPerPage[1].sequencerPanel.y + paramsPerPage[1].sequencerPa
 -- Sequencer
 --------------------------------------------------------------------------------
 
-function pageRunner()
+function pageRunner(uniqueId)
   local rounds = 0
-  while isPlaying do
+  while isPlaying and seqIndex == uniqueId do
     rounds = rounds + 1
     if rounds > 1 and nextUp == activePage then
       if gem.getRandomBoolean(changePageProbability.value) then
@@ -714,10 +721,10 @@ function pageRunner()
   end
 end
 
-function arpeg(part)
+function arpeg(part, uniqueId)
   local index = 0
   local partDirectionBackward = false
-  while isPlaying do
+  while isPlaying and playingIndex[part] == uniqueId do
     local partIndex = getPartIndex(part)
     local numStepsInPart = paramsPerPart[partIndex].numStepsBox.value
     local currentPosition = (index % numStepsInPart) + 1
@@ -902,6 +909,12 @@ end
 --------------------------------------------------------------------------------
 -- Events
 --------------------------------------------------------------------------------
+
+function onInit()
+  -- Reset play indexes
+ seqIndex = 0
+ playIndex = 0
+end
 
 function onNote(e)
   if pageTrigger.enabled == true then

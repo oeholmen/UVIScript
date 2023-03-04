@@ -1303,14 +1303,15 @@ setBackgroundColour(backgroundColour)
 --------------------------------------------------------------------------------
 
 local isPlaying = false
-local playIndex = 1
+local seqIndex = 0 -- Holds the unique id for the sequencer
+local playIndex = 0 -- Holds the unique id for each playing voice
+local playingIndex = {}
 local channel = 1
 --local seqGateTable
 --local gateRandomization
 local numVoices = 1
 local maxVoices = 4
 local playingVoices = {}
-local playingIndex = {}
 local roundCounterPerVoice = {}
 local beatBase = 4
 local beatResolution = 1
@@ -1379,7 +1380,7 @@ local function play(voice, uniqueId, partDuration)
   local gatePos = 1
   local gate = nil
   -- Start loop
-  while playingIndex[voice] == uniqueId do
+  while isPlaying and playingIndex[voice] == uniqueId do
     roundCounterPerVoice[voice] = roundCounterPerVoice[voice] + 1
 
     --velocity, velocityPos = getVelocity(velocityPos)
@@ -1455,9 +1456,9 @@ local function playVoices(partDuration)
       playingVoices[voice] = true--isNoteActive(voice)
       if playingVoices[voice] then
         print("Play voice", voice)
+        playIndex = gem.inc(playIndex)
         playingIndex[voice] = playIndex
         spawn(play, voice, playIndex, partDuration)
-        playIndex = playIndex + 1
       end
     end
   end
@@ -1484,7 +1485,7 @@ local function setPartOrder(partOrderText)
   return partOrder
 end
 
-local function sequenceRunner()
+local function sequenceRunner(uniqueId)
   local previous = nil -- Previous resolution when using evolve
   local partOrderPos = 1 -- Position in the part order
   local partOrderRepeatCounter = 0 -- Counter for part repeats
@@ -1494,10 +1495,9 @@ local function sequenceRunner()
   local partInfo = nil
   local startEvolve = false -- Can be set by part order
   local beatCounter = 1 -- Holds the beat count
-  playIndex = 1 -- Reset play index
   isPlaying = true
   initVoices()
-  while isPlaying do
+  while isPlaying and seqIndex == uniqueId do
     print("Playing beat", beatCounter)
     if beatCounter == 1 then
       if partOrderButton.value and #partOrder > 0 then
@@ -1561,7 +1561,8 @@ local function startPlaying()
   if isPlaying then
     return
   end
-  run(sequenceRunner)
+  seqIndex = gem.inc(seqIndex)
+  run(sequenceRunner, seqIndex)
 end
 
 local function stopPlaying()
@@ -2032,6 +2033,12 @@ gateRandomization.y = gateTableLength.y + gateTableLength.height + 1 ]]
 --------------------------------------------------------------------------------
 -- Handle events
 --------------------------------------------------------------------------------
+
+function onInit()
+   -- Reset play indexes
+  seqIndex = 0
+  playIndex = 0
+end
 
 function onNote(e)
   if autoplayButton.value == true then

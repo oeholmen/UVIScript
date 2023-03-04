@@ -272,11 +272,11 @@ local function getNextValue(seqValueTable, currentPosition, numStepsInPart)
   return seqValueTable:getValue(nextPosition)
 end
 
-modseq.setArpFunc(function(part)
+modseq.setArpFunc(function(part, uniqueId)
   local index = 0
   local startValue = nil
   local targetValue = nil
-  while modseq.isPlaying() do
+  while modseq.isPartPlaying(part, uniqueId) do
     local partIndex = modseq.getPartIndex(part)
     local numStepsInPart = modseq.getPartParams(partIndex).numStepsBox.value
     local currentPosition = (index % numStepsInPart) + 1
@@ -314,7 +314,7 @@ modseq.setArpFunc(function(part)
     end
     if smooth == false then
       controlChange(controlChangeNumber, gem.round(startValue), channel)
-      --print("Send controlChangeNumber, startValue, channel", controlChangeNumber, startValue, channel)
+      --print("Send controlChangeNumber, startValue, channel", controlChangeNumber, gem.round(startValue), channel)
     else
       -- Send cc over time
       spawn(sendControlChange, duration, startValue, targetValue, controlChangeNumber, channel)

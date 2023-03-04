@@ -16,6 +16,9 @@ local maxPages = 8
 local nextUp = 1
 local paramsPerPage = {}
 local paramsPerPart = {}
+local pageRunnerUniqueId = 0
+local arpUniqueId = 0
+local partsUniqueId = {}
 
 widgets.setColours({
   menuBackgroundColour = "#bf01011F",
@@ -152,12 +155,12 @@ local function setNumSteps(partIndex, numSteps)
   setPageDuration(page)
 end
 
-local function pageRunner()
+local function pageRunner(uniqeId)
   local repeatCounter = -1
-  while isPlaying do
+  while isPlaying and pageRunnerUniqueId == uniqeId do
     repeatCounter = repeatCounter + 1
     local repeats = paramsPerPage[activePage].minRepeats.value
-    --print("New round on page/duration/repeats/repeatCounter", activePage, paramsPerPage[activePage].pageDuration, repeats, repeatCounter)
+    print("New round on page/duration/repeats/repeatCounter", activePage, paramsPerPage[activePage].pageDuration, repeats, repeatCounter)
     if repeatCounter >= repeats and nextUp == activePage then
       if gem.getRandomBoolean(changePageProbability.value) then
         nextUp = gem.getRandom(numPages)
@@ -180,10 +183,14 @@ local function startPlaying()
   if isPlaying == true then
     return
   end
-  spawn(pageRunner)
+  pageRunnerUniqueId = gem.inc(pageRunnerUniqueId)
+  spawn(pageRunner, pageRunnerUniqueId)
+  partsUniqueId = {} -- Reset
   for i=1,numParts do
     --print("Start playing", i)
-    spawn(arpeg, i)
+    arpUniqueId = gem.inc(arpUniqueId)
+    table.insert(partsUniqueId, arpUniqueId)
+    spawn(arpeg, i, arpUniqueId)
   end
   isPlaying = true
 end
@@ -408,7 +415,7 @@ end
 return {--modseq--
   colours = colours,
   isPlaying = function() return isPlaying == true end,
-  isNotPlaying = function() return isPlaying == false end,
+  isPartPlaying = function(part, uniqueId) return isPlaying == true and partsUniqueId[part] == uniqueId end,
   setArpFunc = function(f) arpeg = f end,
   setPlaying = function(m) isPlaying = m ~= false end,
   getNumParts = function() return numParts end,

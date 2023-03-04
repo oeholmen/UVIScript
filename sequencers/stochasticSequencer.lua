@@ -11,6 +11,7 @@ local menuTextColour = "#9f02ACFE"
 local menuArrowColour = "#9f09A3F4"
 local menuOutlineColour = "#00000000"
 local isPlaying = false
+local seqIndex = 0 -- Holds the unique id for the sequencer
 local partToStepMap = {1} -- Holds the starting step for each part
 local totalNumSteps = 8
 local numParts = 1
@@ -830,7 +831,7 @@ numPartsBox:changed()
 -- Sequencer
 --------------------------------------------------------------------------------
 
-function arpeg()
+function arpeg(uniqueId)
   local index = 0
   local heldNoteIndex = 0 -- Counter for held notes (used by As Played seq mode)
   local currentPartPosition = 0 -- Holds the currently playing part
@@ -839,7 +840,7 @@ function arpeg()
   local isStarting = true
   -- START ARP LOOP
   print("Starting sequencer")
-  while isPlaying == true do
+  while isPlaying and seqIndex == uniqueId do
     -- Set current position and part position
     local currentPosition = (index % totalNumSteps) + 1 -- 11 % 4 = 3
     local startOfPart = false
@@ -1187,6 +1188,10 @@ end
 -- Handle note events
 --------------------------------------------------------------------------------
 
+function onInit()
+  seqIndex = 0
+end
+
 function onNote(e)
   if holdButton.value == true then
     for i,v in ipairs(heldNotes) do
@@ -1204,7 +1209,8 @@ function onNote(e)
   table.insert(heldNotes, e)
   if #heldNotes == 1 and isPlaying == false then
     isPlaying = true
-    spawn(arpeg)
+    seqIndex = gem.inc(seqIndex)
+    spawn(arpeg, seqIndex)
   end
 end
 
