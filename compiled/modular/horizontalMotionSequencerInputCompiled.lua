@@ -591,11 +591,21 @@ local scaleDefinitions = {
   {def={2,2,2,1,2,1,2},name="7 Notes/Acoustic",},
   {def={2,1,2,1,1,3,2},name="7 Notes/Blues",},
   {def={1,2,1,3,1,2,2},name="7 Notes/Alterated",},
+  {def={2,1,2,2,2,1,2},name="7 Notes/Yo",},
+  {def={2,1,3,1,1,3,1},name="7 Notes/Maqam Saba",},
+  {def={1,3,1,2,3,1,1},name="7 Notes/Persian",},
+  {def={1,3,1,2,1,3,1},name="7 Notes/Arabic",},
+  {def={2,1,3,1,1,2,2},name="7 Notes/Hungarian",},
   {def={2,2,3,2,3},name="5 Notes/Major Pentatonic",},
   {def={3,2,2,3,2},name="5 Notes/Minor Pentatonic",},
   {def={1,4,1,4,2},name="5 Notes/Hirajoshi",},
   {def={1,4,2,1,4},name="5 Notes/Miyako-Bushi",},
   {def={1,4,3,2,2},name="5 Notes/Iwato",},
+  {def={2,2,1,2,2},name="5 Notes/Ritsu",},
+  {def={2,1,4,2,1},name="5 Notes/Kumoi",},
+  {def={1,3,1,2,3},name="5 Notes/Maqam Hijaz",},
+  {def={2,1,4,1,2},name="5 Notes/Maqam Bayati",},
+  {def={2,1,4,2,1,2},name="Misc/In",},
   {def={3},name="Misc/Diminished",},
   {def={2},name="Misc/Whole tone",},
   {def={1},name="Misc/Chomatic",},
@@ -661,7 +671,7 @@ local function getScaleInputWidget(scaleDefinition, width, i)
     i = ""
   end
   return widgets.label(getTextFromScaleDefinition(scaleDefinition), {
-    tooltip = "Scales are defined by setting semitones up from the previous note, separated by comma. If the definition sum is divisible by 12, it will resolve every octave.",
+    tooltip = "Scales are defined by setting semitones up from the previous note, separated by comma. If 12 is divisible by the definition sum, it will resolve every octave.",
     editable = true,
     backgroundColour = "black",
     backgroundColourWhenEditing = "white",
@@ -714,6 +724,10 @@ local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "
 local notes = {
   getNoteNames = function()
     return notenames
+  end,
+
+  getOctave = function(noteNumber)
+    return math.floor(noteNumber / 12) - 2
   end,
 
   -- Used for mapping - does not include octave, only name of note (C, C#...)
@@ -846,7 +860,7 @@ local shapes = {
     return math.sin(x * math.pi) * f
   end,
   testShape = function(x, z, w, y, i, b)
-    return x * z
+    return (math.exp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*math.min(8, b.rand*32))
   end
 }
 
@@ -903,7 +917,7 @@ local shapeDefinitions = {
   {name = "Mayhem Middle", f = shapes.mayhemInTheMiddle},
   {name = "Zero Dancer", f = shapes.zeroDancer},
   {name = "Wings", f = shapes.wings, o = {factor = .5}},
-  {name = "Dirac Delta", f = shapes.diracDelta, o = {factor = .3, z = .03}},
+  {name = "Dirac Delta", f = shapes.diracDelta, o = {factor = .2, z = .02}},
   {name = "Dirac Delta (frexp)", f = shapes.diracDeltaFrexp, o = {z = .03}},
   {name = "Swipe 1", f = shapes.swipe1},
   {name = "Swipe 2", f = shapes.swipe2},
@@ -1728,10 +1742,6 @@ local function setRange()
   resetTableValues()
 end
 
-local function getOctave(noteNumber)
-  return math.floor(noteNumber / 12) - 2
-end
-
 local function setScaleTable(loadShape)
   local scaleDefinition = scaleDefinitions[scaleDefinitionIndex]
   local startNote = baseNote
@@ -1755,7 +1765,7 @@ local function setScaleTable(loadShape)
   for _,v in ipairs(noteLabels) do
     local i = gem.round(scaleIndex)
     --print("Round, scaleIndex, i", scaleIndex, i)
-    v.text = noteNumberToNoteName[activeScale[i] + 1] .. getOctave(activeScale[i])
+    v.text = noteNumberToNoteName[activeScale[i] + 1] .. notes.getOctave(activeScale[i])
     scaleIndex = gem.inc(scaleIndex, distance)
     --print("After inc: scaleIndex, #activeScale", scaleIndex, #activeScale)
   end
@@ -1894,7 +1904,7 @@ widgets.button("Forward", forward, {
   changed = function(self) forward = self.value end,
 })
 
-local channelInput = widgets.menu("Channel", widgets.channels(), {
+widgets.menu("Channel", widgets.channels(), {
   tooltip = "Listen to note events on this channel - if a note event is not being listened to, it will be pass through",
   showLabel = false,
   changed = function(self) channel = self.value - 1 end
@@ -1956,7 +1966,6 @@ widgets.setSection({
 
 for i=1,numNoteLabels do
   local factor = (i - 1) / (numNoteLabels - 1.04)
-  --print("i, factor", i, factor)
   table.insert(noteLabels, widgets.label(noteNumberToNoteName[i], {
     fontSize = 11,
     textColour = "#a0a0a0",
@@ -2034,14 +2043,10 @@ widgets.numBox("Base Note", baseNote, {
   end
 })
 
-widgets.menu("Scale", #scaleNames, scaleNames, {
-  width = 137,
-  showLabel = false,
-  changed = function(self)
-    scaleDefinitionIndex = self.value
-    setScaleTable()
-  end
-})
+scales.widget(137, false).changed = function(self)
+  scaleDefinitionIndex = self.value
+  setScaleTable()
+end
 
 widgets.numBox("Octave Range", octaveRange, {
   width = 137,

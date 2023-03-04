@@ -630,6 +630,7 @@ scaleMenu.selected = #scalesNames
 scaleMenu.displayName = "Scale"
 scaleMenu.tooltip = "The scale to set for the notes in the grid"
 scaleMenu.showLabel = true
+scaleMenu.hierarchical = true
 scaleMenu.width = 120
 scaleMenu.x = keyMenu.x + keyMenu.width + xSpacing
 scaleMenu.y = keyMenu.y

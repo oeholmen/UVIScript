@@ -11,6 +11,11 @@ local noteSelector = require "includes.noteSelector"
 
 -- TODO Add a button for deselecting all notes
 
+widgets.setColours({
+  labelBackgroundColour = "F5E9CF",
+  backgroundColour = "4D455D",
+})
+
 local channel = 0 -- 0 = Omni
 local forward = false
 
@@ -29,10 +34,17 @@ widgets.label("Random Note Input", {
 
 widgets.setSection({
   width = 90,
-  xOffset = 531,
+  xOffset = 433,
   yOffset = 5,
   xSpacing = 5,
   ySpacing = 5,
+})
+
+local inputButton = widgets.button(" ", false, {
+  tooltip = "Shows when notes are triggered",
+  persistent = false,
+  enabled = false,
+  backgroundColourOff = "202020"
 })
 
 widgets.button("Forward", forward, {
@@ -40,7 +52,7 @@ widgets.button("Forward", forward, {
   changed = function(self) forward = self.value end,
 })
 
-local channelInput = widgets.menu("Channel", widgets.channels(), {
+widgets.menu("Channel", widgets.channels(), {
   tooltip = "Listen to triggers (note=0 events) on this channel - if a note event is not being listened to, it will be pass through",
   showLabel = false,
   changed = function(self) channel = self.value - 1 end
@@ -61,28 +73,17 @@ local notePanel = widgets.panel({
   x = sequencerPanel.x,
   y = widgets.posUnder(sequencerPanel),
   width = sequencerPanel.width,
-  height = 200,
+  height = 160,
 })
 
 local noteLabel = widgets.label("Notes", {
-  tooltip = "Set the probability that notes will be included when generating new notes",
+  tooltip = "Select notes manually, or by selecting a scale",
   alpha = 0.75,
   width = sequencerPanel.width,
   height = 22,
 })
 
-local inputButton = widgets.button(" ", false, {
-  tooltip = "Shows when notes are triggered",
-  persistent = false,
-  enabled = false,
-  width = channelInput.width,
-  height = 18,
-  y = 2,
-  x = channelInput.x,
-})
-inputButton.backgroundColourOff = "202020"
-
-noteSelector.createNoteAndOctaveSelector(notePanel, widgets.getColours(), noteLabel, 15, 42, {x = 15, y = widgets.posUnder(noteLabel) + 10})
+noteSelector.createNoteAndOctaveSelector(notePanel, widgets.getColours(), noteLabel, 18, 12, {x = 500, y = noteLabel.y + 2.5, height = 18})
 
 --------------------------------------------------------------------------------
 -- Handle Events

@@ -625,13 +625,16 @@ function onSave()
     table.insert(strategySlotsData, v.tooltip)
   end
 
-  return {sequencerLabel.text, strategyInputField.text, strategySlotsData}
+  return {sequencerLabel.text, strategyInputField.text, scaleInput.text, strategySlotsData}
 end
 
 function onLoad(data)
   sequencerLabel.text = data[1]
   strategyInputField.text = data[2]
-  local strategySlotsData = data[3]
+  scaleInput.text = data[3]
+  local strategySlotsData = data[4]
+
+  scaleInput:changed() -- Ensure the scale is updated
 
   for i,v in ipairs(strategySlots) do
     v.tooltip = strategySlotsData[i]

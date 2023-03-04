@@ -530,6 +530,10 @@ local notes = {
     return notenames
   end,
 
+  getOctave = function(noteNumber)
+    return math.floor(noteNumber / 12) - 2
+  end,
+
   -- Used for mapping - does not include octave, only name of note (C, C#...)
   getNoteMapping = function()
     local noteNumberToNoteName = {}

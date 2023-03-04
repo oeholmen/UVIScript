@@ -790,7 +790,7 @@ widgets.setSection({
   width = 720,
 })
 
-local sequencerPanel = widgets.panel({
+widgets.panel({
   height = 130,
 })
 

@@ -91,10 +91,6 @@ local function setRange()
   resetTableValues()
 end
 
-local function getOctave(noteNumber)
-  return math.floor(noteNumber / 12) - 2
-end
-
 local function setScaleTable(loadShape)
   local scaleDefinition = scaleDefinitions[scaleDefinitionIndex]
   local startNote = baseNote
@@ -118,7 +114,7 @@ local function setScaleTable(loadShape)
   for _,v in ipairs(noteLabels) do
     local i = gem.round(scaleIndex)
     --print("Round, scaleIndex, i", scaleIndex, i)
-    v.text = noteNumberToNoteName[activeScale[i] + 1] .. getOctave(activeScale[i])
+    v.text = noteNumberToNoteName[activeScale[i] + 1] .. notes.getOctave(activeScale[i])
     scaleIndex = gem.inc(scaleIndex, distance)
     --print("After inc: scaleIndex, #activeScale", scaleIndex, #activeScale)
   end
@@ -257,7 +253,7 @@ widgets.button("Forward", forward, {
   changed = function(self) forward = self.value end,
 })
 
-local channelInput = widgets.menu("Channel", widgets.channels(), {
+widgets.menu("Channel", widgets.channels(), {
   tooltip = "Listen to note events on this channel - if a note event is not being listened to, it will be pass through",
   showLabel = false,
   changed = function(self) channel = self.value - 1 end
@@ -319,7 +315,6 @@ widgets.setSection({
 
 for i=1,numNoteLabels do
   local factor = (i - 1) / (numNoteLabels - 1.04)
-  --print("i, factor", i, factor)
   table.insert(noteLabels, widgets.label(noteNumberToNoteName[i], {
     fontSize = 11,
     textColour = "#a0a0a0",
@@ -397,14 +392,10 @@ widgets.numBox("Base Note", baseNote, {
   end
 })
 
-widgets.menu("Scale", #scaleNames, scaleNames, {
-  width = 137,
-  showLabel = false,
-  changed = function(self)
-    scaleDefinitionIndex = self.value
-    setScaleTable()
-  end
-})
+scales.widget(137, false).changed = function(self)
+  scaleDefinitionIndex = self.value
+  setScaleTable()
+end
 
 widgets.numBox("Octave Range", octaveRange, {
   width = 137,

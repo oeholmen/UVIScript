@@ -591,11 +591,21 @@ local scaleDefinitions = {
   {def={2,2,2,1,2,1,2},name="7 Notes/Acoustic",},
   {def={2,1,2,1,1,3,2},name="7 Notes/Blues",},
   {def={1,2,1,3,1,2,2},name="7 Notes/Alterated",},
+  {def={2,1,2,2,2,1,2},name="7 Notes/Yo",},
+  {def={2,1,3,1,1,3,1},name="7 Notes/Maqam Saba",},
+  {def={1,3,1,2,3,1,1},name="7 Notes/Persian",},
+  {def={1,3,1,2,1,3,1},name="7 Notes/Arabic",},
+  {def={2,1,3,1,1,2,2},name="7 Notes/Hungarian",},
   {def={2,2,3,2,3},name="5 Notes/Major Pentatonic",},
   {def={3,2,2,3,2},name="5 Notes/Minor Pentatonic",},
   {def={1,4,1,4,2},name="5 Notes/Hirajoshi",},
   {def={1,4,2,1,4},name="5 Notes/Miyako-Bushi",},
   {def={1,4,3,2,2},name="5 Notes/Iwato",},
+  {def={2,2,1,2,2},name="5 Notes/Ritsu",},
+  {def={2,1,4,2,1},name="5 Notes/Kumoi",},
+  {def={1,3,1,2,3},name="5 Notes/Maqam Hijaz",},
+  {def={2,1,4,1,2},name="5 Notes/Maqam Bayati",},
+  {def={2,1,4,2,1,2},name="Misc/In",},
   {def={3},name="Misc/Diminished",},
   {def={2},name="Misc/Whole tone",},
   {def={1},name="Misc/Chomatic",},
@@ -661,7 +671,7 @@ local function getScaleInputWidget(scaleDefinition, width, i)
     i = ""
   end
   return widgets.label(getTextFromScaleDefinition(scaleDefinition), {
-    tooltip = "Scales are defined by setting semitones up from the previous note, separated by comma. If the definition sum is divisible by 12, it will resolve every octave.",
+    tooltip = "Scales are defined by setting semitones up from the previous note, separated by comma. If 12 is divisible by the definition sum, it will resolve every octave.",
     editable = true,
     backgroundColour = "black",
     backgroundColourWhenEditing = "white",
@@ -703,6 +713,73 @@ local scales = {
     end
     return scale
   end
+}
+
+--------------------------------------------------------------------------------
+-- Common functions for notes
+--------------------------------------------------------------------------------
+
+local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
+
+local notes = {
+  getNoteNames = function()
+    return notenames
+  end,
+
+  getOctave = function(noteNumber)
+    return math.floor(noteNumber / 12) - 2
+  end,
+
+  -- Used for mapping - does not include octave, only name of note (C, C#...)
+  getNoteMapping = function()
+    local noteNumberToNoteName = {}
+    local notenamePos = 1
+    for i=0,127 do
+      table.insert(noteNumberToNoteName, notenames[notenamePos])
+      notenamePos = notenamePos + 1
+      if notenamePos > #notenames then
+        notenamePos = 1
+      end
+    end
+    return noteNumberToNoteName
+  end,
+
+  transpose = function(note, min, max)
+    --print("Check transpose", note)
+    if note < min then
+      print("note < min", note, min)
+      while note < min do
+        note = note + 12
+        print("transpose note up", note)
+      end
+    elseif note > max then
+      print("note > max", note, max)
+      while note > max do
+        note = note - 12
+        print("transpose note down", note)
+      end
+    end
+    -- Ensure note is inside given min/max values
+    note = math.max(min, math.min(max, note))
+    -- Ensure note is inside valid values
+    return math.max(0, math.min(127, note))
+  end,
+
+  getSemitonesBetweenNotes = function(note1, note2)
+    return math.max(note1, note2) - math.min(note1, note1)
+  end,
+
+  getNoteAccordingToScale = function(scale, noteToPlay)
+    for _,note in ipairs(scale) do
+      if note == noteToPlay then
+        return noteToPlay
+      elseif note > noteToPlay then
+        print("Change from noteToPlay to note", noteToPlay, note)
+        return note
+      end
+    end
+    return noteToPlay
+  end,
 }
 
 --------------------------------------------------------------------------------
@@ -783,7 +860,7 @@ local shapes = {
     return math.sin(x * math.pi) * f
   end,
   testShape = function(x, z, w, y, i, b)
-    return x * z
+    return (math.exp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*math.min(8, b.rand*32))
   end
 }
 
@@ -840,7 +917,7 @@ local shapeDefinitions = {
   {name = "Mayhem Middle", f = shapes.mayhemInTheMiddle},
   {name = "Zero Dancer", f = shapes.zeroDancer},
   {name = "Wings", f = shapes.wings, o = {factor = .5}},
-  {name = "Dirac Delta", f = shapes.diracDelta, o = {factor = .3, z = .03}},
+  {name = "Dirac Delta", f = shapes.diracDelta, o = {factor = .2, z = .02}},
   {name = "Dirac Delta (frexp)", f = shapes.diracDeltaFrexp, o = {z = .03}},
   {name = "Swipe 1", f = shapes.swipe1},
   {name = "Swipe 2", f = shapes.swipe2},
@@ -1606,6 +1683,9 @@ local scaleDefinitionIndex = #scalesNames
 local activeScale = {} -- Holds the active scale
 local forward = false
 local channel = 0
+local numNoteLabels = 9 -- Holds the maximum amount of note labels that are required when full range is used
+local noteLabels = {} -- Holds the labels for the notes
+local noteNumberToNoteName = notes.getNoteMapping()
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
@@ -1637,6 +1717,17 @@ local function setScale()
   activeScale = scales.createScale(scaleDefinition, startNote, maxNote)
   --print("#activeScale, startNote, maxNote", #activeScale, startNote, maxNote)
   resetPitches()
+
+  local distance = (#activeScale - 1) / (#noteLabels - 1)
+  --print("distance", distance)
+  local scaleIndex = #activeScale
+  for _,v in ipairs(noteLabels) do
+    local i = gem.round(scaleIndex)
+    --print("Round, scaleIndex, i", scaleIndex, i)
+    v.text = noteNumberToNoteName[activeScale[i] + 1] .. notes.getOctave(activeScale[i])
+    scaleIndex = gem.inc(scaleIndex, -distance)
+    --print("After inc: scaleIndex, #activeScale", scaleIndex, #activeScale)
+  end
 end
 
 local function startMoving()
@@ -1762,7 +1853,7 @@ widgets.panel({
 })
 
 positionTable = widgets.table("Position", 0, tableMotion.options.tableLength, {
-  width = widgets.getPanel().width - 146,
+  width = widgets.getPanel().width - 160,
   enabled = false,
   persistent = false,
   sliderColour = "green",
@@ -1784,6 +1875,26 @@ motionTable = widgets.table("Motion", 0, tableMotion.options.tableLength, {
   integer = true,
 })
 
+widgets.setSection({
+  width = 24,
+  height = 15,
+  xSpacing = 1,
+  ySpacing = 0,
+  x = widgets.posSide(motionTable) - 1,
+  y = motionTable.y,
+  cols = 1
+})
+
+for i=1,numNoteLabels do
+  local factor = (i - 1) / (numNoteLabels - 1.04)
+  table.insert(noteLabels, widgets.label(noteNumberToNoteName[i], {
+    fontSize = 11,
+    textColour = "#a0a0a0",
+    backgroundColour = "transparent",
+    y = (motionTable.y - 3) + (math.floor(motionTable.height * factor) - math.ceil(9 * factor))
+  }))
+end
+
 local noteWidgetWidth = 129
 
 widgets.setSection({
@@ -1794,6 +1905,7 @@ widgets.setSection({
   y = widgets.posUnder(motionTable) + 6,
   xSpacing = 14,
   ySpacing = 5,
+  cols = 7
 })
 
 tableMotion.getStartShapeWidget().changed = function(self)
@@ -1812,12 +1924,17 @@ widgets.menu("Motion Type", tableMotion.movementTypes, {
   end
 })
 
-local scaleMenu = widgets.menu("Scale", #scalesNames, scalesNames, {
+--[[ widgets.menu("Scale", #scalesNames, scalesNames, {
   changed = function(self)
     scaleDefinitionIndex = self.value
     setScale()
   end
-})
+}) ]]
+
+scales.widget(noteWidgetWidth).changed = function(self)
+  scaleDefinitionIndex = self.value
+  setScale()
+end
 
 tableMotion.getMotionSpeedWidget(noteWidgetWidth)
 
@@ -1852,7 +1969,7 @@ widgets.button("Bipolar", bipolar, {
   end
 })
 
-local noteInput = widgets.numBox("Base Note", baseNote, {
+widgets.numBox("Base Note", baseNote, {
   unit = Unit.MidiKey,
   tooltip = "Set the root note",
   changed = function(self)
@@ -1900,7 +2017,7 @@ end
 
 local xyShapeMorph = widgets.getPanel():XY('ShapePhase', 'ShapeMorph')
 xyShapeMorph.y = motionTable.y
-xyShapeMorph.x = widgets.posSide(motionTable) - 9
+xyShapeMorph.x = widgets.posSide(motionTable) + 7
 xyShapeMorph.width = noteWidgetWidth + 5
 xyShapeMorph.height = motionTable.height / 2
 

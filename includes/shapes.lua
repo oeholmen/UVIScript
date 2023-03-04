@@ -79,7 +79,7 @@ local shapes = {
     return math.sin(x * math.pi) * f
   end,
   testShape = function(x, z, w, y, i, b)
-    return x * z
+    return (math.exp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*math.min(8, b.rand*32))
   end
 }
 
@@ -136,7 +136,7 @@ local shapeDefinitions = {
   {name = "Mayhem Middle", f = shapes.mayhemInTheMiddle},
   {name = "Zero Dancer", f = shapes.zeroDancer},
   {name = "Wings", f = shapes.wings, o = {factor = .5}},
-  {name = "Dirac Delta", f = shapes.diracDelta, o = {factor = .3, z = .03}},
+  {name = "Dirac Delta", f = shapes.diracDelta, o = {factor = .2, z = .02}},
   {name = "Dirac Delta (frexp)", f = shapes.diracDeltaFrexp, o = {z = .03}},
   {name = "Swipe 1", f = shapes.swipe1},
   {name = "Swipe 2", f = shapes.swipe2},

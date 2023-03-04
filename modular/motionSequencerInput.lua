@@ -6,6 +6,7 @@ local gem = require "includes.common"
 local shapes = require "includes.shapes"
 local widgets = require "includes.widgets"
 local scales = require "includes.scales"
+local notes = require "includes.notes"
 local resolutions = require "includes.resolutions"
 local modular = require "includes.modular"
 local tableMotion = require "includes.tableMotion"
@@ -31,6 +32,10 @@ local scaleDefinitionIndex = #scalesNames
 local activeScale = {} -- Holds the active scale
 local forward = false
 local channel = 0
+local numNoteLabels = 9 -- Holds the maximum amount of note labels that are required when full range is used
+local noteLabels = {} -- Holds the labels for the notes
+local noteNumberToNoteName = notes.getNoteMapping()
+
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
@@ -62,6 +67,17 @@ local function setScale()
   activeScale = scales.createScale(scaleDefinition, startNote, maxNote)
   --print("#activeScale, startNote, maxNote", #activeScale, startNote, maxNote)
   resetPitches()
+
+  local distance = (#activeScale - 1) / (#noteLabels - 1)
+  --print("distance", distance)
+  local scaleIndex = #activeScale
+  for _,v in ipairs(noteLabels) do
+    local i = gem.round(scaleIndex)
+    --print("Round, scaleIndex, i", scaleIndex, i)
+    v.text = noteNumberToNoteName[activeScale[i] + 1] .. notes.getOctave(activeScale[i])
+    scaleIndex = gem.inc(scaleIndex, -distance)
+    --print("After inc: scaleIndex, #activeScale", scaleIndex, #activeScale)
+  end
 end
 
 local function startMoving()
@@ -187,7 +203,7 @@ widgets.panel({
 })
 
 positionTable = widgets.table("Position", 0, tableMotion.options.tableLength, {
-  width = widgets.getPanel().width - 146,
+  width = widgets.getPanel().width - 160,
   enabled = false,
   persistent = false,
   sliderColour = "green",
@@ -209,6 +225,26 @@ motionTable = widgets.table("Motion", 0, tableMotion.options.tableLength, {
   integer = true,
 })
 
+widgets.setSection({
+  width = 24,
+  height = 15,
+  xSpacing = 1,
+  ySpacing = 0,
+  x = widgets.posSide(motionTable) - 1,
+  y = motionTable.y,
+  cols = 1
+})
+
+for i=1,numNoteLabels do
+  local factor = (i - 1) / (numNoteLabels - 1.04)
+  table.insert(noteLabels, widgets.label(noteNumberToNoteName[i], {
+    fontSize = 11,
+    textColour = "#a0a0a0",
+    backgroundColour = "transparent",
+    y = (motionTable.y - 3) + (math.floor(motionTable.height * factor) - math.ceil(9 * factor))
+  }))
+end
+
 local noteWidgetWidth = 129
 
 widgets.setSection({
@@ -219,6 +255,7 @@ widgets.setSection({
   y = widgets.posUnder(motionTable) + 6,
   xSpacing = 14,
   ySpacing = 5,
+  cols = 7
 })
 
 tableMotion.getStartShapeWidget().changed = function(self)
@@ -237,12 +274,17 @@ widgets.menu("Motion Type", tableMotion.movementTypes, {
   end
 })
 
-local scaleMenu = widgets.menu("Scale", #scalesNames, scalesNames, {
+--[[ widgets.menu("Scale", #scalesNames, scalesNames, {
   changed = function(self)
     scaleDefinitionIndex = self.value
     setScale()
   end
-})
+}) ]]
+
+scales.widget(noteWidgetWidth).changed = function(self)
+  scaleDefinitionIndex = self.value
+  setScale()
+end
 
 tableMotion.getMotionSpeedWidget(noteWidgetWidth)
 
@@ -277,7 +319,7 @@ widgets.button("Bipolar", bipolar, {
   end
 })
 
-local noteInput = widgets.numBox("Base Note", baseNote, {
+widgets.numBox("Base Note", baseNote, {
   unit = Unit.MidiKey,
   tooltip = "Set the root note",
   changed = function(self)
@@ -325,7 +367,7 @@ end
 
 local xyShapeMorph = widgets.getPanel():XY('ShapePhase', 'ShapeMorph')
 xyShapeMorph.y = motionTable.y
-xyShapeMorph.x = widgets.posSide(motionTable) - 9
+xyShapeMorph.x = widgets.posSide(motionTable) + 7
 xyShapeMorph.width = noteWidgetWidth + 5
 xyShapeMorph.height = motionTable.height / 2
 

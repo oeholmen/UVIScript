@@ -171,10 +171,10 @@ local function createNoteAndOctaveSelector(notePanel, colours, noteLabel, offset
     octaveProbabilityInput.height = 22
     octaveProbabilityInput.x = octave.x
     octaveProbabilityInput.y = octave.y + octave.height
-  
+
     table.insert(octaveInputs, octave)
     table.insert(octaveProbabilityInputs, octaveProbabilityInput)
-  
+
     if rising then
       startValue = startValue + changePerStep
       if startValue >= 100 then
@@ -183,7 +183,7 @@ local function createNoteAndOctaveSelector(notePanel, colours, noteLabel, offset
     else
       startValue = startValue - changePerStep
     end
-  
+
     columnCount = columnCount + 1
   end
 
@@ -197,16 +197,21 @@ local function createNoteAndOctaveSelector(notePanel, colours, noteLabel, offset
   generateKey.size = {60,20}
   generateKey.x = generateKeyPos.x
   generateKey.y = generateKeyPos.y
+  if type(generateKeyPos.height) == "number" then
+    generateKey.height = generateKeyPos.height
+  end
 
   local generateScale = notePanel:Menu("GenerateScale", scaleNames)
   generateScale.selected = #scaleNames
   generateScale.tooltip = "Set selected notes from scale"
   generateScale.showLabel = false
+  generateScale.hierarchical = true
   generateScale.backgroundColour = colours.menuBackgroundColour
   generateScale.textColour = colours.widgetTextColour
   generateScale.arrowColour = colours.menuArrowColour
   generateScale.outlineColour = colours.menuOutlineColour
-  generateScale.size = {144,20}
+  generateScale.width = 144
+  generateScale.height = generateKey.height
   generateScale.x = generateKey.x + generateKey.width + 10
   generateScale.y = generateKey.y
 

@@ -591,11 +591,21 @@ local scaleDefinitions = {
   {def={2,2,2,1,2,1,2},name="7 Notes/Acoustic",},
   {def={2,1,2,1,1,3,2},name="7 Notes/Blues",},
   {def={1,2,1,3,1,2,2},name="7 Notes/Alterated",},
+  {def={2,1,2,2,2,1,2},name="7 Notes/Yo",},
+  {def={2,1,3,1,1,3,1},name="7 Notes/Maqam Saba",},
+  {def={1,3,1,2,3,1,1},name="7 Notes/Persian",},
+  {def={1,3,1,2,1,3,1},name="7 Notes/Arabic",},
+  {def={2,1,3,1,1,2,2},name="7 Notes/Hungarian",},
   {def={2,2,3,2,3},name="5 Notes/Major Pentatonic",},
   {def={3,2,2,3,2},name="5 Notes/Minor Pentatonic",},
   {def={1,4,1,4,2},name="5 Notes/Hirajoshi",},
   {def={1,4,2,1,4},name="5 Notes/Miyako-Bushi",},
   {def={1,4,3,2,2},name="5 Notes/Iwato",},
+  {def={2,2,1,2,2},name="5 Notes/Ritsu",},
+  {def={2,1,4,2,1},name="5 Notes/Kumoi",},
+  {def={1,3,1,2,3},name="5 Notes/Maqam Hijaz",},
+  {def={2,1,4,1,2},name="5 Notes/Maqam Bayati",},
+  {def={2,1,4,2,1,2},name="Misc/In",},
   {def={3},name="Misc/Diminished",},
   {def={2},name="Misc/Whole tone",},
   {def={1},name="Misc/Chomatic",},
@@ -661,7 +671,7 @@ local function getScaleInputWidget(scaleDefinition, width, i)
     i = ""
   end
   return widgets.label(getTextFromScaleDefinition(scaleDefinition), {
-    tooltip = "Scales are defined by setting semitones up from the previous note, separated by comma. If the definition sum is divisible by 12, it will resolve every octave.",
+    tooltip = "Scales are defined by setting semitones up from the previous note, separated by comma. If 12 is divisible by the definition sum, it will resolve every octave.",
     editable = true,
     backgroundColour = "black",
     backgroundColourWhenEditing = "white",
@@ -714,6 +724,10 @@ local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "
 local notes = {
   getNoteNames = function()
     return notenames
+  end,
+
+  getOctave = function(noteNumber)
+    return math.floor(noteNumber / 12) - 2
   end,
 
   -- Used for mapping - does not include octave, only name of note (C, C#...)
@@ -1584,13 +1598,16 @@ function onSave()
     table.insert(strategySlotsData, v.tooltip)
   end
 
-  return {sequencerLabel.text, strategyInputField.text, strategySlotsData}
+  return {sequencerLabel.text, strategyInputField.text, scaleInput.text, strategySlotsData}
 end
 
 function onLoad(data)
   sequencerLabel.text = data[1]
   strategyInputField.text = data[2]
-  local strategySlotsData = data[3]
+  scaleInput.text = data[3]
+  local strategySlotsData = data[4]
+
+  scaleInput:changed() -- Ensure the scale is updated
 
   for i,v in ipairs(strategySlots) do
     v.tooltip = strategySlotsData[i]
