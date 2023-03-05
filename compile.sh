@@ -158,17 +158,40 @@ for luaScript in "${luaScripts[@]}"; do
 
   echo "Done!"
 
-  # Create note trigger util from stochasticDrumSequencer
   if [ $luaScript == 'sequencers/stochasticDrumSequencer' ]; then
+    # Create note trigger util from stochasticDrumSequencer
     input_file=$(cat "$output_file")
     input_file=$(echo "$input_file" | sed 's/local numParts = 4/local numParts = 1/g')
     input_file=$(echo "$input_file" | sed 's/local maxPages = 8/local maxPages = 1/g')
     input_file=$(echo "$input_file" | sed 's/local title = "Stochastic Drum Sequencer"/local title = "Note Trigger"/g')
     input_file=$(echo "$input_file" | sed 's/Stochastic Drum Sequencer/Note Trigger/g')
-    output_file=./compiled/util/noteTriggerCompiled.lua
-    echo "$input_file" > $output_file
+    trigger_file=./compiled/util/noteTriggerCompiled.lua
+    echo "$input_file" > $trigger_file
     echo
-    echo "Compiling $luaScript to $output_file"
+    echo "Compiling $luaScript to $trigger_file"
+    echo "Done!"
+
+    # Create modular trigger from stochasticDrumSequencer
+    input_file=$(cat "$output_file")
+    input_file=$(echo "$input_file" | sed 's/local numParts = 4/local numParts = 1/g')
+    input_file=$(echo "$input_file" | sed 's/local isModularTrigger = false/local isModularTrigger = true/g')
+    input_file=$(echo "$input_file" | sed 's/local title = "Stochastic Drum Sequencer"/local title = "Sequence Trigger"/g')
+    input_file=$(echo "$input_file" | sed 's/Stochastic Drum Sequencer/Sequence Trigger/g')
+    trigger_file=./compiled/modular/sequenceTriggerCompiled.lua
+    echo "$input_file" > $trigger_file
+    echo
+    echo "Compiling $luaScript to $trigger_file"
+    echo "Done!"
+
+    # Create multipart modular trigger from stochasticDrumSequencer
+    input_file=$(cat "$output_file")
+    input_file=$(echo "$input_file" | sed 's/local isModularTrigger = false/local isModularTrigger = true/g')
+    input_file=$(echo "$input_file" | sed 's/local title = "Stochastic Drum Sequencer"/local title = "Multi Sequence Trigger"/g')
+    input_file=$(echo "$input_file" | sed 's/Stochastic Drum Sequencer/Multi Sequence Trigger/g')
+    trigger_file=./compiled/modular/multiSequenceTriggerCompiled.lua
+    echo "$input_file" > $trigger_file
+    echo
+    echo "Compiling $luaScript to $trigger_file"
     echo "Done!"
   fi
 

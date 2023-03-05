@@ -1215,9 +1215,22 @@ local function setStartMode(theTable, loadShape, stateFunction)
   end
 end
 
+local function getDurationRange()
+  local limitRange = motionOptions.moveSpeedMax - motionOptions.moveSpeedMin
+  local changeMax = gem.getChangeMax(limitRange, motionOptions.speedRandomizationAmount)
+  local min = math.max(motionOptions.moveSpeedMin, (motionOptions.moveSpeed - changeMax))
+  local max = math.min(motionOptions.moveSpeedMax, (motionOptions.moveSpeed + changeMax))
+  return min, max
+end
+
 local function getWaitDuration()
-  local resolutionIndex = gem.randomizeValue(motionOptions.moveSpeed, motionOptions.moveSpeedMin, motionOptions.moveSpeedMax, motionOptions.speedRandomizationAmount)
-  return beat2ms(resolutions.getResolution(resolutionIndex))
+  if motionOptions.speedRandomizationAmount == 0 then
+    return beat2ms(resolutions.getResolution(motionOptions.moveSpeed))
+  end
+  local min, max = getDurationRange()
+  local resolutionMin = resolutions.getResolution(min) -- Slow
+  local resolutionMax = resolutions.getResolution(max) -- Fast
+  return gem.randomizeValue(beat2ms(resolutions.getResolution(motionOptions.moveSpeed)), beat2ms(resolutionMax), beat2ms(resolutionMin), motionOptions.speedRandomizationAmount)
 end
 
 local function advanceValue(theTable, value, min, max, direction)

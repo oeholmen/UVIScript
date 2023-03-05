@@ -1260,7 +1260,7 @@ widgets.setSection({
   labelBackgroundColour = "transparent",
 })
 
-local voicesLabel = widgets.label(voices .. " voice", {
+local voicesLabel = widgets.label("Playing", {
   visible = false,
   textColour = "505050"
 })
@@ -1347,7 +1347,7 @@ widgets.setSection({
   cols = 6,
 })
 
-widgets.menu("Play Mode", {"Active Input", "Random Slot", "Voice->Slot"}, {
+local voiceSlotStrategyInput = widgets.menu("Play Mode", {"Active Input", "Random Slot", "Voice->Slot"}, {
   tooltip = "Select the strategy to use for note selection. The default is using the strategy displayed in the input.",
   showLabel = false,
   changed = function(self)
@@ -1552,11 +1552,7 @@ function onNote(e)
       postEvent(e)
     end
     if modular.handleTrigger(e, getNote(e.channel)) then
-      if voices == 1 then
-        voicesLabel.text = voices .. " voice playing"
-      else
-        voicesLabel.text = voices .. " voices playing"
-      end
+      voicesLabel.text = "Playing " .. voiceSlotStrategyInput.text
       spawn(flashVoicesLabel)
       voicesLabel.visible = true
       startPlaying()

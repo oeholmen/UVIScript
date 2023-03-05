@@ -15,7 +15,7 @@ local channel = 1
 local resolutionNames = resolutions.getResolutionNames()
 local velocity = 75
 local resolution = 23
-local gate = 100
+local gate = 90
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
@@ -68,9 +68,9 @@ local sequencerLabel = widgets.label("Pulse Trigger", {
 })
 
 widgets.setSection({
-  width = 110,
+  width = 100,
   height = 22,
-  xOffset = 140,
+  xOffset = 165,
   yOffset = (widgets.getPanel().height / 2) - 10,
   xSpacing = 5,
 })
@@ -82,8 +82,9 @@ widgets.menu("Pulse Duration", resolution, resolutionNames, {
 })
 
 widgets.numBox("Gate", gate, {
-  unit = Unit.Percent,
   tooltip = "Set the gate length",
+  width = 120,
+  unit = Unit.Percent,
   changed = function(self) gate = self.value end
 })
 
@@ -97,6 +98,7 @@ widgets.numBox('Channel', channel, {
 
 local autoplayButton = widgets.button('Auto Play', true, {
   tooltip = "Play automatically on transport",
+  width = 100,
 })
 
 local playButton = widgets.button('Play', false, {

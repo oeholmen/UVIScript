@@ -5,7 +5,8 @@
 local gem = require "includes.common"
 local notes = require "includes.notes"
 local scales = require "includes.scales"
-local noteSelector = require "includes.noteSelector"
+local widgets = require "includes.widgets"
+--local noteSelector = require "includes.noteSelector"
 
 local backgroundColour = "6c6c6c" -- Light or Dark
 local menuBackgroundColour = "01011F"
@@ -53,6 +54,7 @@ local chordDefinitions = {
 local noteDisplay = {} -- Holds the widgets that displays the notes being played
 local maxVoices = 16 -- Max number of oplyphonic voices
 local noteNumberToNoteName = notes.getNoteMapping()
+local channel = 0
 
 setBackgroundColour(backgroundColour)
 
@@ -123,45 +125,49 @@ end
 -- Panels
 --------------------------------------------------------------------------------
 
-local tableWidth = 700
+local tableWidth = 720
 
-local sequencerPanel = Panel("Sequencer")
+local sequencerPanel = widgets.panel({
+  width = tableWidth,
+  height = 200,
+  x = 0,
+  y = 0,
+})
+
+--[[ Panel("Sequencer")
 sequencerPanel.backgroundColour = backgroundColour
 sequencerPanel.x = 10
 sequencerPanel.y = 10
 sequencerPanel.width = tableWidth
-sequencerPanel.height = 200
+sequencerPanel.height = 200 ]]
 
-local notePanel = Panel("Notes")
+--[[ local notePanel = Panel("Notes")
 notePanel.backgroundColour = backgroundColour
 notePanel.x = sequencerPanel.x
 notePanel.y = sequencerPanel.y + sequencerPanel.height + 5
 notePanel.width = tableWidth
-notePanel.height = 150
+notePanel.height = 150 ]]
 
 --------------------------------------------------------------------------------
 -- Sequencer Panel
 --------------------------------------------------------------------------------
 
-local label = sequencerPanel:Label("Label")
+local label = widgets.label("Chorder Input") --[[ sequencerPanel:Label("Label")
 label.text = "Chorder Input"
 label.alpha = 0.5
 label.backgroundColour = labelBackgoundColour
 label.textColour = labelTextColour
 label.fontSize = 22
 label.position = {0,0}
-label.size = {120,25}
+label.size = {120,25} ]]
 
---------------------------------------------------------------------------------
--- Functions
---------------------------------------------------------------------------------
+widgets.menu("Channel", widgets.channels(), {
+  tooltip = "Listen to note events on this channel - if a note event is not being listened to, it will be pass through",
+  showLabel = false,
+  changed = function(self) channel = self.value - 1 end
+})
 
-local channels = {"Omni"}
-for j=1,16 do
-  table.insert(channels, "" .. j)
-end
-
-local channelInput = sequencerPanel:Menu("ChannelInput", channels)
+--[[ local channelInput = sequencerPanel:Menu("ChannelInput", channels)
 channelInput.tooltip = "Listen to note events on this channel - if a note event is not being listened to, it will be pass through"
 channelInput.arrowColour = menuArrowColour
 channelInput.showLabel = false
@@ -169,9 +175,9 @@ channelInput.backgroundColour = menuBackgroundColour
 channelInput.textColour = widgetTextColour
 channelInput.size = {90,22}
 channelInput.x = sequencerPanel.width - channelInput.width - 5
-channelInput.y = 5
+channelInput.y = 5 ]]
 
-local chordProbabilityLabel = sequencerPanel:Label("ChordProbabilityProbabilityLabel")
+--[[ local chordProbabilityLabel = sequencerPanel:Label("ChordProbabilityProbabilityLabel")
 chordProbabilityLabel.text = "Chords"
 chordProbabilityLabel.tooltip = "Choose the probability that chords will be included when harmonizing"
 
@@ -181,7 +187,7 @@ spreadProbabilityLabel.tooltip = "Set note spread probability"
 
 local inversionProbabilityLabel = sequencerPanel:Label("InversionProbabilityLabel")
 inversionProbabilityLabel.text = "Chord Inversions"
-inversionProbabilityLabel.tooltip = "Choose the probability that inversions will be used when harmonizing (root position is always included)"
+inversionProbabilityLabel.tooltip = "Choose the probability that inversions will be used when harmonizing (root position is always included)" ]]
 
 -- Add params that are to be editable per part
 --for i=1,1 do
@@ -190,53 +196,33 @@ local chords = {}
 local spreads = {}
 local inversions = {}
 
-local generatePolyphonyPart = sequencerPanel:NumBox("GeneratePolyphony" .. i, 4, 1, maxVoices, true)
-generatePolyphonyPart.displayName = "Polyphony"
-generatePolyphonyPart.tooltip = "How many notes are played at once"
-generatePolyphonyPart.backgroundColour = menuBackgroundColour
-generatePolyphonyPart.textColour = widgetTextColour
-generatePolyphonyPart.visible = false
-generatePolyphonyPart.width = 108
---generatePolyphonyPart.x = 10
---generatePolyphonyPart.y = 10
-generatePolyphonyPart.changed = function(self)
+local generatePolyphonyPart = widgets.numBox("Polyphony", 4, {
+  tooltip = "How many notes are played at once",
+  min = 1,
+  max = maxVoices,
+  integer = true,
+}).changed = function(self)
   for i,v in ipairs(noteDisplay) do
     v.enabled = maxVoices - self.value <= maxVoices - i
   end
 end
 
-local baseNoteRandomization = sequencerPanel:NumBox("BaseNoteProbability" .. i, 75, 0, 100, true)
-baseNoteRandomization.displayName = "Base Chord"
-baseNoteRandomization.tooltip = "Probability that first chord in the part will be the root chord"
-baseNoteRandomization.unit = Unit.Percent
-baseNoteRandomization.width = 108
---baseNoteRandomization.x = generateKeyPart.x
---baseNoteRandomization.y = generateKeyPart.y + generateKeyPart.height + 5
-baseNoteRandomization.backgroundColour = menuBackgroundColour
-baseNoteRandomization.textColour = widgetTextColour
+local baseNoteRandomization = widgets.numBox("Base Chord", 75, {
+  tooltip = "Probability that first chord in the part will be the root chord",
+  unit = Unit.Percent,
+})
 
-local monoLimit = sequencerPanel:NumBox("MonoLimit" .. i, 48, 0, 64, true)
-monoLimit.unit = Unit.MidiKey
-monoLimit.showPopupDisplay = true
-monoLimit.showLabel = true
-monoLimit.backgroundColour = menuBackgroundColour
-monoLimit.textColour = widgetTextColour
-monoLimit.displayName = "Mono Limit"
-monoLimit.tooltip = "Below this note there will only be played one note (polyphony=1)"
---monoLimit.x = generateKeyPart.x + generateKeyPart.width + 10
---monoLimit.y = generateKeyPart.y
-monoLimit.width = 108
+local monoLimit = widgets.numBox("MonoLimit", 75, {
+  tooltip = "Below this note there will only be played one note (polyphony=1)"
+  unit = Unit.MidiKey,
+})
 
-local harmonizationPropbability = sequencerPanel:NumBox("HarmonizationPropbability" .. i, 100, 0, 100, true)
-harmonizationPropbability.displayName = "Harmonize"
-harmonizationPropbability.tooltip = "When harmonizing, we get notes from the currently playing chord. Otherwise notes are selected from the current scale."
-harmonizationPropbability.unit = Unit.Percent
-harmonizationPropbability.height = 20
-harmonizationPropbability.width = 108
---harmonizationPropbability.x = monoLimit.x + monoLimit.width + 10
---harmonizationPropbability.y = monoLimit.y
-harmonizationPropbability.backgroundColour = menuBackgroundColour
-harmonizationPropbability.textColour = widgetTextColour
+local harmonizationPropbability = widgets.numBox("Harmonize", 100, {
+  tooltip = "When harmonizing, we get notes from the currently playing chord. Otherwise notes are selected from the current scale."
+  unit = Unit.Percent,
+})
+
+--[[
 
 local voiceLabelBgColour = "9F9F9F"
 local voiceLabelTextColour = "202020"
@@ -442,7 +428,7 @@ end
 
 createChordDefinitionButton.changed = function()
   chordDefinitionInput.text = getChordInputText(createChordDefinition(i))
-end
+end ]]
 
 --[[ spreadProbabilityLabel.x = monoLimit.x
 spreadProbabilityLabel.y = chordProbabilityLabel.y
@@ -453,7 +439,7 @@ inversionProbabilityLabel.y = chordProbabilityLabel.y
 inversionProbabilityLabel.width = 108 ]]
 
 -- Note Spread
-local perRow = 1
+--[[ local perRow = 1
 local columnCount = 0
 local rowCount = 1
 for spread=1,3 do
@@ -507,21 +493,28 @@ for inversion=1,3 do
 end
 
 table.insert(paramsPerPart, {chordDefinitionSlots=chordDefinitionSlots,createChordDefinitionButton=createChordDefinitionButton,loadChordDefinition=loadChordDefinition,saveChordDefinition=saveChordDefinition,chordDefinitionInput=chordDefinitionInput,autoChordButton=autoChordButton,randomChordButton=randomChordButton,slotChordButton=slotChordButton,inversions=inversions,spreads=spreads,chords=chords,baseNoteRandomization=baseNoteRandomization,polyphony=generatePolyphonyPart,harmonizationPropbability=harmonizationPropbability,monoLimit=monoLimit})
-
+]]
 --------------------------------------------------------------------------------
 -- Notes Panel
 --------------------------------------------------------------------------------
 
-local noteLabel = notePanel:Label("NoteLabel")
+--[[ local notePanel = widgets.panel({
+  width = tableWidth,
+  height = 150,
+  x = 10,
+  y = widgets.posUnder(sequencerPanel),
+}) ]]
+
+--[[ local noteLabel = notePanel:Label("NoteLabel")
 noteLabel.text = "Notes"
 noteLabel.tooltip = "Set the probability that notes will be included when generating new notes"
 noteLabel.alpha = 0.75
 noteLabel.fontSize = 15
 noteLabel.width = 50
 noteLabel.height = 20
-noteLabel.y = 0
+noteLabel.y = 0 ]]
 
-local clearNotes = notePanel:Button("ClearNotes")
+--[[ local clearNotes = notePanel:Button("ClearNotes")
 clearNotes.displayName = "Clear notes"
 clearNotes.tooltip = "Deselect all notes"
 clearNotes.persistent = false
@@ -561,9 +554,9 @@ randomizeNotes.changed = function()
   for _,v in ipairs(noteInputs) do
     v:setValue(gem.getRandomBoolean())
   end
-end
+end ]]
 
-noteSelector.createNoteAndOctaveSelector(notePanel, colours, noteLabel)
+--noteSelector.createNoteAndOctaveSelector(notePanel, colours, noteLabel)
 
 --------------------------------------------------------------------------------
 -- Sequencer
