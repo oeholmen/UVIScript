@@ -107,16 +107,9 @@ function startPlaying()
   if isPlaying == true then
     return
   end
-  seqIndex = gem.inc(seqIndex)
-  spawn(pageRunner, seqIndex)
-  playingIndex = {}
-  for i=1,numParts do
-    --print("Start playing", i)
-    playIndex = gem.inc(playIndex)
-    table.insert(playingIndex, playIndex)
-    spawn(arpeg, i, playIndex)
-  end
   isPlaying = true
+  seqIndex = gem.inc(seqIndex)
+  run(pageRunner, seqIndex)
 end
 
 function stopPlaying()
@@ -736,6 +729,13 @@ footerPanel.y = paramsPerPage[1].sequencerPanel.y + paramsPerPage[1].sequencerPa
 --------------------------------------------------------------------------------
 
 function pageRunner(uniqueId)
+  playingIndex = {}
+  for i=1,numParts do
+    --print("Start playing", i)
+    playIndex = gem.inc(playIndex)
+    table.insert(playingIndex, playIndex)
+    spawn(arpeg, playIndex, i)
+  end
   local rounds = 0
   while isPlaying and seqIndex == uniqueId do
     rounds = rounds + 1
@@ -757,7 +757,7 @@ function pageRunner(uniqueId)
   end
 end
 
-function arpeg(part, uniqueId)
+function arpeg(uniqueId, part)
   local index = 0
   local partDirectionBackward = false
   while isPlaying and playingIndex[part] == uniqueId do

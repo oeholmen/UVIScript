@@ -235,7 +235,6 @@ local function sequenceRunner(uniqueId)
   local partInfo = nil
   local startEvolve = false -- Can be set by part order
   local beatCounter = 1 -- Holds the beat count
-  isPlaying = true
   initVoices()
   while isPlaying and seqIndex == uniqueId do
     print("Playing beat", beatCounter)
@@ -301,6 +300,7 @@ local function startPlaying()
   if isPlaying then
     return
   end
+  isPlaying = true
   seqIndex = gem.inc(seqIndex)
   run(sequenceRunner, seqIndex)
 end
