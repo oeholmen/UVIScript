@@ -175,7 +175,6 @@ for luaScript in "${luaScripts[@]}"; do
     input_file=$(cat "$output_file")
     input_file=$(echo "$input_file" | sed 's/local numParts = 4/local numParts = 1/g')
     input_file=$(echo "$input_file" | sed 's/local isModularTrigger = false/local isModularTrigger = true/g')
-    input_file=$(echo "$input_file" | sed 's/local title = "Stochastic Drum Sequencer"/local title = "Sequence Trigger"/g')
     input_file=$(echo "$input_file" | sed 's/Stochastic Drum Sequencer/Sequence Trigger/g')
     trigger_file=./compiled/modular/sequenceTriggerCompiled.lua
     echo "$input_file" > $trigger_file
@@ -186,8 +185,7 @@ for luaScript in "${luaScripts[@]}"; do
     # Create multipart modular trigger from stochasticDrumSequencer
     input_file=$(cat "$output_file")
     input_file=$(echo "$input_file" | sed 's/local isModularTrigger = false/local isModularTrigger = true/g')
-    input_file=$(echo "$input_file" | sed 's/local title = "Stochastic Drum Sequencer"/local title = "Multi Sequence Trigger"/g')
-    input_file=$(echo "$input_file" | sed 's/Stochastic Drum Sequencer/Multi Sequence Trigger/g')
+    input_file=$(echo "$input_file" | sed 's/Stochastic Drum Sequencer/Multipart Sequence Trigger/g')
     trigger_file=./compiled/modular/multiSequenceTriggerCompiled.lua
     echo "$input_file" > $trigger_file
     echo

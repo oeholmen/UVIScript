@@ -341,7 +341,7 @@ local resolutions = {
 }
 
 --------------------------------------------------------------------------------
--- Multi Sequence Trigger
+-- Multipart Sequence Trigger
 --------------------------------------------------------------------------------
 
 local outlineColour = "#FFB5FF"
@@ -361,7 +361,7 @@ local playingIndex = {}
 local numPages = 1
 local numParts = 4
 local maxPages = 8
-local title = "Multi Sequence Trigger"
+local title = "Multipart Sequence Trigger"
 local isModularTrigger = true
 
 setBackgroundColour("#2c2c2c")
