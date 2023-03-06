@@ -293,7 +293,7 @@ local voicesLabel = widgets.label("Playing", {
 })
 
 widgets.setSection({
-  xOffset = 510,
+  x = 510,
 })
 
 widgets.button("Forward", forward, {

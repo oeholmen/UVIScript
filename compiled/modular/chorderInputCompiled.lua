@@ -1,4 +1,4 @@
--- modular/strategyInput -- 
+-- modular/chorderInput -- 
 --------------------------------------------------------------------------------
 -- Common methods
 --------------------------------------------------------------------------------
@@ -790,491 +790,154 @@ local notes = {
   end,
 }
 
---------------------------------------------------------------------------------
--- Common Resolutions
---------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------
+-- Generative Chorder - Listens for incoming note events (rythm) on note number 0
+-----------------------------------------------------------------------------------
 
-local function getDotted(value)
-  return value * 1.5
-end
+local backgroundColour = "404040" -- Light or Dark
+local panelBackgroundColour = "505050" -- Light or Dark
+local menuBackgroundColour = "01011F"
+local widgetBackgroundColour = menuBackgroundColour -- Dark
+local widgetTextColour = "9f02ACFE" -- Light
+local labelTextColour = "black"
+local menuArrowColour = "66" .. labelTextColour
 
-local function getTriplet(value)
-  return value / 3
-end
+widgets.setColours({
+  widgetBackgroundColour = widgetBackgroundColour,
+  widgetTextColour = widgetTextColour,
+  labelTextColour = labelTextColour,
+  menuBackgroundColour = menuBackgroundColour,
+  menuArrowColour = menuArrowColour,
+  backgroundColour = backgroundColour,
+  panelBackgroundColour = panelBackgroundColour,
+})
 
--- NOTE: Make sure resolutionValues and resolutionNames are in sync
-local resolutionValues = {
-  128, -- "32x" -- 1
-  64, -- "16x" -- 2
-  32, -- "8x" -- 3
-  28, -- "7x" -- 4
-  24, -- "6x" -- 5
-  20, -- "5x" -- 6
-  16, -- "4x" -- 7
-  12, -- "3x" -- 8
-  8, -- "2x" -- 9
-  6, -- "1/1 dot" -- 10
-  4, -- "1/1" -- 11
-  3, -- "1/2 dot" -- 12
-  getTriplet(8), -- "1/1 tri" -- 13
-  2, -- "1/2" -- 14
-  getDotted(1), -- "1/4 dot", -- 15
-  getTriplet(4), -- "1/2 tri", -- 16
-  1, -- "1/4", -- 17
-  getDotted(0.5), -- "1/8 dot", -- 18
-  getTriplet(2), -- "1/4 tri", -- 19
-  0.5,  -- "1/8", -- 20
-  getDotted(0.25), -- "1/16 dot", -- 21
-  getTriplet(1), -- "1/8 tri", -- 22
-  0.25, -- "1/16", -- 23
-  getDotted(0.125), -- "1/32 dot", -- 24
-  getTriplet(0.5), -- "1/16 tri", -- 25
-  0.125, -- "1/32" -- 26
-  getDotted(0.0625), -- "1/64 dot", -- 27
-  getTriplet(0.25), -- "1/32 tri", -- 28
-  0.0625, -- "1/64", -- 29
-  getDotted(0.03125), -- "1/128 dot" -- 30
-  getTriplet(0.125), -- "1/64 tri" -- 31
-  0.03125 -- "1/128" -- 32
+local paramsPerPart = {}
+
+-- *** NOTE *** The chord definitions use steps in the selected scale, not semitones.
+-- 2 means two steps up the scale: C-E for a C major scale. A-C for an A minor scale.
+local chordDefinitions = {
+  {2,2,3}, -- Builds triads
+  {2,2,2,1}, -- Builds 7th chords
+  {3,1,3}, -- Builds supended chords
+  {2,2,1,2}, -- Builds 6th chords
+  {2,2,2,2,-1}, -- Builds 7th and 9th chords depending on polyphony
+  {1,1,2,2,1}, -- Builds (close) 7th and 9th chords
+  {4,3}, -- Builds open chords (no3)
+  {1,2,1,2,1}, -- Builds supended chords including 7th and 9ths
 }
 
-local resolutionNames = {
-  "32x", -- 1
-  "16x", -- 2
-  "8x", -- 3
-  "7x", -- 4
-  "6x", -- 5
-  "5x", -- 6
-  "4x", -- 7
-  "3x", -- 8
-  "2x", -- 9
-  "1/1 dot", -- 10
-  "1/1", -- 11
-  "1/2 dot", -- 12
-  "1/1 tri", -- 13
-  "1/2", -- 14
-  "1/4 dot", -- 15
-  "1/2 tri", -- 16
-  "1/4", -- 17
-  "1/8 dot", -- 18
-  "1/4 tri", -- 19
-  "1/8", -- 20
-  "1/16 dot", -- 21
-  "1/8 tri", -- 22
-  "1/16", -- 23
-  "1/32 dot", -- 24
-  "1/16 tri", -- 25
-  "1/32", -- 26
-  "1/64 dot", -- 27
-  "1/32 tri", -- 28
-  "1/64", -- 29
-  "1/128 dot", -- 30
-  "1/64 tri", -- 31
-  "1/128" -- 32
-}
-
--- Quantize the given beat to the closest recognized resolution value
-local function quantizeToClosest(beat)
-  for i,v in ipairs(resolutionValues) do
-    local currentValue = v
-    local nextValue = resolutionValues[i+1]
-    if beat == currentValue or type(nextValue) == "nil" then
-      return currentValue
-    end
-    if beat < currentValue and beat > nextValue then
-      local diffCurrent = currentValue - beat
-      local diffNext = beat - nextValue
-      if diffCurrent < diffNext then
-        return currentValue
-      else
-        return nextValue
-      end
-    end
-  end
-  return resolutionValues[#resolutionValues]
-end
-
-local resolutions = {
-  quantizeToClosest = quantizeToClosest,
-
-  getDotted = getDotted,
-
-  getTriplet = getTriplet,
-
-  getEvenFromDotted = function(value)
-    return value / 1.5
-  end,
-  
-  getEvenFromTriplet = function(value)
-    return value * 3
-  end,
-  
-  getResolution = function(i)
-    return resolutionValues[i]
-  end,
-  
-  getResolutions = function()
-    return resolutionValues
-  end,
-  
-  getResolutionName = function(i)
-    return resolutionNames[i]
-  end,
-  
-  getResolutionNames = function(options, max)
-    if type(max) ~= "number" then
-      max = #resolutionNames
-    end
-  
-    local res = {}
-  
-    for i,r in ipairs(resolutionNames) do
-      table.insert(res, r)
-      if i == max then
-        break
-      end
-    end
-  
-    -- Add any options
-    if type(options) == "table" then
-      for _,o in ipairs(options) do
-        table.insert(res, o)
-      end
-    end
-  
-    return res
-  end,
-  
-  getResolutionsByType = function(maxResolutionIndex)
-    if type(maxResolutionIndex) == "nil" then
-      maxResolutionIndex = #resolutionValues
-    end
-    local startPosIndex = 11
-    local resOptions = {}
-    -- Create table of resolution indexes by type (1=even,2=dot,3=tri)
-    for i=startPosIndex,startPosIndex+2 do
-      local resolutionIndex = i
-      local resolutionsOfType = {}
-      while resolutionIndex <= maxResolutionIndex do
-        table.insert(resolutionsOfType, resolutionIndex) -- insert current index in resolution options table
-        --print("Insert resolutionIndex", resolutionIndex)
-        resolutionIndex = resolutionIndex + 3 -- increment index
-      end
-      --print("#resolutionsOfType, i", #resolutionsOfType, i)
-      table.insert(resOptions, resolutionsOfType)
-    end
-    -- Add the resolutions that are whole numbers (1,2,3,4...)
-    local slowResolutions = {}
-    for i,resolution in ipairs(resolutionValues) do
-      if resolution % 1 == 0 then
-        table.insert(slowResolutions, i)
-        --print("getResolutionsByType - included slow resolution", resolution)
-      end
-    end
-    --print("#slowResolutions", #slowResolutions)
-    table.insert(resOptions, slowResolutions) -- Add the "slow" x resolutions
-    --print("resOptions", #resOptions)
-    return resOptions
-  end,
-  
-  getPlayDuration = function(duration, gate)
-    if type(gate) == "nil" then
-      gate = 100
-    end
-    local maxResolution = resolutionValues[#resolutionValues]
-    return math.max(maxResolution, duration * (gate / 100)) -- Never shorter than the system max resolution
-  end  
-}
-
------------------------------------------------------------------------------------------------------------------
--- Strategy Input - A standard sequencer that listens to incoming events on note 0
------------------------------------------------------------------------------------------------------------------
-
+local noteDisplay = {} -- Holds the widgets that displays the notes being played
+local maxVoices = 16 -- Max number of oplyphonic voices
+local noteNumberToNoteName = notes.getNoteMapping()
 local channel = 0 -- 0 = Omni
 local forward = false
-local voices = 1 -- Holds the maximum amount of seen voices
-local strategyPropbability = 100
-local strategyInput = ""
-local strategyRestart = 1
-local voiceSlotStrategy = false
-local randomSlotStrategy = false
-local strategyPos = {} -- Holds the position in the selected strategy
-local notePosition = {} -- Holds the current note position
-local unusedStrategySlotDefaultText = "Unused"
-local strategySlots = {}
-local selectedNotes = {}
+local scale = {}
 local key = 1
-local noteMin = 48
-local noteMax = noteMin + 24
+local noteMin = 24
+local noteMax = noteMin + (5 * 12)
 local scaleDefinitions = scales.getScaleDefinitions()
 local scaleDefinition = scaleDefinitions[#scaleDefinitions]
-local rangeOverlapAmount = 50
-local numSlots = 8
-local isPlaying = false
-local resolutionNames = resolutions.getResolutionNames()
-local resolution = 11
 
--- Strategies are ways to play chords and scales
-local strategies = {
-  {}, -- Randomize next note position +/- 1 oct
-  {1}, -- Up
-  {-1}, -- Down
-  {2,-1}, -- Alternate up
-  {-2,1}, -- Alternate down
-  {-1,1,-2,-1,3}, -- Generated 1
-  {3,1,-1,2}, -- Generated 2
-  {-3,2}, -- Generated 3
-  {2,2,3}, -- Up v 2
-  {-3,-2,-2}, -- Down v 2
-  {3,-2,7},
-  {-5,4,4},
-  {7,7,-5},
-  {7,5,6},
-  {-7,2,7},
-  {7,0,-7},
-  {4,0,-4},
-  {0},
-  {4,-2},
-  {3,-2},
-}
+setBackgroundColour(backgroundColour)
 
 --------------------------------------------------------------------------------
--- Strategy Functions
+-- Scale and note functions
 --------------------------------------------------------------------------------
 
 -- Returns the notes filtered by scale and range
-local function setNotes()
-  local scale = scales.createScale(scaleDefinition, (key - 1), noteMax)
-  selectedNotes = {} -- Reset selectedNotes
-  for _,note in ipairs(scale) do
+local function setScale()
+  scale = {} -- Reset scale
+  for _,note in ipairs(scales.createScale(scaleDefinition, (key - 1), noteMax)) do
     if note >= noteMin and note <= noteMax then
-      table.insert(selectedNotes, note)
+      table.insert(scale, note)
     end
   end
-  --print("Found selectedNotes within selected scale/range", #selectedNotes)
 end
 
-local function createStrategy()
-  local maxLength = 16 -- TODO Param?
-  local strategy = {} -- Table to hold strategy
-  local ln = gem.getRandom(maxLength) -- Length
-  for i=1, ln do
-    local value = gem.getRandom(-7,7)
-    table.insert(strategy, value)
-    --print("Add value to strategy", value)
+-- Use the selected chord definition to find the index for the next note in the chord
+local function getNextScaleIndex(note, scale, chordDefinition, inversionIndex)
+  local index = gem.getIndexFromValue(note, scale)
+  --print("getNextScaleIndex #chordDefinition/inversionIndex", #chordDefinition, inversionIndex)
+  local increment = chordDefinition[inversionIndex]
+  if type(index) == "nil" then
+    index = 0
+    --print("!!!Note not found in scale!!!")
   end
-  return strategy
+  return index + increment
 end
 
-local function getStrategyInputText(strategy)
-  if type(strategy) == nil or #strategy == 0 then
+local function notesInclude(notesTable, note)
+  for _,v in pairs(notesTable) do
+    if v.note == note then
+      --print("Note already included", note)
+      return true
+    end
+  end
+  return false
+end
+
+local function hasNoteWithinMonoLimit(notesTable, partPos)
+  local monoLimit = paramsPerPart[partPos].monoLimit.value
+  for _,v in pairs(notesTable) do
+    if v.note <= monoLimit then
+      return true
+    end
+  end
+  return false
+end
+
+local function isRootNote(note, partPos)
+  -- Note index is 1 higher than note number
+  local noteIndex = note + 1
+  return noteNumberToNoteName[key] == noteNumberToNoteName[noteIndex]
+end
+
+local function createChordDefinition(part)
+  local maxSteps = 4 -- Max steps
+  local maxLength = paramsPerPart[part].polyphony.value -- Max length depends on polyphony
+  local definition = {} -- Table to hold definition
+  local ln = gem.getRandom(maxLength) -- Set a random length for the definition
+  for i=1, ln do
+    local steps = gem.getRandom(maxSteps)
+    table.insert(definition, steps)
+    --print("Add steps to definition", steps)
+  end
+  return definition
+end
+
+local function getChordInputText(definition)
+  if #definition == 0 then
     return "Randomize"
   end
-  return table.concat(strategy, ",")
+  return table.concat(definition, ",")
 end
 
-local function getStrategyFromSlot(voice)
-  if randomSlotStrategy then
-    local slots = {}
-    for _,v in ipairs(strategySlots) do
-      if v.enabled == true then
-        table.insert(slots, v)
-      end
-    end
-    if #slots > 0 then
-      local slot = gem.getRandomFromTable(slots)
-      --slot:setValue(true)
-      return slot.tooltip
-    end
-  end
-  if voiceSlotStrategy then
-    if voice > numSlots then
-      voice = voice - numSlots
-    end
-    local slot = strategySlots[voice]
-    if slot.enabled then
-      return slot.tooltip
-    end
-  end
-end
-
-local function getNotePosition(noteCount, voice)
-  local maxIndex = noteCount
-  local preferLowerHalf = type(notePosition[voice]) == "nil" or notePosition[voice] > maxIndex
-  -- Prefer lower/upper half when resetting, depending on above or below range
-  if noteCount > 7 then
-    noteCount = math.ceil(noteCount / 2)
-  end
-  --print("maxIndex, noteCount, preferLowerHalf", maxIndex, noteCount, preferLowerHalf)
-  if maxIndex > noteCount then
-    if preferLowerHalf then
-      -- Lower half
-      --print("Resetting in lower half", 1, noteCount)
-      return gem.getRandom(1, noteCount)
-    else
-      -- Upper half
-      --print("Resetting in upper half", noteCount, maxIndex)
-      return gem.getRandom(noteCount, maxIndex)
-    end
-  elseif maxIndex > 1 then
-    --print("Resetting within full range", maxIndex)
-    return gem.getRandom(maxIndex)
-  end
-  return 1
-end
-
-local function getNoteFromStrategy(filteredNotes, voice)
-  local strategy = {}
-  local strategyText = getStrategyFromSlot(voice)
-  -- Get strategy from input field if not found in a slot
-  if type(strategyText) ~= "string" or string.len(strategyText) == 0 then
-    strategyText = strategyInput
-  end
-  if string.len(strategyText) > 0 then
-    for w in string.gmatch(strategyText, "-?%d+") do
-      table.insert(strategy, tonumber(w))
-    end
-    --print("Get strategy from input or slot, voice", #strategy, voice)
-  end
-  -- Get random strategy from default strategies
-  if #strategy == 0 then
-    strategy = gem.getRandomFromTable(strategies)
-    --print("No strategy found - use random strategy from default strategies")
-  end
-  -- Reset strategy position if required
-  if type(strategyPos[voice]) == "nil" or strategyPos[voice] > #strategy then
-    strategyPos[voice] = 1
-    --print("Reset strategy position for voice", voice)
-    if strategyRestart == 3 or strategyRestart == 4 then
-      notePosition[voice] = nil -- Reset counter for note position
-      --print("Reset note position for voice due to strategyRestart == 2", voice)
-    end
-  end
-  if type(notePosition[voice]) == "nil" or #strategy == 0 then
-    -- Start at a random notePosition
-    notePosition[voice] = getNotePosition(#filteredNotes, voice)
-    --print("Set random notePosition, voice", notePosition[voice], voice)
-    if strategyRestart == 2 then
-      strategyPos[voice] = 1
-    end
-  else
-    -- Get next notePosition from strategy
-    --print("Increment notePosition, voice", notePosition[voice], voice)
-    notePosition[voice] = gem.inc(notePosition[voice], strategy[strategyPos[voice]])
-    --print("After increment notePosition, voice", notePosition[voice], voice)
-    if notePosition[voice] > #filteredNotes or notePosition[voice] < 1 then
-      notePosition[voice] = getNotePosition(#filteredNotes, voice)
-      --print("Out of range - set random note position for voice", notePosition[voice], voice)
-      if strategyRestart == 2 then
-        strategyPos[voice] = 1
-        --print("Reset strategy position for voice due to strategyRestart == 2", voice)
-      end
-    else
-      -- Increment strategy pos
-      if #strategy > 1 then
-        strategyPos[voice] = gem.inc(strategyPos[voice])
-        --print("Increment strategy position for voice", strategyPos[voice], voice)
-      end
-    end
-  end
-  return filteredNotes[notePosition[voice]]
-end
-
--- Returns the selected notes filtered by overlap range and playing notes
-local function getFilteredNotes(voice)
-  local noteRangeMin = 1
-  local noteRangeMax = #selectedNotes
-  local notesPerVoice = 5
-  local notesRequiredForRange = voices * notesPerVoice
-
-  --print("BEFORE selectedNotes, voices, voice", #selectedNotes, voices, voice)
-
-  -- Adjust note range min/max for voice overlap, if we have enough available notes
-  if #selectedNotes >= notesRequiredForRange then
-    local range = #selectedNotes / voices
-    --print("range, voices, voice", range, voices, voice)
-    local overlapValue = math.ceil(range * (rangeOverlapAmount / 100))
-    --print("overlapValue, voice", overlapValue, voice)
-    noteRangeMax = math.min(noteRangeMax, ((range * voice) + overlapValue))
-    noteRangeMin = math.max(1, (noteRangeMax - range - overlapValue))
-    --print("noteRangeMin, noteRangeMax, voice", noteRangeMin, noteRangeMax, voice)
-  end
-
-  -- Find the notes, filter for min/max
-  local filteredNotes = {}
-  for i,v in ipairs(selectedNotes) do
-    if i >= math.floor(noteRangeMin) and i <= math.ceil(noteRangeMax) then
-      table.insert(filteredNotes, v)
-    end
-  end
-
-  --print("AFTER notes, voice", #filteredNotes, voice)
-  return filteredNotes
-end
-
-local function getNote(voice)
-  if type(voice) == "nil" then
-    voice = 1
-  end
-
-  -- Set the voices count
-  --if voice > 1 then
-    voices = math.max(voice, voices)
-  --end
-
-  local filteredNotes = getFilteredNotes(voice)
-
-  if #filteredNotes == 0 then
-    return nil
-  end
-
-  if #filteredNotes == 1 then
-    return filteredNotes[1]
-  end
-
-  if gem.getRandomBoolean(strategyPropbability) then
-    return getNoteFromStrategy(filteredNotes, voice)
-  end
-
-  return gem.getRandomFromTable(filteredNotes)
-end
-
------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- Sequencer Panel
------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
-widgets.setSection({
-  width = 720,
-})
+local tableWidth = 720
 
 local sequencerPanel = widgets.panel({
+  width = tableWidth,
   height = 30,
+  x = 0,
+  y = 0,
 })
 
-local sequencerLabel = widgets.label("Strategy Input", {
-  tooltip = "This sequencer listens to incoming pulses from a rythmic sequencer (Sent as note 0) and generates notes in response",
+local chorderLabel = widgets.label("Chorder Input", {
+  width = tableWidth,
   height = 30,
-  editable = true,
   alpha = 0.5,
-  fontSize = 22,
+  fontSize = 22
 })
 
 widgets.setSection({
-  width = 100,
-  xOffset = 300,
-  yOffset = 5,
+  x = 470,
+  y = 5,
   xSpacing = 5,
   ySpacing = 5,
-  labelBackgroundColour = "transparent",
-})
-
-local voicesLabel = widgets.label("Playing", {
-  visible = false,
-  textColour = "505050"
-})
-
-widgets.setSection({
-  x = 510,
 })
 
 widgets.button("Forward", forward, {
@@ -1283,275 +946,623 @@ widgets.button("Forward", forward, {
 })
 
 widgets.menu("Channel", widgets.channels(), {
-  tooltip = "Listen to triggers (note=0 events) on this channel. In omni mode, each channel is sent to a separate voice.",
+  tooltip = "Listen to note events on this channel - if a note event is not being listened to, it will be pass through",
   showLabel = false,
   changed = function(self) channel = self.value - 1 end
 })
 
---------------------------------------------------------------------------------
--- Strategy Panel
---------------------------------------------------------------------------------
+-- Add params that are to be editable per part
+for i=1,1 do
+  local numSlots = 8
+  local chords = {}
+  local spreads = {}
+  local inversions = {}
+  local chordDefinitionSlots = {}
 
-widgets.setSection({
-  width = 720,
-  x = 0,
-  y = widgets.posUnder(sequencerPanel),
-})
-
-widgets.panel({
-  height = 84,
-  backgroundColour = "404040"
-})
-
--- Strategy input field
-local strategyInputField = widgets.label(getStrategyInputText(gem.getRandomFromTable(strategies)), {
-  tooltip = "Strategies are ways to play notes in a scale. Numbers represent steps up or down the scale that is currently selected. Feel free to type your own strategies here.",
-  editable = true,
-  backgroundColour = "black",
-  backgroundColourWhenEditing = "white",
-  textColourWhenEditing = "black",
-  textColour = "white",
-  width = 276,
-  height = 20,
-  x = 5,
-  y = 5,
-  changed = function(self) strategyInput = self.text end
-})
-strategyInputField:changed()
-
--- Slots
-widgets.setSection({
-  width = 30,
-  height = 20,
-  x = strategyInputField.x,
-  y = widgets.posUnder(strategyInputField),
-  cols = 8,
-})
-
-local actions = {"Actions..."}
-for j=1,numSlots do
-  local strategySlot = widgets.button("" .. j, false, {
-    tooltip = unusedStrategySlotDefaultText,
-    enabled = false,
+  --------------------------------------------------------------------------------
+  -- Chord Definition Panel
+  --------------------------------------------------------------------------------
+  
+  local chordDefinitionPanel = widgets.panel({
+    width = 356,
+    height = 108,
+    y = widgets.posUnder(sequencerPanel),
+    x = 5,
   })
-  strategySlot.changed = function(self)
-    strategyInputField.text = strategySlot.tooltip
-    self.value = false
-  end
-  table.insert(strategySlots, strategySlot)
-  table.insert(actions, "Save to " .. j)
-end
 
-table.insert(actions, "--- Load ---")
-for _,v in ipairs(strategies) do
-  table.insert(actions, getStrategyInputText(v))
-end
+  widgets.section({
+    width = 90,
+    x = 5,
+    y = 5,
+    xSpacing = 5,
+    ySpacing = 5,
+    cols = 6,
+  })
 
-widgets.setSection({
-  width = 116,
-  height = 20,
-  x = strategyInputField.x,
-  y = widgets.posUnder(strategyInputField) + 24,
-  cols = 6,
-})
+  local chordDefinitionLabel = widgets.label("Chord Definition", {
+    backgroundColour = "transparent",
+    textColour = "white",
+    width = 155
+  })
 
-local voiceSlotStrategyInput = widgets.menu("Play Mode", {"Active Input", "Random Slot", "Voice->Slot"}, {
-  tooltip = "Select the strategy to use for note selection. The default is using the strategy displayed in the input.",
-  showLabel = false,
-  changed = function(self)
-    randomSlotStrategy = self.value == 2
-    voiceSlotStrategy = self.value == 3
-    notePosition = {}
-  end
-})
+  local createChordDefinitionButton = widgets.button("Create", {
+    tooltip = "Create a random chord definition.",
+    backgroundColourOff = "#606060",
+    backgroundColourOn = "#303030",
+    textColourOff = "white",
+    textColourOn = "silver",
+  })
 
-local strategyActions = widgets.menu("Actions", actions, {
-  tooltip = "Available actions for strategies",
-  width = 90,
-  showLabel = false,
-})
+  local chordSelectionMenu = widgets.menu("Chord Selection", {"Active Input", "Auto", "Random", "Slots"}, {
+    tooltip = "Auto: Default chord definitions are alternated, Random: Chord definitions are created by random, Slots: Chord definitions are selected from the slots",
+  })
 
-widgets.button("Create", {
-  tooltip = "Replace the current strategy with a randomly created strategy.",
-  width = 60,
-  changed = function()
-    local strategy = createStrategy()
-    strategyInputField.text = table.concat(strategy, ",")
-  end
-})
+  widgets.section({
+    width = 90,
+    x = 5,
+    y = widgets.posUnder(chordDefinitionLabel),
+    xSpacing = 5,
+    ySpacing = 5,
+    cols = 9,
+  })
 
--- Options
-widgets.setSection({
-  width = 120,
-  height = 20,
-  x = widgets.posSide(strategyInputField) + 2,
-  y = strategyInputField.y,
-})
+  local chordDefinitionInput = widgets.label(getChordInputText(chordDefinitions[1]), {
+    tooltip = "The current chord definition. Numbers represent steps up or down the scale that is currently selected. Feel free to type your own chord definitions here, or select from the menu.",
+    editable = true,
+    width = 251,
+    height = 45,
+    fontSize = 22,
+    backgroundColour = "black",
+    textColour = "white",
+    backgroundColourWhenEditing = "white",
+    textColourWhenEditing = "black",
+  })
 
-widgets.menu("Strategy", strategyRestart, {"Restart each round", "Out of range", "When finished", "Finished+round"}, {
-  tooltip = "Controls when the strategy is restarted",
-  changed = function(self) strategyRestart = self.value end
-})
-
-widgets.menu("Key", key, notes.getNoteNames(), {
-  width = 50,
-  changed = function(self)
-    key = self.value
-    setNotes()
-  end
-})
-
-local scaleMenu = scales.widget(120, true)
-
-widgets.label("Scale Definition", {
-  textColour = "#d0d0d0"
-})
-
-widgets.row()
-
-local scaleInput = scales.inputWidget(scaleDefinition, 120)
-scaleInput.x = widgets.posSide(scaleMenu)
-
-widgets.row()
-
-widgets.numBox("Probability", strategyPropbability, {
-  tooltip = "Probability that the active playing strategy will be used to select the next note. Otherwise notes are selected by random.",
-  unit = Unit.Percent,
-  changed = function(self) strategyPropbability = self.value end
-})
-
-local noteMinInput = widgets.numBox("Note Range", noteMin, {
-  width = 105,
-  max = noteMax,
-  tooltip = "Lowest note",
-  unit = Unit.MidiKey,
-})
-
-local noteMaxInput = widgets.numBox("Max", noteMax, {
-  min = noteMin,
-  width = 30,
-  showLabel = false,
-  tooltip = "Highest note",
-  unit = Unit.MidiKey,
-})
-
-widgets.numBox("Overlap", rangeOverlapAmount, {
-  tooltip = "Set the overlap range for the voices. 100 = all voices use the full range, 0 = separate ranges. Requires at least 5 notes per voice.",
-  width = 90,
-  --showLabel = false,
-  unit = Unit.Percent,
-  changed = function(self) rangeOverlapAmount = self.value end
-})
-
---widgets.row()
-
-widgets.menu("Resolution", resolution, resolutionNames, {
-  tooltip = "Set the round duration that is used for strategy restart.",
-  width = 60,
-  showLabel = false,
-  changed = function(self)
-    resolution = self.value
-  end
-})
-
---------------------------------------------------------------------------------
--- Changed functions for widgets
---------------------------------------------------------------------------------
-
-scaleMenu.changed = function(self)
-  scaleInput.text = scales.getTextFromScaleDefinition(scaleDefinitions[self.value])
-end
-
-scaleInput.changed = function(self)
-  scaleDefinition = scales.getScaleDefinitionFromText(self.text)
-  print("#scaleDefinition", #scaleDefinition)
-  setNotes()
-end
-
-noteMinInput.changed = function(self)
-  noteMaxInput:setRange(self.value, 127)
-  noteMin = self.value
-  setNotes()
-end
-
-noteMaxInput.changed = function(self)
-  noteMinInput:setRange(0, self.value)
-  noteMax = self.value
-  setNotes()
-end
-
-strategyActions.changed = function(self)
-  -- 1 is the menu label...
-  if self.value == 1 then
-    return
+  createChordDefinitionButton.changed = function()
+    chordDefinitionInput.text = getChordInputText(createChordDefinition(i))
   end
 
-  local actionIndex = self.value - 1
+  widgets.row()
+  widgets.col(1, chordDefinitionInput.width)
 
-  -- Save strategy
-  if actionIndex <= #strategySlots then
-    if string.len(strategyInputField.text) > 0 then
-      strategySlots[actionIndex].tooltip = strategyInputField.text
-      strategySlots[actionIndex].enabled = true
-    else
-      strategySlots[actionIndex].tooltip = unusedStrategySlotDefaultText
-      strategySlots[actionIndex].enabled = false
+  local loadActions = {"Load..."}
+  for _,v in ipairs(chordDefinitions) do
+    table.insert(loadActions, getChordInputText(v))
+  end
+
+  local loadChordDefinition = widgets.menu("Load Menu", loadActions, {
+    tooltip = "Load a chord definition",
+    showLabel = false,
+    changed = function(self)
+      -- 1 is the menu label...
+      if self.value == 1 then
+        return
+      end
+    
+      local actionIndex = self.value - 1
+      chordDefinitionInput.text = self.selectedText
+    
+      -- Must be last
+      self.selected = 1
+    end    
+  })
+
+  widgets.row()
+
+  for j=1,numSlots do
+    local definitionSlot = widgets.button("" .. j, false, {
+      enabled = false,
+      tooltip = "Unused",
+      height = 20,
+      width = 27,
+      changed = function(self)
+        chordDefinitionInput.text = self.tooltip
+        self.value = false
+      end
+    })
+    table.insert(chordDefinitionSlots, definitionSlot)
+  end
+
+  local saveActions = {"Save to..."}
+  for j=1,numSlots do
+    table.insert(saveActions, "Slot " .. j)
+  end
+  local saveChordDefinition = widgets.menu("Save", saveActions, {
+    tooltip = "Save the current chord definition to the selected slot",
+    showLabel = false,
+    changed = function(self)
+      -- 1 is the menu label...
+      if self.value == 1 then
+        return
+      end
+    
+      local actionIndex = self.value - 1
+    
+      -- Save chord definition
+      if string.len(chordDefinitionInput.text) > 0 then
+        chordDefinitionSlots[actionIndex].tooltip = chordDefinitionInput.text
+        chordDefinitionSlots[actionIndex].enabled = true
+      else
+        chordDefinitionSlots[actionIndex].tooltip = "Unused"
+        chordDefinitionSlots[actionIndex].enabled = false
+      end
+      --print("Chord definition saved to slot", chordDefinitionInput.text, actionIndex)
+    
+      -- Must be last
+      self.selected = 1
+    end  
+  })
+
+  --------------------------------------------------------------------------------
+  -- Polyphony and note limits
+  --------------------------------------------------------------------------------
+  
+  local polyhonyPanel = widgets.panel({
+    x = widgets.posSide(chordDefinitionPanel),
+    y = chordDefinitionPanel.y,
+    width = 348,
+    height = 60,
+  })
+  
+  widgets.section({
+    width = 109,
+    x = 5,
+    y = 8,
+    cols = 3,
+  })
+
+  local generatePolyphonyPart = widgets.numBox("Polyphony", 4, {
+    tooltip = "How many notes are played at once",
+    min = 1,
+    max = maxVoices,
+    integer = true,
+  })
+  generatePolyphonyPart.changed = function(self)
+    for i,v in ipairs(noteDisplay) do
+      v.enabled = maxVoices - self.value <= maxVoices - i
     end
-    --print("Strategy saved to slot", strategyInputField.text, actionIndex)
-  elseif actionIndex > #strategySlots + 1 then
-    strategyInputField.text = self.selectedText
   end
 
-  -- Must be last
-  self:setValue(1, false)
+  local baseNoteRandomization = widgets.numBox("Base Chord", 25, {
+    tooltip = "Probability that the root chord will be selected",
+    unit = Unit.Percent,
+  })
+
+  local harmonizationPropbability = widgets.numBox("Harmonize", 100, {
+    tooltip = "When harmonizing, we get notes from the currently playing chord. Otherwise notes are selected from the current scale.",
+    unit = Unit.Percent,
+  })
+
+  local noteMinInput = widgets.numBox("Note Min", noteMin, {
+    max = noteMax,
+    tooltip = "Lowest note",
+    unit = Unit.MidiKey,
+  })
+
+  local monoLimit = widgets.numBox("Mono Limit", noteMin + 24, {
+    tooltip = "Below this note there will only be played one note (polyphony=1)",
+    unit = Unit.MidiKey,
+  })
+
+  local noteMaxInput = widgets.numBox("Note Max", noteMax, {
+    min = noteMin,
+    tooltip = "Highest note",
+    unit = Unit.MidiKey,
+  })
+
+  noteMinInput.changed = function(self)
+    noteMaxInput:setRange(self.value, 127)
+    noteMin = self.value
+    setScale()
+  end
+
+  noteMaxInput.changed = function(self)
+    noteMinInput:setRange(0, self.value)
+    noteMax = self.value
+    setScale()
+  end  
+
+  -- Key and scale
+  local scalePanel = widgets.panel({
+    x = chordDefinitionPanel.x,
+    y = widgets.posUnder(chordDefinitionPanel),
+    width = chordDefinitionPanel.width,
+    height = 60,
+  })
+
+  widgets.section({
+    width = 120,
+    x = 5,
+    y = 5,
+    cols = 4,
+  })
+
+  local keyMenu = widgets.menu("Key", key, notes.getNoteNames(), {
+    width = 60,
+    changed = function(self)
+      key = self.value
+      setScale()
+    end
+  })
+
+  local scaleMenu = scales.widget(widgets.getSectionValue('width'), true)
+
+  widgets.label("Scale Definition", {
+    textColour = "#d0d0d0",
+    backgroundColour = "transparent",
+  })
+
+  widgets.row()
+  widgets.col()
+  widgets.col(1, keyMenu.width)
+
+  local scaleInput = scales.inputWidget(scaleDefinition, 153)
+
+  scaleMenu.changed = function(self)
+    scaleInput.text = scales.getTextFromScaleDefinition(scaleDefinitions[self.value])
+  end
+
+  scaleInput.changed = function(self)
+    scaleDefinition = scales.getScaleDefinitionFromText(self.text)
+    setScale()
+  end
+
+  -- Note Spread
+  local noteSpreadPanel = widgets.panel({
+    x = widgets.posSide(scalePanel),
+    y = widgets.posUnder(polyhonyPanel),
+    width = 171,
+    height = 108,
+  })
+
+  widgets.section({
+    width = 159,
+    x = 5,
+    y = 5,
+    cols = 1,
+  })
+
+  widgets.label("Note Spread (Voicing)", {
+    textColour = "white",
+    backgroundColour = "transparent",
+  })
+
+  table.insert(spreads, widgets.numBox("Close", 100, {
+    tooltip = "Set the probability that close chords will be included",
+    unit = Unit.Percent,
+  }))
+
+  table.insert(spreads, widgets.numBox("Medium", 100, {
+    tooltip = "Set the probability that medium chords will be included",
+    unit = Unit.Percent,
+  }))
+
+  table.insert(spreads, widgets.numBox("Wide", 100, {
+    tooltip = "Set the probability that wide chords will be included",
+    unit = Unit.Percent,
+  }))
+
+  -- Inversions
+  local inversionPanel = widgets.panel({
+    x = widgets.posSide(noteSpreadPanel),
+    y = noteSpreadPanel.y,
+    width = noteSpreadPanel.width,
+    height = noteSpreadPanel.height,
+  })
+
+  widgets.section({
+    width = 159,
+    cols = 1,
+  })
+
+  widgets.label("Chord Inversions", {
+    textColour = "white",
+    backgroundColour = "transparent",
+  })
+
+  for inversion=1,3 do
+    local p = 100
+    if inversion == 3 then
+      p = 0
+    end
+    table.insert(inversions, widgets.numBox("Inv " .. inversion, p, {
+      name = "Inversion" .. inversion,
+      tooltip = "Probability that inversion " .. inversion .. " will be included",
+      unit = Unit.Percent,
+    }))
+  end
+
+  table.insert(paramsPerPart, {scaleInput=scaleInput,scaleMenu=scaleMenu,keyMenu=keyMenu,chordDefinitionSlots=chordDefinitionSlots,chordDefinitionInput=chordDefinitionInput,chordSelectionMenu=chordSelectionMenu,inversions=inversions,spreads=spreads,chords=chords,baseNoteRandomization=baseNoteRandomization,polyphony=generatePolyphonyPart,harmonizationPropbability=harmonizationPropbability,monoLimit=monoLimit})
 end
 
+local voiceLabelWidth = 693 / maxVoices
+
+local voicesPanel = widgets.panel({
+  width = 710,
+  height = 45,
+  x = 5,
+  y = 212,
+  backgroundColour = "transparent"
+})
+
+widgets.section({
+  width = voiceLabelWidth,
+  cols = 16,
+  x = 1,
+  y = 2,
+  xSpacing = 1,
+  ySpacing = 1,
+})
+
+for j=1,maxVoices do
+  local voiceLabel = widgets.label("Voice " .. j, {
+    persistent = false,
+  })
+end
+
+for j=1,maxVoices do
+  table.insert(noteDisplay, widgets.label("-", {
+    tooltip = "Displays the note played by voice " .. j,
+    enabled = false,
+    persistent = false,
+    backgroundColour = "black",
+    textColour = "white",
+  }))
+end
+
+paramsPerPart[1].polyphony:changed()
+
 --------------------------------------------------------------------------------
--- Handle Events
+-- Sequencer
 --------------------------------------------------------------------------------
 
-local function sequenceRunner()
-  print("Starting sequenceRunner")
-  local round = 1
-  while isPlaying do
-    if strategyRestart == 1 or strategyRestart == 4 then
-      notePosition = {} -- Reset counter for note position
-      if strategyRestart == 4 then
-        strategyPos = {} -- Reset strategy position
+local function getNotes()
+  local currentPartPosition = 1 -- Holds the currently playing part
+  local heldNoteIndex = 0
+  local inversionIndex = 0
+  local notesToPlay = {} -- Ensure notes are reset when seqencer starts
+
+  -- Number of simultainious notes are set by polyphony
+  local polyphony = paramsPerPart[currentPartPosition].polyphony.value
+  local minNote = scale[1]
+  local maxNote = scale[#scale]
+
+  inversionIndex = 0 -- Reset counter for inversion progress
+  -- Chord Selection: {"Active Input", "Auto", "Random", "Slots"}
+  local chordSelection = paramsPerPart[currentPartPosition].chordSelectionMenu.selectedText
+  if chordSelection == "Auto" then
+    local index = gem.getRandom(#chordDefinitions)
+    paramsPerPart[currentPartPosition].chordDefinitionInput.text = getChordInputText(chordDefinitions[index])
+  elseif chordSelection == "Random" then
+    paramsPerPart[currentPartPosition].chordDefinitionInput.text = getChordInputText(createChordDefinition(currentPartPosition))
+  elseif chordSelection == "Slots" then
+    local chordDefinitionSlots = {}
+    for _,v in ipairs(paramsPerPart[currentPartPosition].chordDefinitionSlots) do
+      if v.enabled == true then
+        table.insert(chordDefinitionSlots, v)
       end
     end
-    print("Round", round)
-    waitBeat(resolutions.getResolution(resolution))
-    round = gem.inc(round)
+    if #chordDefinitionSlots > 0 then
+      chordDefinitionSlots[math.ceil(gem.getRandom(#chordDefinitionSlots))]:setValue(true)
+    end
   end
+
+  -- Find inversions to include
+  local inversions = paramsPerPart[currentPartPosition].inversions
+  local activeInversions = {0} -- Always add root
+  for i,v in ipairs(inversions) do
+    if gem.getRandomBoolean(v.value) == true then
+      table.insert(activeInversions, i)
+    end
+  end
+
+  if #activeInversions > 0 then
+    -- Get a chord def index from the active definitions
+    inversionIndex = gem.getRandomFromTable(activeInversions)
+    --print("Chord inversion selected by random/#activeInversions", inversionIndex, #activeInversions)
+  end
+
+  -- Find spreads to include
+  local selectedSpread = 2 -- Reset to default
+  local spreads = paramsPerPart[currentPartPosition].spreads
+  local activeSpreads = {}
+  for i,v in ipairs(spreads) do
+    if gem.getRandomBoolean(v.value) == true then
+      table.insert(activeSpreads, i)
+    end
+  end
+
+  if #activeSpreads > 0 then
+    -- Get a chord def index from the active definitions
+    if #activeSpreads > 1 then
+      selectedSpread = activeSpreads[gem.getRandom(#activeSpreads)]
+    else
+      selectedSpread = activeSpreads[1]
+    end
+    --print("Chord spread selected by random: selectedSpread/#activeSpreads", selectedSpread, #activeSpreads)
+  end
+
+  --------------------------------------------------------------------------------
+  -- Note functions
+  --------------------------------------------------------------------------------
+
+  -- Main function for getting note to play
+  local function getNoteToPlay(voice, chordDefinition)
+    -- Note generator function
+    local function generateNote()
+      local note = nil
+      local baseNoteRandomization = paramsPerPart[currentPartPosition].baseNoteRandomization.value
+      local monoLimit = paramsPerPart[currentPartPosition].monoLimit.value
+      local baseMin = minNote
+      local baseMax = maxNote
+
+      if #scale == 0 then
+        return note
+      end
+
+      if #scale == 1 then
+        return scale[1]
+      end
+
+      if hasNoteWithinMonoLimit(notesToPlay, currentPartPosition) == true then
+        -- Ensure we only have one note below the mono limit
+        baseMin = monoLimit
+        --print("Adjust baseMin to mono limit", baseMin)
+      elseif monoLimit > baseMin then
+        -- Ensure we have a note within the mono limit
+        baseMax = monoLimit
+        --print("Adjust baseMax to mono limit", baseMax)
+      end
+
+      local function getBaseNote()
+        local baseNote = minNote -- Start from the lowest note
+        if gem.getRandomBoolean(baseNoteRandomization) then
+          while isRootNote(baseNote, currentPartPosition) == false and baseNote <= baseMax do
+            baseNote = baseNote + 1 -- increment note until we hit the base note
+          end
+          --print("Get root note: note/baseMin/baseMax", baseNote, baseMin, baseMax)
+        else
+          local noteRange = baseMax - baseMin
+          if monoLimit <= baseMin then
+            -- If there is no mono limit, we ajust the note range by polyphony to get a base note range
+            noteRange = math.max(12, math.ceil(noteRange / polyphony))
+            --print("Calculate range for base note baseMin/baseMax/noteRange", baseMin, baseMax, noteRange)
+          end
+          baseNote = baseNote + gem.getRandom(noteRange) - 1
+        end
+
+        return notes.getNoteAccordingToScale(scale, baseNote)
+      end
+
+      -- The note on the first voice is the base note
+      if voice == 1 then
+        note = getBaseNote()
+      end
+
+      local harmonizationPropbability = paramsPerPart[currentPartPosition].harmonizationPropbability.value
+      if type(note) == "nil" and gem.getRandomBoolean(harmonizationPropbability) == true then
+        local startingNotes = {}
+        for _,v in ipairs(notesToPlay) do
+          table.insert(startingNotes, v.note)
+          --print("Insert into startingNotes", v.note)
+        end
+        if #startingNotes > 0 then
+          -- If we have notes added, use them as the basis for the next note
+          --print("startingNotes", #startingNotes)
+          local prevNote = startingNotes[#startingNotes]
+          --print("Found prevNote", prevNote)
+          -- Increment inversion index
+          inversionIndex = inversionIndex + 1
+          if inversionIndex > #chordDefinition then
+            inversionIndex = 1
+          end
+          local scaleIndex = getNextScaleIndex(prevNote, scale, chordDefinition, inversionIndex)
+          note = scale[scaleIndex]
+          if type(note) == "number" then
+            note = notes.transpose(note, baseMin, baseMax)
+            local noteRange = baseMax - prevNote
+            local octaveFactor = 12-- / (selectedSpread / 2)
+            local octaveRange = math.floor(noteRange / octaveFactor)
+            local notesLeft = polyphony - #notesToPlay
+            local octave = 0
+            local octaveProbability = 50
+            local negOctProbability = 50
+            if selectedSpread == 1 then
+              octaveProbability = 15
+              negOctProbability = 75
+            elseif selectedSpread == 3 then
+              octaveProbability = 75
+              negOctProbability = 15
+            end
+            if gem.getRandomBoolean(octaveProbability) then
+              octave = math.floor(octaveRange / notesLeft)
+            end
+            --print("Check octave/note/baseMax/negOctProbability", octave, note, baseMax, negOctProbability)
+            if octave > 0 and octave < 3 and note > baseMax / 2 and gem.getRandomBoolean(negOctProbability) then
+              octave = -octave
+              --print("Negative octave", octave)
+            end
+            local octaveOffset = octave * 12
+            --print("Calculate octave adjustment - noteRange/octaveRange/notesLeft/octave", noteRange, octaveRange, notesLeft, octave)
+            if octaveOffset > 0 and note + octaveOffset <= baseMax then
+              note = note + octaveOffset
+              --print("Octave adjusted octave/octaveOffset/note", octave, octaveOffset, note)
+            end
+            --print("Found note from prev note - note, prevNote", note, prevNote)
+          end
+        end
+      end
+
+      -- Get random note from scale
+      if type(note) == "nil" then
+        note = notes.getNoteAccordingToScale(scale, gem.getRandom(baseMin, baseMax))
+      end
+
+      return note
+    end
+
+    -- Get notes for each node in the tree
+    local note = generateNote()
+    local noteToPlay = {
+      note = note,
+      voice = voice,
+    }
+
+    return noteToPlay
+  end
+
+  -- Get chord definition from input
+  local chordDefinition = {}
+  local input = paramsPerPart[currentPartPosition].chordDefinitionInput
+  if string.len(input.text) > 0 then
+    for w in string.gmatch(input.text, "-?%d+") do
+      table.insert(chordDefinition, w)
+      --print("Add to chordDefinition", w)
+    end
+    --print("Get chordDefinition from input", #chordDefinition)
+  end
+
+  -- Create a random chord definition if empty
+  if #chordDefinition == 0 then
+    chordDefinition = createChordDefinition(currentPartPosition)
+  end
+  
+  -- Add notes to play
+  local voice = 1
+  local roundCounter = 0
+  local maxRounds = polyphony * 2
+  local monoLimit = paramsPerPart[currentPartPosition].monoLimit.value
+  while voice <= polyphony and roundCounter < maxRounds do
+    local noteToPlay = getNoteToPlay(voice, chordDefinition)
+    if type(noteToPlay.note) == "number" and notesInclude(notesToPlay, noteToPlay.note) == false then
+      table.insert(notesToPlay, noteToPlay)
+      --print("Insert note", noteToPlay.note)
+      noteDisplay[voice].text = noteNumberToNoteName[noteToPlay.note + 1] .. " (" .. noteToPlay.note .. ")"
+      voice = voice + 1
+    end
+    roundCounter = gem.inc(roundCounter)
+    --print("Searching for notes roundCounter", roundCounter)
+  end
+  print("Notes ready to play ", #notesToPlay)
+
+  return notesToPlay
 end
 
-local function startPlaying()
-  if isPlaying then
-    return
-  end
-  isPlaying = true
-  run(sequenceRunner)
-end
+--------------------------------------------------------------------------------
+-- Handle note events
+--------------------------------------------------------------------------------
 
-local function stopPlaying()
-  print("Stop playing")
-  if type(voiceId) == "userdata" then
-    releaseVoice(voiceId)
+local function handleTrigger(e)
+  local notesForPlaying = getNotes()
+  if #notesForPlaying > 0 then
+    for _,v in ipairs(notesForPlaying) do
+      modular.handleTrigger(e, v.note)
+    end
   end
-  isPlaying = false
-  voiceId = nil
-  currentEvent = nil
-end
-
-local function flashVoicesLabel()
-  voicesLabel.textColour = "303030"
-  waitBeat(.125)
-  voicesLabel.textColour = "505050"
 end
 
 function onInit()
-  setNotes()
+  setScale()
 end
 
 function onNote(e)
@@ -1559,12 +1570,7 @@ function onNote(e)
     if forward then
       postEvent(e)
     end
-    if modular.handleTrigger(e, getNote(e.channel)) then
-      voicesLabel.text = "Playing " .. voiceSlotStrategyInput.text
-      spawn(flashVoicesLabel)
-      voicesLabel.visible = true
-      startPlaying()
-    end
+    handleTrigger(e)
   else
     postEvent(e)
   end
@@ -1582,13 +1588,8 @@ function onRelease(e)
 end
 
 function onTransport(start)
-  if start then
-    startPlaying()
-  else
-    voices = 1 -- Reset voices when stopping
-    voicesLabel.visible = false
+  if start == false then
     modular.releaseVoices()
-    stopPlaying()
   end
 end
 
@@ -1597,24 +1598,35 @@ end
 --------------------------------------------------------------------------------
 
 function onSave()
-  local strategySlotsData = {}
-  for _,v in ipairs(strategySlots) do
-    table.insert(strategySlotsData, v.tooltip)
+  local chordDefinitionInputData = {}
+  local chordDefinitionSlotsData = {}
+  local scaleInputData = {}
+  local i = 1
+
+  for _,v in ipairs(paramsPerPart) do
+    table.insert(chordDefinitionInputData, v.chordDefinitionInput.text)
+    table.insert(scaleInputData, v.scaleInput.text)
+    for _,s in ipairs(v.chordDefinitionSlots) do
+      table.insert(chordDefinitionSlotsData, s.tooltip)
+    end
   end
 
-  return {sequencerLabel.text, strategyInputField.text, scaleInput.text, strategySlotsData}
+  return {chordDefinitionInputData, chordDefinitionSlotsData, scaleInputData}
 end
 
 function onLoad(data)
-  sequencerLabel.text = data[1]
-  strategyInputField.text = data[2]
-  scaleInput.text = data[3]
-  local strategySlotsData = data[4]
+  local chordDefinitionInputData = data[1]
+  local chordDefinitionSlotsData = data[2]
+  local scaleInputData = data[3]
 
-  scaleInput:changed() -- Ensure the scale is updated
-
-  for i,v in ipairs(strategySlots) do
-    v.tooltip = strategySlotsData[i]
-    v.enabled = v.tooltip ~= unusedStrategySlotDefaultText
+  local dataCounter = 1
+  for i,v in ipairs(chordDefinitionInputData) do
+    paramsPerPart[i].chordDefinitionInput.text = chordDefinitionInputData[i]
+    paramsPerPart[i].scaleInput.text = scaleInputData[i]
+    for _,v in ipairs(paramsPerPart[i].chordDefinitionSlots) do
+      v.tooltip = chordDefinitionSlotsData[dataCounter]
+      v.enabled = v.tooltip ~= "Unused"
+      dataCounter = dataCounter + 1
+    end
   end
 end

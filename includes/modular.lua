@@ -29,14 +29,19 @@ local function handleTrigger(e, note, data)
 end
 
 local function handleReleaseTrigger(e)
+  local keep = {} -- The notes to keep
   for i,v in ipairs(activeVoices) do
     if v.channel == e.channel then
+      -- Release all voices on this channel
       releaseVoice(v.id)
-      table.remove(activeVoices, i)
-      return true
+    else
+      -- Keep the voice
+      table.insert(keep, v)
     end
   end
-  return false
+  local hasReleased = #activeVoices > #keep
+  activeVoices = keep -- Update active voices
+  return hasReleased
 end
 
 return {--modular--

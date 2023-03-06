@@ -82,7 +82,7 @@ function setNumSteps(partIndex, numSteps)
   if type(paramsPerPart[partIndex].seqPitchTable) ~= "nil" then
     paramsPerPart[partIndex].seqPitchTable.length = numSteps
   end
-  paramsPerPart[partIndex].seqVelTable.length = numSteps
+  paramsPerPart[partIndex].seqVelGateTable.length = numSteps
   paramsPerPart[partIndex].seqTriggerProbabilityTable.length = numSteps
   paramsPerPart[partIndex].seqRatchetTable.length = numSteps
   local page = getPageFromPartIndex(partIndex)
@@ -242,8 +242,7 @@ actionMenu.changed = function(self)
             target.seqPitchTable:setValue(i, source.seqPitchTable:getValue(i))
           end
           target.tieStepTable:setValue(i, source.tieStepTable:getValue(i))
-          target.seqVelTable:setValue(i, source.seqVelTable:getValue(i))
-          target.seqVelTable:setValue(i, source.seqVelTable:getValue(i))
+          target.seqVelGateTable:setValue(i, source.seqVelGateTable:getValue(i))
           target.seqTriggerProbabilityTable:setValue(i, source.seqTriggerProbabilityTable:getValue(i))
           target.seqRatchetTable:setValue(i, source.seqRatchetTable:getValue(i))
         end
@@ -252,7 +251,7 @@ actionMenu.changed = function(self)
           target.pitchRand:setValue(source.pitchRand.value)
         end
         target.tieRand:setValue(source.tieRand.value)
-        target.velRand:setValue(source.velRand.value)
+        target.velGateRand:setValue(source.velGateRand.value)
         target.triggerRand:setValue(source.triggerRand.value)
         target.ratchetRand:setValue(source.ratchetRand.value)
         target.stepResolution:setValue(source.stepResolution.value)
@@ -441,23 +440,37 @@ for page=1,maxPages do
       tieStepTable.y = seqPitchTable.y + seqPitchTable.height + 2
     end
 
-    local seqVelTable = sequencerPanel:Table("Velocity" .. i, 8, 100, 1, 127, true)
-    seqVelTable.visible = isVisible
-    seqVelTable.displayName = "Velocity"
-    seqVelTable.tooltip = "Velocity for this step"
-    seqVelTable.showPopupDisplay = true
-    seqVelTable.showLabel = false
-    seqVelTable.fillStyle = "solid"
-    seqVelTable.sliderColour = "#9f09A3F4"
-    if i % 2 == 0 then
-      seqVelTable.backgroundColour = "#3f000000"
-    else
-      seqVelTable.backgroundColour = "#3f000000"
+    local valMin = 1
+    local valMax = 127
+    local valDefault = 90
+    if isModularTrigger then
+      valMax = 100
     end
-    seqVelTable.width = tableWidth
-    seqVelTable.height = tableHeight * 0.3
-    seqVelTable.x = tableX
-    seqVelTable.y = tieStepTable.y + tieStepTable.height + 2
+    local seqVelGateTable = sequencerPanel:Table("Velocity" .. i, 8, valDefault, valMin, valMax, true)
+    if isModularTrigger then
+      seqVelGateTable.unit = Unit.Percent
+    end
+    seqVelGateTable.visible = isVisible
+    if isModularTrigger then
+      seqVelGateTable.displayName = "Gate"
+      seqVelGateTable.tooltip = "Gate for this step"
+    else
+      seqVelGateTable.displayName = "Velocity"
+      seqVelGateTable.tooltip = "Velocity for this step"
+    end
+    seqVelGateTable.showPopupDisplay = true
+    seqVelGateTable.showLabel = false
+    seqVelGateTable.fillStyle = "solid"
+    seqVelGateTable.sliderColour = "#9f09A3F4"
+    if i % 2 == 0 then
+      seqVelGateTable.backgroundColour = "#3f000000"
+    else
+      seqVelGateTable.backgroundColour = "#3f000000"
+    end
+    seqVelGateTable.width = tableWidth
+    seqVelGateTable.height = tableHeight * 0.3
+    seqVelGateTable.x = tableX
+    seqVelGateTable.y = tieStepTable.y + tieStepTable.height + 2
 
     local seqTriggerProbabilityTableDefault = 0
     if numParts == 1 or isModularTrigger then
@@ -479,7 +492,7 @@ for page=1,maxPages do
     seqTriggerProbabilityTable.width = tableWidth
     seqTriggerProbabilityTable.height = tableHeight * 0.3
     seqTriggerProbabilityTable.x = tableX
-    seqTriggerProbabilityTable.y = seqVelTable.y + seqVelTable.height + 2
+    seqTriggerProbabilityTable.y = seqVelGateTable.y + seqVelGateTable.height + 2
 
     local seqRatchetTable = sequencerPanel:Table("Subdivision" .. i, 8, 1, 1, 4, true)
     seqRatchetTable.displayName = "Subdivision"
@@ -538,15 +551,20 @@ for page=1,maxPages do
       tieRand.y = pitchRand.y + pitchRand.height + numBoxSpacing
     end
 
-    local velRand = sequencerPanel:NumBox("VelocityRandomization" .. i, 0, 0, 100, true)
-    velRand.displayName = "Velocity"
-    velRand.tooltip = "Velocity radomization amount"
-    velRand.visible = isVisible
-    velRand.unit = Unit.Percent
-    velRand.size = directionProbability.size
-    velRand.x = directionProbability.x
-    velRand.y = tieRand.y + tieRand.height + numBoxSpacing
-    
+    local velGateRand = sequencerPanel:NumBox("VelocityRandomization" .. i, 0, 0, 100, true)
+    if isModularTrigger then
+      velGateRand.displayName = "Gate"
+      velGateRand.tooltip = "Gate radomization amount"
+    else
+      velGateRand.displayName = "Velocity"
+      velGateRand.tooltip = "Velocity radomization amount"
+    end
+    velGateRand.visible = isVisible
+    velGateRand.unit = Unit.Percent
+    velGateRand.size = directionProbability.size
+    velGateRand.x = directionProbability.x
+    velGateRand.y = tieRand.y + tieRand.height + numBoxSpacing
+
     local triggerRand = sequencerPanel:NumBox("TriggerRandomization" .. i, 0, 0, 100, true)
     triggerRand.displayName = "Trigger"
     triggerRand.tooltip = "Trigger probability radomization amount"
@@ -554,7 +572,7 @@ for page=1,maxPages do
     triggerRand.unit = Unit.Percent
     triggerRand.size = directionProbability.size
     triggerRand.x = directionProbability.x
-    triggerRand.y = velRand.y + velRand.height + numBoxSpacing
+    triggerRand.y = velGateRand.y + velGateRand.height + numBoxSpacing
 
     local ratchetRand = sequencerPanel:NumBox("SubdivisionRandomization" .. i, 0, 0, 100, true)
     ratchetRand.displayName = "Subdivision"
@@ -578,26 +596,29 @@ for page=1,maxPages do
     muteButton.y = positionTable.y
 
     local leftButtonSpacing = 1
-    local triggerNote
-    if type(seqPitchTable) ~= "nil" then
-      local typeLabel = sequencerPanel:Label("Label" .. i)
-      if numParts == 1 then
-        leftButtonSpacing = 2
-        typeLabel.visible = false
+    local typeLabel = sequencerPanel:Label("Label" .. i)
+    if numParts == 1 and isModularTrigger == false then
+      leftButtonSpacing = 2
+      typeLabel.visible = false
+    else
+      typeLabel.tooltip = "Part Label"
+      typeLabel.visible = isVisible
+      typeLabel.editable = true
+      if isModularTrigger then
+        typeLabel.text = "Channel"
       else
         local types = {"Kick", "Snare", "Hihat", "Clap", "Toms", "Cymbal", "Tambourine", "Perc"}
-        typeLabel.tooltip = "Part Label"
-        typeLabel.visible = isVisible
-        typeLabel.editable = true
         typeLabel.text = types[part]
-        typeLabel.backgroundColour = menuBackgroundColour
-        typeLabel.backgroundColourWhenEditing = "#cccccc"
-        typeLabel.x = 0
-        typeLabel.y = muteButton.y + muteButton.height + leftButtonSpacing
-        typeLabel.width = 59
-        typeLabel.height = muteButton.height
       end
-
+      typeLabel.backgroundColour = menuBackgroundColour
+      typeLabel.backgroundColourWhenEditing = "#cccccc"
+      typeLabel.x = 0
+      typeLabel.y = muteButton.y + muteButton.height + leftButtonSpacing -- Adjusted for modular by channel below
+      typeLabel.width = 59
+      typeLabel.height = muteButton.height
+    end
+    local triggerNote
+    if type(seqPitchTable) ~= "nil" then
       triggerNote = sequencerPanel:NumBox("TriggerNote" .. i, 36, 0, 127, true)
       if part == 2 then
         triggerNote.value = 38
@@ -699,18 +720,28 @@ for page=1,maxPages do
 
     local channelBox = sequencerPanel:NumBox("Channel" .. i, 0, 0, 16, true)
     channelBox.displayName = "Channel"
+    channelBox.showLabel = isModularTrigger == false
     channelBox.tooltip = "Midi channel that receives trigger from this part. 0 = omni"
     channelBox.visible = isVisible
     channelBox.backgroundColour = menuBackgroundColour
     channelBox.textColour = menuTextColour
     channelBox.arrowColour = menuArrowColour
     channelBox.outlineColour = menuOutlineColour
-    channelBox.width = numStepsBox.width
+    if isModularTrigger then
+      channelBox.width = 30
+      channelBox.x = 60
+    else
+      channelBox.width = numStepsBox.width
+      channelBox.x = 0
+    end
     channelBox.height = numStepsBox.height
-    channelBox.x = 0
     channelBox.y = ratchetMax.y + ratchetMax.height + leftButtonSpacing
 
-    table.insert(paramsPerPart, {muteButton=muteButton,ratchetMax=ratchetMax,pitchRand=pitchRand,tieRand=tieRand,velRand=velRand,triggerRand=triggerRand,ratchetRand=ratchetRand,typeLabel=typeLabel,triggerNote=triggerNote,channelBox=channelBox,positionTable=positionTable,seqPitchTable=seqPitchTable,tieStepTable=tieStepTable,seqVelTable=seqVelTable,seqTriggerProbabilityTable=seqTriggerProbabilityTable,seqRatchetTable=seqRatchetTable,stepResolution=stepResolution,directionProbability=directionProbability,numStepsBox=numStepsBox})
+    if isModularTrigger then
+      typeLabel.y = channelBox.y
+    end
+
+    table.insert(paramsPerPart, {muteButton=muteButton,ratchetMax=ratchetMax,pitchRand=pitchRand,tieRand=tieRand,velGateRand=velGateRand,triggerRand=triggerRand,ratchetRand=ratchetRand,typeLabel=typeLabel,triggerNote=triggerNote,channelBox=channelBox,positionTable=positionTable,seqPitchTable=seqPitchTable,tieStepTable=tieStepTable,seqVelGateTable=seqVelGateTable,seqTriggerProbabilityTable=seqTriggerProbabilityTable,seqRatchetTable=seqRatchetTable,stepResolution=stepResolution,directionProbability=directionProbability,numStepsBox=numStepsBox})
 
     local yOffset = 25
     if isModularTrigger then
@@ -793,7 +824,7 @@ function arpeg(uniqueId, part)
     -- Tables for current step position
     local seqPitchTable = paramsPerPart[partIndex].seqPitchTable
     local tieStepTable = paramsPerPart[partIndex].tieStepTable
-    local seqVelTable = paramsPerPart[partIndex].seqVelTable
+    local seqVelGateTable = paramsPerPart[partIndex].seqVelGateTable
     local seqTriggerProbabilityTable = paramsPerPart[partIndex].seqTriggerProbabilityTable
     local seqRatchetTable = paramsPerPart[partIndex].seqRatchetTable
     
@@ -803,13 +834,13 @@ function arpeg(uniqueId, part)
       pitchAdjustment = seqPitchTable:getValue(currentPosition)
     end
     local tieNext = tieStepTable:getValue(currentPosition)
-    local vel = seqVelTable:getValue(currentPosition) -- get velocity
+    local velocityOrGate = seqVelGateTable:getValue(currentPosition) -- get velocity/gate 
     local triggerProbability = seqTriggerProbabilityTable:getValue(currentPosition) -- get trigger probability
     local ratchet = seqRatchetTable:getValue(currentPosition) -- get ratchet
 
     -- Get randomization amounts
     local triggerRandomizationAmount = paramsPerPart[partIndex].triggerRand.value
-    local velocityRandomizationAmount = paramsPerPart[partIndex].velRand.value
+    local velocityOrGateRandomizationAmount = paramsPerPart[partIndex].velGateRand.value
     local pitchChangeProbability = 0
     if type(paramsPerPart[partIndex].pitchRand) ~= "nil" then
       pitchChangeProbability = paramsPerPart[partIndex].pitchRand.value
@@ -821,7 +852,6 @@ function arpeg(uniqueId, part)
     if gem.getRandomBoolean(ratchetRandomizationAmount) then
       local min = seqRatchetTable.min
       local max = seqRatchetTable.max
-      --local max = math.min(seqRatchetTable.max, (math.ceil(seqRatchetTable.max * (ratchetRandomizationAmount/100)) + 1))
       ratchet = gem.getRandom(min, max)
       --print("Randomize ratchet, min/max/ratchet", min, max, ratchet)
       if evolve == true then
@@ -879,16 +909,7 @@ function arpeg(uniqueId, part)
 
     -- Randomize trigger probability
     if gem.getRandomBoolean(triggerRandomizationAmount) then
-      local changeMax = gem.getChangeMax(seqTriggerProbabilityTable.max, triggerRandomizationAmount)
-      local min = triggerProbability - changeMax
-      local max = triggerProbability + changeMax
-      if min < seqTriggerProbabilityTable.min then
-        min = seqTriggerProbabilityTable.min
-      end
-      if max > seqTriggerProbabilityTable.max then
-        max = seqTriggerProbabilityTable.max
-      end
-      triggerProbability = gem.getRandom(min, max)
+      triggerProbability = gem.randomizeValue(triggerProbability, seqTriggerProbabilityTable.min, seqTriggerProbabilityTable.max, triggerRandomizationAmount)
       if evolve == true then
         seqTriggerProbabilityTable:setValue(currentPosition, triggerProbability)
       end
@@ -902,21 +923,10 @@ function arpeg(uniqueId, part)
 
     -- Play subdivision
     for ratchetIndex=1, ratchet do
-      -- Randomize velocity
-      if velocityRandomizationAmount > 0 then
-        local changeMax = gem.getChangeMax(seqVelTable.max, velocityRandomizationAmount)
-        local min = vel - changeMax
-        local max = vel + changeMax
-        if min < seqVelTable.min then
-          min = seqVelTable.min
-        end
-        if max > seqVelTable.max then
-          max = seqVelTable.max
-        end
-        vel = gem.getRandom(min, max)
-        if evolve == true then
-          seqVelTable:setValue(currentPosition, vel)
-        end
+      -- Randomize velocity/gate
+      velocityOrGate = gem.randomizeValue(velocityOrGate, seqVelGateTable.min, seqVelGateTable.max, velocityOrGateRandomizationAmount)
+      if evolve == true then
+        seqVelGateTable:setValue(currentPosition, velocityOrGate)
       end
 
       -- Check for pitch change randomization
@@ -933,9 +943,14 @@ function arpeg(uniqueId, part)
         if type(paramsPerPart[partIndex].triggerNote) ~= "nil" then
           note = paramsPerPart[partIndex].triggerNote.value + pitchAdjustment
         end
-        local duration = beat2ms(stepDuration) - 1 -- Make sure note is not played into the next
-        playNote(note, vel, duration, nil, channel)
-        print("Playing note/vel/ratchet/stepDuration", note, vel, ratchet, stepDuration)
+        local duration = stepDuration
+        if isModularTrigger then
+          -- Velocity is gate in modular mode
+          duration = resolutions.getPlayDuration(stepDuration, velocityOrGate)
+          velocityOrGate = 75 -- Use a default velocity
+        end
+        playNote(note, velocityOrGate, beat2ms(duration), nil, channel)
+        print("Playing note/velocity/ratchet/stepDuration", note, velocityOrGate, ratchet, stepDuration)
       end
 
       -- WAIT FOR NEXT BEAT
@@ -1002,18 +1017,20 @@ function onSave()
   local numStepsData = {}
   local seqPitchTableData = {}
   local tieStepTableData = {}
-  local seqVelTableData = {}
+  local seqVelGateTableData = {}
   local seqTriggerProbabilityTableData = {}
   local seqRatchetTableData = {}
+  local typeLabelData = {}
 
   for _,v in ipairs(paramsPerPart) do
     table.insert(numStepsData, v.numStepsBox.value)
+    table.insert(typeLabelData, v.typeLabel.text)
     for j=1, v.numStepsBox.value do
       if type(v.seqPitchTable) ~= "nil" then
         table.insert(seqPitchTableData, v.seqPitchTable:getValue(j))
       end
       table.insert(tieStepTableData, v.tieStepTable:getValue(j))
-      table.insert(seqVelTableData, v.seqVelTable:getValue(j))
+      table.insert(seqVelGateTableData, v.seqVelGateTable:getValue(j))
       table.insert(seqTriggerProbabilityTableData, v.seqTriggerProbabilityTable:getValue(j))
       table.insert(seqRatchetTableData, v.seqRatchetTable:getValue(j))
     end
@@ -1023,9 +1040,10 @@ function onSave()
   table.insert(data, numStepsData)
   table.insert(data, seqPitchTableData)
   table.insert(data, tieStepTableData)
-  table.insert(data, seqVelTableData)
+  table.insert(data, seqVelGateTableData)
   table.insert(data, seqTriggerProbabilityTableData)
   table.insert(data, seqRatchetTableData)
+  table.insert(data, typeLabelData)
 
   return data
 end
@@ -1034,18 +1052,20 @@ function onLoad(data)
   local numStepsData = data[1]
   local seqPitchTableData = data[2]
   local tieStepTableData = data[3]
-  local seqVelTableData = data[4]
+  local seqVelGateTableData = data[4]
   local seqTriggerProbabilityTableData = data[5]
   local seqRatchetTableData = data[6]
+  local typeLabelData = data[7]
 
   local dataCounter = 1
   for i,v in ipairs(numStepsData) do
     paramsPerPart[i].numStepsBox:setValue(v)
+    paramsPerPart[i].typeLabel.text = typeLabelData[i]
     if type(paramsPerPart[i].seqPitchTable) ~= "nil" then
       paramsPerPart[i].seqPitchTable.length = v
     end
     paramsPerPart[i].tieStepTable.length = v
-    paramsPerPart[i].seqVelTable.length = v
+    paramsPerPart[i].seqVelGateTable.length = v
     paramsPerPart[i].seqTriggerProbabilityTable.length = v
     paramsPerPart[i].seqRatchetTable.length = v
     for j=1, v do
@@ -1053,7 +1073,7 @@ function onLoad(data)
         paramsPerPart[i].seqPitchTable:setValue(j, seqPitchTableData[dataCounter])
       end
       paramsPerPart[i].tieStepTable:setValue(j, tieStepTableData[dataCounter])
-      paramsPerPart[i].seqVelTable:setValue(j, seqVelTableData[dataCounter])
+      paramsPerPart[i].seqVelGateTable:setValue(j, seqVelGateTableData[dataCounter])
       paramsPerPart[i].seqTriggerProbabilityTable:setValue(j, seqTriggerProbabilityTableData[dataCounter])
       paramsPerPart[i].seqRatchetTable:setValue(j, seqRatchetTableData[dataCounter])
       dataCounter = dataCounter + 1

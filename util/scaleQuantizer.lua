@@ -9,7 +9,6 @@ local scales = require "includes.scales"
 local scale = {}
 local key = 1
 local channel = 0 -- 0 = Omni
-local scaleNames = scales.getScaleNames()
 local scaleDefinitions = scales.getScaleDefinitions()
 local scaleDefinition = scaleDefinitions[#scaleDefinitions]
 local setScale = function() scale = scales.createScale(scaleDefinition, (key - 1)) end
@@ -85,4 +84,17 @@ function onNote(e)
     print("Note after", e.note)
   end
   postEvent(e)
+end
+
+--------------------------------------------------------------------------------
+-- Save / Load
+--------------------------------------------------------------------------------
+
+function onSave()
+  return {scaleInput.text}
+end
+
+function onLoad(data)
+  scaleInput.text = data[1]
+  scaleInput:changed() -- Ensure the scale is updated
 end

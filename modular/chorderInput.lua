@@ -5,36 +5,26 @@
 local gem = require "includes.common"
 local notes = require "includes.notes"
 local scales = require "includes.scales"
+local modular = require "includes.modular"
 local widgets = require "includes.widgets"
---local noteSelector = require "includes.noteSelector"
 
-local backgroundColour = "6c6c6c" -- Light or Dark
+local backgroundColour = "404040" -- Light or Dark
+local panelBackgroundColour = "505050" -- Light or Dark
 local menuBackgroundColour = "01011F"
 local widgetBackgroundColour = menuBackgroundColour -- Dark
 local widgetTextColour = "9f02ACFE" -- Light
-local labelTextColour = "AEFEFF" -- Light
+local labelTextColour = "black"
 local menuArrowColour = "66" .. labelTextColour
-local labelBackgoundColour = "111D5E"
-local menuOutlineColour = "5f" .. widgetTextColour
-local sliderColour = "5FB5FF"
-local backgroundColourOff = "ff084486"
-local backgroundColourOn = "ff02ACFE"
-local textColourOff = "ff22FFFF"
-local textColourOn = "efFFFFFF"
 
-local colours = {
+widgets.setColours({
   widgetBackgroundColour = widgetBackgroundColour,
   widgetTextColour = widgetTextColour,
   labelTextColour = labelTextColour,
   menuBackgroundColour = menuBackgroundColour,
   menuArrowColour = menuArrowColour,
-  menuOutlineColour = menuOutlineColour,
-  backgroundColourOff = backgroundColourOff,
-  backgroundColourOn = backgroundColourOn,
-  textColourOff = textColourOff,
-  textColourOn = textColourOn,
-  backgroundColour = backgroundColour
-}
+  backgroundColour = backgroundColour,
+  panelBackgroundColour = panelBackgroundColour,
+})
 
 local paramsPerPart = {}
 
@@ -54,7 +44,14 @@ local chordDefinitions = {
 local noteDisplay = {} -- Holds the widgets that displays the notes being played
 local maxVoices = 16 -- Max number of oplyphonic voices
 local noteNumberToNoteName = notes.getNoteMapping()
-local channel = 0
+local channel = 0 -- 0 = Omni
+local forward = false
+local scale = {}
+local key = 1
+local noteMin = 24
+local noteMax = noteMin + (5 * 12)
+local scaleDefinitions = scales.getScaleDefinitions()
+local scaleDefinition = scaleDefinitions[#scaleDefinitions]
 
 setBackgroundColour(backgroundColour)
 
@@ -62,14 +59,24 @@ setBackgroundColour(backgroundColour)
 -- Scale and note functions
 --------------------------------------------------------------------------------
 
+-- Returns the notes filtered by scale and range
+local function setScale()
+  scale = {} -- Reset scale
+  for _,note in ipairs(scales.createScale(scaleDefinition, (key - 1), noteMax)) do
+    if note >= noteMin and note <= noteMax then
+      table.insert(scale, note)
+    end
+  end
+end
+
 -- Use the selected chord definition to find the index for the next note in the chord
 local function getNextScaleIndex(note, scale, chordDefinition, inversionIndex)
   local index = gem.getIndexFromValue(note, scale)
-  print("getNextScaleIndex #chordDefinition/inversionIndex", #chordDefinition, inversionIndex)
+  --print("getNextScaleIndex #chordDefinition/inversionIndex", #chordDefinition, inversionIndex)
   local increment = chordDefinition[inversionIndex]
   if type(index) == "nil" then
     index = 0
-    print("!!!Note not found in scale!!!")
+    --print("!!!Note not found in scale!!!")
   end
   return index + increment
 end
@@ -95,10 +102,9 @@ local function hasNoteWithinMonoLimit(notesTable, partPos)
 end
 
 local function isRootNote(note, partPos)
-  -- Find root note index
-  local rootIndex = noteSelector.getKey()
-  local noteIndex = note + 1 -- note index is 1 higher than note number
-  return noteNumberToNoteName[rootIndex] == noteNumberToNoteName[noteIndex]
+  -- Note index is 1 higher than note number
+  local noteIndex = note + 1
+  return noteNumberToNoteName[key] == noteNumberToNoteName[noteIndex]
 end
 
 local function createChordDefinition(part)
@@ -109,7 +115,7 @@ local function createChordDefinition(part)
   for i=1, ln do
     local steps = gem.getRandom(maxSteps)
     table.insert(definition, steps)
-    print("Add steps to definition", steps)
+    --print("Add steps to definition", steps)
   end
   return definition
 end
@@ -122,44 +128,36 @@ local function getChordInputText(definition)
 end
 
 --------------------------------------------------------------------------------
--- Panels
+-- Sequencer Panel
 --------------------------------------------------------------------------------
 
 local tableWidth = 720
 
 local sequencerPanel = widgets.panel({
   width = tableWidth,
-  height = 200,
+  height = 30,
   x = 0,
   y = 0,
 })
 
---[[ Panel("Sequencer")
-sequencerPanel.backgroundColour = backgroundColour
-sequencerPanel.x = 10
-sequencerPanel.y = 10
-sequencerPanel.width = tableWidth
-sequencerPanel.height = 200 ]]
+local chorderLabel = widgets.label("Chorder Input", {
+  width = tableWidth,
+  height = 30,
+  alpha = 0.5,
+  fontSize = 22
+})
 
---[[ local notePanel = Panel("Notes")
-notePanel.backgroundColour = backgroundColour
-notePanel.x = sequencerPanel.x
-notePanel.y = sequencerPanel.y + sequencerPanel.height + 5
-notePanel.width = tableWidth
-notePanel.height = 150 ]]
+widgets.setSection({
+  x = 470,
+  y = 5,
+  xSpacing = 5,
+  ySpacing = 5,
+})
 
---------------------------------------------------------------------------------
--- Sequencer Panel
---------------------------------------------------------------------------------
-
-local label = widgets.label("Chorder Input") --[[ sequencerPanel:Label("Label")
-label.text = "Chorder Input"
-label.alpha = 0.5
-label.backgroundColour = labelBackgoundColour
-label.textColour = labelTextColour
-label.fontSize = 22
-label.position = {0,0}
-label.size = {120,25} ]]
+widgets.button("Forward", forward, {
+  tooltip = "Forward triggers (note=0 events) to the next processor",
+  changed = function(self) forward = self.value end,
+})
 
 widgets.menu("Channel", widgets.channels(), {
   tooltip = "Listen to note events on this channel - if a note event is not being listened to, it will be pass through",
@@ -167,396 +165,366 @@ widgets.menu("Channel", widgets.channels(), {
   changed = function(self) channel = self.value - 1 end
 })
 
---[[ local channelInput = sequencerPanel:Menu("ChannelInput", channels)
-channelInput.tooltip = "Listen to note events on this channel - if a note event is not being listened to, it will be pass through"
-channelInput.arrowColour = menuArrowColour
-channelInput.showLabel = false
-channelInput.backgroundColour = menuBackgroundColour
-channelInput.textColour = widgetTextColour
-channelInput.size = {90,22}
-channelInput.x = sequencerPanel.width - channelInput.width - 5
-channelInput.y = 5 ]]
-
---[[ local chordProbabilityLabel = sequencerPanel:Label("ChordProbabilityProbabilityLabel")
-chordProbabilityLabel.text = "Chords"
-chordProbabilityLabel.tooltip = "Choose the probability that chords will be included when harmonizing"
-
-local spreadProbabilityLabel = sequencerPanel:Label("SpreadProbabilityLabel")
-spreadProbabilityLabel.text = "Note Spread"
-spreadProbabilityLabel.tooltip = "Set note spread probability"
-
-local inversionProbabilityLabel = sequencerPanel:Label("InversionProbabilityLabel")
-inversionProbabilityLabel.text = "Chord Inversions"
-inversionProbabilityLabel.tooltip = "Choose the probability that inversions will be used when harmonizing (root position is always included)" ]]
-
 -- Add params that are to be editable per part
---for i=1,1 do
-local i = 1
-local chords = {}
-local spreads = {}
-local inversions = {}
+for i=1,1 do
+  local numSlots = 8
+  local chords = {}
+  local spreads = {}
+  local inversions = {}
+  local chordDefinitionSlots = {}
 
-local generatePolyphonyPart = widgets.numBox("Polyphony", 4, {
-  tooltip = "How many notes are played at once",
-  min = 1,
-  max = maxVoices,
-  integer = true,
-}).changed = function(self)
-  for i,v in ipairs(noteDisplay) do
-    v.enabled = maxVoices - self.value <= maxVoices - i
+  --------------------------------------------------------------------------------
+  -- Chord Definition Panel
+  --------------------------------------------------------------------------------
+  
+  local chordDefinitionPanel = widgets.panel({
+    width = 356,
+    height = 108,
+    y = widgets.posUnder(sequencerPanel),
+    x = 5,
+  })
+
+  widgets.section({
+    width = 90,
+    x = 5,
+    y = 5,
+    xSpacing = 5,
+    ySpacing = 5,
+    cols = 6,
+  })
+
+  local chordDefinitionLabel = widgets.label("Chord Definition", {
+    backgroundColour = "transparent",
+    textColour = "white",
+    width = 155
+  })
+
+  local createChordDefinitionButton = widgets.button("Create", {
+    tooltip = "Create a random chord definition.",
+    backgroundColourOff = "#606060",
+    backgroundColourOn = "#303030",
+    textColourOff = "white",
+    textColourOn = "silver",
+  })
+
+  local chordSelectionMenu = widgets.menu("Chord Selection", {"Active Input", "Auto", "Random", "Slots"}, {
+    tooltip = "Auto: Default chord definitions are alternated, Random: Chord definitions are created by random, Slots: Chord definitions are selected from the slots",
+  })
+
+  widgets.section({
+    width = 90,
+    x = 5,
+    y = widgets.posUnder(chordDefinitionLabel),
+    xSpacing = 5,
+    ySpacing = 5,
+    cols = 9,
+  })
+
+  local chordDefinitionInput = widgets.label(getChordInputText(chordDefinitions[1]), {
+    tooltip = "The current chord definition. Numbers represent steps up or down the scale that is currently selected. Feel free to type your own chord definitions here, or select from the menu.",
+    editable = true,
+    width = 251,
+    height = 45,
+    fontSize = 22,
+    backgroundColour = "black",
+    textColour = "white",
+    backgroundColourWhenEditing = "white",
+    textColourWhenEditing = "black",
+  })
+
+  createChordDefinitionButton.changed = function()
+    chordDefinitionInput.text = getChordInputText(createChordDefinition(i))
   end
+
+  widgets.row()
+  widgets.col(1, chordDefinitionInput.width)
+
+  local loadActions = {"Load..."}
+  for _,v in ipairs(chordDefinitions) do
+    table.insert(loadActions, getChordInputText(v))
+  end
+
+  local loadChordDefinition = widgets.menu("Load Menu", loadActions, {
+    tooltip = "Load a chord definition",
+    showLabel = false,
+    changed = function(self)
+      -- 1 is the menu label...
+      if self.value == 1 then
+        return
+      end
+    
+      local actionIndex = self.value - 1
+      chordDefinitionInput.text = self.selectedText
+    
+      -- Must be last
+      self.selected = 1
+    end    
+  })
+
+  widgets.row()
+
+  for j=1,numSlots do
+    local definitionSlot = widgets.button("" .. j, false, {
+      enabled = false,
+      tooltip = "Unused",
+      height = 20,
+      width = 27,
+      changed = function(self)
+        chordDefinitionInput.text = self.tooltip
+        self.value = false
+      end
+    })
+    table.insert(chordDefinitionSlots, definitionSlot)
+  end
+
+  local saveActions = {"Save to..."}
+  for j=1,numSlots do
+    table.insert(saveActions, "Slot " .. j)
+  end
+  local saveChordDefinition = widgets.menu("Save", saveActions, {
+    tooltip = "Save the current chord definition to the selected slot",
+    showLabel = false,
+    changed = function(self)
+      -- 1 is the menu label...
+      if self.value == 1 then
+        return
+      end
+    
+      local actionIndex = self.value - 1
+    
+      -- Save chord definition
+      if string.len(chordDefinitionInput.text) > 0 then
+        chordDefinitionSlots[actionIndex].tooltip = chordDefinitionInput.text
+        chordDefinitionSlots[actionIndex].enabled = true
+      else
+        chordDefinitionSlots[actionIndex].tooltip = "Unused"
+        chordDefinitionSlots[actionIndex].enabled = false
+      end
+      --print("Chord definition saved to slot", chordDefinitionInput.text, actionIndex)
+    
+      -- Must be last
+      self.selected = 1
+    end  
+  })
+
+  --------------------------------------------------------------------------------
+  -- Polyphony and note limits
+  --------------------------------------------------------------------------------
+  
+  local polyhonyPanel = widgets.panel({
+    x = widgets.posSide(chordDefinitionPanel),
+    y = chordDefinitionPanel.y,
+    width = 348,
+    height = 60,
+  })
+  
+  widgets.section({
+    width = 109,
+    x = 5,
+    y = 8,
+    cols = 3,
+  })
+
+  local generatePolyphonyPart = widgets.numBox("Polyphony", 4, {
+    tooltip = "How many notes are played at once",
+    min = 1,
+    max = maxVoices,
+    integer = true,
+  })
+  generatePolyphonyPart.changed = function(self)
+    for i,v in ipairs(noteDisplay) do
+      v.enabled = maxVoices - self.value <= maxVoices - i
+    end
+  end
+
+  local baseNoteRandomization = widgets.numBox("Base Chord", 25, {
+    tooltip = "Probability that the root chord will be selected",
+    unit = Unit.Percent,
+  })
+
+  local harmonizationPropbability = widgets.numBox("Harmonize", 100, {
+    tooltip = "When harmonizing, we get notes from the currently playing chord. Otherwise notes are selected from the current scale.",
+    unit = Unit.Percent,
+  })
+
+  local noteMinInput = widgets.numBox("Note Min", noteMin, {
+    max = noteMax,
+    tooltip = "Lowest note",
+    unit = Unit.MidiKey,
+  })
+
+  local monoLimit = widgets.numBox("Mono Limit", noteMin + 24, {
+    tooltip = "Below this note there will only be played one note (polyphony=1)",
+    unit = Unit.MidiKey,
+  })
+
+  local noteMaxInput = widgets.numBox("Note Max", noteMax, {
+    min = noteMin,
+    tooltip = "Highest note",
+    unit = Unit.MidiKey,
+  })
+
+  noteMinInput.changed = function(self)
+    noteMaxInput:setRange(self.value, 127)
+    noteMin = self.value
+    setScale()
+  end
+
+  noteMaxInput.changed = function(self)
+    noteMinInput:setRange(0, self.value)
+    noteMax = self.value
+    setScale()
+  end  
+
+  -- Key and scale
+  local scalePanel = widgets.panel({
+    x = chordDefinitionPanel.x,
+    y = widgets.posUnder(chordDefinitionPanel),
+    width = chordDefinitionPanel.width,
+    height = 60,
+  })
+
+  widgets.section({
+    width = 120,
+    x = 5,
+    y = 5,
+    cols = 4,
+  })
+
+  local keyMenu = widgets.menu("Key", key, notes.getNoteNames(), {
+    width = 60,
+    changed = function(self)
+      key = self.value
+      setScale()
+    end
+  })
+
+  local scaleMenu = scales.widget(widgets.getSectionValue('width'), true)
+
+  widgets.label("Scale Definition", {
+    textColour = "#d0d0d0",
+    backgroundColour = "transparent",
+  })
+
+  widgets.row()
+  widgets.col()
+  widgets.col(1, keyMenu.width)
+
+  local scaleInput = scales.inputWidget(scaleDefinition, 153)
+
+  scaleMenu.changed = function(self)
+    scaleInput.text = scales.getTextFromScaleDefinition(scaleDefinitions[self.value])
+  end
+
+  scaleInput.changed = function(self)
+    scaleDefinition = scales.getScaleDefinitionFromText(self.text)
+    setScale()
+  end
+
+  -- Note Spread
+  local noteSpreadPanel = widgets.panel({
+    x = widgets.posSide(scalePanel),
+    y = widgets.posUnder(polyhonyPanel),
+    width = 171,
+    height = 108,
+  })
+
+  widgets.section({
+    width = 159,
+    x = 5,
+    y = 5,
+    cols = 1,
+  })
+
+  widgets.label("Note Spread (Voicing)", {
+    textColour = "white",
+    backgroundColour = "transparent",
+  })
+
+  table.insert(spreads, widgets.numBox("Close", 100, {
+    tooltip = "Set the probability that close chords will be included",
+    unit = Unit.Percent,
+  }))
+
+  table.insert(spreads, widgets.numBox("Medium", 100, {
+    tooltip = "Set the probability that medium chords will be included",
+    unit = Unit.Percent,
+  }))
+
+  table.insert(spreads, widgets.numBox("Wide", 100, {
+    tooltip = "Set the probability that wide chords will be included",
+    unit = Unit.Percent,
+  }))
+
+  -- Inversions
+  local inversionPanel = widgets.panel({
+    x = widgets.posSide(noteSpreadPanel),
+    y = noteSpreadPanel.y,
+    width = noteSpreadPanel.width,
+    height = noteSpreadPanel.height,
+  })
+
+  widgets.section({
+    width = 159,
+    cols = 1,
+  })
+
+  widgets.label("Chord Inversions", {
+    textColour = "white",
+    backgroundColour = "transparent",
+  })
+
+  for inversion=1,3 do
+    local p = 100
+    if inversion == 3 then
+      p = 0
+    end
+    table.insert(inversions, widgets.numBox("Inv " .. inversion, p, {
+      name = "Inversion" .. inversion,
+      tooltip = "Probability that inversion " .. inversion .. " will be included",
+      unit = Unit.Percent,
+    }))
+  end
+
+  table.insert(paramsPerPart, {scaleInput=scaleInput,scaleMenu=scaleMenu,keyMenu=keyMenu,chordDefinitionSlots=chordDefinitionSlots,chordDefinitionInput=chordDefinitionInput,chordSelectionMenu=chordSelectionMenu,inversions=inversions,spreads=spreads,chords=chords,baseNoteRandomization=baseNoteRandomization,polyphony=generatePolyphonyPart,harmonizationPropbability=harmonizationPropbability,monoLimit=monoLimit})
 end
 
-local baseNoteRandomization = widgets.numBox("Base Chord", 75, {
-  tooltip = "Probability that first chord in the part will be the root chord",
-  unit = Unit.Percent,
+local voiceLabelWidth = 693 / maxVoices
+
+local voicesPanel = widgets.panel({
+  width = 710,
+  height = 45,
+  x = 5,
+  y = 212,
+  backgroundColour = "transparent"
 })
 
-local monoLimit = widgets.numBox("MonoLimit", 75, {
-  tooltip = "Below this note there will only be played one note (polyphony=1)"
-  unit = Unit.MidiKey,
+widgets.section({
+  width = voiceLabelWidth,
+  cols = 16,
+  x = 1,
+  y = 2,
+  xSpacing = 1,
+  ySpacing = 1,
 })
 
-local harmonizationPropbability = widgets.numBox("Harmonize", 100, {
-  tooltip = "When harmonizing, we get notes from the currently playing chord. Otherwise notes are selected from the current scale."
-  unit = Unit.Percent,
-})
-
---[[
-
-local voiceLabelBgColour = "9F9F9F"
-local voiceLabelTextColour = "202020"
-local voiceRowCount = 2
-local voiceLabelY = 150
-
-if i == 1 then
-  for j=1,maxVoices do
-    local voiceLabel = sequencerPanel:Label("VoiceLabel" .. i .. j)
-    voiceLabel.persistent = false
-    voiceLabel.text = "Voice " .. j
-    voiceLabel.tooltip = "Settings for voice " .. j
-    voiceLabel.backgroundColour = voiceLabelBgColour
-    voiceLabel.textColour = voiceLabelTextColour
-    voiceLabel.width = tableWidth / maxVoices
-    voiceLabel.height = 20
-    voiceLabel.x = ((j - 1) * (voiceLabel.width + 1)) - 2
-    voiceLabel.y = voiceLabelY
-  end
+for j=1,maxVoices do
+  local voiceLabel = widgets.label("Voice " .. j, {
+    persistent = false,
+  })
 end
 
-if i == 1 then
-  for j=1,maxVoices do
-    local noteInput = sequencerPanel:Label("NoteInput" .. j)
-    noteInput.enabled = false
-    noteInput.persistent = false
-    noteInput.tooltip = "Displays the note played by voice " .. j
-    noteInput.text = "-"
-    noteInput.backgroundColour = menuBackgroundColour
-    noteInput.textColour = labelTextColour
-    noteInput.width = tableWidth / maxVoices
-    noteInput.height = 20
-    noteInput.x = ((j - 1) * (noteInput.width + 1)) - 2
-    noteInput.y = voiceLabelY + 22
-    table.insert(noteDisplay, noteInput)
-  end
+for j=1,maxVoices do
+  table.insert(noteDisplay, widgets.label("-", {
+    tooltip = "Displays the note played by voice " .. j,
+    enabled = false,
+    persistent = false,
+    backgroundColour = "black",
+    textColour = "white",
+  }))
 end
 
-chordProbabilityLabel.width = 108
---chordProbabilityLabel.x = 0
---chordProbabilityLabel.y = 5
-
-local chordDefinitionInput = sequencerPanel:Label("ChordInput" .. i)
-chordDefinitionInput.text = getChordInputText(chordDefinitions[1])
-chordDefinitionInput.tooltip = "Chord definitions build chords. Numbers represent steps up or down the scale that is currently selected. Feel free to type your own chord definitions here, or select from the menu."
-chordDefinitionInput.editable = true
-chordDefinitionInput.backgroundColour = menuBackgroundColour
-chordDefinitionInput.backgroundColourWhenEditing = "black"
-chordDefinitionInput.textColour = labelTextColour
-chordDefinitionInput.textColourWhenEditing = "white"
-chordDefinitionInput.width = 240
-chordDefinitionInput.height = 45
-chordDefinitionInput.fontSize = 30
---chordDefinitionInput.x = generatePolyphonyPart.x
---chordDefinitionInput.y = chordProbabilityLabel.y + chordProbabilityLabel.height + 5
-
-local autoChordButton = sequencerPanel:OnOffButton("AutoChordButton" .. i, false)
-autoChordButton.displayName = "Auto"
-autoChordButton.tooltip = "Default chord definitions are alternated by random while playing."
-autoChordButton.backgroundColourOff = backgroundColourOff
-autoChordButton.backgroundColourOn = backgroundColourOn
-autoChordButton.textColourOff = textColourOff
-autoChordButton.textColourOn = textColourOn
-autoChordButton.width = 60
---autoChordButton.x = baseNoteRandomization.x
---autoChordButton.y = chordDefinitionInput.y
-
-local randomChordButton = sequencerPanel:OnOffButton("RandomChordButton" .. i, false)
-randomChordButton.displayName = "Random"
-randomChordButton.tooltip = "Chord definitions are created by random while playing."
-randomChordButton.backgroundColourOff = backgroundColourOff
-randomChordButton.backgroundColourOn = backgroundColourOn
-randomChordButton.textColourOff = textColourOff
-randomChordButton.textColourOn = textColourOn
-randomChordButton.width = autoChordButton.width
---randomChordButton.x = autoChordButton.x
---randomChordButton.y = autoChordButton.y + autoChordButton.height + 5
-
-local slotChordButton = sequencerPanel:OnOffButton("SlotChordButton" .. i, false)
-slotChordButton.displayName = "Slots"
-slotChordButton.tooltip = "Chord definitions are selected by random from the slots."
-slotChordButton.backgroundColourOff = backgroundColourOff
-slotChordButton.backgroundColourOn = backgroundColourOn
-slotChordButton.textColourOff = textColourOff
-slotChordButton.textColourOn = textColourOn
-slotChordButton.width = randomChordButton.width
---slotChordButton.x = randomChordButton.x
---slotChordButton.y = randomChordButton.y + randomChordButton.height + 5
-
-local createChordDefinitionButton = sequencerPanel:Button("CreateDefButton" .. i)
-createChordDefinitionButton.displayName = "Create"
-createChordDefinitionButton.tooltip = "Create a random chord definition."
-createChordDefinitionButton.persistent = false
-createChordDefinitionButton.width = 60
---createChordDefinitionButton.x = chordProbabilityLabel.x
---createChordDefinitionButton.y = chordProbabilityLabel.y + chordProbabilityLabel.height + 5
-
-local saveActions = {"Save to..."}
-local chordDefinitionSlots = {}
-for j=1,8 do
-  local definitionSlot = sequencerPanel:OnOffButton("ChordSlot" .. i .. j)
-  definitionSlot.backgroundColourOff = backgroundColourOff
-  definitionSlot.backgroundColourOn = backgroundColourOn
-  definitionSlot.textColourOff = textColourOff
-  definitionSlot.textColourOn = textColourOn
-  definitionSlot.displayName = "" .. j
-  definitionSlot.enabled = false
-  definitionSlot.tooltip = "Unused"
-  definitionSlot.height = 20
-  definitionSlot.width = 27
-  definitionSlot.x = chordDefinitionInput.x + ((j-1) * (definitionSlot.width+2))
-  definitionSlot.y = chordDefinitionInput.y + chordDefinitionInput.height + 5
-  definitionSlot.changed = function(self)
-    chordDefinitionInput.text = definitionSlot.tooltip
-    self.value = false
-  end
-  table.insert(chordDefinitionSlots, definitionSlot)
-  table.insert(saveActions, "Slot " .. j)
-end
-
-local loadActions = {"Load..."}
-for _,v in ipairs(chordDefinitions) do
-  table.insert(loadActions, getChordInputText(v))
-end
-
-local loadChordDefinition = sequencerPanel:Menu("LoadChordDefinition" .. i, loadActions)
-loadChordDefinition.tooltip = "Load a chord definition"
-loadChordDefinition.showLabel = false
-loadChordDefinition.height = 20
-loadChordDefinition.width = 108
---loadChordDefinition.x = createChordDefinitionButton.x
---loadChordDefinition.y = createChordDefinitionButton.y + createChordDefinitionButton.height + 5
-loadChordDefinition.backgroundColour = menuBackgroundColour
-loadChordDefinition.textColour = widgetTextColour
-loadChordDefinition.arrowColour = menuArrowColour
-loadChordDefinition.outlineColour = menuOutlineColour
-loadChordDefinition.changed = function(self)
-  -- 1 is the menu label...
-  if self.value == 1 then
-    return
-  end
-
-  local actionIndex = self.value - 1
-  chordDefinitionInput.text = self.selectedText
-
-  -- Must be last
-  self.selected = 1
-end
-
-local saveChordDefinition = sequencerPanel:Menu("SaveChordDefinition" .. i, saveActions)
-saveChordDefinition.tooltip = "Save the current chord definition to the selected slot"
-saveChordDefinition.showLabel = false
-saveChordDefinition.height = 20
-saveChordDefinition.width = 108
---saveChordDefinition.x = loadChordDefinition.x
---saveChordDefinition.y = loadChordDefinition.y + loadChordDefinition.height + 5
-saveChordDefinition.backgroundColour = menuBackgroundColour
-saveChordDefinition.textColour = widgetTextColour
-saveChordDefinition.arrowColour = menuArrowColour
-saveChordDefinition.outlineColour = menuOutlineColour
-saveChordDefinition.changed = function(self)
-  -- 1 is the menu label...
-  if self.value == 1 then
-    return
-  end
-
-  local actionIndex = self.value - 1
-
-  -- Save chord definition
-  if string.len(chordDefinitionInput.text) > 0 then
-    chordDefinitionSlots[actionIndex].tooltip = chordDefinitionInput.text
-    chordDefinitionSlots[actionIndex].enabled = true
-  else
-    chordDefinitionSlots[actionIndex].tooltip = "Unused"
-    chordDefinitionSlots[actionIndex].enabled = false
-  end
-  print("Chord definition saved to slot", chordDefinitionInput.text, actionIndex)
-
-  -- Must be last
-  self.selected = 1
-end
-
-autoChordButton.changed = function(self)
-  slotChordButton:setValue(false, false)
-  randomChordButton:setValue(false, false)
-  chordDefinitionInput.enabled = self.value == false
-  createChordDefinitionButton.enabled = self.value == false
-end
-
-randomChordButton.changed = function(self)
-  autoChordButton:setValue(false, false)
-  slotChordButton:setValue(false, false)
-  chordDefinitionInput.enabled = self.value == false
-  createChordDefinitionButton.enabled = self.value == false
-end
-
-slotChordButton.changed = function(self)
-  autoChordButton:setValue(false, false)
-  randomChordButton:setValue(false, false)
-  chordDefinitionInput.enabled = true
-  createChordDefinitionButton.enabled = true
-end
-
-createChordDefinitionButton.changed = function()
-  chordDefinitionInput.text = getChordInputText(createChordDefinition(i))
-end ]]
-
---[[ spreadProbabilityLabel.x = monoLimit.x
-spreadProbabilityLabel.y = chordProbabilityLabel.y
-spreadProbabilityLabel.width = 108
-
-inversionProbabilityLabel.x = 10
-inversionProbabilityLabel.y = chordProbabilityLabel.y
-inversionProbabilityLabel.width = 108 ]]
-
--- Note Spread
---[[ local perRow = 1
-local columnCount = 0
-local rowCount = 1
-for spread=1,3 do
-  local spreadProbability = sequencerPanel:NumBox("SpreadProbability" .. i .. spread, 100, 0, 100, true)
-  if spread == 1 then
-    spreadProbability.displayName = "Close"
-    spreadProbability.tooltip = "Set the probability that close chords will be included"
-  elseif spread == 2 then
-    spreadProbability.displayName = "Medium"
-    spreadProbability.tooltip = "Set the probability that medium wide chords will be included"
-  else
-    spreadProbability.displayName = "Wide"
-    spreadProbability.tooltip = "Set the probability that wide chords will be included"
-  end
-  spreadProbability.unit = Unit.Percent
-  spreadProbability.height = 20
-  spreadProbability.width = 108
-  spreadProbability.x = spreadProbabilityLabel.x + (columnCount * (spreadProbability.width + 10))
-  spreadProbability.y = spreadProbabilityLabel.y + ((spreadProbability.height + 5) * rowCount)
-  spreadProbability.backgroundColour = menuBackgroundColour
-  spreadProbability.textColour = widgetTextColour
-  table.insert(spreads, spreadProbability)
-  columnCount = columnCount + 1
-  if spread % perRow == 0 then
-    rowCount = rowCount + 1
-    columnCount = 0
-  end
-end
-
--- Inversions
-local perRow = 1
-local columnCount = 0
-local rowCount = 1
-for inversion=1,3 do
-  local inversionProbability = sequencerPanel:NumBox("InversionsProbability" .. i .. inversion, 100, 0, 100, true)
-  inversionProbability.displayName = "Inv " .. inversion
-  inversionProbability.tooltip = "Probability that inversion " .. inversion .. " will be included"
-  inversionProbability.unit = Unit.Percent
-  inversionProbability.height = 20
-  inversionProbability.width = 108
-  inversionProbability.x = inversionProbabilityLabel.x + (columnCount * (inversionProbability.width + 10))
-  inversionProbability.y = inversionProbabilityLabel.y + ((inversionProbability.height + 5) * rowCount)
-  inversionProbability.backgroundColour = menuBackgroundColour
-  inversionProbability.textColour = widgetTextColour
-  table.insert(inversions, inversionProbability)
-  columnCount = columnCount + 1
-  if inversion % perRow == 0 then
-    rowCount = rowCount + 1
-    columnCount = 0
-  end
-end
-
-table.insert(paramsPerPart, {chordDefinitionSlots=chordDefinitionSlots,createChordDefinitionButton=createChordDefinitionButton,loadChordDefinition=loadChordDefinition,saveChordDefinition=saveChordDefinition,chordDefinitionInput=chordDefinitionInput,autoChordButton=autoChordButton,randomChordButton=randomChordButton,slotChordButton=slotChordButton,inversions=inversions,spreads=spreads,chords=chords,baseNoteRandomization=baseNoteRandomization,polyphony=generatePolyphonyPart,harmonizationPropbability=harmonizationPropbability,monoLimit=monoLimit})
-]]
---------------------------------------------------------------------------------
--- Notes Panel
---------------------------------------------------------------------------------
-
---[[ local notePanel = widgets.panel({
-  width = tableWidth,
-  height = 150,
-  x = 10,
-  y = widgets.posUnder(sequencerPanel),
-}) ]]
-
---[[ local noteLabel = notePanel:Label("NoteLabel")
-noteLabel.text = "Notes"
-noteLabel.tooltip = "Set the probability that notes will be included when generating new notes"
-noteLabel.alpha = 0.75
-noteLabel.fontSize = 15
-noteLabel.width = 50
-noteLabel.height = 20
-noteLabel.y = 0 ]]
-
---[[ local clearNotes = notePanel:Button("ClearNotes")
-clearNotes.displayName = "Clear notes"
-clearNotes.tooltip = "Deselect all notes"
-clearNotes.persistent = false
-clearNotes.height = noteLabel.height
-clearNotes.width = 90
-clearNotes.x = notePanel.width - (clearNotes.width * 3) - 30
-clearNotes.y = noteLabel.y
-clearNotes.changed = function()
-  for _,v in ipairs(noteInputs) do
-    v:setValue(false)
-  end
-end
-
-local addNotes = notePanel:Button("AddNotes")
-addNotes.displayName = "All notes"
-addNotes.tooltip = "Select all notes"
-addNotes.persistent = false
-addNotes.height = noteLabel.height
-addNotes.width = 90
-addNotes.x = clearNotes.x + clearNotes.width + 10
-addNotes.y = noteLabel.y
-addNotes.changed = function()
-  for _,v in ipairs(noteInputs) do
-    v:setValue(true)
-  end
-end
-
-local randomizeNotes = notePanel:Button("RandomizeNotes")
-randomizeNotes.displayName = "Randomize notes"
-randomizeNotes.tooltip = "Randomize all notes"
-randomizeNotes.persistent = false
-randomizeNotes.height = noteLabel.height
-randomizeNotes.width = 90
-randomizeNotes.x = addNotes.x + addNotes.width + 10
-randomizeNotes.y = noteLabel.y
-randomizeNotes.changed = function()
-  for _,v in ipairs(noteInputs) do
-    v:setValue(gem.getRandomBoolean())
-  end
-end ]]
-
---noteSelector.createNoteAndOctaveSelector(notePanel, colours, noteLabel)
+paramsPerPart[1].polyphony:changed()
 
 --------------------------------------------------------------------------------
 -- Sequencer
@@ -565,29 +533,23 @@ end ]]
 local function getNotes()
   local currentPartPosition = 1 -- Holds the currently playing part
   local heldNoteIndex = 0
-  local scale = {} -- The scale the generator can choose from.
   local inversionIndex = 0
   local notesToPlay = {} -- Ensure notes are reset when seqencer starts
 
   -- Number of simultainious notes are set by polyphony
-  scale = noteSelector.getSelectedNotes()
-  fullScale = noteSelector.getActiveNotes()
   local polyphony = paramsPerPart[currentPartPosition].polyphony.value
   local minNote = scale[1]
   local maxNote = scale[#scale]
 
   inversionIndex = 0 -- Reset counter for inversion progress
-  local autoChord = paramsPerPart[currentPartPosition].autoChordButton.value
-  local randomChord = paramsPerPart[currentPartPosition].randomChordButton.value
-  local slotChord = paramsPerPart[currentPartPosition].slotChordButton.value
-  if autoChord == true then
+  -- Chord Selection: {"Active Input", "Auto", "Random", "Slots"}
+  local chordSelection = paramsPerPart[currentPartPosition].chordSelectionMenu.selectedText
+  if chordSelection == "Auto" then
     local index = gem.getRandom(#chordDefinitions)
     paramsPerPart[currentPartPosition].chordDefinitionInput.text = getChordInputText(chordDefinitions[index])
-  end
-  if randomChord == true then
+  elseif chordSelection == "Random" then
     paramsPerPart[currentPartPosition].chordDefinitionInput.text = getChordInputText(createChordDefinition(currentPartPosition))
-  end
-  if slotChord == true then
+  elseif chordSelection == "Slots" then
     local chordDefinitionSlots = {}
     for _,v in ipairs(paramsPerPart[currentPartPosition].chordDefinitionSlots) do
       if v.enabled == true then
@@ -611,7 +573,7 @@ local function getNotes()
   if #activeInversions > 0 then
     -- Get a chord def index from the active definitions
     inversionIndex = gem.getRandomFromTable(activeInversions)
-    print("Chord inversion selected by random/#activeInversions", inversionIndex, #activeInversions)
+    --print("Chord inversion selected by random/#activeInversions", inversionIndex, #activeInversions)
   end
 
   -- Find spreads to include
@@ -631,7 +593,7 @@ local function getNotes()
     else
       selectedSpread = activeSpreads[1]
     end
-    print("Chord spread selected by random: selectedSpread/#activeSpreads", selectedSpread, #activeSpreads)
+    --print("Chord spread selected by random: selectedSpread/#activeSpreads", selectedSpread, #activeSpreads)
   end
 
   --------------------------------------------------------------------------------
@@ -659,11 +621,11 @@ local function getNotes()
       if hasNoteWithinMonoLimit(notesToPlay, currentPartPosition) == true then
         -- Ensure we only have one note below the mono limit
         baseMin = monoLimit
-        print("Adjust baseMin to mono limit", baseMin)
+        --print("Adjust baseMin to mono limit", baseMin)
       elseif monoLimit > baseMin then
         -- Ensure we have a note within the mono limit
         baseMax = monoLimit
-        print("Adjust baseMax to mono limit", baseMax)
+        --print("Adjust baseMax to mono limit", baseMax)
       end
 
       local function getBaseNote()
@@ -672,13 +634,13 @@ local function getNotes()
           while isRootNote(baseNote, currentPartPosition) == false and baseNote <= baseMax do
             baseNote = baseNote + 1 -- increment note until we hit the base note
           end
-          print("Get root note: note/baseMin/baseMax", baseNote, baseMin, baseMax)
+          --print("Get root note: note/baseMin/baseMax", baseNote, baseMin, baseMax)
         else
           local noteRange = baseMax - baseMin
           if monoLimit <= baseMin then
             -- If there is no mono limit, we ajust the note range by polyphony to get a base note range
             noteRange = math.max(12, math.ceil(noteRange / polyphony))
-            print("Calculate range for base note baseMin/baseMax/noteRange", baseMin, baseMax, noteRange)
+            --print("Calculate range for base note baseMin/baseMax/noteRange", baseMin, baseMax, noteRange)
           end
           baseNote = baseNote + gem.getRandom(noteRange) - 1
         end
@@ -696,20 +658,20 @@ local function getNotes()
         local startingNotes = {}
         for _,v in ipairs(notesToPlay) do
           table.insert(startingNotes, v.note)
-          print("Insert into startingNotes", v.note)
+          --print("Insert into startingNotes", v.note)
         end
         if #startingNotes > 0 then
           -- If we have notes added, use them as the basis for the next note
-          print("startingNotes", #startingNotes)
+          --print("startingNotes", #startingNotes)
           local prevNote = startingNotes[#startingNotes]
-          print("Found prevNote", prevNote)
+          --print("Found prevNote", prevNote)
           -- Increment inversion index
           inversionIndex = inversionIndex + 1
           if inversionIndex > #chordDefinition then
             inversionIndex = 1
           end
-          local scaleIndex = getNextScaleIndex(prevNote, fullScale, chordDefinition, inversionIndex)
-          note = fullScale[scaleIndex]
+          local scaleIndex = getNextScaleIndex(prevNote, scale, chordDefinition, inversionIndex)
+          note = scale[scaleIndex]
           if type(note) == "number" then
             note = notes.transpose(note, baseMin, baseMax)
             local noteRange = baseMax - prevNote
@@ -729,18 +691,18 @@ local function getNotes()
             if gem.getRandomBoolean(octaveProbability) then
               octave = math.floor(octaveRange / notesLeft)
             end
-            print("Check octave/note/baseMax/negOctProbability", octave, note, baseMax, negOctProbability)
+            --print("Check octave/note/baseMax/negOctProbability", octave, note, baseMax, negOctProbability)
             if octave > 0 and octave < 3 and note > baseMax / 2 and gem.getRandomBoolean(negOctProbability) then
               octave = -octave
-              print("Negative octave", octave)
+              --print("Negative octave", octave)
             end
             local octaveOffset = octave * 12
-            print("Calculate octave adjustment - noteRange/octaveRange/notesLeft/octave", noteRange, octaveRange, notesLeft, octave)
+            --print("Calculate octave adjustment - noteRange/octaveRange/notesLeft/octave", noteRange, octaveRange, notesLeft, octave)
             if octaveOffset > 0 and note + octaveOffset <= baseMax then
               note = note + octaveOffset
-              print("Octave adjusted octave/octaveOffset/note", octave, octaveOffset, note)
+              --print("Octave adjusted octave/octaveOffset/note", octave, octaveOffset, note)
             end
-            print("Found note from prev note - note, prevNote", note, prevNote)
+            --print("Found note from prev note - note, prevNote", note, prevNote)
           end
         end
       end
@@ -769,9 +731,9 @@ local function getNotes()
   if string.len(input.text) > 0 then
     for w in string.gmatch(input.text, "-?%d+") do
       table.insert(chordDefinition, w)
-      print("Add to chordDefinition", w)
+      --print("Add to chordDefinition", w)
     end
-    print("Get chordDefinition from input", #chordDefinition)
+    --print("Get chordDefinition from input", #chordDefinition)
   end
 
   -- Create a random chord definition if empty
@@ -788,12 +750,12 @@ local function getNotes()
     local noteToPlay = getNoteToPlay(voice, chordDefinition)
     if type(noteToPlay.note) == "number" and notesInclude(notesToPlay, noteToPlay.note) == false then
       table.insert(notesToPlay, noteToPlay)
-      print("Insert note", noteToPlay.note)
+      --print("Insert note", noteToPlay.note)
       noteDisplay[voice].text = noteNumberToNoteName[noteToPlay.note + 1] .. " (" .. noteToPlay.note .. ")"
       voice = voice + 1
     end
     roundCounter = gem.inc(roundCounter)
-    print("Searching for notes roundCounter", roundCounter)
+    --print("Searching for notes roundCounter", roundCounter)
   end
   print("Notes ready to play ", #notesToPlay)
 
@@ -804,57 +766,24 @@ end
 -- Handle note events
 --------------------------------------------------------------------------------
 
-local activeVoices = {}
-
-local function noteIsPlaying(note)
-  for _,v in ipairs(activeVoices) do
-    if v.event.note == note then
-      return true
-    end
-  end
-  return false
-end
-
-local function releaseVoices()
-  for i,v in ipairs(activeVoices) do
-    releaseVoice(v.id)
-    print("Release active voice on channel", v.event.channel)
-  end
-  activeVoices = {}
-end
-
-local function isTrigger(e)
-  local channel = channelInput.value - 1
-  local isListeningForEvent = channel == 0 or channel == e.channel
-  local isTrigger = e.note == 0 -- Note 0 is used as trigger
-  return isTrigger and isListeningForEvent
-end
-
 local function handleTrigger(e)
   local notesForPlaying = getNotes()
   if #notesForPlaying > 0 then
     for _,v in ipairs(notesForPlaying) do
-      if noteIsPlaying(v.note) == false then
-        local id = playNote(v.note, e.velocity)
-        e.note = v.note
-        table.insert(activeVoices, {id=id,event=e,node=v})
-      end
+      modular.handleTrigger(e, v.note)
     end
   end
 end
 
-local function handleReleaseTrigger(e)
-  for i,v in ipairs(activeVoices) do
-    if v.event.channel == e.channel then
-      releaseVoice(v.id)
-      table.remove(activeVoices, i)
-      print("Release active voice on channel", v.event.channel)
-    end
-  end
+function onInit()
+  setScale()
 end
 
 function onNote(e)
-  if isTrigger(e) then
+  if modular.isTrigger(e, channel) then
+    if forward then
+      postEvent(e)
+    end
     handleTrigger(e)
   else
     postEvent(e)
@@ -862,8 +791,11 @@ function onNote(e)
 end
 
 function onRelease(e)
-  if isTrigger(e) then
-    handleReleaseTrigger(e)
+  if modular.isTrigger(e, channel) then
+    if forward then
+      postEvent(e)
+    end
+    modular.handleReleaseTrigger(e)
   else
     postEvent(e)
   end
@@ -871,7 +803,7 @@ end
 
 function onTransport(start)
   if start == false then
-    releaseVoices()
+    modular.releaseVoices()
   end
 end
 
@@ -882,23 +814,29 @@ end
 function onSave()
   local chordDefinitionInputData = {}
   local chordDefinitionSlotsData = {}
+  local scaleInputData = {}
   local i = 1
 
-  table.insert(chordDefinitionInputData, paramsPerPart[i].chordDefinitionInput.text)
-  for _,v in ipairs(paramsPerPart[i].chordDefinitionSlots) do
-    table.insert(chordDefinitionSlotsData, v.tooltip)
+  for _,v in ipairs(paramsPerPart) do
+    table.insert(chordDefinitionInputData, v.chordDefinitionInput.text)
+    table.insert(scaleInputData, v.scaleInput.text)
+    for _,s in ipairs(v.chordDefinitionSlots) do
+      table.insert(chordDefinitionSlotsData, s.tooltip)
+    end
   end
 
-  return {chordDefinitionInputData, chordDefinitionSlotsData}
+  return {chordDefinitionInputData, chordDefinitionSlotsData, scaleInputData}
 end
 
 function onLoad(data)
   local chordDefinitionInputData = data[1]
   local chordDefinitionSlotsData = data[2]
-  local dataCounter = 1
+  local scaleInputData = data[3]
 
+  local dataCounter = 1
   for i,v in ipairs(chordDefinitionInputData) do
     paramsPerPart[i].chordDefinitionInput.text = chordDefinitionInputData[i]
+    paramsPerPart[i].scaleInput.text = scaleInputData[i]
     for _,v in ipairs(paramsPerPart[i].chordDefinitionSlots) do
       v.tooltip = chordDefinitionSlotsData[dataCounter]
       v.enabled = v.tooltip ~= "Unused"

@@ -13,6 +13,7 @@ luaScripts=(
   generators/motionSequencer
   generators/noteFragmentGenerator
   modular/bounceTrigger
+  modular/chorderInput
   modular/gridSequencerInput
   modular/horizontalMotionSequencerInput
   modular/motionSequencerInput

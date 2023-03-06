@@ -169,6 +169,7 @@ local widgetDefaults = {
 
 local widgetColours = {
   backgroundColour = "202020",
+  panelBackgroundColour = "202020",
   widgetBackgroundColour = "01011F", -- Dark
   menuBackgroundColour = "01011F", -- widgetBackgroundColour
   widgetTextColour = "9f02ACFE", -- Light
@@ -194,6 +195,7 @@ end
 
 local function setColours(colours)
   widgetColours.backgroundColour = getValueOrDefault(colours.backgroundColour, widgetColours.backgroundColour)
+  widgetColours.panelBackgroundColour = getValueOrDefault(colours.panelBackgroundColour, widgetColours.panelBackgroundColour)
   widgetColours.widgetBackgroundColour = getValueOrDefault(colours.widgetBackgroundColour, widgetColours.widgetBackgroundColour)
   widgetColours.menuBackgroundColour = getValueOrDefault(colours.menuBackgroundColour, widgetColours.menuBackgroundColour)
   widgetColours.widgetTextColour = getValueOrDefault(colours.widgetTextColour, widgetColours.widgetTextColour)
@@ -398,6 +400,7 @@ end
 local widgets = {
   setColours = setColours,
   setSection = setSection,
+  section = setSection,
   channels = function()
     local channels = {"Omni"}
     for j=1,16 do
@@ -434,7 +437,7 @@ local widgets = {
       widgetDefaults.panel = Panel(options.name)
       --print("Created panel", options.name)
     end
-    widgetDefaults.panel.backgroundColour = widgetColours.backgroundColour
+    widgetDefaults.panel.backgroundColour = widgetColours.panelBackgroundColour
     widgetDefaults.panel.bounds = getWidgetBounds(options, false)
     setOptional(widgetDefaults.panel, options)
     return widgetDefaults.panel
