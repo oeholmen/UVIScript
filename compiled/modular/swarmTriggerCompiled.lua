@@ -184,6 +184,10 @@ local widgetColours = {
   backgroundColourOn = "ff02ACFE",
   textColourOff = "ff22FFFF",
   textColourOn = "efFFFFFF",
+  buttonBackgroundColourOff = "#606060",
+  buttonBackgroundColourOn = "#303030",
+  buttonTextColourOff = "white",
+  buttonTextColourOn = "silver",
 }
 
 local function getValueOrDefault(value, default)
@@ -210,6 +214,10 @@ local function setColours(colours)
   widgetColours.backgroundColourOn = getValueOrDefault(colours.backgroundColourOn, widgetColours.backgroundColourOn)
   widgetColours.textColourOff = getValueOrDefault(colours.textColourOff, widgetColours.textColourOff)
   widgetColours.textColourOn = getValueOrDefault(colours.textColourOn, widgetColours.textColourOn)
+  widgetColours.buttonBackgroundColourOff = getValueOrDefault(colours.buttonBackgroundColourOff, widgetColours.buttonBackgroundColourOff)
+  widgetColours.buttonBackgroundColourOn = getValueOrDefault(colours.buttonBackgroundColourOn, widgetColours.buttonBackgroundColourOn)
+  widgetColours.buttonTextColourOff = getValueOrDefault(colours.buttonTextColourOff, widgetColours.buttonTextColourOff)
+  widgetColours.buttonTextColourOn = getValueOrDefault(colours.buttonTextColourOn, widgetColours.buttonTextColourOn)
 end
 
 local function setSection(settings)
@@ -453,13 +461,17 @@ local widgets = {
     local widget
     if isOnOff then
       widget = widgetDefaults.panel:OnOffButton(options.name, (options.default == true))
+      widget.backgroundColourOff = widgetColours.backgroundColourOff
+      widget.backgroundColourOn = widgetColours.backgroundColourOn
+      widget.textColourOff = widgetColours.textColourOff
+      widget.textColourOn = widgetColours.textColourOn
     else
       widget = widgetDefaults.panel:Button(options.name)
+      widget.backgroundColourOff = widgetColours.buttonBackgroundColourOff
+      widget.backgroundColourOn = widgetColours.buttonBackgroundColourOn
+      widget.textColourOff = widgetColours.buttonTextColourOff
+      widget.textColourOn = widgetColours.buttonTextColourOn
     end
-    widget.backgroundColourOff = widgetColours.backgroundColourOff
-    widget.backgroundColourOn = widgetColours.backgroundColourOn
-    widget.textColourOff = widgetColours.textColourOff
-    widget.textColourOn = widgetColours.textColourOn
     widget.displayName = options.displayName
     widget.tooltip = options.tooltip
     widget.bounds = getWidgetBounds(options, true)
@@ -827,6 +839,16 @@ widgets.panel({
   height = 30,
 })
 
+widgets.label("Swarm Trigger", {
+  tooltip = "A sequencer that triggers rythmic pulses (using note 0) that note inputs can listen to",
+  width = widgets.getPanel().width,
+  x = 0,
+  y = 0,
+  height = 30,
+  alpha = 0.5,
+  fontSize = 22,
+})
+
 widgets.setSection({
   xSpacing = 5,
   ySpacing = 5,
@@ -836,17 +858,11 @@ widgets.setSection({
   y = 5,
 })
 
-widgets.label("Swarm Trigger", {
-  tooltip = "A sequencer that triggers rythmic pulses (using note 0) that note inputs can listen to",
-  width = widgets.getPanel().width,
-  x = 0, y = 0, height = 30,
-  alpha = 0.5, fontSize = 22,
-  --increment = false,
-})
-
 widgets.numBox('Channel', channel, {
   tooltip = "Send note events starting on this channel",
-  min = 1, max = 16, integer = true,
+  min = 1,
+  max = 16,
+  integer = true,
   changed = function(self) channel = self.value end
 })
 

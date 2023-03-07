@@ -111,6 +111,16 @@ widgets.panel({
   height = 30,
 })
 
+widgets.label("Swarm Trigger", {
+  tooltip = "A sequencer that triggers rythmic pulses (using note 0) that note inputs can listen to",
+  width = widgets.getPanel().width,
+  x = 0,
+  y = 0,
+  height = 30,
+  alpha = 0.5,
+  fontSize = 22,
+})
+
 widgets.setSection({
   xSpacing = 5,
   ySpacing = 5,
@@ -120,17 +130,11 @@ widgets.setSection({
   y = 5,
 })
 
-widgets.label("Swarm Trigger", {
-  tooltip = "A sequencer that triggers rythmic pulses (using note 0) that note inputs can listen to",
-  width = widgets.getPanel().width,
-  x = 0, y = 0, height = 30,
-  alpha = 0.5, fontSize = 22,
-  --increment = false,
-})
-
 widgets.numBox('Channel', channel, {
   tooltip = "Send note events starting on this channel",
-  min = 1, max = 16, integer = true,
+  min = 1,
+  max = 16,
+  integer = true,
   changed = function(self) channel = self.value end
 })
 

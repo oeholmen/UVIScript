@@ -201,10 +201,6 @@ for i=1,1 do
 
   local createChordDefinitionButton = widgets.button("Create", {
     tooltip = "Create a random chord definition.",
-    backgroundColourOff = "#606060",
-    backgroundColourOn = "#303030",
-    textColourOff = "white",
-    textColourOn = "silver",
   })
 
   local chordSelectionMenu = widgets.menu("Chord Selection", {"Active Input", "Auto", "Random", "Slots"}, {

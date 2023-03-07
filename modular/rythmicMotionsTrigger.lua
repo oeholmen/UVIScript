@@ -165,8 +165,8 @@ widgets.label("Rythmic Motions Trigger", {
 widgets.setSection({
   width = 100,
   height = 22,
-  xOffset = (widgets.getPanel().width / 2) + 45,
-  yOffset = 5,
+  x = (widgets.getPanel().width / 2) + 45,
+  y = 5,
   xSpacing = 5,
   ySpacing = 5,
 })

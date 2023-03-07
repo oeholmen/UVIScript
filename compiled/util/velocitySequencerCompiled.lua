@@ -184,6 +184,10 @@ local widgetColours = {
   backgroundColourOn = "ff02ACFE",
   textColourOff = "ff22FFFF",
   textColourOn = "efFFFFFF",
+  buttonBackgroundColourOff = "#606060",
+  buttonBackgroundColourOn = "#303030",
+  buttonTextColourOff = "white",
+  buttonTextColourOn = "silver",
 }
 
 local function getValueOrDefault(value, default)
@@ -210,6 +214,10 @@ local function setColours(colours)
   widgetColours.backgroundColourOn = getValueOrDefault(colours.backgroundColourOn, widgetColours.backgroundColourOn)
   widgetColours.textColourOff = getValueOrDefault(colours.textColourOff, widgetColours.textColourOff)
   widgetColours.textColourOn = getValueOrDefault(colours.textColourOn, widgetColours.textColourOn)
+  widgetColours.buttonBackgroundColourOff = getValueOrDefault(colours.buttonBackgroundColourOff, widgetColours.buttonBackgroundColourOff)
+  widgetColours.buttonBackgroundColourOn = getValueOrDefault(colours.buttonBackgroundColourOn, widgetColours.buttonBackgroundColourOn)
+  widgetColours.buttonTextColourOff = getValueOrDefault(colours.buttonTextColourOff, widgetColours.buttonTextColourOff)
+  widgetColours.buttonTextColourOn = getValueOrDefault(colours.buttonTextColourOn, widgetColours.buttonTextColourOn)
 end
 
 local function setSection(settings)
@@ -453,13 +461,17 @@ local widgets = {
     local widget
     if isOnOff then
       widget = widgetDefaults.panel:OnOffButton(options.name, (options.default == true))
+      widget.backgroundColourOff = widgetColours.backgroundColourOff
+      widget.backgroundColourOn = widgetColours.backgroundColourOn
+      widget.textColourOff = widgetColours.textColourOff
+      widget.textColourOn = widgetColours.textColourOn
     else
       widget = widgetDefaults.panel:Button(options.name)
+      widget.backgroundColourOff = widgetColours.buttonBackgroundColourOff
+      widget.backgroundColourOn = widgetColours.buttonBackgroundColourOn
+      widget.textColourOff = widgetColours.buttonTextColourOff
+      widget.textColourOn = widgetColours.buttonTextColourOn
     end
-    widget.backgroundColourOff = widgetColours.backgroundColourOff
-    widget.backgroundColourOn = widgetColours.backgroundColourOn
-    widget.textColourOff = widgetColours.textColourOff
-    widget.textColourOn = widgetColours.textColourOn
     widget.displayName = options.displayName
     widget.tooltip = options.tooltip
     widget.bounds = getWidgetBounds(options, true)
@@ -1027,6 +1039,8 @@ local resolutions = {
 -- Velocity Sequencer
 --------------------------------------------------------------------------------
 
+--
+
 local backgroundColour = "595959" -- Light or Dark
 local labelTextColour = "15133C" -- Dark
 local labelBackgoundColour = "66ff99" -- Light
@@ -1037,6 +1051,7 @@ local menuArrowColour = "66" .. labelTextColour
 
 widgets.setColours({
   backgroundColour = backgroundColour,
+  panelBackgroundColour = backgroundColour,
   labelTextColour = labelTextColour,
   labelBackgoundColour = labelBackgoundColour,
   sliderColour = sliderColour,
@@ -1050,9 +1065,11 @@ local positionTable
 local sequencerTable
 local resolutionNames = resolutions.getResolutionNames({'Follow Input'})
 local resolution = #resolutionNames
-local shapeAmount = 100
+local velocityRandomization = 0
 local sequencerPos = 1
 local channel = 0 -- 0 = Omni
+
+--[[ local shapeAmount = 100
 local shapeMenuItems = {"Select preset..."}
 for _,v in ipairs(shapes.getShapeNames()) do
   table.insert(shapeMenuItems, v)
@@ -1067,7 +1084,7 @@ local loadShape = function(shapeIndex)
   for i,v in ipairs(values) do
     sequencerTable:setValue(i, v)
   end
-end
+end ]]
 
 setBackgroundColour(backgroundColour)
 
@@ -1088,9 +1105,10 @@ local sequencerLabel = widgets.label("Velocity Sequencer", {
 })
 
 widgets.setSection({
-  x = widgets.posSide(sequencerLabel) + 13,
+  x = widgets.posSide(sequencerLabel) + 51,
   y = sequencerLabel.y,
   xSpacing = 5,
+  width = 90,
 })
 
 widgets.label("Resolution", {
@@ -1101,7 +1119,6 @@ widgets.label("Resolution", {
 
 widgets.menu("Resolution", resolution, resolutionNames, {
   tooltip = "Set the resolution of the sequencer",
-  width = 90,
   showLabel = false,
   changed = function(self)
     resolution = self.value
@@ -1111,16 +1128,16 @@ widgets.menu("Resolution", resolution, resolutionNames, {
   end
 })
 
-local shape = widgets.menu("Start Shape", shapeMenuItems, {
+--[[ local shape = widgets.menu("Start Shape", shapeMenuItems, {
   tooltip = "Set how the table will look when starting.",
   width = 120,
   showLabel = false,
   changed = function(self)
     loadShape(self.value)
   end
-})
+}) ]]
 
-widgets.numBox("Amount", shapeAmount, {
+--[[ widgets.numBox("Amount", shapeAmount, {
   tooltip = "Set the shape amount",
   width = 96,
   unit = Unit.Percent,
@@ -1128,26 +1145,37 @@ widgets.numBox("Amount", shapeAmount, {
     shapeAmount = self.value
     loadShape(shape.value)
   end
+}) ]]
+
+widgets.numBox("Randomization", velocityRandomization, {
+  tooltip = "Set the velocity randomization amount",
+  width = 130,
+  unit = Unit.Percent,
+  changed = function(self)
+    velocityRandomization = self.value
+    --shapeAmount = self.value
+    --loadShape(shape.value)
+  end
 })
 
 widgets.numBox("Steps", 8, {
   tooltip = "Set the length of velocity pattern",
-  width = 78,
+  --width = 78,
   min = 1,
   max = 128,
   integer = true,
   changed = function(self)
     sequencerTable.length = self.value
     positionTable.length = self.value
-    if shape.value > 1 then
+    --[[ if shape.value > 1 then
       loadShape(shape.value)
-    end
+    end ]]
   end
 })
 
 widgets.menu("Channel", widgets.channels(), {
   tooltip = "Only adjust the velocity for events sent on this channel",
-  width = 53,
+  --width = 53,
   showLabel = false,
   changed = function(self) channel = self.value - 1 end
 })
@@ -1175,7 +1203,7 @@ widgets.setSection({
   height = 60,
 })
 
-sequencerTable = widgets.table("Velocity", 127, 8, {
+sequencerTable = widgets.table("Velocity", 90, 8, {
   tooltip = "Set the velocity pattern",
   showPopupDisplay = true,
   backgroundColour = "191E25",
@@ -1227,8 +1255,8 @@ local function stopPlaying()
 end
 
 local function randomizeVelocity(velocity)
-  --return gem.randomizeValue(velocity, sequencerTable.min, sequencerTable.max, velocityRandomization.value)
-  return velocity
+  return gem.randomizeValue(velocity, sequencerTable.min, sequencerTable.max, velocityRandomization)
+  --return velocity
 end
 
 local function getVelocity()
