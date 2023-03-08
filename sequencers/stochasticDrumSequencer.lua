@@ -1044,7 +1044,6 @@ function onSave()
   table.insert(data, seqTriggerProbabilityTableData)
   table.insert(data, seqRatchetTableData)
   table.insert(data, typeLabelData)
-
   return data
 end
 
@@ -1060,7 +1059,9 @@ function onLoad(data)
   local dataCounter = 1
   for i,v in ipairs(numStepsData) do
     paramsPerPart[i].numStepsBox:setValue(v)
-    paramsPerPart[i].typeLabel.text = typeLabelData[i]
+    if type(typeLabelData) ~= "nil" then
+      paramsPerPart[i].typeLabel.text = typeLabelData[i]
+    end
     if type(paramsPerPart[i].seqPitchTable) ~= "nil" then
       paramsPerPart[i].seqPitchTable.length = v
     end

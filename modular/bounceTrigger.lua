@@ -63,7 +63,7 @@ local function bounce(uniqueId)
   local note = 0
   while isPlaying and seqIndex == uniqueId do
     if gem.getRandomBoolean(skipProbability) == false then
-      playNote(note, velocity, beat2ms(duration))
+      playNote(note, velocity, beat2ms(duration), nil, channel)
     end
     waitBeat(duration)
     isRising, currentResolutionIndex = getDuration(isRising, currentResolutionIndex)

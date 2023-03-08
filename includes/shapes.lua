@@ -149,6 +149,15 @@ local shapeDefinitions = {
   {name = "Test Shape", f = shapes.testShape},
 }
 
+local function getShapeIndexFromName(shapeName)
+  for i,v in ipairs(shapeDefinitions) do
+    if v.name == shapeName then
+      return i
+    end
+  end
+  return 1
+end
+
 local function getDefaultShapeOptions()
   return {
     z = 1,
@@ -224,8 +233,11 @@ local function getShapeBounds(shapeBounds)
   return bounds
 end
 
-local function createShape(shapeIndex, shapeBounds, shapeOptions)
-  local shapeDefinition = shapeDefinitions[shapeIndex]
+local function createShape(shapeIndexOrName, shapeBounds, shapeOptions)
+  if type(shapeIndexOrName) == "string" then
+    shapeIndexOrName = getShapeIndexFromName(shapeIndexOrName)
+  end
+  local shapeDefinition = shapeDefinitions[shapeIndexOrName]
   local bounds = getShapeBounds(shapeBounds)
   local options = getShapeTemplate(shapeOptions, shapeDefinition.o)
   local shape = {}
@@ -303,5 +315,5 @@ return {--shapes--
   getAmountWidget = getAmountWidget,
   getShapeNames = getShapeNames,
   getShapeOptions = getShapeOptions,
-  get = function(i,t,o) return createShape(i,t,o) end,
+  get = createShape,
 }

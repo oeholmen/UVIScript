@@ -340,7 +340,8 @@ end
 -- Tries to adjust the given resolution by adjusting
 -- length, and/or setting a even/dot/tri value variant
 local function getResolutionFromCurrentIndex(currentResolution, adjustBias)
-  local currentIndex = gem.getIndexFromValue(currentResolution, resolutions.getResolutions())
+  return resolutions.getResolutionVariation(currentResolution, adjustBias)
+  --[[ local currentIndex = gem.getIndexFromValue(currentResolution, resolutions.getResolutions())
   if type(currentIndex) == "nil" then
     return
   end
@@ -350,7 +351,6 @@ local function getResolutionFromCurrentIndex(currentResolution, adjustBias)
 
   --print("BEFORE currentIndex", currentIndex)
   local resolutionIndex = currentIndex
-  local availableChanges = {}
   if gem.tableIncludes(resolutionsByType[2], currentIndex) then
     resolution = resolutions.getEvenFromDotted(resolutions.getResolution(currentIndex))
     --print("getEvenFromDotted", resolution)
@@ -385,7 +385,7 @@ local function getResolutionFromCurrentIndex(currentResolution, adjustBias)
       else
         local dottedResIndex = gem.getIndexFromValue(resolutions.getDotted(resolution), resolutions.getResolutions())
         if type(dottedResIndex) == "number" and gem.tableIncludes(selectedResolutions, dottedResIndex) then
-          resolution = resolutions[dottedResIndex]
+          resolution = resolutions.getResolution(dottedResIndex)
           --print("getDotted", resolution)
         end
       end
@@ -396,7 +396,7 @@ local function getResolutionFromCurrentIndex(currentResolution, adjustBias)
   if type(currentIndex) == "number" and gem.tableIncludes(selectedResolutions, currentIndex) then
     --print("Got resolution from the current index")
     return resolutions.getResolution(currentIndex)
-  end
+  end ]]
 end
 
 -- Remove first resolution and append a (new) resolution last in the fragments

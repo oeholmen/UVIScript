@@ -396,6 +396,7 @@ for i=1,1 do
   })
 
   local scaleMenu = scales.widget(widgets.getSectionValue('width'), true)
+  scaleMenu.persistent = false -- Avoid running changed function on load, overwriting scaleInput
 
   widgets.label("Scale Definition", {
     textColour = "#d0d0d0",
@@ -409,10 +410,12 @@ for i=1,1 do
   local scaleInput = scales.inputWidget(scaleDefinition, 153)
 
   scaleMenu.changed = function(self)
+    print("scaleMenu.changed", self.selectedText)
     scaleInput.text = scales.getTextFromScaleDefinition(scaleDefinitions[self.value])
   end
 
   scaleInput.changed = function(self)
+    print("scaleInput.changed", self.text)
     scaleDefinition = scales.getScaleDefinitionFromText(self.text)
     setScale()
   end
@@ -772,6 +775,7 @@ local function handleTrigger(e)
 end
 
 function onInit()
+  print("Init Chorder")
   setScale()
 end
 
@@ -832,7 +836,18 @@ function onLoad(data)
   local dataCounter = 1
   for i,v in ipairs(chordDefinitionInputData) do
     paramsPerPart[i].chordDefinitionInput.text = chordDefinitionInputData[i]
-    paramsPerPart[i].scaleInput.text = scaleInputData[i]
+
+    -- Check if we find a scale definition that matches the stored definition
+    local scaleIndex = scales.getScaleDefinitionIndex(scaleInputData[i])
+    if type(scaleIndex) == "number" then
+      print("onLoad, found scale", scaleIndex)
+      paramsPerPart[i].scaleMenu.value = scaleIndex
+    else
+      print("onLoad, scaleInput.text", scaleInputData[i])
+      paramsPerPart[i].scaleInput.text = scaleInputData[i]
+      paramsPerPart[i].scaleInput:changed()
+    end
+
     for _,v in ipairs(paramsPerPart[i].chordDefinitionSlots) do
       v.tooltip = chordDefinitionSlotsData[dataCounter]
       v.enabled = v.tooltip ~= "Unused"

@@ -551,7 +551,6 @@ local scaleDefinitions = {
   {def={2,2,2,1,2,1,2},name="7 Notes/Acoustic",},
   {def={2,1,2,1,1,3,2},name="7 Notes/Blues",},
   {def={1,2,1,3,1,2,2},name="7 Notes/Alterated",},
-  {def={2,1,2,2,2,1,2},name="7 Notes/Yo",},
   {def={2,1,3,1,1,3,1},name="7 Notes/Maqam Saba",},
   {def={1,3,1,2,3,1,1},name="7 Notes/Persian",},
   {def={1,3,1,2,1,3,1},name="7 Notes/Arabic",},
@@ -565,10 +564,9 @@ local scaleDefinitions = {
   {def={2,1,4,2,1},name="5 Notes/Kumoi",},
   {def={1,3,1,2,3},name="5 Notes/Maqam Hijaz",},
   {def={2,1,4,1,2},name="5 Notes/Maqam Bayati",},
-  {def={2,1,4,2,1,2},name="Misc/In",},
-  {def={3},name="Misc/Diminished",},
-  {def={2},name="Misc/Whole tone",},
-  {def={1},name="Misc/Chomatic",},
+  {def={3},name="Diminished",},
+  {def={2},name="Whole tone",},
+  {def={1},name="Chomatic",},
 }
 
 local function getScaleNames()
@@ -605,6 +603,19 @@ local function getScaleDefinitionFromText(scaleText)
   return scale
 end
 
+local function getScaleDefinitionIndex(scaleDefinition)
+  -- Check if we find a scale definition that matches the given definition
+  if type(scaleDefinition) == "table" then
+    scaleDefinition = getTextFromScaleDefinition(scaleDefinition)
+  end
+  for i,v in ipairs(scaleDefinitions) do
+    if scaleDefinition == getTextFromScaleDefinition(v.def) then
+      print("getScaleDefinitionIndex: found scale", v.name)
+      return i
+    end
+  end
+end
+
 local function getScaleWidget(width, showLabel, i)
   -- Scale widget
   if type(width) == "nil" then
@@ -631,6 +642,7 @@ local function getScaleInputWidget(scaleDefinition, width, i)
     i = ""
   end
   return widgets.label(getTextFromScaleDefinition(scaleDefinition), {
+    name = "ScaleInput" .. i,
     tooltip = "Scales are defined by setting semitones up from the previous note, separated by comma. If 12 is divisible by the definition sum, it will resolve every octave.",
     editable = true,
     backgroundColour = "black",
@@ -644,6 +656,7 @@ end
 local scales = {
   widget = getScaleWidget,
   inputWidget = getScaleInputWidget,
+  getScaleDefinitionIndex = getScaleDefinitionIndex,
   getTextFromScaleDefinition = getTextFromScaleDefinition,
   getScaleDefinitionFromText = getScaleDefinitionFromText,
   getScaleDefinitions = getScaleDefinitions,
@@ -788,6 +801,7 @@ widgets.menu("Key", key, notes.getNoteNames(), {
 })
 
 local scaleMenu = scales.widget(110)
+scaleMenu.persistent = false
 
 widgets.label("Scale Definition", {
   textColour = "#d0d0d0"
@@ -835,6 +849,13 @@ function onSave()
 end
 
 function onLoad(data)
-  scaleInput.text = data[1]
-  scaleInput:changed() -- Ensure the scale is updated
+  -- Check if we find a scale definition that matches the stored definition
+  local scaleIndex = scales.getScaleDefinitionIndex(data[1])
+  if type(scaleIndex) == "number" then
+    print("onLoad, found scale", scaleIndex)
+    scaleMenu.value = scaleIndex
+  else
+    scaleInput.text = data[1]
+    scaleInput:changed()
+  end
 end

@@ -421,6 +421,7 @@ widgets.menu("Key", key, notes.getNoteNames(), {
 })
 
 local scaleMenu = scales.widget(120, true)
+scaleMenu.persistent = false -- Avoid running changed function on load, overwriting scaleInput
 
 widgets.label("Scale Definition", {
   textColour = "#d0d0d0"
@@ -627,10 +628,17 @@ end
 function onLoad(data)
   sequencerLabel.text = data[1]
   strategyInputField.text = data[2]
-  scaleInput.text = data[3]
   local strategySlotsData = data[4]
 
-  scaleInput:changed() -- Ensure the scale is updated
+  -- Check if we find a scale definition that matches the stored definition
+  local scaleIndex = scales.getScaleDefinitionIndex(data[3])
+  if type(scaleIndex) == "number" then
+    print("onLoad, found scale", scaleIndex)
+    scaleMenu.value = scaleIndex
+  else
+    scaleInput.text = data[3]
+    scaleInput:changed()
+  end
 
   for i,v in ipairs(strategySlots) do
     v.tooltip = strategySlotsData[i]

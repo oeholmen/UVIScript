@@ -611,7 +611,6 @@ local scaleDefinitions = {
   {def={2,2,2,1,2,1,2},name="7 Notes/Acoustic",},
   {def={2,1,2,1,1,3,2},name="7 Notes/Blues",},
   {def={1,2,1,3,1,2,2},name="7 Notes/Alterated",},
-  {def={2,1,2,2,2,1,2},name="7 Notes/Yo",},
   {def={2,1,3,1,1,3,1},name="7 Notes/Maqam Saba",},
   {def={1,3,1,2,3,1,1},name="7 Notes/Persian",},
   {def={1,3,1,2,1,3,1},name="7 Notes/Arabic",},
@@ -625,10 +624,9 @@ local scaleDefinitions = {
   {def={2,1,4,2,1},name="5 Notes/Kumoi",},
   {def={1,3,1,2,3},name="5 Notes/Maqam Hijaz",},
   {def={2,1,4,1,2},name="5 Notes/Maqam Bayati",},
-  {def={2,1,4,2,1,2},name="Misc/In",},
-  {def={3},name="Misc/Diminished",},
-  {def={2},name="Misc/Whole tone",},
-  {def={1},name="Misc/Chomatic",},
+  {def={3},name="Diminished",},
+  {def={2},name="Whole tone",},
+  {def={1},name="Chomatic",},
 }
 
 local function getScaleNames()
@@ -665,6 +663,19 @@ local function getScaleDefinitionFromText(scaleText)
   return scale
 end
 
+local function getScaleDefinitionIndex(scaleDefinition)
+  -- Check if we find a scale definition that matches the given definition
+  if type(scaleDefinition) == "table" then
+    scaleDefinition = getTextFromScaleDefinition(scaleDefinition)
+  end
+  for i,v in ipairs(scaleDefinitions) do
+    if scaleDefinition == getTextFromScaleDefinition(v.def) then
+      print("getScaleDefinitionIndex: found scale", v.name)
+      return i
+    end
+  end
+end
+
 local function getScaleWidget(width, showLabel, i)
   -- Scale widget
   if type(width) == "nil" then
@@ -691,6 +702,7 @@ local function getScaleInputWidget(scaleDefinition, width, i)
     i = ""
   end
   return widgets.label(getTextFromScaleDefinition(scaleDefinition), {
+    name = "ScaleInput" .. i,
     tooltip = "Scales are defined by setting semitones up from the previous note, separated by comma. If 12 is divisible by the definition sum, it will resolve every octave.",
     editable = true,
     backgroundColour = "black",
@@ -704,6 +716,7 @@ end
 local scales = {
   widget = getScaleWidget,
   inputWidget = getScaleInputWidget,
+  getScaleDefinitionIndex = getScaleDefinitionIndex,
   getTextFromScaleDefinition = getTextFromScaleDefinition,
   getScaleDefinitionFromText = getScaleDefinitionFromText,
   getScaleDefinitions = getScaleDefinitions,
@@ -950,6 +963,15 @@ local shapeDefinitions = {
   {name = "Test Shape", f = shapes.testShape},
 }
 
+local function getShapeIndexFromName(shapeName)
+  for i,v in ipairs(shapeDefinitions) do
+    if v.name == shapeName then
+      return i
+    end
+  end
+  return 1
+end
+
 local function getDefaultShapeOptions()
   return {
     z = 1,
@@ -1025,8 +1047,11 @@ local function getShapeBounds(shapeBounds)
   return bounds
 end
 
-local function createShape(shapeIndex, shapeBounds, shapeOptions)
-  local shapeDefinition = shapeDefinitions[shapeIndex]
+local function createShape(shapeIndexOrName, shapeBounds, shapeOptions)
+  if type(shapeIndexOrName) == "string" then
+    shapeIndexOrName = getShapeIndexFromName(shapeIndexOrName)
+  end
+  local shapeDefinition = shapeDefinitions[shapeIndexOrName]
   local bounds = getShapeBounds(shapeBounds)
   local options = getShapeTemplate(shapeOptions, shapeDefinition.o)
   local shape = {}
@@ -1104,7 +1129,7 @@ local shapes = {
   getAmountWidget = getAmountWidget,
   getShapeNames = getShapeNames,
   getShapeOptions = getShapeOptions,
-  get = function(i,t,o) return createShape(i,t,o) end,
+  get = createShape,
 }
 
 --------------------------------------------------------------------------------
@@ -1190,6 +1215,137 @@ local resolutionNames = {
   "1/128" -- 32
 }
 
+local function getEvenFromTriplet(value)
+  return value * 3
+end
+
+local function getEvenFromDotted(value)
+  return value / 1.5
+end
+
+local function getResolutionsByType(maxResolutionIndex)
+  if type(maxResolutionIndex) == "nil" then
+    maxResolutionIndex = #resolutionValues
+  end
+  local startPosIndex = 11
+  local resOptions = {}
+  -- Create table of resolution indexes by type (1=even,2=dot,3=tri)
+  for i=startPosIndex,startPosIndex+2 do
+    local resolutionIndex = i
+    local resolutionsOfType = {}
+    while resolutionIndex <= maxResolutionIndex do
+      table.insert(resolutionsOfType, resolutionIndex) -- insert current index in resolution options table
+      --print("Insert resolutionIndex", resolutionIndex)
+      resolutionIndex = resolutionIndex + 3 -- increment index
+    end
+    --print("#resolutionsOfType, i", #resolutionsOfType, i)
+    table.insert(resOptions, resolutionsOfType)
+  end
+  -- Add the resolutions that are whole numbers (1,2,3,4...)
+  local slowResolutions = {}
+  for i,resolution in ipairs(resolutionValues) do
+    if resolution % 1 == 0 then
+      table.insert(slowResolutions, i)
+      --print("getResolutionsByType - included slow resolution", resolution)
+    end
+  end
+  --print("#slowResolutions", #slowResolutions)
+  table.insert(resOptions, slowResolutions) -- Add the "slow" x resolutions
+  --print("resOptions", #resOptions)
+  return resOptions
+end
+
+-- Returns a table of resolutions indexes that are "approved" to use
+local function getSelectedResolutions(resolutionsByType)
+  local maxResolutionIndex = #resolutionValues -- TODO Set limit?
+  local selectedResolutions = {}
+  for i=1,3 do
+    for _,resolutionIndex in ipairs(resolutionsByType[i]) do
+      -- Limit dotted/tri resolutions above 1/8 dot and 1/16 tri
+      if resolutionIndex > maxResolutionIndex or (i == 2 and resolutionIndex > 18) or (i == 3 and resolutionIndex > 25) then
+        break
+      end
+      table.insert(selectedResolutions, resolutionIndex)
+    end
+  end
+  return selectedResolutions
+end
+
+-- Tries to adjust the given resolution by adjusting
+-- length, and/or setting a even/dot/tri value variant
+local function getResolutionVariation(currentResolution, adjustBias, doubleOrHalfProbaility, dotOrTriProbaility)
+  local currentIndex = gem.getIndexFromValue(currentResolution, resolutionValues)
+  if type(currentIndex) == "nil" then
+    return currentResolution
+  end
+
+  if type(adjustBias) == "nil" then
+    adjustBias = 50
+  end
+
+  if type(doubleOrHalfProbaility) == "nil" then
+    doubleOrHalfProbaility = 50
+  end
+
+  if type(dotOrTriProbaility) == "nil" then
+    dotOrTriProbaility = 50
+  end
+
+  local resolutionsByType = getResolutionsByType()
+
+  -- Include the resolutions that are available
+  local selectedResolutions = getSelectedResolutions(resolutionsByType)
+
+  --print("BEFORE currentIndex", currentIndex)
+  local resolutionIndex = currentIndex
+  if gem.tableIncludes(resolutionsByType[2], currentIndex) then
+    resolution = getEvenFromDotted(resolutionValues[currentIndex])
+    --print("getEvenFromDotted", resolution)
+  elseif gem.tableIncludes(resolutionsByType[3], currentIndex) then
+    resolution = getEvenFromTriplet(resolutionValues[currentIndex])
+    --print("getEvenFromTriplet", resolution)
+  elseif gem.tableIncludes(resolutionsByType[1], currentIndex) or gem.tableIncludes(resolutionsByType[4], currentIndex) then
+    resolution = resolutionValues[currentIndex]
+    --print("getEvenOrSlow", resolution)
+  end
+  if type(resolution) == "number" then
+    local doubleOrHalf = gem.getRandomBoolean(doubleOrHalfProbaility)
+    -- Double or half duration
+    if doubleOrHalf then
+      local doubleResIndex = gem.getIndexFromValue((resolution * 2), resolutionValues)
+      if gem.getRandomBoolean(adjustBias) == false and type(doubleResIndex) == "number" and gem.tableIncludes(selectedResolutions, doubleResIndex) then
+        resolution = resolutionValues[doubleResIndex]
+        --print("Slower resolution", resolution)
+      else
+        resolution = resolution / 2
+        --print("Faster resolution", resolution)
+      end
+    end
+    -- Set dotted (or tri) on duration if no change was done to the lenght, or probability hits
+    --if doubleOrHalf == false or gem.getRandomBoolean(dotOrTriProbaility) then
+    if gem.getRandomBoolean(dotOrTriProbaility) then
+      if gem.tableIncludes(resolutionsByType[3], currentIndex) then
+        resolution = getTriplet(resolution)
+        --print("getTriplet", resolution)
+      else
+        local dottedResIndex = gem.getIndexFromValue(getDotted(resolution), resolutionValues)
+        if type(dottedResIndex) == "number" and gem.tableIncludes(selectedResolutions, dottedResIndex) then
+          resolution = resolutionValues[dottedResIndex]
+          --print("getDotted", resolution)
+        end
+      end
+    end
+  end
+  currentIndex = gem.getIndexFromValue(resolution, resolutionValues)
+  --print("AFTER currentIndex", currentIndex)
+  if type(currentIndex) == "number" and gem.tableIncludes(selectedResolutions, currentIndex) then
+    --print("Got resolution from the current index")
+    return resolutionValues[currentIndex]
+  end
+
+  return currentResolution
+end
+
 -- Quantize the given beat to the closest recognized resolution value
 local function quantizeToClosest(beat)
   for i,v in ipairs(resolutionValues) do
@@ -1212,19 +1368,19 @@ local function quantizeToClosest(beat)
 end
 
 local resolutions = {
+  getResolutionVariation = getResolutionVariation,
+
+  getResolutionsByType = getResolutionsByType,
+
   quantizeToClosest = quantizeToClosest,
 
   getDotted = getDotted,
 
   getTriplet = getTriplet,
 
-  getEvenFromDotted = function(value)
-    return value / 1.5
-  end,
+  getEvenFromDotted = getEvenFromDotted,
   
-  getEvenFromTriplet = function(value)
-    return value * 3
-  end,
+  getEvenFromTriplet = getEvenFromTriplet,
   
   getResolution = function(i)
     return resolutionValues[i]
@@ -1261,39 +1417,7 @@ local resolutions = {
   
     return res
   end,
-  
-  getResolutionsByType = function(maxResolutionIndex)
-    if type(maxResolutionIndex) == "nil" then
-      maxResolutionIndex = #resolutionValues
-    end
-    local startPosIndex = 11
-    local resOptions = {}
-    -- Create table of resolution indexes by type (1=even,2=dot,3=tri)
-    for i=startPosIndex,startPosIndex+2 do
-      local resolutionIndex = i
-      local resolutionsOfType = {}
-      while resolutionIndex <= maxResolutionIndex do
-        table.insert(resolutionsOfType, resolutionIndex) -- insert current index in resolution options table
-        --print("Insert resolutionIndex", resolutionIndex)
-        resolutionIndex = resolutionIndex + 3 -- increment index
-      end
-      --print("#resolutionsOfType, i", #resolutionsOfType, i)
-      table.insert(resOptions, resolutionsOfType)
-    end
-    -- Add the resolutions that are whole numbers (1,2,3,4...)
-    local slowResolutions = {}
-    for i,resolution in ipairs(resolutionValues) do
-      if resolution % 1 == 0 then
-        table.insert(slowResolutions, i)
-        --print("getResolutionsByType - included slow resolution", resolution)
-      end
-    end
-    --print("#slowResolutions", #slowResolutions)
-    table.insert(resOptions, slowResolutions) -- Add the "slow" x resolutions
-    --print("resOptions", #resOptions)
-    return resOptions
-  end,
-  
+
   getPlayDuration = function(duration, gate)
     if type(gate) == "nil" then
       gate = 100

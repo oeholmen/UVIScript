@@ -16,6 +16,7 @@ luaScripts=(
   modular/chorderInput
   modular/gridSequencerInput
   modular/horizontalMotionSequencerInput
+  modular/lifeTrigger
   modular/motionSequencerInput
   modular/probabilityTrigger
   modular/pulseTrigger

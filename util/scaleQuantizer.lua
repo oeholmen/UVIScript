@@ -48,6 +48,7 @@ widgets.menu("Key", key, notes.getNoteNames(), {
 })
 
 local scaleMenu = scales.widget(110)
+scaleMenu.persistent = false
 
 widgets.label("Scale Definition", {
   textColour = "#d0d0d0"
@@ -95,6 +96,13 @@ function onSave()
 end
 
 function onLoad(data)
-  scaleInput.text = data[1]
-  scaleInput:changed() -- Ensure the scale is updated
+  -- Check if we find a scale definition that matches the stored definition
+  local scaleIndex = scales.getScaleDefinitionIndex(data[1])
+  if type(scaleIndex) == "number" then
+    print("onLoad, found scale", scaleIndex)
+    scaleMenu.value = scaleIndex
+  else
+    scaleInput.text = data[1]
+    scaleInput:changed()
+  end
 end

@@ -274,13 +274,6 @@ widgets.menu("Motion Type", tableMotion.movementTypes, {
   end
 })
 
---[[ widgets.menu("Scale", #scalesNames, scalesNames, {
-  changed = function(self)
-    scaleDefinitionIndex = self.value
-    setScale()
-  end
-}) ]]
-
 scales.widget(noteWidgetWidth).changed = function(self)
   scaleDefinitionIndex = self.value
   setScale()
