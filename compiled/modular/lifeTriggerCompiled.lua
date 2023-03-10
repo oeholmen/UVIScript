@@ -164,6 +164,7 @@ local widgetDefaults = {
   ySpacing = 0,
   col = 0,
   row = 0,
+  rowDirection = 1,
   cols = 6
 }
 
@@ -224,6 +225,7 @@ local function setSection(settings)
   if type(settings) ~= "table" then
     settings = {}
   end
+  setColours(settings)
   widgetDefaults.width = getValueOrDefault(settings.width, widgetDefaults.width)
   widgetDefaults.height = getValueOrDefault(settings.height, widgetDefaults.height)
   widgetDefaults.menuHeight = getValueOrDefault(settings.menuHeight, widgetDefaults.menuHeight)
@@ -236,9 +238,15 @@ local function setSection(settings)
   widgetDefaults.cols = getValueOrDefault(settings.cols, widgetDefaults.cols)
   widgetDefaults.col = getValueOrDefault(settings.col, 0)
   widgetDefaults.row = getValueOrDefault(settings.row, 0)
-  setColours(settings)
+  widgetDefaults.rowDirection = getValueOrDefault(settings.rowDirection, 1)
   currentX = widgetDefaults.xOffset
-  currentY = widgetDefaults.yOffset
+  if widgetDefaults.rowDirection < 0 and widgetDefaults.row > 0 then
+    -- Find y when direction is reverse
+    local heightPerRow = widgetDefaults.height + widgetDefaults.ySpacing
+    currentY = (heightPerRow * widgetDefaults.row) + widgetDefaults.ySpacing
+  else
+    currentY = widgetDefaults.yOffset
+  end
 end
 
 local function getWidgetName(name, displayName, useDisplayNameAsWidgetName, panel)
@@ -272,7 +280,12 @@ local function incrementRow(row, h)
 
   local height = math.max(1, row) * h
   local ySpacing = math.max(1, row) * widgetDefaults.ySpacing
-  currentY = currentY + height + ySpacing
+  local yAdjust = height + ySpacing
+  if row > 0 then
+    currentY = currentY + yAdjust
+  else
+    currentY = currentY - yAdjust
+  end
 end
 
 local function incrementCol(col, w, h)
@@ -289,7 +302,7 @@ local function incrementCol(col, w, h)
 
   widgetDefaults.col = widgetDefaults.col + col
   if widgetDefaults.col >= widgetDefaults.cols then
-    incrementRow(1, h)
+    incrementRow(widgetDefaults.rowDirection, h)
   end
 end
 
@@ -535,6 +548,323 @@ local widgets = {
 }
 
 --------------------------------------------------------------------------------
+-- Methods for working with shapes
+--------------------------------------------------------------------------------
+
+-- Holds the shape definitions - functions get the following variables
+-- x is the current time-value getting plotted, from -1.0 to 1.0
+-- z is the current table number, from -1.0 to 1.0
+-- w is the current time-value getting plotted, from 0.0 to 1.0 (same as (x+1)/2)
+-- y is the current table number, from 0.0 to 1.0 (same as (z+1)/2)
+-- i = current index
+-- b = bounds (min, max, length, unipolar)
+-- q = gem.round(1+((x+1)/2)*511)
+local shapes = {
+  ramp = function(x, z, w, y, i, b) return x * z end,
+  triangleShaper = function(x, z, w, y, i) return math.min(2+2*x, math.abs((x-0.5)*2)-1) * z end,
+  sine = function(x, z, w, y, i) return math.sin(x*math.pi) * z end,
+  tangent = function(x, z, w, y, i) return math.tan(x) * z end,
+  sawInPhase = function(x, z, w, y, i) return (gem.sign(x)-x) * z end,
+  sinToNoise = function(x, z, w, y, i) return 2*gem.avg({math.sin(z*x*math.pi),(1-z)*gem.getRandom()}) end,
+  wacky = function(x, z, w, y, i) return math.sin(((x)+1)^(z-1)*math.pi) end,
+  hpfSqrToSqr = function(x, z, w, y, i) if x < 0 then return math.sin((z*0.5)*math.pi)^(x+1) end return -math.sin((z*0.5)*math.pi)^x end,
+  windowYSqr = function(x, z, w, y, i) local v = 1 if math.abs(x) > 0.5 then v = (1-math.abs(x))*2 end return v * math.min(1, math.max(-1,8*math.sin((z+0.02)*x*math.pi*32))) end,
+  filteredSquare = function(x, z, w, y, i) return (1.2*math.sin(x*math.pi)+0.31*math.sin(x*math.pi*3)+0.11*math.sin(x*math.pi*5)+0.033*math.sin(x*math.pi*7)) * z end,
+  organIsh = function(x, z, w, y, i) return (math.sin(x*math.pi)+(0.16*(math.sin(2*x*math.pi)+math.sin(3*x*math.pi)+math.sin(4*x*math.pi)))) * z end,
+  sawAnalog = function(x, z, w, y, i) return (2.001 * (math.sin(x * 0.7905) - 0.5)) * z end,
+  dome = function(x, z, w, y, i) return (2 * (math.sin(x * 1.5705) - 0.5)) * z end,
+  brassy = function(x, z, w, y, i) return math.sin(math.pi*gem.sign(x)*(math.abs(x)^(((1-z)+0.1)*math.pi*math.pi))) end,
+  taffy = function(x, z, w, y, i) return math.sin(x*math.pi*2)*math.cos(x*math.pi)*math.cos(z*math.pi*(math.abs((x*2)^3)-1)*math.pi) end,
+  random = function(x, z, w, y, i) return ((gem.getRandom() * 2) - 1) * z end,
+  harmonicSync = function(x, z, w, y, i) return math.sin(x*math.pi*(2+(62*z*z*z)))*math.sin(x*math.pi) end,
+  softSine = function(x, z, w, y, i) return 0.5*(math.cos(x*math.pi/2)*((math.sin((x)*math.pi)+(1-z)*(math.sin(z*((x*x)^z)*math.pi*32))))) end,
+  tripleSin = function(x, z, w, y, i) return math.cos(x*math.pi/2)*1.6*(.60*math.sin( ((z*16)+1)*3*x ) + .20*math.sin( ((z*16)+1)*9*x ) + .15*math.sin( ((z*16)+1)*15*x)) end,
+  pwm50to100 = function(x, z, w, y, i) if x > z then return 1 end return -1 end,
+  chaosToSine = function(x, z, w, y, i) return math.sin(math.pi*z*z*32*math.log(x+1)) end,
+  sawSinReveal = function(x, z, w, y, i) if x + 1 > z * 2 then return x end return math.sin(x * math.pi) end,
+  domeSmall = function(x, z, w, y, i) return (-1-1.275*math.sin(w*math.pi)) * z end,
+  zero = function(x, z, w, y, i, b) if b.unipolar then return -1 end return 0 end,
+  minMax = function(x, z, w, y, i) return z end,
+  oddAndEven = function(x, z, w, y, i) x = 1 if i % 2 == 0 then x = -1 end return x * z end,
+  lofiTriangle = function(x, z, w, y, i) return ((gem.round(16*math.abs(x))/8.0)-1) * z end,
+  hpfSaw = function(x, z, w, y, i) return (x-(0.635*math.sin(x*math.pi))) * z end,
+  squareTri = function(x, z, w, y, i) return (-1*(gem.sign(x)*0.5)+(math.abs(x)-0.5)) * z end,
+  sineStrech = function(x, z, w, y, i) return math.sin(x^(1+(gem.round(z*32)*2))*math.pi) end,
+  squareSawBit = function(x, z, w, y, i) return math.sin((2-(z/4))*x*x*math.pi)/gem.round(x*32*((z/4)*(z/4)-0.125)) end,
+  loFiTriangles = function(x, z, w, y, i) return (gem.round((2+(z*14))*math.abs(x))/(1+(z*7.0)))-1 end,
+  talkative1 = function(x, z, w, y, i) return 1.4*math.cos(x*math.pi/2)*(.5*math.sin(((z*5)+1)*3*x)+.10*math.sin(((z*6)+1)*2*x)+.08*math.sin((((1-z)*3)+1)*12*x)) end,
+  sinClipper = function(x, z, w, y, i) return math.sin(x*math.pi)*(((z*z)+0.125)*8) end,
+  pitfall = function(x, z, w, y, i) return (x*128)%(z*16)*0.25 end,
+  nascaLines = function(x, z, w, y, i, b) return math.sqrt(1/i)*(((i/b.max)*(z+0.1)*b.max)%3)*0.5 end,
+  kick = function(x, z, w, y, i) return math.sin(math.pi*z*z*32*math.log(x+1)) end,
+  sinToSaw = function(x, z, w, y, i) return math.sin(-x*math.pi)*(1-z)+(-x*z) end,
+  zeroCrossing = function(x, z, w, y, i) return math.sin((x+1)*math.pi*(z+1))*(-math.abs(x)^32+1) end,
+  vosim = function(x, z, w, y, i) return -(w-1)*math.sin(w*math.pi*8*(math.sin(z)+1.5))^2 end,
+  vosimNormalized = function(x, z, w, y, i) return (-(w-1)*math.sin(w*math.pi*9*(math.sin(y)+1.3))^2-.5)*2 end,
+  --tanh = function(x, z, w, y, i) return math.tanh(x) * z end,
+  acos = function(x, z, w, y, i) return math.acos(x) * z end,
+  wings = function(x, z, w, y, i) return math.acos((math.abs(-math.abs(x)+1) + -math.abs(x)+1)/2) * z end,
+  --atan2 = function(x, z, w, y, i) return math.atan2(y, x) * z end,
+  crosser = function(x, z, w, y, i) return gem.avg({x, w}) * z end,
+  diracDelta = function(x, z, w, y, i) return (math.exp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*16) end,
+  diracDeltaFrexp = function(x, z, w, y, i) return (math.frexp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*16) end,
+  diracDeltaRand = function(x, z, w, y, i, b) return (math.exp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*math.min(8, b.rand*32)) end,
+  swipe1 = function(x, z, w, y, i) return math.exp(math.abs(x)/y) * z end,
+  swipe2 = function(x, z, w, y, i) return math.exp(math.tan(x)/math.pi) * z end,
+  swipe3 = function(x, z, w, y, i) return math.exp(x-y) * z end,
+  swipe4 = function(x, z, w, y, i) return (math.exp(x)) * gem.avg({z, x}) end,
+  mayhemInTheMiddle = function(x, z, w, y, i) return math.sin((x * math.pi) + (z * math.tan(w * math.pi))) end,
+  zeroDancer = function(x, z, w, y, i) return math.sin(x / z + z) * z end,
+  shakySine = function(x, z, w, y, i, b)
+    local f = 0
+    local g = b.rand * ((i-1) / b.length)
+    if z < 0 then
+      f = z - g
+    elseif z > 0 then
+      f = z + g
+    end
+    return math.sin(x * math.pi) * f
+  end,
+  testShape = function(x, z, w, y, i, b)
+    return x * z
+  end
+}
+
+local shapeDefinitions = {
+  {name = "Ramp Up", f = shapes.ramp, o = {z = 1}},
+  {name = "Ramp Down", f = shapes.ramp, o = {z = -1}},
+  {name = "Sine", f = shapes.sine},
+  {name = "Triangle", f = shapes.triangleShaper},
+  {name = "Triangle (Off Phs)", f = shapes.triangleShaper, o = {phase = -.5}},
+  {name = "LoFi Triangle", f = shapes.lofiTriangle},
+  {name = "Sqr/Tri", f = shapes.squareTri},
+  {name = "Dome", f = shapes.dome, o = {phase = 0}},
+  {name = "Dome Small", f = shapes.domeSmall, o = {phase = 1}},
+  {name = "Saw", f = shapes.sawInPhase},
+  {name = "HPF Saw", f = shapes.hpfSaw},
+  {name = "Analog Saw", f = shapes.sawAnalog, o = {phase = 0}},
+  {name = "Fltr Sqr",  f = shapes.filteredSquare},
+  {name = "Organ-Ish", f = shapes.organIsh},
+  {name = "Tangent", f = shapes.tangent},
+  --{name = "Tanh", f = shapes.tanh},
+  {name = "Acos", f = shapes.acos},
+  --{name = "Atan2", f = shapes.atan2},
+  {name = "Triple Sine", f = shapes.tripleSin},
+  {name = "Harmonic Sync", f = shapes.harmonicSync},
+  {name = "Soft Sine", f = shapes.softSine},
+  {name = "Even", f = shapes.oddAndEven, o = {z = -1}},
+  {name = "Odd", f = shapes.oddAndEven},
+  {name = "Zero", f = shapes.zero},
+  {name = "Min", f = shapes.minMax, o = {z = -1}},
+  {name = "Max", f = shapes.minMax},
+  {name = "Chaos To Sine", f = shapes.chaosToSine},
+  {name = "Saw/Sin Reveal", f = shapes.sawSinReveal, o = {phase = -1}},
+  {name = "PWM 50 to 100", f = shapes.pwm50to100},
+  {name = "Triple-Sin Window", f = shapes.tripleSin, o = {z = 0}},
+  {name = "Taffy", f = shapes.taffy, o = {z = 0}},
+  {name = "Brassy", f = shapes.brassy, o = {z = 0}},
+  {name = "HPF-Sqr To Sqr", f = shapes.hpfSqrToSqr, o = {z = .01}},
+  {name = "Wacky", f = shapes.wacky, o = {z = .84}},
+  {name = "Sine To Noise", f = shapes.sinToNoise},
+  {name = "Sine Stretch", f = shapes.sineStrech, o = {z = .03}},
+  {name = "SquareSaw Bit", f = shapes.squareSawBit},
+  {name = "LoFi Triangles", f = shapes.loFiTriangles, o = {z = 0}},
+  {name = "Talkative 1", f = shapes.talkative1},
+  {name = "Sin Clipper", f = shapes.sinClipper, o = {z = 0}},
+  {name = "Pitfall", f = shapes.pitfall, o = {z = .15}},
+  {name = "Nasca Lines", f = shapes.nascaLines, o = {z = -.31}},
+  {name = "Window-y SQR Sync", f = shapes.windowYSqr, o = {z = 0}},
+  {name = "Kick", f = shapes.kick, o = {phase = 0, z = -.505}},
+  {name = "Sin To Saw", f = shapes.sinToSaw, o = {z = 0}},
+  {name = "Zero Crossing", f = shapes.zeroCrossing},
+  {name = "VOSIM", f = shapes.vosim},
+  {name = "VOSIM (Norm)", f = shapes.vosimNormalized},
+  {name = "Crosser", f = shapes.crosser, o = {z = 0, factor = 4}},
+  {name = "Mayhem Middle", f = shapes.mayhemInTheMiddle},
+  {name = "Zero Dancer", f = shapes.zeroDancer},
+  {name = "Wings", f = shapes.wings, o = {factor = .5}},
+  {name = "Dirac Delta", f = shapes.diracDelta, o = {factor = .2, z = .02}},
+  {name = "Dirac Delta (frexp)", f = shapes.diracDeltaFrexp, o = {z = .03}},
+  {name = "Dirac Delta Rand", f = shapes.diracDeltaRand, o = {z = .06}},
+  {name = "Swipe 1", f = shapes.swipe1},
+  {name = "Swipe 2", f = shapes.swipe2},
+  {name = "Swipe 3", f = shapes.swipe3},
+  {name = "Swipe 4", f = shapes.swipe4, o = {z = -.25}},
+  {name = "Shaky Sine", f = shapes.shakySine},
+  {name = "Random", f = shapes.random},
+  {name = "Test Shape", f = shapes.testShape},
+}
+
+local function getShapeIndexFromName(shapeName)
+  for i,v in ipairs(shapeDefinitions) do
+    if v.name == shapeName then
+      return i
+    end
+  end
+  return 1
+end
+
+local function getDefaultShapeOptions()
+  return {
+    z = 1,
+    phase = -1,
+    factor = 1,
+    amount = 100,
+  }
+end
+
+local function getValueOrDefault(value, default)
+  if type(value) == "number" then
+    return value
+  end
+  return default
+end
+
+local function getShapeOptions(overrides)
+  local defaultShapeOptions = getDefaultShapeOptions()
+  if type(overrides) == "nil" then
+    return defaultShapeOptions
+  end
+  return {
+    z = getValueOrDefault(overrides.z, defaultShapeOptions.z),
+    phase = getValueOrDefault(overrides.phase, defaultShapeOptions.phase),
+    factor = getValueOrDefault(overrides.factor, defaultShapeOptions.factor),
+    amount = getValueOrDefault(overrides.amount, defaultShapeOptions.amount),
+  }
+end
+
+local function getShapeTemplate(options, shapeTemplate)
+  if type(options) == "nil" and type(shapeTemplate) == "table" then
+    options = shapeTemplate
+  end
+  return getShapeOptions(options)
+end
+
+local function getShapeNames(options, max)
+  if type(max) ~= "number" then
+    max = #shapeDefinitions
+  end
+
+  local items = {}
+
+  for i,s in ipairs(shapeDefinitions) do
+    table.insert(items, s.name)
+    if i == max then
+      break
+    end
+  end
+
+  -- Add any options
+  if type(options) == "table" then
+    for _,o in ipairs(options) do
+      table.insert(items, o)
+    end
+  end
+
+  return items
+end
+
+local getUnipolar = function(v) return (v + 1) / 2 end
+
+local function getShapeBounds(shapeBounds)
+  local bounds = {}
+  if type(shapeBounds) == "nil" then
+    shapeBounds = {}
+  end
+  bounds.min = getValueOrDefault(shapeBounds.min, -1) -- x-azis max value
+  bounds.max = getValueOrDefault(shapeBounds.max, 1) -- x-azis min value
+  bounds.length = getValueOrDefault(shapeBounds.length, 128) -- y-axis steps
+  bounds.unipolar = bounds.min >= 0 --  Whether the shape is unipolar
+  bounds.rand = gem.getRandom() -- A random number that will be equal across all steps
+  return bounds
+end
+
+local function createShape(shapeIndexOrName, shapeBounds, shapeOptions)
+  if type(shapeIndexOrName) == "string" then
+    shapeIndexOrName = getShapeIndexFromName(shapeIndexOrName)
+  end
+  local shapeDefinition = shapeDefinitions[shapeIndexOrName]
+  local bounds = getShapeBounds(shapeBounds)
+  local options = getShapeTemplate(shapeOptions, shapeDefinition.o)
+  local shape = {}
+  for i=1,bounds.length do
+    local x = options.factor * (gem.getChangePerStep(((i-1)*2), bounds.length) + options.phase)
+    local z = options.z
+    local w = getUnipolar(x)
+    local y = getUnipolar(z)
+    local value = shapeDefinition.f(x, z, w, y, i, bounds)
+    if bounds.unipolar then
+      value = getUnipolar(value)
+    end
+    value = (bounds.max * value) * (options.amount / 100)
+    table.insert(shape, math.max(bounds.min, math.min(bounds.max, value)))
+  end
+  return shape, options
+end
+
+local function getAmountWidget(width, showLabel, i)
+  -- Widget for controlling shape amount
+  if type(width) == "nil" then
+    width = 120
+  end
+  if type(i) == "nil" then
+    i = ""
+  end
+  return widgets.numBox("Amount", getShapeOptions().amount, {
+    name = "ShapeAmount" .. i,
+    tooltip = "Set the shape amount.",
+    width = width,
+    showLabel = showLabel == true,
+    unit = Unit.Percent,
+  })
+end
+
+local function getShapeWidgets(width, showLabel, i)
+  -- Widgets for controlling shape
+  if type(width) == "nil" then
+    width = 120
+  end
+  if type(i) == "nil" then
+    i = ""
+  end
+  local shapeOptions = getShapeOptions()
+  return {
+    factor = widgets.numBox("Shape Factor", shapeOptions.factor, {
+      name = "ShapeFactor" .. i,
+      tooltip = "Set the factor (multiplier) applied to the value of each step.",
+      width = width,
+      showLabel = showLabel == true,
+      min = -8,
+      max = 8,
+    }),
+    phase = widgets.numBox("Shape Phase", shapeOptions.phase, {
+      name = "ShapePhase" .. i,
+      tooltip = "Set the phase applied to the shape (move left/right).",
+      width = width,
+      showLabel = showLabel == true,
+      min = -1,
+      max = 1,
+    }),
+    z = widgets.numBox("Shape Morph", shapeOptions.z, {
+      name = "ShapeMorph" .. i,
+      tooltip = "Set the morph value. This value is mostly assigned to amplitude, but it depends on the shape.",
+      width = width,
+      showLabel = showLabel == true,
+      min = -1,
+      max = 1,
+    })
+  }
+end
+
+local shapes = {
+  getWidgets = getShapeWidgets,
+  getAmountWidget = getAmountWidget,
+  getShapeNames = getShapeNames,
+  getShapeOptions = getShapeOptions,
+  get = createShape,
+}
+
+--------------------------------------------------------------------------------
 -- Common Resolutions
 --------------------------------------------------------------------------------
 
@@ -658,16 +988,19 @@ local function getResolutionsByType(maxResolutionIndex)
 end
 
 -- Returns a table of resolutions indexes that are "approved" to use
-local function getSelectedResolutions(resolutionsByType)
-  local maxResolutionIndex = #resolutionValues -- TODO Set limit?
+local function getSelectedResolutions(resolutionsByType, minResolutionIndex, maxResolutionIndex)
+  if type(minResolutionIndex) == "nil" then
+    minResolutionIndex = 1 -- Slowest resolution
+  end
+  if type(maxResolutionIndex) == "nil" then
+    maxResolutionIndex = #resolutionValues -- Fastest resolution
+  end
   local selectedResolutions = {}
   for i=1,3 do
     for _,resolutionIndex in ipairs(resolutionsByType[i]) do
-      -- Limit dotted/tri resolutions above 1/8 dot and 1/16 tri
-      if resolutionIndex > maxResolutionIndex or (i == 2 and resolutionIndex > 18) or (i == 3 and resolutionIndex > 25) then
-        break
+      if resolutionIndex >= minResolutionIndex and resolutionIndex <= maxResolutionIndex then
+        table.insert(selectedResolutions, resolutionIndex)
       end
-      table.insert(selectedResolutions, resolutionIndex)
     end
   end
   return selectedResolutions
@@ -675,28 +1008,42 @@ end
 
 -- Tries to adjust the given resolution by adjusting
 -- length, and/or setting a even/dot/tri value variant
-local function getResolutionVariation(currentResolution, adjustBias, doubleOrHalfProbaility, dotOrTriProbaility)
+-- Options are: adjustBias (0=slow -> 100=fast), doubleOrHalfProbaility, dotOrTriProbaility, selectedResolutions
+local function getResolutionVariation(currentResolution, options)
   local currentIndex = gem.getIndexFromValue(currentResolution, resolutionValues)
   if type(currentIndex) == "nil" then
     return currentResolution
   end
 
-  if type(adjustBias) == "nil" then
-    adjustBias = 50
+  if type(options) == "nil" then
+    options = {}
   end
 
-  if type(doubleOrHalfProbaility) == "nil" then
-    doubleOrHalfProbaility = 50
+  if type(options.minResolutionIndex) == "nil" then
+    options.minResolutionIndex = 1
   end
 
-  if type(dotOrTriProbaility) == "nil" then
-    dotOrTriProbaility = 50
+  if type(options.maxResolutionIndex) == "nil" then
+    options.maxResolutionIndex = #resolutionValues
+  end
+
+  if type(options.adjustBias) == "nil" then
+    options.adjustBias = 50
+  end
+
+  if type(options.doubleOrHalfProbaility) == "nil" then
+    options.doubleOrHalfProbaility = 50
+  end
+
+  if type(options.dotOrTriProbaility) == "nil" then
+    options.dotOrTriProbaility = 50
   end
 
   local resolutionsByType = getResolutionsByType()
 
-  -- Include the resolutions that are available
-  local selectedResolutions = getSelectedResolutions(resolutionsByType)
+  if type(options.selectedResolutions) == "nil" then
+    options.selectedResolutions = getSelectedResolutions(resolutionsByType, options.minResolutionIndex, options.maxResolutionIndex)
+  end
 
   --print("BEFORE currentIndex", currentIndex)
   local resolutionIndex = currentIndex
@@ -711,11 +1058,11 @@ local function getResolutionVariation(currentResolution, adjustBias, doubleOrHal
     --print("getEvenOrSlow", resolution)
   end
   if type(resolution) == "number" then
-    local doubleOrHalf = gem.getRandomBoolean(doubleOrHalfProbaility)
-    -- Double or half duration
+    local doubleOrHalf = gem.getRandomBoolean(options.doubleOrHalfProbaility)
+    -- Double (slow) or half (fast) duration
     if doubleOrHalf then
       local doubleResIndex = gem.getIndexFromValue((resolution * 2), resolutionValues)
-      if gem.getRandomBoolean(adjustBias) == false and type(doubleResIndex) == "number" and gem.tableIncludes(selectedResolutions, doubleResIndex) then
+      if gem.getRandomBoolean(options.adjustBias) == false and type(doubleResIndex) == "number" and gem.tableIncludes(options.selectedResolutions, doubleResIndex) then
         resolution = resolutionValues[doubleResIndex]
         --print("Slower resolution", resolution)
       else
@@ -724,14 +1071,14 @@ local function getResolutionVariation(currentResolution, adjustBias, doubleOrHal
       end
     end
     -- Set dotted (or tri) on duration if no change was done to the lenght, or probability hits
-    --if doubleOrHalf == false or gem.getRandomBoolean(dotOrTriProbaility) then
-    if gem.getRandomBoolean(dotOrTriProbaility) then
+    --if doubleOrHalf == false or gem.getRandomBoolean(options.dotOrTriProbaility) then
+    if gem.getRandomBoolean(options.dotOrTriProbaility) then
       if gem.tableIncludes(resolutionsByType[3], currentIndex) then
         resolution = getTriplet(resolution)
         --print("getTriplet", resolution)
       else
         local dottedResIndex = gem.getIndexFromValue(getDotted(resolution), resolutionValues)
-        if type(dottedResIndex) == "number" and gem.tableIncludes(selectedResolutions, dottedResIndex) then
+        if type(dottedResIndex) == "number" and gem.tableIncludes(options.selectedResolutions, dottedResIndex) then
           resolution = resolutionValues[dottedResIndex]
           --print("getDotted", resolution)
         end
@@ -740,7 +1087,7 @@ local function getResolutionVariation(currentResolution, adjustBias, doubleOrHal
   end
   currentIndex = gem.getIndexFromValue(resolution, resolutionValues)
   --print("AFTER currentIndex", currentIndex)
-  if type(currentIndex) == "number" and gem.tableIncludes(selectedResolutions, currentIndex) then
+  if type(currentIndex) == "number" and gem.tableIncludes(options.selectedResolutions, currentIndex) then
     --print("Got resolution from the current index")
     return resolutionValues[currentIndex]
   end
@@ -843,28 +1190,97 @@ setBackgroundColour(backgroundColour)
 local isPlaying = false
 local seqIndex = 0 -- Holds the unique id for the sequencer
 local channel = 1
-local gate = 90
+local gate = 90 -- TODO Param?
+local ruleWidgets = {}
+local ruleResolutions = resolutions.getResolutionNames({"Faster", "Dot/Tri", "Slower", "Base Resolution"})
 local resolutionNames = resolutions.getResolutionNames()
-local resolution = 17 -- Time between generations
+local resolution = 20 -- The default resolution
+local minResolution = 1 -- Slowest
+local maxResolution = #resolutionNames -- Fastest
 local velocity = 64
-local rows = 10 -- Number of rows in the board
-local cols = 15 -- Number of columns in the board
-local cells = {}
-local startProbability = 30 -- TODO Param? -- Probablity that a cell will be active at the start
-local evolve = false -- TODO Param? Every generation changes the base resolution to the resolution that was selected by chance
-local locked = false -- Board is locked to move through all live cells before next gen
-local currentCellIndex = 1
-local liveCells = {} -- Holds the current live cells until next iteration
+local rows = 4 -- Number of rows in the board
+local cols = 4 -- Number of columns in the board
+local cells = {} -- Holds the cell widgets
+local evolve = false -- Every generation changes the base resolution to the resolution that was selected by chance
+local dead = false -- Dead cells are played as pause - add an option for min live cells before accepting dead?
+local locked = true -- Board is locked to move through all live cells before next gen - it starts locked to not kill the initial state
+local currentRowIndex = 1
+local currentColIndex = 1
+local liveCells = 0 -- Holds the current live cells until next iteration
+local resolutionMenu
+local fill = false -- TODO Param
+local shapeMenu
+local shapeNames = shapes.getShapeNames()
+local shapeMenuItems = {"Empty Board"}
+for _,v in ipairs(shapeNames) do
+  table.insert(shapeMenuItems, v)
+end
+
+local rules = {
+  "Dead cells become alive when they have three alive neighbors",
+  "Cells stay alive when they have two live neighbors",
+  "Cells stay alive when they have three live neighbors",
+  "Cells dies",
+}
+
+local ruleNames = {
+  "Rebirth (Three Neighbors)",
+  "Stay Alive (Two Neighbors)",
+  "Stay Alive (Three Neighbors)",
+  "Die",
+}
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
 --------------------------------------------------------------------------------
 
--- Update the board for the next generation
+local function clearCells()
+  --print("Clear cells")
+  currentRowIndex = 1
+  currentColIndex = 1 -- Reset
+  liveCells = 0 -- Reset
+  for i = 1, rows do
+    for j = 1, cols do
+      cells[i][j].value = false
+      cells[i][j].backgroundColourOn = widgets.getColours().backgroundColourOn
+      cells[i][j].backgroundColourOff = widgets.getColours().backgroundColourOff
+      -- If evolve is active, and the sequencer is playing, cells preserve their resolution
+      local preserve = isPlaying and evolve
+      if preserve == false then
+        cells[i][j].displayName = resolutionNames[resolution]
+        cells[i][j].tooltip = resolutions.getResolution(resolution) .. ""
+      end
+    end
+  end
+end
+
+local function loadShape(shapeIndex)
+  if type(shapeIndex) == "nil" then
+    shapeIndex = gem.getRandom(#shapeNames)
+    shapeMenu:setValue(shapeIndex + 1, false) 
+  end
+  print("--- NEW SHAPE ---", shapeIndex)
+  clearCells() -- Deactivate all cells
+  local values = shapes.get(shapeIndex, {min=1,max=rows,length=cols})
+  for col = 1, cols do
+    local value = math.ceil(values[col])
+    for row = 1, rows do
+      if fill then
+        cells[row][col].value = value >= row -- Fill
+      else
+        cells[row][col].value = value == row -- Line
+      end
+    end
+  end
+  locked = true -- Lock to preserve the shape
+end
+
 local function updateBoard()
-  print("updateBoard")
   -- Create a new board to hold the next generation
   local newGeneration = {}
+  liveCells = 0 -- Clear live cells
+
+  print("--- NEXT GENERATION! ---")
 
   -- Iterate through each cell on the board
   for i = 1, rows do
@@ -891,162 +1307,178 @@ local function updateBoard()
         end
       end
 
+      -- Alive rules:
+      ---- Cell stays alive (count == 2)
+      ---- Cell stays alive (count == 3)
+      ---- Cell becomes alive (count == 3)
+
+      -- Dead cells go back to the base resolution
+      -- Live cells are evolving according to the setting for the given rule
+
+      -- The rules are very simple. In the next generation, the next click of the clock, the squares are going to change statuses in some way or another:
+      ---- Any live cell with fewer than two live neighbours dies, as if by underpopulation.
+      ---- Any live cell with two or three live neighbours lives on to the next generation.
+      ---- Any live cell with more than three live neighbours dies, as if by overpopulation.
+      ---- Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
+      
+      -- These rules, which compare the behaviour of the automaton to real life, can be condensed into the following:
+      ---- Any live cell with two or three live neighbours survives.
+      ---- Any dead cell with three live neighbours becomes a live cell.
+      ---- All other live cells die in the next generation. Similarly, all other dead cells stay dead.
+
       -- Apply the rules of the game
-      if cells[i][j].value == true and count < 2 then
-        --newGeneration[i][j] = false
-        newGeneration[i][j] = -1
-      elseif cells[i][j].value == true and (count == 2 or count == 3) then
-        --newGeneration[i][j] = true
-        newGeneration[i][j] = 60
-      elseif cells[i][j].value == true and count > 3 then
-        --newGeneration[i][j] = false
-        newGeneration[i][j] = -1
-      elseif cells[i][j].value == false and count == 3 then
-        --newGeneration[i][j] = true
-        newGeneration[i][j] = 40
+      if cells[i][j].value == false and count == 3 then
+        -- Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
+        newGeneration[i][j] = 1
+      elseif cells[i][j].value == true and count == 2 then
+        -- Any live cell with two live neighbours lives on to the next generation.
+        newGeneration[i][j] = 2
+      elseif cells[i][j].value == true and count == 3 then
+        -- Any live cell with three live neighbours lives on to the next generation.
+        newGeneration[i][j] = 3
       else
-        if cells[i][j].value then
-          newGeneration[i][j] = 50
-        else
-          newGeneration[i][j] = -1
-        end
+        -- All other live cells die in the next generation. Similarly, all other dead cells stay dead.
+        newGeneration[i][j] = 4
       end
     end
   end
-
-  locked = false
-  currentCellIndex = 1
-  liveCells = {} -- Reset
 
   -- Update the cells for the next generation
-  --local liveCount = 0
   local changeCount = 0
   for i,v in ipairs(newGeneration) do
-    for j,adjustBias in ipairs(v) do
-      local isAlive = adjustBias >= 0
-      --if cells[i][j].value ~= w then
-      if cells[i][j].value ~= isAlive then
+    for j,rule in ipairs(v) do
+      local alive = rule < #rules
+      local resIndex = nil
+      local beatValue = nil
+      local options = {}
+      local baseResolutionIndex = resolution
+
+      -- When evolve is active, we get the base resolution from the cell
+      if evolve then
+        baseResolutionIndex = gem.getIndexFromValue(tonumber(cells[i][j].tooltip), resolutions.getResolutions())
+      end
+
+      if cells[i][j].value ~= alive then
         changeCount = gem.inc(changeCount)
       end
-      cells[i][j].value = isAlive
-      cells[i][j].backgroundColourOn = widgets.getColours().backgroundColourOn
-      if isAlive then
-        --print("updateBoard resolution", resolution)
-        local beatValue = resolutions.getResolutionVariation(resolutions.getResolution(resolution), adjustBias, 75)
-        --print("updateBoard beatValue", beatValue)
-        local resIndex = gem.getIndexFromValue(beatValue, resolutions.getResolutions()) -- Static resolution
-        --resolution = gem.getIndexFromValue(beatValue, resolutions.getResolutions()) -- Evolves the resolution
-        --print("updateBoard, beatValue, resIndex, resName", beatValue, resolution, resolutionNames[resIndex])
-        cells[i][j].displayName = resolutionNames[resIndex]
-        cells[i][j].tooltip = beatValue .. ""
-        --liveCount = gem.inc(liveCount)
-        table.insert(liveCells, cells[i][j])
-        if evolve then
-          resolution = resIndex
+
+      --if alive then
+        -- Set option for the selected rule if cell is alive
+        --print("rule, ruleName, i, j", rule, ruleWidgets[rule].selectedText, i, j)
+        if ruleWidgets[rule].selectedText == "Faster" then
+          options = {adjustBias=100, doubleOrHalfProbaility=100, dotOrTriProbaility=0}
+        elseif ruleWidgets[rule].selectedText == "Dot/Tri" then
+          options = {adjustBias=50, doubleOrHalfProbaility=50, dotOrTriProbaility=100}
+        elseif ruleWidgets[rule].selectedText == "Slower" then
+          options = {adjustBias=0, doubleOrHalfProbaility=100, dotOrTriProbaility=0}
+        elseif ruleWidgets[rule].selectedText == "Base Resolution" then
+          resIndex = baseResolutionIndex
+        elseif ruleWidgets[rule].value <= #resolutionNames then
+          -- Fixed resolution
+          resIndex = ruleWidgets[rule].value
+          --print("Fixed resolution", resIndex)
         end
-        --print("updateBoard liveCount", liveCount)
+      --[[ else
+        -- Dead cells return to base res, or keeps current res if evolve is active
+        resIndex = baseResolutionIndex
+      end ]]
+
+      if type(resIndex) == "number" then
+        beatValue = resolutions.getResolution(resIndex)
       else
-        cells[i][j].displayName = resolutionNames[resolution]
-        cells[i][j].tooltip = resolutions.getResolution(resolution) .. ""
+        options.minResolutionIndex = minResolution -- TODO Debug this -- Slowest
+        options.maxResolutionIndex = maxResolution -- TODO Debug this -- Fastest
+        beatValue = resolutions.getResolutionVariation(resolutions.getResolution(baseResolutionIndex), options)
+        resIndex = gem.getIndexFromValue(beatValue, resolutions.getResolutions())
+        --print("resIndex, beatValue, i, j", resIndex, beatValue, i, j)
       end
-    end
-  end
 
-  -- Reset if stale
-  print("#liveCells", #liveCells)
-  if #liveCells > 0 and changeCount == 0 then
-    resetCells()
-  else
-    locked = #liveCells > 0 -- Set locked
-  end
-end
-
-local function resetCells(allOff)
-  print("resetCells")
-  locked = false
-  currentCellIndex = 1
-  liveCells = {} -- Reset
-  local alive = false
-  local aliveChanged = false
-  local aliveProbaility = startProbability
-  local decay = 3 -- TODO Param?
-  for i = 1, rows do
-    for j = 1, cols do
-      if alive then
-        if aliveChanged then
-          aliveProbaility = 100 -- Set to max
-        end
-        local reduceAmount = (aliveProbaility * (decay / 100))
-        --print("Before decay aliveProbaility, reduceAmount", aliveProbaility, reduceAmount)
-        aliveProbaility = aliveProbaility - reduceAmount
-        --print("After decay aliveProbaility", aliveProbaility)
-      elseif allOff ~= true then
-        if aliveChanged then
-          aliveProbaility = decay -- Set to min
-        end
-        --aliveProbaility = startProbability
-        --print("Reset aliveProbaility", aliveProbaility)
-        local increaseAmount = (aliveProbaility * (decay / 100))
-        --print("Before decay aliveProbaility, increaseAmount", aliveProbaility, increaseAmount)
-        aliveProbaility = aliveProbaility + increaseAmount
-        --print("After decay aliveProbaility", aliveProbaility)
-      end
-      local newState = gem.getRandomBoolean(aliveProbaility)
-      aliveChanged = newState ~= alive
-      alive = newState and allOff ~= true
-      if alive then
-        table.insert(liveCells, cells[i][j])
-      end
+      -- Update the cells
       cells[i][j].value = alive
-      cells[i][j].displayName = resolutionNames[resolution]
-      cells[i][j].tooltip = resolutions.getResolution(resolution) .. ""
       cells[i][j].backgroundColourOn = widgets.getColours().backgroundColourOn
+      cells[i][j].backgroundColourOff = widgets.getColours().backgroundColourOff
+      cells[i][j].displayName = resolutionNames[resIndex]
+      cells[i][j].tooltip = beatValue .. ""
     end
   end
-  if allOff ~= true then
-    updateBoard()
+
+  -- Reset if stale board
+  if changeCount == 0 then
+    --print("Stale board...")
+    loadShape()
   end
 end
 
 -- Returns a random resolution from the live cells
-local function getDuration()
-  print("getDuration currentCellIndex", currentCellIndex)
-  local cell = liveCells[currentCellIndex]
+local function getCell()
+  local cell = cells[currentRowIndex][currentColIndex]
+
   if type(cell) == "nil" then
-    return -- Nothing found!
-  end
-
-  currentCellIndex = gem.inc(currentCellIndex)
-
-  if currentCellIndex > #liveCells then
-    -- Round complete!
-    print("getDuration Round complete!, #liveCells, currentCellIndex", #liveCells, currentCellIndex)
     locked = false
-    currentCellIndex = 1
-    liveCells = {} -- Reset
+    print("No cell")
+    return
   end
 
-  cell.backgroundColourOn = "orange"
-  return tonumber(cell.tooltip)
+  print("Found cell.value @ currentRowIndex, currentColIndex", cell.value, currentRowIndex, currentColIndex)
+
+  currentColIndex = gem.inc(currentColIndex)
+
+  if currentColIndex > cols then
+    currentColIndex = 1 -- Reset
+    currentRowIndex = gem.inc(currentRowIndex)
+    if currentRowIndex > rows then
+      -- Round complete - unlock board!
+      currentRowIndex = 1 -- Reset
+      locked = false
+    end
+  end
+
+  if cell.value then
+    cell.backgroundColourOn = "orange" -- TODO Other colour for "dead" cells?
+  elseif dead then
+    cell.backgroundColourOff = "505050"
+  end
+  return cell--tonumber(cell.tooltip), cell.value
+end
+
+local function countLiveCells()
+  for i = 1, rows do
+    for j = 1, cols do
+      if cells[i][j].value then
+        --table.insert(liveCells, cells[i][j])
+        liveCells = gem.inc(liveCells)
+      end
+    end
+  end
+  --print("Found #liveCells", #liveCells)
+  currentRowIndex = 1 -- Reset row position
+  currentColIndex = 1 -- Reset col position
+  locked = liveCells > 0
 end
 
 local function seq(uniqueId)
   local note = 0
-  local isFirstRound = true
+  locked = true -- Ensure the board is locked when starting to preserve the current state
   while isPlaying and seqIndex == uniqueId do
-    if locked == false and isFirstRound == false then
+    -- When board has been unlocked, we can move one generation ahead
+    if liveCells == 0 then
+      countLiveCells()
+    end
+    if locked == false then
       updateBoard()
     end
-    local duration = getDuration()
-    --print("Duration", duration)
-    if type(duration) == "number" then
-      playNote(note, velocity, beat2ms(resolutions.getPlayDuration(duration, gate)), nil, channel)
-    else
-      duration = resolutions.getResolution(resolution)
-      print("Fallback to using default duration", duration)
+    local cell = getCell() -- Get cell at current pos
+    if type(cell) ~= "nil" then
+      local duration = tonumber(cell.tooltip)
+      if cell.value then
+        playNote(note, velocity, beat2ms(resolutions.getPlayDuration(duration, gate)), nil, channel)
+        print("playNote", duration)
+      end
+      if cell.value or (cell.value == false and dead) then
+        print("waitBeat", duration)
+        waitBeat(duration)
+      end
     end
-    waitBeat(duration)
-    isFirstRound = false
   end
 end
 
@@ -1064,14 +1496,11 @@ local function stopPlaying()
     return
   end
   isPlaying = false
-  --resetCells()
 end
 
 --------------------------------------------------------------------------------
 -- Header Panel
 --------------------------------------------------------------------------------
-
-local resolutionMenu
 
 widgets.panel({
   width = 720,
@@ -1081,11 +1510,10 @@ widgets.panel({
 widgets.setSection({
   xSpacing = 5,
   ySpacing = 5,
-  cols = cols,
 })
 
 widgets.label("Life Trigger", {
-  tooltip = "A sequencer that triggers rythmic pulses (using note 0) that note inputs can listen to",
+  tooltip = "A sequencer that use the rules from game of life to evolve resolutions",
   width = widgets.getPanel().width,
   height = 30,
   alpha = 0.5,
@@ -1093,47 +1521,78 @@ widgets.label("Life Trigger", {
 })
 
 widgets.setSection({
-  width = 100,
+  width = 81,
   height = 22,
-  x = 150,
+  x = 174,
   y = 5,
+  cols = 10
 })
 
-widgets.button('Clear', {
-  width = 45,
-  tooltip = "Clear all cells",
-  changed = function()
-    resetCells(true)
+shapeMenu = widgets.menu("Shape", shapeMenuItems, {
+  tooltip = "If the board is empty, a random shape will be selected when playing starts",
+  showLabel = false,
+  width = 111,
+  changed = function(self)
+    clearCells()
+    local shapeIndex = self.value - 1
+    if shapeIndex > 0 then
+      loadShape(shapeIndex)
+    end
   end
 })
 
-widgets.button('Reset', {
-  width = 45,
-  tooltip = "Reset cells to a random state",
-  changed = function()
-    resetCells()
+widgets.button('Fill', fill, {
+  --width = 45,
+  tooltip = "Fill shape instead of drawing just the line",
+  changed = function(self)
+    fill = self.value
+    shapeMenu:changed()
   end
 })
 
-widgets.button('Evolve', evolve, {
+--[[ widgets.button('Clear', {
   width = 45,
-  tooltip = "Activate evolve",
+  tooltip = "Clear board",
+  changed = clearCells
+}) ]]
+
+widgets.button('Shape', {
+  --width = 45,
+  tooltip = "Load board with a random shape",
+  changed = function()
+    clearCells()
+    loadShape()
+  end
+})
+
+--[[ widgets.button('Evolve', evolve, {
+  width = 45,
+  tooltip = "When evolve is active, the resolution for the next generation is taken from the cell, instead of from the base resolution",
   changed = function(self)
     evolve = self.value
-    resolutionMenu:changed()
+    resolution = resolutionMenu.value
   end
 })
 
-resolutionMenu = widgets.menu("Duration", resolution, resolutionNames, {
+widgets.button('Dead', dead, {
+  width = 45,
+  tooltip = "When dead is active, dead cells are played as pause",
+  changed = function(self)
+    dead = self.value
+  end
+}) ]]
+
+--[[ resolutionMenu = widgets.menu("Duration", resolution, resolutionNames, {
   tooltip = "Set the base resolution",
   showLabel = false,
   changed = function(self)
     resolution = self.value
-    resetCells()
+    clearCells()
+    loadShape()
   end
-})
+}) ]]
 
-widgets.numBox('Channel', channel, {
+widgets.numBox('Ch', channel, {
   tooltip = "Send note events starting on this channel",
   min = 1,
   max = 16,
@@ -1168,32 +1627,105 @@ widgets.panel({
   backgroundColour = backgroundColour,
   x = widgets.getPanel().x,
   y = widgets.posUnder(widgets.getPanel()),
-  width = widgets.getPanel().width,
-  height = 360,
+  width = widgets.getPanel().width / 2,
+  height = 180,
 })
 
 widgets.setSection({
-  width = 42,
-  height = 30,
-  x = 10,
-  y = 10,
+  width = (widgets.getPanel().width - ((cols+1) * 5)) / cols,
+  height = (widgets.getPanel().height - ((rows+1) * 5)) / rows,
+  x = 5,
+  y = 5,
   xSpacing = 5,
   ySpacing = 5,
+  rowDirection = -1,
+  row = rows - 1,
+  cols = cols,
 })
 
--- TODO Each cell holds a resolution?
 -- Create the cells
 for i = 1, rows do
   cells[i] = {}
   for j = 1, cols do
-    cells[i][j] = widgets.button()
-    --[[ cells[i][j].changed = function(self)
-      if self.value then
-        table.insert(liveCells, self)
-      end
-    end ]]
+    cells[i][j] = widgets.button(resolutionNames[resolution])
   end
 end
+
+--------------------------------------------------------------------------------
+-- Rule Settings
+--------------------------------------------------------------------------------
+
+widgets.panel({
+  backgroundColour = backgroundColour,
+  x = widgets.getPanel().x + widgets.getPanel().width,
+  y = widgets.getPanel().y + 5,
+  width = 354,
+  height = widgets.getPanel().height - 10,
+})
+
+widgets.setSection({
+  width = 167,
+  height = 20,
+  xSpacing = 5,
+  ySpacing = 10,
+  x = 5,
+  y = 5,
+  cols = 2,
+})
+
+for i,rule in ipairs(rules) do
+  table.insert(ruleWidgets, widgets.menu(ruleNames[i], #resolutionNames + i, ruleResolutions, {
+    name = "AliveRule" .. i,
+    tooltip = rule,
+  }))
+end
+
+widgets.setSection({
+  y = widgets.posUnder(ruleWidgets[#ruleWidgets]) + 5,
+  ySpacing = 5,
+  width = 81,
+  cols = 4,
+})
+
+resolutionMenu = widgets.menu("Base", resolution, resolutionNames, {
+  tooltip = "Set the base resolution",
+  changed = function(self)
+    resolution = self.value
+    clearCells()
+    loadShape()
+  end
+})
+
+widgets.menu("Slowest", minResolution, resolutionNames, {
+  tooltip = "Set the slowest allowed resolution for new generations",
+  changed = function(self)
+    minResolution = self.value
+  end
+})
+
+widgets.menu("Fastest", maxResolution, resolutionNames, {
+  tooltip = "Set the fastest allowed resolution for new generations",
+  changed = function(self)
+    maxResolution = self.value
+  end
+})
+
+widgets.button('Evolve', evolve, {
+  tooltip = "When evolve is active, the resolution for the next generation is taken from the cell, instead of from the base resolution",
+  changed = function(self)
+    evolve = self.value
+    resolution = resolutionMenu.value
+  end
+})
+
+widgets.col(3)
+
+widgets.button('Play Dead', dead, {
+  tooltip = "When dead is active, dead cells are played as pause",
+  changed = function(self)
+    dead = self.value
+  end
+})
 
 --------------------------------------------------------------------------------
 -- Handle events
@@ -1201,7 +1733,7 @@ end
 
 function onInit()
   seqIndex = 0
-  resetCells()
+  clearCells()
 end
 
 function onNote(e)

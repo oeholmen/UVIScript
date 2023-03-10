@@ -164,6 +164,7 @@ local widgetDefaults = {
   ySpacing = 0,
   col = 0,
   row = 0,
+  rowDirection = 1,
   cols = 6
 }
 
@@ -224,6 +225,7 @@ local function setSection(settings)
   if type(settings) ~= "table" then
     settings = {}
   end
+  setColours(settings)
   widgetDefaults.width = getValueOrDefault(settings.width, widgetDefaults.width)
   widgetDefaults.height = getValueOrDefault(settings.height, widgetDefaults.height)
   widgetDefaults.menuHeight = getValueOrDefault(settings.menuHeight, widgetDefaults.menuHeight)
@@ -236,9 +238,15 @@ local function setSection(settings)
   widgetDefaults.cols = getValueOrDefault(settings.cols, widgetDefaults.cols)
   widgetDefaults.col = getValueOrDefault(settings.col, 0)
   widgetDefaults.row = getValueOrDefault(settings.row, 0)
-  setColours(settings)
+  widgetDefaults.rowDirection = getValueOrDefault(settings.rowDirection, 1)
   currentX = widgetDefaults.xOffset
-  currentY = widgetDefaults.yOffset
+  if widgetDefaults.rowDirection < 0 and widgetDefaults.row > 0 then
+    -- Find y when direction is reverse
+    local heightPerRow = widgetDefaults.height + widgetDefaults.ySpacing
+    currentY = (heightPerRow * widgetDefaults.row) + widgetDefaults.ySpacing
+  else
+    currentY = widgetDefaults.yOffset
+  end
 end
 
 local function getWidgetName(name, displayName, useDisplayNameAsWidgetName, panel)
@@ -272,7 +280,12 @@ local function incrementRow(row, h)
 
   local height = math.max(1, row) * h
   local ySpacing = math.max(1, row) * widgetDefaults.ySpacing
-  currentY = currentY + height + ySpacing
+  local yAdjust = height + ySpacing
+  if row > 0 then
+    currentY = currentY + yAdjust
+  else
+    currentY = currentY - yAdjust
+  end
 end
 
 local function incrementCol(col, w, h)
@@ -289,7 +302,7 @@ local function incrementCol(col, w, h)
 
   widgetDefaults.col = widgetDefaults.col + col
   if widgetDefaults.col >= widgetDefaults.cols then
-    incrementRow(1, h)
+    incrementRow(widgetDefaults.rowDirection, h)
   end
 end
 

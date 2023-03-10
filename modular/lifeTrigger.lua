@@ -4,6 +4,7 @@
 
 local gem = require "includes.common"
 local widgets = require "includes.widgets"
+local shapes = require "includes.shapes"
 local resolutions = require "includes.resolutions"
 
 local backgroundColour = "404040"
@@ -16,28 +17,97 @@ setBackgroundColour(backgroundColour)
 local isPlaying = false
 local seqIndex = 0 -- Holds the unique id for the sequencer
 local channel = 1
-local gate = 90
+local gate = 90 -- TODO Param?
+local ruleWidgets = {}
+local ruleResolutions = resolutions.getResolutionNames({"Faster", "Dot/Tri", "Slower", "Base Resolution"})
 local resolutionNames = resolutions.getResolutionNames()
-local resolution = 17 -- Time between generations
+local resolution = 20 -- The default resolution
+local minResolution = 1 -- Slowest
+local maxResolution = #resolutionNames -- Fastest
 local velocity = 64
-local rows = 10 -- Number of rows in the board
-local cols = 15 -- Number of columns in the board
-local cells = {}
-local startProbability = 30 -- TODO Param? -- Probablity that a cell will be active at the start
-local evolve = false -- TODO Param? Every generation changes the base resolution to the resolution that was selected by chance
-local locked = false -- Board is locked to move through all live cells before next gen
-local currentCellIndex = 1
-local liveCells = {} -- Holds the current live cells until next iteration
+local rows = 4 -- Number of rows in the board
+local cols = 4 -- Number of columns in the board
+local cells = {} -- Holds the cell widgets
+local evolve = false -- Every generation changes the base resolution to the resolution that was selected by chance
+local dead = false -- Dead cells are played as pause - add an option for min live cells before accepting dead?
+local locked = true -- Board is locked to move through all live cells before next gen - it starts locked to not kill the initial state
+local currentRowIndex = 1
+local currentColIndex = 1
+local liveCells = 0 -- Holds the current live cells until next iteration
+local resolutionMenu
+local fill = false -- TODO Param
+local shapeMenu
+local shapeNames = shapes.getShapeNames()
+local shapeMenuItems = {"Empty Board"}
+for _,v in ipairs(shapeNames) do
+  table.insert(shapeMenuItems, v)
+end
+
+local rules = {
+  "Dead cells become alive when they have three alive neighbors",
+  "Cells stay alive when they have two live neighbors",
+  "Cells stay alive when they have three live neighbors",
+  "Cells dies",
+}
+
+local ruleNames = {
+  "Rebirth (Three Neighbors)",
+  "Stay Alive (Two Neighbors)",
+  "Stay Alive (Three Neighbors)",
+  "Die",
+}
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
 --------------------------------------------------------------------------------
 
--- Update the board for the next generation
+local function clearCells()
+  --print("Clear cells")
+  currentRowIndex = 1
+  currentColIndex = 1 -- Reset
+  liveCells = 0 -- Reset
+  for i = 1, rows do
+    for j = 1, cols do
+      cells[i][j].value = false
+      cells[i][j].backgroundColourOn = widgets.getColours().backgroundColourOn
+      cells[i][j].backgroundColourOff = widgets.getColours().backgroundColourOff
+      -- If evolve is active, and the sequencer is playing, cells preserve their resolution
+      local preserve = isPlaying and evolve
+      if preserve == false then
+        cells[i][j].displayName = resolutionNames[resolution]
+        cells[i][j].tooltip = resolutions.getResolution(resolution) .. ""
+      end
+    end
+  end
+end
+
+local function loadShape(shapeIndex)
+  if type(shapeIndex) == "nil" then
+    shapeIndex = gem.getRandom(#shapeNames)
+    shapeMenu:setValue(shapeIndex + 1, false) 
+  end
+  print("--- NEW SHAPE ---", shapeIndex)
+  clearCells() -- Deactivate all cells
+  local values = shapes.get(shapeIndex, {min=1,max=rows,length=cols})
+  for col = 1, cols do
+    local value = math.ceil(values[col])
+    for row = 1, rows do
+      if fill then
+        cells[row][col].value = value >= row -- Fill
+      else
+        cells[row][col].value = value == row -- Line
+      end
+    end
+  end
+  locked = true -- Lock to preserve the shape
+end
+
 local function updateBoard()
-  print("updateBoard")
   -- Create a new board to hold the next generation
   local newGeneration = {}
+  liveCells = 0 -- Clear live cells
+
+  print("--- NEXT GENERATION! ---")
 
   -- Iterate through each cell on the board
   for i = 1, rows do
@@ -64,162 +134,178 @@ local function updateBoard()
         end
       end
 
+      -- Alive rules:
+      ---- Cell stays alive (count == 2)
+      ---- Cell stays alive (count == 3)
+      ---- Cell becomes alive (count == 3)
+
+      -- Dead cells go back to the base resolution
+      -- Live cells are evolving according to the setting for the given rule
+
+      -- The rules are very simple. In the next generation, the next click of the clock, the squares are going to change statuses in some way or another:
+      ---- Any live cell with fewer than two live neighbours dies, as if by underpopulation.
+      ---- Any live cell with two or three live neighbours lives on to the next generation.
+      ---- Any live cell with more than three live neighbours dies, as if by overpopulation.
+      ---- Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
+      
+      -- These rules, which compare the behaviour of the automaton to real life, can be condensed into the following:
+      ---- Any live cell with two or three live neighbours survives.
+      ---- Any dead cell with three live neighbours becomes a live cell.
+      ---- All other live cells die in the next generation. Similarly, all other dead cells stay dead.
+
       -- Apply the rules of the game
-      if cells[i][j].value == true and count < 2 then
-        --newGeneration[i][j] = false
-        newGeneration[i][j] = -1
-      elseif cells[i][j].value == true and (count == 2 or count == 3) then
-        --newGeneration[i][j] = true
-        newGeneration[i][j] = 60
-      elseif cells[i][j].value == true and count > 3 then
-        --newGeneration[i][j] = false
-        newGeneration[i][j] = -1
-      elseif cells[i][j].value == false and count == 3 then
-        --newGeneration[i][j] = true
-        newGeneration[i][j] = 40
+      if cells[i][j].value == false and count == 3 then
+        -- Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
+        newGeneration[i][j] = 1
+      elseif cells[i][j].value == true and count == 2 then
+        -- Any live cell with two live neighbours lives on to the next generation.
+        newGeneration[i][j] = 2
+      elseif cells[i][j].value == true and count == 3 then
+        -- Any live cell with three live neighbours lives on to the next generation.
+        newGeneration[i][j] = 3
       else
-        if cells[i][j].value then
-          newGeneration[i][j] = 50
-        else
-          newGeneration[i][j] = -1
-        end
+        -- All other live cells die in the next generation. Similarly, all other dead cells stay dead.
+        newGeneration[i][j] = 4
       end
     end
   end
-
-  locked = false
-  currentCellIndex = 1
-  liveCells = {} -- Reset
 
   -- Update the cells for the next generation
-  --local liveCount = 0
   local changeCount = 0
   for i,v in ipairs(newGeneration) do
-    for j,adjustBias in ipairs(v) do
-      local isAlive = adjustBias >= 0
-      --if cells[i][j].value ~= w then
-      if cells[i][j].value ~= isAlive then
+    for j,rule in ipairs(v) do
+      local alive = rule < #rules
+      local resIndex = nil
+      local beatValue = nil
+      local options = {}
+      local baseResolutionIndex = resolution
+
+      -- When evolve is active, we get the base resolution from the cell
+      if evolve then
+        baseResolutionIndex = gem.getIndexFromValue(tonumber(cells[i][j].tooltip), resolutions.getResolutions())
+      end
+
+      if cells[i][j].value ~= alive then
         changeCount = gem.inc(changeCount)
       end
-      cells[i][j].value = isAlive
-      cells[i][j].backgroundColourOn = widgets.getColours().backgroundColourOn
-      if isAlive then
-        --print("updateBoard resolution", resolution)
-        local beatValue = resolutions.getResolutionVariation(resolutions.getResolution(resolution), adjustBias, 75)
-        --print("updateBoard beatValue", beatValue)
-        local resIndex = gem.getIndexFromValue(beatValue, resolutions.getResolutions()) -- Static resolution
-        --resolution = gem.getIndexFromValue(beatValue, resolutions.getResolutions()) -- Evolves the resolution
-        --print("updateBoard, beatValue, resIndex, resName", beatValue, resolution, resolutionNames[resIndex])
-        cells[i][j].displayName = resolutionNames[resIndex]
-        cells[i][j].tooltip = beatValue .. ""
-        --liveCount = gem.inc(liveCount)
-        table.insert(liveCells, cells[i][j])
-        if evolve then
-          resolution = resIndex
+
+      --if alive then
+        -- Set option for the selected rule if cell is alive
+        --print("rule, ruleName, i, j", rule, ruleWidgets[rule].selectedText, i, j)
+        if ruleWidgets[rule].selectedText == "Faster" then
+          options = {adjustBias=100, doubleOrHalfProbaility=100, dotOrTriProbaility=0}
+        elseif ruleWidgets[rule].selectedText == "Dot/Tri" then
+          options = {adjustBias=50, doubleOrHalfProbaility=50, dotOrTriProbaility=100}
+        elseif ruleWidgets[rule].selectedText == "Slower" then
+          options = {adjustBias=0, doubleOrHalfProbaility=100, dotOrTriProbaility=0}
+        elseif ruleWidgets[rule].selectedText == "Base Resolution" then
+          resIndex = baseResolutionIndex
+        elseif ruleWidgets[rule].value <= #resolutionNames then
+          -- Fixed resolution
+          resIndex = ruleWidgets[rule].value
+          --print("Fixed resolution", resIndex)
         end
-        --print("updateBoard liveCount", liveCount)
+      --[[ else
+        -- Dead cells return to base res, or keeps current res if evolve is active
+        resIndex = baseResolutionIndex
+      end ]]
+
+      if type(resIndex) == "number" then
+        beatValue = resolutions.getResolution(resIndex)
       else
-        cells[i][j].displayName = resolutionNames[resolution]
-        cells[i][j].tooltip = resolutions.getResolution(resolution) .. ""
+        options.minResolutionIndex = minResolution -- TODO Debug this -- Slowest
+        options.maxResolutionIndex = maxResolution -- TODO Debug this -- Fastest
+        beatValue = resolutions.getResolutionVariation(resolutions.getResolution(baseResolutionIndex), options)
+        resIndex = gem.getIndexFromValue(beatValue, resolutions.getResolutions())
+        --print("resIndex, beatValue, i, j", resIndex, beatValue, i, j)
       end
-    end
-  end
 
-  -- Reset if stale
-  print("#liveCells", #liveCells)
-  if #liveCells > 0 and changeCount == 0 then
-    resetCells()
-  else
-    locked = #liveCells > 0 -- Set locked
-  end
-end
-
-local function resetCells(allOff)
-  print("resetCells")
-  locked = false
-  currentCellIndex = 1
-  liveCells = {} -- Reset
-  local alive = false
-  local aliveChanged = false
-  local aliveProbaility = startProbability
-  local decay = 3 -- TODO Param?
-  for i = 1, rows do
-    for j = 1, cols do
-      if alive then
-        if aliveChanged then
-          aliveProbaility = 100 -- Set to max
-        end
-        local reduceAmount = (aliveProbaility * (decay / 100))
-        --print("Before decay aliveProbaility, reduceAmount", aliveProbaility, reduceAmount)
-        aliveProbaility = aliveProbaility - reduceAmount
-        --print("After decay aliveProbaility", aliveProbaility)
-      elseif allOff ~= true then
-        if aliveChanged then
-          aliveProbaility = decay -- Set to min
-        end
-        --aliveProbaility = startProbability
-        --print("Reset aliveProbaility", aliveProbaility)
-        local increaseAmount = (aliveProbaility * (decay / 100))
-        --print("Before decay aliveProbaility, increaseAmount", aliveProbaility, increaseAmount)
-        aliveProbaility = aliveProbaility + increaseAmount
-        --print("After decay aliveProbaility", aliveProbaility)
-      end
-      local newState = gem.getRandomBoolean(aliveProbaility)
-      aliveChanged = newState ~= alive
-      alive = newState and allOff ~= true
-      if alive then
-        table.insert(liveCells, cells[i][j])
-      end
+      -- Update the cells
       cells[i][j].value = alive
-      cells[i][j].displayName = resolutionNames[resolution]
-      cells[i][j].tooltip = resolutions.getResolution(resolution) .. ""
       cells[i][j].backgroundColourOn = widgets.getColours().backgroundColourOn
+      cells[i][j].backgroundColourOff = widgets.getColours().backgroundColourOff
+      cells[i][j].displayName = resolutionNames[resIndex]
+      cells[i][j].tooltip = beatValue .. ""
     end
   end
-  if allOff ~= true then
-    updateBoard()
+
+  -- Reset if stale board
+  if changeCount == 0 then
+    --print("Stale board...")
+    loadShape()
   end
 end
 
 -- Returns a random resolution from the live cells
-local function getDuration()
-  print("getDuration currentCellIndex", currentCellIndex)
-  local cell = liveCells[currentCellIndex]
+local function getCell()
+  local cell = cells[currentRowIndex][currentColIndex]
+
   if type(cell) == "nil" then
-    return -- Nothing found!
-  end
-
-  currentCellIndex = gem.inc(currentCellIndex)
-
-  if currentCellIndex > #liveCells then
-    -- Round complete!
-    print("getDuration Round complete!, #liveCells, currentCellIndex", #liveCells, currentCellIndex)
     locked = false
-    currentCellIndex = 1
-    liveCells = {} -- Reset
+    print("No cell")
+    return
   end
 
-  cell.backgroundColourOn = "orange"
-  return tonumber(cell.tooltip)
+  print("Found cell.value @ currentRowIndex, currentColIndex", cell.value, currentRowIndex, currentColIndex)
+
+  currentColIndex = gem.inc(currentColIndex)
+
+  if currentColIndex > cols then
+    currentColIndex = 1 -- Reset
+    currentRowIndex = gem.inc(currentRowIndex)
+    if currentRowIndex > rows then
+      -- Round complete - unlock board!
+      currentRowIndex = 1 -- Reset
+      locked = false
+    end
+  end
+
+  if cell.value then
+    cell.backgroundColourOn = "orange" -- TODO Other colour for "dead" cells?
+  elseif dead then
+    cell.backgroundColourOff = "505050"
+  end
+  return cell--tonumber(cell.tooltip), cell.value
+end
+
+local function countLiveCells()
+  for i = 1, rows do
+    for j = 1, cols do
+      if cells[i][j].value then
+        --table.insert(liveCells, cells[i][j])
+        liveCells = gem.inc(liveCells)
+      end
+    end
+  end
+  --print("Found #liveCells", #liveCells)
+  currentRowIndex = 1 -- Reset row position
+  currentColIndex = 1 -- Reset col position
+  locked = liveCells > 0
 end
 
 local function seq(uniqueId)
   local note = 0
-  local isFirstRound = true
+  locked = true -- Ensure the board is locked when starting to preserve the current state
   while isPlaying and seqIndex == uniqueId do
-    if locked == false and isFirstRound == false then
+    -- When board has been unlocked, we can move one generation ahead
+    if liveCells == 0 then
+      countLiveCells()
+    end
+    if locked == false then
       updateBoard()
     end
-    local duration = getDuration()
-    --print("Duration", duration)
-    if type(duration) == "number" then
-      playNote(note, velocity, beat2ms(resolutions.getPlayDuration(duration, gate)), nil, channel)
-    else
-      duration = resolutions.getResolution(resolution)
-      print("Fallback to using default duration", duration)
+    local cell = getCell() -- Get cell at current pos
+    if type(cell) ~= "nil" then
+      local duration = tonumber(cell.tooltip)
+      if cell.value then
+        playNote(note, velocity, beat2ms(resolutions.getPlayDuration(duration, gate)), nil, channel)
+        print("playNote", duration)
+      end
+      if cell.value or (cell.value == false and dead) then
+        print("waitBeat", duration)
+        waitBeat(duration)
+      end
     end
-    waitBeat(duration)
-    isFirstRound = false
   end
 end
 
@@ -237,14 +323,11 @@ local function stopPlaying()
     return
   end
   isPlaying = false
-  --resetCells()
 end
 
 --------------------------------------------------------------------------------
 -- Header Panel
 --------------------------------------------------------------------------------
-
-local resolutionMenu
 
 widgets.panel({
   width = 720,
@@ -254,11 +337,10 @@ widgets.panel({
 widgets.setSection({
   xSpacing = 5,
   ySpacing = 5,
-  cols = cols,
 })
 
 widgets.label("Life Trigger", {
-  tooltip = "A sequencer that triggers rythmic pulses (using note 0) that note inputs can listen to",
+  tooltip = "A sequencer that use the rules from game of life to evolve resolutions",
   width = widgets.getPanel().width,
   height = 30,
   alpha = 0.5,
@@ -266,47 +348,78 @@ widgets.label("Life Trigger", {
 })
 
 widgets.setSection({
-  width = 100,
+  width = 81,
   height = 22,
-  x = 150,
+  x = 174,
   y = 5,
+  cols = 10
 })
 
-widgets.button('Clear', {
-  width = 45,
-  tooltip = "Clear all cells",
-  changed = function()
-    resetCells(true)
+shapeMenu = widgets.menu("Shape", shapeMenuItems, {
+  tooltip = "If the board is empty, a random shape will be selected when playing starts",
+  showLabel = false,
+  width = 111,
+  changed = function(self)
+    clearCells()
+    local shapeIndex = self.value - 1
+    if shapeIndex > 0 then
+      loadShape(shapeIndex)
+    end
   end
 })
 
-widgets.button('Reset', {
-  width = 45,
-  tooltip = "Reset cells to a random state",
-  changed = function()
-    resetCells()
+widgets.button('Fill', fill, {
+  --width = 45,
+  tooltip = "Fill shape instead of drawing just the line",
+  changed = function(self)
+    fill = self.value
+    shapeMenu:changed()
   end
 })
 
-widgets.button('Evolve', evolve, {
+--[[ widgets.button('Clear', {
   width = 45,
-  tooltip = "Activate evolve",
+  tooltip = "Clear board",
+  changed = clearCells
+}) ]]
+
+widgets.button('Shape', {
+  --width = 45,
+  tooltip = "Load board with a random shape",
+  changed = function()
+    clearCells()
+    loadShape()
+  end
+})
+
+--[[ widgets.button('Evolve', evolve, {
+  width = 45,
+  tooltip = "When evolve is active, the resolution for the next generation is taken from the cell, instead of from the base resolution",
   changed = function(self)
     evolve = self.value
-    resolutionMenu:changed()
+    resolution = resolutionMenu.value
   end
 })
 
-resolutionMenu = widgets.menu("Duration", resolution, resolutionNames, {
+widgets.button('Dead', dead, {
+  width = 45,
+  tooltip = "When dead is active, dead cells are played as pause",
+  changed = function(self)
+    dead = self.value
+  end
+}) ]]
+
+--[[ resolutionMenu = widgets.menu("Duration", resolution, resolutionNames, {
   tooltip = "Set the base resolution",
   showLabel = false,
   changed = function(self)
     resolution = self.value
-    resetCells()
+    clearCells()
+    loadShape()
   end
-})
+}) ]]
 
-widgets.numBox('Channel', channel, {
+widgets.numBox('Ch', channel, {
   tooltip = "Send note events starting on this channel",
   min = 1,
   max = 16,
@@ -341,32 +454,105 @@ widgets.panel({
   backgroundColour = backgroundColour,
   x = widgets.getPanel().x,
   y = widgets.posUnder(widgets.getPanel()),
-  width = widgets.getPanel().width,
-  height = 360,
+  width = widgets.getPanel().width / 2,
+  height = 180,
 })
 
 widgets.setSection({
-  width = 42,
-  height = 30,
-  x = 10,
-  y = 10,
+  width = (widgets.getPanel().width - ((cols+1) * 5)) / cols,
+  height = (widgets.getPanel().height - ((rows+1) * 5)) / rows,
+  x = 5,
+  y = 5,
   xSpacing = 5,
   ySpacing = 5,
+  rowDirection = -1,
+  row = rows - 1,
+  cols = cols,
 })
 
--- TODO Each cell holds a resolution?
 -- Create the cells
 for i = 1, rows do
   cells[i] = {}
   for j = 1, cols do
-    cells[i][j] = widgets.button()
-    --[[ cells[i][j].changed = function(self)
-      if self.value then
-        table.insert(liveCells, self)
-      end
-    end ]]
+    cells[i][j] = widgets.button(resolutionNames[resolution])
   end
 end
+
+--------------------------------------------------------------------------------
+-- Rule Settings
+--------------------------------------------------------------------------------
+
+widgets.panel({
+  backgroundColour = backgroundColour,
+  x = widgets.getPanel().x + widgets.getPanel().width,
+  y = widgets.getPanel().y + 5,
+  width = 354,
+  height = widgets.getPanel().height - 10,
+})
+
+widgets.setSection({
+  width = 167,
+  height = 20,
+  xSpacing = 5,
+  ySpacing = 10,
+  x = 5,
+  y = 5,
+  cols = 2,
+})
+
+for i,rule in ipairs(rules) do
+  table.insert(ruleWidgets, widgets.menu(ruleNames[i], #resolutionNames + i, ruleResolutions, {
+    name = "AliveRule" .. i,
+    tooltip = rule,
+  }))
+end
+
+widgets.setSection({
+  y = widgets.posUnder(ruleWidgets[#ruleWidgets]) + 5,
+  ySpacing = 5,
+  width = 81,
+  cols = 4,
+})
+
+resolutionMenu = widgets.menu("Base", resolution, resolutionNames, {
+  tooltip = "Set the base resolution",
+  changed = function(self)
+    resolution = self.value
+    clearCells()
+    loadShape()
+  end
+})
+
+widgets.menu("Slowest", minResolution, resolutionNames, {
+  tooltip = "Set the slowest allowed resolution for new generations",
+  changed = function(self)
+    minResolution = self.value
+  end
+})
+
+widgets.menu("Fastest", maxResolution, resolutionNames, {
+  tooltip = "Set the fastest allowed resolution for new generations",
+  changed = function(self)
+    maxResolution = self.value
+  end
+})
+
+widgets.button('Evolve', evolve, {
+  tooltip = "When evolve is active, the resolution for the next generation is taken from the cell, instead of from the base resolution",
+  changed = function(self)
+    evolve = self.value
+    resolution = resolutionMenu.value
+  end
+})
+
+widgets.col(3)
+
+widgets.button('Play Dead', dead, {
+  tooltip = "When dead is active, dead cells are played as pause",
+  changed = function(self)
+    dead = self.value
+  end
+})
 
 --------------------------------------------------------------------------------
 -- Handle events
@@ -374,7 +560,7 @@ end
 
 function onInit()
   seqIndex = 0
-  resetCells()
+  clearCells()
 end
 
 function onNote(e)

@@ -164,6 +164,7 @@ local widgetDefaults = {
   ySpacing = 0,
   col = 0,
   row = 0,
+  rowDirection = 1,
   cols = 6
 }
 
@@ -224,6 +225,7 @@ local function setSection(settings)
   if type(settings) ~= "table" then
     settings = {}
   end
+  setColours(settings)
   widgetDefaults.width = getValueOrDefault(settings.width, widgetDefaults.width)
   widgetDefaults.height = getValueOrDefault(settings.height, widgetDefaults.height)
   widgetDefaults.menuHeight = getValueOrDefault(settings.menuHeight, widgetDefaults.menuHeight)
@@ -236,9 +238,15 @@ local function setSection(settings)
   widgetDefaults.cols = getValueOrDefault(settings.cols, widgetDefaults.cols)
   widgetDefaults.col = getValueOrDefault(settings.col, 0)
   widgetDefaults.row = getValueOrDefault(settings.row, 0)
-  setColours(settings)
+  widgetDefaults.rowDirection = getValueOrDefault(settings.rowDirection, 1)
   currentX = widgetDefaults.xOffset
-  currentY = widgetDefaults.yOffset
+  if widgetDefaults.rowDirection < 0 and widgetDefaults.row > 0 then
+    -- Find y when direction is reverse
+    local heightPerRow = widgetDefaults.height + widgetDefaults.ySpacing
+    currentY = (heightPerRow * widgetDefaults.row) + widgetDefaults.ySpacing
+  else
+    currentY = widgetDefaults.yOffset
+  end
 end
 
 local function getWidgetName(name, displayName, useDisplayNameAsWidgetName, panel)
@@ -272,7 +280,12 @@ local function incrementRow(row, h)
 
   local height = math.max(1, row) * h
   local ySpacing = math.max(1, row) * widgetDefaults.ySpacing
-  currentY = currentY + height + ySpacing
+  local yAdjust = height + ySpacing
+  if row > 0 then
+    currentY = currentY + yAdjust
+  else
+    currentY = currentY - yAdjust
+  end
 end
 
 local function incrementCol(col, w, h)
@@ -289,7 +302,7 @@ local function incrementCol(col, w, h)
 
   widgetDefaults.col = widgetDefaults.col + col
   if widgetDefaults.col >= widgetDefaults.cols then
-    incrementRow(1, h)
+    incrementRow(widgetDefaults.rowDirection, h)
   end
 end
 
@@ -613,7 +626,7 @@ local shapes = {
     return math.sin(x * math.pi) * f
   end,
   testShape = function(x, z, w, y, i, b)
-    return (math.exp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*math.min(8, b.rand*32))
+    return x * z
   end
 }
 
@@ -975,16 +988,19 @@ local function getResolutionsByType(maxResolutionIndex)
 end
 
 -- Returns a table of resolutions indexes that are "approved" to use
-local function getSelectedResolutions(resolutionsByType)
-  local maxResolutionIndex = #resolutionValues -- TODO Set limit?
+local function getSelectedResolutions(resolutionsByType, minResolutionIndex, maxResolutionIndex)
+  if type(minResolutionIndex) == "nil" then
+    minResolutionIndex = 1 -- Slowest resolution
+  end
+  if type(maxResolutionIndex) == "nil" then
+    maxResolutionIndex = #resolutionValues -- Fastest resolution
+  end
   local selectedResolutions = {}
   for i=1,3 do
     for _,resolutionIndex in ipairs(resolutionsByType[i]) do
-      -- Limit dotted/tri resolutions above 1/8 dot and 1/16 tri
-      if resolutionIndex > maxResolutionIndex or (i == 2 and resolutionIndex > 18) or (i == 3 and resolutionIndex > 25) then
-        break
+      if resolutionIndex >= minResolutionIndex and resolutionIndex <= maxResolutionIndex then
+        table.insert(selectedResolutions, resolutionIndex)
       end
-      table.insert(selectedResolutions, resolutionIndex)
     end
   end
   return selectedResolutions
@@ -992,28 +1008,42 @@ end
 
 -- Tries to adjust the given resolution by adjusting
 -- length, and/or setting a even/dot/tri value variant
-local function getResolutionVariation(currentResolution, adjustBias, doubleOrHalfProbaility, dotOrTriProbaility)
+-- Options are: adjustBias (0=slow -> 100=fast), doubleOrHalfProbaility, dotOrTriProbaility, selectedResolutions
+local function getResolutionVariation(currentResolution, options)
   local currentIndex = gem.getIndexFromValue(currentResolution, resolutionValues)
   if type(currentIndex) == "nil" then
     return currentResolution
   end
 
-  if type(adjustBias) == "nil" then
-    adjustBias = 50
+  if type(options) == "nil" then
+    options = {}
   end
 
-  if type(doubleOrHalfProbaility) == "nil" then
-    doubleOrHalfProbaility = 50
+  if type(options.minResolutionIndex) == "nil" then
+    options.minResolutionIndex = 1
   end
 
-  if type(dotOrTriProbaility) == "nil" then
-    dotOrTriProbaility = 50
+  if type(options.maxResolutionIndex) == "nil" then
+    options.maxResolutionIndex = #resolutionValues
+  end
+
+  if type(options.adjustBias) == "nil" then
+    options.adjustBias = 50
+  end
+
+  if type(options.doubleOrHalfProbaility) == "nil" then
+    options.doubleOrHalfProbaility = 50
+  end
+
+  if type(options.dotOrTriProbaility) == "nil" then
+    options.dotOrTriProbaility = 50
   end
 
   local resolutionsByType = getResolutionsByType()
 
-  -- Include the resolutions that are available
-  local selectedResolutions = getSelectedResolutions(resolutionsByType)
+  if type(options.selectedResolutions) == "nil" then
+    options.selectedResolutions = getSelectedResolutions(resolutionsByType, options.minResolutionIndex, options.maxResolutionIndex)
+  end
 
   --print("BEFORE currentIndex", currentIndex)
   local resolutionIndex = currentIndex
@@ -1028,11 +1058,11 @@ local function getResolutionVariation(currentResolution, adjustBias, doubleOrHal
     --print("getEvenOrSlow", resolution)
   end
   if type(resolution) == "number" then
-    local doubleOrHalf = gem.getRandomBoolean(doubleOrHalfProbaility)
-    -- Double or half duration
+    local doubleOrHalf = gem.getRandomBoolean(options.doubleOrHalfProbaility)
+    -- Double (slow) or half (fast) duration
     if doubleOrHalf then
       local doubleResIndex = gem.getIndexFromValue((resolution * 2), resolutionValues)
-      if gem.getRandomBoolean(adjustBias) == false and type(doubleResIndex) == "number" and gem.tableIncludes(selectedResolutions, doubleResIndex) then
+      if gem.getRandomBoolean(options.adjustBias) == false and type(doubleResIndex) == "number" and gem.tableIncludes(options.selectedResolutions, doubleResIndex) then
         resolution = resolutionValues[doubleResIndex]
         --print("Slower resolution", resolution)
       else
@@ -1041,14 +1071,14 @@ local function getResolutionVariation(currentResolution, adjustBias, doubleOrHal
       end
     end
     -- Set dotted (or tri) on duration if no change was done to the lenght, or probability hits
-    --if doubleOrHalf == false or gem.getRandomBoolean(dotOrTriProbaility) then
-    if gem.getRandomBoolean(dotOrTriProbaility) then
+    --if doubleOrHalf == false or gem.getRandomBoolean(options.dotOrTriProbaility) then
+    if gem.getRandomBoolean(options.dotOrTriProbaility) then
       if gem.tableIncludes(resolutionsByType[3], currentIndex) then
         resolution = getTriplet(resolution)
         --print("getTriplet", resolution)
       else
         local dottedResIndex = gem.getIndexFromValue(getDotted(resolution), resolutionValues)
-        if type(dottedResIndex) == "number" and gem.tableIncludes(selectedResolutions, dottedResIndex) then
+        if type(dottedResIndex) == "number" and gem.tableIncludes(options.selectedResolutions, dottedResIndex) then
           resolution = resolutionValues[dottedResIndex]
           --print("getDotted", resolution)
         end
@@ -1057,7 +1087,7 @@ local function getResolutionVariation(currentResolution, adjustBias, doubleOrHal
   end
   currentIndex = gem.getIndexFromValue(resolution, resolutionValues)
   --print("AFTER currentIndex", currentIndex)
-  if type(currentIndex) == "number" and gem.tableIncludes(selectedResolutions, currentIndex) then
+  if type(currentIndex) == "number" and gem.tableIncludes(options.selectedResolutions, currentIndex) then
     --print("Got resolution from the current index")
     return resolutionValues[currentIndex]
   end

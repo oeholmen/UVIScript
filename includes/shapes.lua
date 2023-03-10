@@ -80,7 +80,7 @@ local shapes = {
     return math.sin(x * math.pi) * f
   end,
   testShape = function(x, z, w, y, i, b)
-    return (math.exp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*math.min(8, b.rand*32))
+    return x * z
   end
 }
 

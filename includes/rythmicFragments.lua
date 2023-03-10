@@ -339,8 +339,10 @@ end
 
 -- Tries to adjust the given resolution by adjusting
 -- length, and/or setting a even/dot/tri value variant
-local function getResolutionFromCurrentIndex(currentResolution, adjustBias)
-  return resolutions.getResolutionVariation(currentResolution, adjustBias)
+local function getResolutionFromCurrentIndex(currentResolution, adjustBias, dotOrTriProbaility)
+  -- Include the resolutions that are available
+  local selectedResolutions = getSelectedResolutions()
+  return resolutions.getResolutionVariation(currentResolution, {adjustBias=adjustBias, selectedResolutions=selectedResolutions, dotOrTriProbaility=dotOrTriProbaility})
   --[[ local currentIndex = gem.getIndexFromValue(currentResolution, resolutions.getResolutions())
   if type(currentIndex) == "nil" then
     return
