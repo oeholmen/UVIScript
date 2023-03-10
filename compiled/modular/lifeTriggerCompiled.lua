@@ -1254,6 +1254,47 @@ local function clearCells()
   end
 end
 
+local function applyRuleOnCell(cell, rule)
+  local resIndex = nil
+  local beatValue = nil
+  local options = {}
+  local baseResolutionIndex = resolution
+
+  -- When evolve is active, we get the base resolution from the cell
+  if evolve then
+    baseResolutionIndex = gem.getIndexFromValue(tonumber(cell.tooltip), resolutions.getResolutions())
+  end
+
+  if ruleWidgets[rule].selectedText == "Faster" then
+    options = {adjustBias=100, doubleOrHalfProbaility=100, dotOrTriProbaility=0}
+  elseif ruleWidgets[rule].selectedText == "Dot/Tri" then
+    options = {adjustBias=50, doubleOrHalfProbaility=50, dotOrTriProbaility=100}
+  elseif ruleWidgets[rule].selectedText == "Slower" then
+    options = {adjustBias=0, doubleOrHalfProbaility=100, dotOrTriProbaility=0}
+  elseif ruleWidgets[rule].selectedText == "Base Resolution" then
+    resIndex = baseResolutionIndex
+  elseif ruleWidgets[rule].value <= #resolutionNames then
+    -- Fixed resolution
+    resIndex = ruleWidgets[rule].value
+  end
+
+  if type(resIndex) == "number" then
+    beatValue = resolutions.getResolution(resIndex)
+  else
+    options.minResolutionIndex = minResolution -- TODO Debug this -- Slowest
+    options.maxResolutionIndex = maxResolution -- TODO Debug this -- Fastest
+    beatValue = resolutions.getResolutionVariation(resolutions.getResolution(baseResolutionIndex), options)
+    resIndex = gem.getIndexFromValue(beatValue, resolutions.getResolutions())
+    --print("resIndex, beatValue, i, j", resIndex, beatValue, i, j)
+  end
+
+  -- Update the cells
+  cell.backgroundColourOn = widgets.getColours().backgroundColourOn
+  cell.backgroundColourOff = widgets.getColours().backgroundColourOff
+  cell.displayName = resolutionNames[resIndex]
+  cell.tooltip = beatValue .. ""
+end
+
 local function loadShape(shapeIndex)
   if type(shapeIndex) == "nil" then
     shapeIndex = gem.getRandom(#shapeNames)
@@ -1269,6 +1310,13 @@ local function loadShape(shapeIndex)
         cells[row][col].value = value >= row -- Fill
       else
         cells[row][col].value = value == row -- Line
+      end
+      if cells[row][col].value and gem.getRandomBoolean() then
+        -- Apply rule 1 (rebirth)
+        applyRuleOnCell(cells[row][col], 1)
+      elseif cells[row][col].value == false then
+        -- Apply rule 4 (cell dies)
+        applyRuleOnCell(cells[row][col], 4)
       end
     end
   end
@@ -1348,57 +1396,13 @@ local function updateBoard()
   for i,v in ipairs(newGeneration) do
     for j,rule in ipairs(v) do
       local alive = rule < #rules
-      local resIndex = nil
-      local beatValue = nil
-      local options = {}
-      local baseResolutionIndex = resolution
-
-      -- When evolve is active, we get the base resolution from the cell
-      if evolve then
-        baseResolutionIndex = gem.getIndexFromValue(tonumber(cells[i][j].tooltip), resolutions.getResolutions())
-      end
 
       if cells[i][j].value ~= alive then
         changeCount = gem.inc(changeCount)
       end
 
-      --if alive then
-        -- Set option for the selected rule if cell is alive
-        --print("rule, ruleName, i, j", rule, ruleWidgets[rule].selectedText, i, j)
-        if ruleWidgets[rule].selectedText == "Faster" then
-          options = {adjustBias=100, doubleOrHalfProbaility=100, dotOrTriProbaility=0}
-        elseif ruleWidgets[rule].selectedText == "Dot/Tri" then
-          options = {adjustBias=50, doubleOrHalfProbaility=50, dotOrTriProbaility=100}
-        elseif ruleWidgets[rule].selectedText == "Slower" then
-          options = {adjustBias=0, doubleOrHalfProbaility=100, dotOrTriProbaility=0}
-        elseif ruleWidgets[rule].selectedText == "Base Resolution" then
-          resIndex = baseResolutionIndex
-        elseif ruleWidgets[rule].value <= #resolutionNames then
-          -- Fixed resolution
-          resIndex = ruleWidgets[rule].value
-          --print("Fixed resolution", resIndex)
-        end
-      --[[ else
-        -- Dead cells return to base res, or keeps current res if evolve is active
-        resIndex = baseResolutionIndex
-      end ]]
-
-      if type(resIndex) == "number" then
-        beatValue = resolutions.getResolution(resIndex)
-      else
-        options.minResolutionIndex = minResolution -- TODO Debug this -- Slowest
-        options.maxResolutionIndex = maxResolution -- TODO Debug this -- Fastest
-        beatValue = resolutions.getResolutionVariation(resolutions.getResolution(baseResolutionIndex), options)
-        resIndex = gem.getIndexFromValue(beatValue, resolutions.getResolutions())
-        --print("resIndex, beatValue, i, j", resIndex, beatValue, i, j)
-      end
-
-      -- Update the cells
       cells[i][j].value = alive
-      cells[i][j].backgroundColourOn = widgets.getColours().backgroundColourOn
-      cells[i][j].backgroundColourOff = widgets.getColours().backgroundColourOff
-      cells[i][j].displayName = resolutionNames[resIndex]
-      cells[i][j].tooltip = beatValue .. ""
+      applyRuleOnCell(cells[i][j], rule)
     end
   end
 
@@ -1529,7 +1533,7 @@ widgets.setSection({
 })
 
 shapeMenu = widgets.menu("Shape", shapeMenuItems, {
-  tooltip = "If the board is empty, a random shape will be selected when playing starts",
+  tooltip = "If the board is empty or stale, a random shape will be selected",
   showLabel = false,
   width = 111,
   changed = function(self)
@@ -1542,7 +1546,6 @@ shapeMenu = widgets.menu("Shape", shapeMenuItems, {
 })
 
 widgets.button('Fill', fill, {
-  --width = 45,
   tooltip = "Fill shape instead of drawing just the line",
   changed = function(self)
     fill = self.value
@@ -1550,47 +1553,13 @@ widgets.button('Fill', fill, {
   end
 })
 
---[[ widgets.button('Clear', {
-  width = 45,
-  tooltip = "Clear board",
-  changed = clearCells
-}) ]]
-
 widgets.button('Shape', {
-  --width = 45,
   tooltip = "Load board with a random shape",
   changed = function()
     clearCells()
     loadShape()
   end
 })
-
---[[ widgets.button('Evolve', evolve, {
-  width = 45,
-  tooltip = "When evolve is active, the resolution for the next generation is taken from the cell, instead of from the base resolution",
-  changed = function(self)
-    evolve = self.value
-    resolution = resolutionMenu.value
-  end
-})
-
-widgets.button('Dead', dead, {
-  width = 45,
-  tooltip = "When dead is active, dead cells are played as pause",
-  changed = function(self)
-    dead = self.value
-  end
-}) ]]
-
---[[ resolutionMenu = widgets.menu("Duration", resolution, resolutionNames, {
-  tooltip = "Set the base resolution",
-  showLabel = false,
-  changed = function(self)
-    resolution = self.value
-    clearCells()
-    loadShape()
-  end
-}) ]]
 
 widgets.numBox('Ch', channel, {
   tooltip = "Send note events starting on this channel",
@@ -1720,8 +1689,8 @@ widgets.button('Evolve', evolve, {
 
 widgets.col(3)
 
-widgets.button('Play Dead', dead, {
-  tooltip = "When dead is active, dead cells are played as pause",
+widgets.button('Rest Dead', dead, {
+  tooltip = "When this is active, dead cells are used as rests. Otherwise dead cells are skipped.",
   changed = function(self)
     dead = self.value
   end

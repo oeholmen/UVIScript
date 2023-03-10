@@ -24,6 +24,7 @@ luaScripts=(
   modular/rythmicFragmentsTrigger
   modular/rythmicMotionsTrigger
   modular/sequencerInput
+  modular/shapeTrigger
   modular/strategyInput
   modular/swarmTrigger
   modulators/bouncer
