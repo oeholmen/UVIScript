@@ -216,26 +216,6 @@ local function getWaitDuration()
   return gem.randomizeValue(beat2ms(resolutions.getResolution(motionOptions.moveSpeed)), beat2ms(resolutionMax), beat2ms(resolutionMin), motionOptions.speedRandomizationAmount)
 end
 
-local function advanceValue(theTable, value, min, max, direction)
-  local valueRange = theTable.max - theTable.min
-  local changeFactor = max - min
-  local changePerStep = gem.getChangePerStep(changeFactor, valueRange)
-
-  if direction < 0 then
-    changePerStep = -changePerStep
-  end
-
-  value = gem.inc(value, changePerStep)
-  if value > max then
-    direction = -1
-    value = max
-  elseif value < min then
-    direction = 1
-    value = min
-  end
-  return value, direction
-end
-
 local function moveTable(theTable, i, value, direction)
   local middle = math.floor(theTable.length / 2)
   -- Increment value
@@ -300,7 +280,7 @@ local function morph(theTable, uniqueId, stateFunction)
     }
   }
   while isTableMotionActive and motionOptions.movementType == "Morph" and morphSeqIndex == uniqueId do
-    morphSettings.z.value, morphSettings.z.direction = advanceValue(theTable, morphSettings.z.value, morphSettings.z.min, morphSettings.z.max, morphSettings.z.direction)
+    morphSettings.z.value, morphSettings.z.direction = gem.advanceValue(theTable, morphSettings.z.value, morphSettings.z.min, morphSettings.z.max, morphSettings.z.direction)
     if motionOptions.factor > 0 then
       local factor = motionOptions.factor / motionOptions.factorMax
       local range = morphSettings.phase.max - morphSettings.phase.min
@@ -311,7 +291,7 @@ local function morph(theTable, uniqueId, stateFunction)
         min = shapeWidgets.phase.value - range
         max = shapeWidgets.phase.value + range
       end
-      morphSettings.phase.value, morphSettings.phase.direction = advanceValue(theTable, morphSettings.phase.value, min, max, morphSettings.phase.direction)
+      morphSettings.phase.value, morphSettings.phase.direction = gem.advanceValue(theTable, morphSettings.phase.value, min, max, morphSettings.phase.direction)
     end
     local options = {
       z = morphSettings.z.value,
@@ -382,7 +362,6 @@ return {--tableMotion--
   getShapeOptions = function() return shapeOptions end,
   getStartDirection = getStartDirection,
   moveTable = moveTable,
-  advanceValue = advanceValue,
   getWaitDuration = getWaitDuration,
   setStartMode = setStartMode,
   setTableZero = setTableZero,

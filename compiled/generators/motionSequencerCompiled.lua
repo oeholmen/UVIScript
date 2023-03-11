@@ -128,6 +128,26 @@ local function inc(val, inc, resetAt, resetTo)
   return val
 end
 
+local function advanceValue(bounds, value, min, max, direction)
+  local valueRange = bounds.max - bounds.min
+  local changeFactor = max - min
+  local changePerStep = getChangePerStep(changeFactor, valueRange)
+
+  if direction < 0 then
+    changePerStep = -changePerStep
+  end
+
+  value = inc(value, changePerStep)
+  if value > max then
+    direction = -1
+    value = max
+  elseif value < min then
+    direction = 1
+    value = min
+  end
+  return value, direction
+end
+
 local gem = {
   inc = inc,
   avg = avg,
@@ -135,6 +155,7 @@ local gem = {
   round = round,
   getRandom = getRandom,
   getChangeMax = getChangeMax,
+  advanceValue = advanceValue,
   tableIncludes = tableIncludes,
   randomizeValue = randomizeValue,
   trimStartAndEnd = trimStartAndEnd,
@@ -555,55 +576,58 @@ end
 
 local function getAmountWidget(width, showLabel, i)
   -- Widget for controlling shape amount
-  if type(width) == "nil" then
-    width = 120
-  end
   if type(i) == "nil" then
     i = ""
   end
-  return widgets.numBox("Amount", getShapeOptions().amount, {
+  local options = {
     name = "ShapeAmount" .. i,
     tooltip = "Set the shape amount.",
-    width = width,
-    showLabel = showLabel == true,
+    showLabel = showLabel ~= false,
     unit = Unit.Percent,
-  })
+  }
+  if type(width) == "number" then
+    options.width = width
+  end
+return widgets.numBox("Amount", getShapeOptions().amount, options)
 end
 
 local function getShapeWidgets(width, showLabel, i)
   -- Widgets for controlling shape
-  if type(width) == "nil" then
-    width = 120
-  end
   if type(i) == "nil" then
     i = ""
   end
   local shapeOptions = getShapeOptions()
+  local factorOptions = {
+    name = "ShapeFactor" .. i,
+    tooltip = "Set the factor (multiplier) applied to the value of each step.",
+    min = -8,
+    max = 8,
+  }
+  local phaseOptions = {
+    name = "ShapePhase" .. i,
+    tooltip = "Set the phase applied to the shape (move left/right).",
+  }
+  local zOptions = {
+    name = "ShapeMorph" .. i,
+    tooltip = "Set the morph value. This value is mostly assigned to amplitude, but it depends on the shape.",
+  }
+  local options = {factor = factorOptions, phase = phaseOptions, z = zOptions}
+  for _,v in pairs(options) do
+    v.showLabel = showLabel ~= false
+    if type(width) == "number" then
+      v.width = width
+    end
+    if type(v.min) == "nil" then
+      v.min = -1
+    end
+    if type(v.max) == "nil" then
+      v.max = 1
+    end
+  end
   return {
-    factor = widgets.numBox("Shape Factor", shapeOptions.factor, {
-      name = "ShapeFactor" .. i,
-      tooltip = "Set the factor (multiplier) applied to the value of each step.",
-      width = width,
-      showLabel = showLabel == true,
-      min = -8,
-      max = 8,
-    }),
-    phase = widgets.numBox("Shape Phase", shapeOptions.phase, {
-      name = "ShapePhase" .. i,
-      tooltip = "Set the phase applied to the shape (move left/right).",
-      width = width,
-      showLabel = showLabel == true,
-      min = -1,
-      max = 1,
-    }),
-    z = widgets.numBox("Shape Morph", shapeOptions.z, {
-      name = "ShapeMorph" .. i,
-      tooltip = "Set the morph value. This value is mostly assigned to amplitude, but it depends on the shape.",
-      width = width,
-      showLabel = showLabel == true,
-      min = -1,
-      max = 1,
-    })
+    factor = widgets.numBox("Shape Factor", shapeOptions.factor, options.factor),
+    phase = widgets.numBox("Shape Phase", shapeOptions.phase, options.phase),
+    z = widgets.numBox("Shape Morph", shapeOptions.z, options.z)
   }
 end
 
@@ -712,7 +736,7 @@ local function getResolutionsByType(maxResolutionIndex)
   end
   local startPosIndex = 11
   local resOptions = {}
-  -- Create table of resolution indexes by type (1=even,2=dot,3=tri)
+  -- Create table of resolution indexes by type (1=even,2=dot,3=tri,4=slow)
   for i=startPosIndex,startPosIndex+2 do
     local resolutionIndex = i
     local resolutionsOfType = {}
@@ -738,18 +762,48 @@ local function getResolutionsByType(maxResolutionIndex)
   return resOptions
 end
 
--- Returns a table of resolutions indexes that are "approved" to use
-local function getSelectedResolutions(resolutionsByType, minResolutionIndex, maxResolutionIndex)
-  if type(minResolutionIndex) == "nil" then
-    minResolutionIndex = 1 -- Slowest resolution
+local function isResolutionWithinRange(resolutionIndex, options, i)
+  if resolutionIndex < options.minResolutionIndex or resolutionIndex > options.maxResolutionIndex then
+    return false
   end
-  if type(maxResolutionIndex) == "nil" then
-    maxResolutionIndex = #resolutionValues -- Fastest resolution
+
+  if i == 2 and resolutionIndex > options.maxDotResolutionIndex then
+    return false
   end
+
+  if i == 3 and resolutionIndex > options.maxTriResolutionIndex then
+    return false
+  end
+
+  return true
+end
+
+-- Returns a table of resolutions indexes that are within the given range
+local function getSelectedResolutions(resolutionsByType, options)
+  if type(options) == "nil" then
+    options = {}
+  end
+
+  if type(options.minResolutionIndex) == "nil" then
+    options.minResolutionIndex = 1
+  end
+
+  if type(options.maxResolutionIndex) == "nil" then
+    options.maxResolutionIndex = #resolutionValues
+  end
+
+  if type(options.maxDotResolutionIndex) == "nil" then
+    options.maxDotResolutionIndex = #resolutionValues
+  end
+
+  if type(options.maxTriResolutionIndex) == "nil" then
+    options.maxTriResolutionIndex = #resolutionValues
+  end
+
   local selectedResolutions = {}
-  for i=1,3 do
-    for _,resolutionIndex in ipairs(resolutionsByType[i]) do
-      if resolutionIndex >= minResolutionIndex and resolutionIndex <= maxResolutionIndex then
+  for i,type in ipairs(resolutionsByType) do
+    for _,resolutionIndex in ipairs(type) do
+      if isResolutionWithinRange(resolutionIndex, options, i) then
         table.insert(selectedResolutions, resolutionIndex)
       end
     end
@@ -762,6 +816,7 @@ end
 -- Options are: adjustBias (0=slow -> 100=fast), doubleOrHalfProbaility, dotOrTriProbaility, selectedResolutions
 local function getResolutionVariation(currentResolution, options)
   local currentIndex = gem.getIndexFromValue(currentResolution, resolutionValues)
+
   if type(currentIndex) == "nil" then
     return currentResolution
   end
@@ -776,6 +831,14 @@ local function getResolutionVariation(currentResolution, options)
 
   if type(options.maxResolutionIndex) == "nil" then
     options.maxResolutionIndex = #resolutionValues
+  end
+
+  if type(options.maxDotResolutionIndex) == "nil" then
+    options.maxDotResolutionIndex = #resolutionValues
+  end
+
+  if type(options.maxTriResolutionIndex) == "nil" then
+    options.maxTriResolutionIndex = #resolutionValues
   end
 
   if type(options.adjustBias) == "nil" then
@@ -793,11 +856,11 @@ local function getResolutionVariation(currentResolution, options)
   local resolutionsByType = getResolutionsByType()
 
   if type(options.selectedResolutions) == "nil" then
-    options.selectedResolutions = getSelectedResolutions(resolutionsByType, options.minResolutionIndex, options.maxResolutionIndex)
+    options.selectedResolutions = getSelectedResolutions(resolutionsByType, options)
   end
 
-  --print("BEFORE currentIndex", currentIndex)
-  local resolutionIndex = currentIndex
+  -- Normalize resolution
+  local resolution = currentResolution
   if gem.tableIncludes(resolutionsByType[2], currentIndex) then
     resolution = getEvenFromDotted(resolutionValues[currentIndex])
     --print("getEvenFromDotted", resolution)
@@ -808,21 +871,22 @@ local function getResolutionVariation(currentResolution, options)
     resolution = resolutionValues[currentIndex]
     --print("getEvenOrSlow", resolution)
   end
+
   if type(resolution) == "number" then
     local doubleOrHalf = gem.getRandomBoolean(options.doubleOrHalfProbaility)
     -- Double (slow) or half (fast) duration
     if doubleOrHalf then
       local doubleResIndex = gem.getIndexFromValue((resolution * 2), resolutionValues)
+      local halfResIndex = gem.getIndexFromValue((resolution / 2), resolutionValues)
       if gem.getRandomBoolean(options.adjustBias) == false and type(doubleResIndex) == "number" and gem.tableIncludes(options.selectedResolutions, doubleResIndex) then
         resolution = resolutionValues[doubleResIndex]
         --print("Slower resolution", resolution)
-      else
+      elseif type(halfResIndex) == "number" and gem.tableIncludes(options.selectedResolutions, halfResIndex) then
         resolution = resolution / 2
         --print("Faster resolution", resolution)
       end
     end
-    -- Set dotted (or tri) on duration if no change was done to the lenght, or probability hits
-    --if doubleOrHalf == false or gem.getRandomBoolean(options.dotOrTriProbaility) then
+    -- Set dot or tri on duration if probability hits
     if gem.getRandomBoolean(options.dotOrTriProbaility) then
       if gem.tableIncludes(resolutionsByType[3], currentIndex) then
         resolution = getTriplet(resolution)
@@ -836,7 +900,9 @@ local function getResolutionVariation(currentResolution, options)
       end
     end
   end
-  currentIndex = gem.getIndexFromValue(resolution, resolutionValues)
+  if type(resolution) == "number" then
+    currentIndex = gem.getIndexFromValue(resolution, resolutionValues)
+  end
   --print("AFTER currentIndex", currentIndex)
   if type(currentIndex) == "number" and gem.tableIncludes(options.selectedResolutions, currentIndex) then
     --print("Got resolution from the current index")
@@ -868,6 +934,8 @@ local function quantizeToClosest(beat)
 end
 
 local resolutions = {
+  getSelectedResolutions = getSelectedResolutions,
+
   getResolutionVariation = getResolutionVariation,
 
   getResolutionsByType = getResolutionsByType,
@@ -1076,7 +1144,14 @@ end
 
 -- Returns a table of resolutions indexes that are "approved" to use
 local function getSelectedResolutions()
-  local selectedResolutions = getSlowResolutions()
+  local options = {
+    minResolutionIndex = 3, -- Slowest
+    maxResolutionIndex = maxResolutionIndex, -- Fastest
+    maxDotResolutionIndex = 18, -- Fastest dotted
+    maxTriResolutionIndex = 25, -- Fastest triplet
+  }
+  return resolutions.getSelectedResolutions(resolutionsByType, options)
+  --[[ local selectedResolutions = getSlowResolutions()
   for i=1,3 do
     for _,resolutionIndex in ipairs(resolutionsByType[i]) do
       -- Limit dotted/tri resolutions above 1/8 dot and 1/16 tri
@@ -1086,7 +1161,7 @@ local function getSelectedResolutions()
       table.insert(selectedResolutions, resolutionIndex)
     end
   end
-  return selectedResolutions
+  return selectedResolutions ]]
 end
 
 -- Auto generate fragment
@@ -1268,8 +1343,15 @@ end
 -- length, and/or setting a even/dot/tri value variant
 local function getResolutionFromCurrentIndex(currentResolution, adjustBias, dotOrTriProbaility)
   -- Include the resolutions that are available
-  local selectedResolutions = getSelectedResolutions()
-  return resolutions.getResolutionVariation(currentResolution, {adjustBias=adjustBias, selectedResolutions=selectedResolutions, dotOrTriProbaility=dotOrTriProbaility})
+  --local selectedResolutions = getSelectedResolutions()
+  local options = {
+    adjustBias=adjustBias,
+    selectedResolutions=selectedResolutions,
+    dotOrTriProbaility=dotOrTriProbaility,
+    maxDotResolutionIndex = 18, -- Fastest dotted
+    maxTriResolutionIndex = 25, -- Fastest triplet
+  }
+  return resolutions.getResolutionVariation(currentResolution, options)
   --[[ local currentIndex = gem.getIndexFromValue(currentResolution, resolutions.getResolutions())
   if type(currentIndex) == "nil" then
     return

@@ -258,55 +258,58 @@ end
 
 local function getAmountWidget(width, showLabel, i)
   -- Widget for controlling shape amount
-  if type(width) == "nil" then
-    width = 120
-  end
   if type(i) == "nil" then
     i = ""
   end
-  return widgets.numBox("Amount", getShapeOptions().amount, {
+  local options = {
     name = "ShapeAmount" .. i,
     tooltip = "Set the shape amount.",
-    width = width,
-    showLabel = showLabel == true,
+    showLabel = showLabel ~= false,
     unit = Unit.Percent,
-  })
+  }
+  if type(width) == "number" then
+    options.width = width
+  end
+return widgets.numBox("Amount", getShapeOptions().amount, options)
 end
 
 local function getShapeWidgets(width, showLabel, i)
   -- Widgets for controlling shape
-  if type(width) == "nil" then
-    width = 120
-  end
   if type(i) == "nil" then
     i = ""
   end
   local shapeOptions = getShapeOptions()
+  local factorOptions = {
+    name = "ShapeFactor" .. i,
+    tooltip = "Set the factor (multiplier) applied to the value of each step.",
+    min = -8,
+    max = 8,
+  }
+  local phaseOptions = {
+    name = "ShapePhase" .. i,
+    tooltip = "Set the phase applied to the shape (move left/right).",
+  }
+  local zOptions = {
+    name = "ShapeMorph" .. i,
+    tooltip = "Set the morph value. This value is mostly assigned to amplitude, but it depends on the shape.",
+  }
+  local options = {factor = factorOptions, phase = phaseOptions, z = zOptions}
+  for _,v in pairs(options) do
+    v.showLabel = showLabel ~= false
+    if type(width) == "number" then
+      v.width = width
+    end
+    if type(v.min) == "nil" then
+      v.min = -1
+    end
+    if type(v.max) == "nil" then
+      v.max = 1
+    end
+  end
   return {
-    factor = widgets.numBox("Shape Factor", shapeOptions.factor, {
-      name = "ShapeFactor" .. i,
-      tooltip = "Set the factor (multiplier) applied to the value of each step.",
-      width = width,
-      showLabel = showLabel == true,
-      min = -8,
-      max = 8,
-    }),
-    phase = widgets.numBox("Shape Phase", shapeOptions.phase, {
-      name = "ShapePhase" .. i,
-      tooltip = "Set the phase applied to the shape (move left/right).",
-      width = width,
-      showLabel = showLabel == true,
-      min = -1,
-      max = 1,
-    }),
-    z = widgets.numBox("Shape Morph", shapeOptions.z, {
-      name = "ShapeMorph" .. i,
-      tooltip = "Set the morph value. This value is mostly assigned to amplitude, but it depends on the shape.",
-      width = width,
-      showLabel = showLabel == true,
-      min = -1,
-      max = 1,
-    })
+    factor = widgets.numBox("Shape Factor", shapeOptions.factor, options.factor),
+    phase = widgets.numBox("Shape Phase", shapeOptions.phase, options.phase),
+    z = widgets.numBox("Shape Morph", shapeOptions.z, options.z)
   }
 end
 

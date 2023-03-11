@@ -22,11 +22,13 @@ local ruleWidgets = {}
 local ruleResolutions = resolutions.getResolutionNames({"Faster", "Dot/Tri", "Slower", "Base Resolution"})
 local resolutionNames = resolutions.getResolutionNames()
 local resolution = 20 -- The default resolution
-local minResolution = 1 -- Slowest
-local maxResolution = #resolutionNames -- Fastest
+local minResolution = 9 -- Slowest
+local maxResolution = 26 -- Fastest
+local maxDotResolution = 18 -- Fastest dotted resolution
+local maxTriResolution = 25 -- Fastest triplet resolution
 local velocity = 64
-local rows = 4 -- Number of rows in the board
-local cols = 4 -- Number of columns in the board
+local rows = 6 -- Number of rows in the board
+local cols = 6 -- Number of columns in the board
 local cells = {} -- Holds the cell widgets
 local evolve = false -- Every generation changes the base resolution to the resolution that was selected by chance
 local dead = false -- Dead cells are played as pause - add an option for min live cells before accepting dead?
@@ -108,11 +110,12 @@ local function applyRuleOnCell(cell, rule)
   if type(resIndex) == "number" then
     beatValue = resolutions.getResolution(resIndex)
   else
-    options.minResolutionIndex = minResolution -- TODO Debug this -- Slowest
-    options.maxResolutionIndex = maxResolution -- TODO Debug this -- Fastest
+    options.minResolutionIndex = minResolution -- Slowest
+    options.maxResolutionIndex = maxResolution -- Fastest
+    options.maxDotResolutionIndex = maxDotResolution -- Fastest dotted
+    options.maxTriResolutionIndex = maxTriResolution -- Fastest triplet
     beatValue = resolutions.getResolutionVariation(resolutions.getResolution(baseResolutionIndex), options)
     resIndex = gem.getIndexFromValue(beatValue, resolutions.getResolutions())
-    --print("resIndex, beatValue, i, j", resIndex, beatValue, i, j)
   end
 
   -- Update the cells
@@ -376,14 +379,6 @@ widgets.button('Fill', fill, {
   end
 })
 
---[[ widgets.button('Shape', {
-  tooltip = "Load board with a random shape",
-  changed = function()
-    clearCells()
-    loadShape()
-  end
-}) ]]
-
 widgets.numBox('Ch', channel, {
   tooltip = "Send note events starting on this channel",
   min = 1,
@@ -502,7 +497,6 @@ widgets.setSection({
   cols = 2,
 })
 
-
 widgets.menu("Slowest", minResolution, resolutionNames, {
   tooltip = "Set the slowest allowed resolution for new generations",
   changed = function(self)
@@ -517,18 +511,34 @@ widgets.menu("Fastest", maxResolution, resolutionNames, {
   end
 })
 
+widgets.menu("Fastest Dot", maxDotResolution, resolutionNames, {
+  tooltip = "Set the slowest allowed dotted resolution for new generations",
+  changed = function(self)
+    maxDotResolution = self.value
+  end
+})
+
+widgets.menu("Fastest Tri", maxTriResolution, resolutionNames, {
+  tooltip = "Set the fastest allowed triplet resolution for new generations",
+  changed = function(self)
+    maxTriResolution = self.value
+  end
+})
+
 widgets.button('Evolve', evolve, {
   tooltip = "When evolve is active, the resolution for the next generation is taken from the cell, instead of from the base resolution",
+  width = 130,
   changed = function(self)
     evolve = self.value
     resolution = resolutionMenu.value
   end
 })
 
---widgets.col(3)
+widgets.row()
 
 widgets.button('Rest Dead', dead, {
   tooltip = "When this is active, dead cells are used as rests. Otherwise dead cells are skipped.",
+  width = 130,
   changed = function(self)
     dead = self.value
   end

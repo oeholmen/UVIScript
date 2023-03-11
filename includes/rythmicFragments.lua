@@ -149,7 +149,14 @@ end
 
 -- Returns a table of resolutions indexes that are "approved" to use
 local function getSelectedResolutions()
-  local selectedResolutions = getSlowResolutions()
+  local options = {
+    minResolutionIndex = 3, -- Slowest
+    maxResolutionIndex = maxResolutionIndex, -- Fastest
+    maxDotResolutionIndex = 18, -- Fastest dotted
+    maxTriResolutionIndex = 25, -- Fastest triplet
+  }
+  return resolutions.getSelectedResolutions(resolutionsByType, options)
+  --[[ local selectedResolutions = getSlowResolutions()
   for i=1,3 do
     for _,resolutionIndex in ipairs(resolutionsByType[i]) do
       -- Limit dotted/tri resolutions above 1/8 dot and 1/16 tri
@@ -159,7 +166,7 @@ local function getSelectedResolutions()
       table.insert(selectedResolutions, resolutionIndex)
     end
   end
-  return selectedResolutions
+  return selectedResolutions ]]
 end
 
 -- Auto generate fragment
@@ -341,8 +348,15 @@ end
 -- length, and/or setting a even/dot/tri value variant
 local function getResolutionFromCurrentIndex(currentResolution, adjustBias, dotOrTriProbaility)
   -- Include the resolutions that are available
-  local selectedResolutions = getSelectedResolutions()
-  return resolutions.getResolutionVariation(currentResolution, {adjustBias=adjustBias, selectedResolutions=selectedResolutions, dotOrTriProbaility=dotOrTriProbaility})
+  --local selectedResolutions = getSelectedResolutions()
+  local options = {
+    adjustBias=adjustBias,
+    selectedResolutions=selectedResolutions,
+    dotOrTriProbaility=dotOrTriProbaility,
+    maxDotResolutionIndex = 18, -- Fastest dotted
+    maxTriResolutionIndex = 25, -- Fastest triplet
+  }
+  return resolutions.getResolutionVariation(currentResolution, options)
   --[[ local currentIndex = gem.getIndexFromValue(currentResolution, resolutions.getResolutions())
   if type(currentIndex) == "nil" then
     return

@@ -128,6 +128,26 @@ local function inc(val, inc, resetAt, resetTo)
   return val
 end
 
+local function advanceValue(bounds, value, min, max, direction)
+  local valueRange = bounds.max - bounds.min
+  local changeFactor = max - min
+  local changePerStep = getChangePerStep(changeFactor, valueRange)
+
+  if direction < 0 then
+    changePerStep = -changePerStep
+  end
+
+  value = inc(value, changePerStep)
+  if value > max then
+    direction = -1
+    value = max
+  elseif value < min then
+    direction = 1
+    value = min
+  end
+  return value, direction
+end
+
 local gem = {
   inc = inc,
   avg = avg,
@@ -135,6 +155,7 @@ local gem = {
   round = round,
   getRandom = getRandom,
   getChangeMax = getChangeMax,
+  advanceValue = advanceValue,
   tableIncludes = tableIncludes,
   randomizeValue = randomizeValue,
   trimStartAndEnd = trimStartAndEnd,
@@ -925,7 +946,7 @@ local function getResolutionsByType(maxResolutionIndex)
   end
   local startPosIndex = 11
   local resOptions = {}
-  -- Create table of resolution indexes by type (1=even,2=dot,3=tri)
+  -- Create table of resolution indexes by type (1=even,2=dot,3=tri,4=slow)
   for i=startPosIndex,startPosIndex+2 do
     local resolutionIndex = i
     local resolutionsOfType = {}
@@ -951,18 +972,48 @@ local function getResolutionsByType(maxResolutionIndex)
   return resOptions
 end
 
--- Returns a table of resolutions indexes that are "approved" to use
-local function getSelectedResolutions(resolutionsByType, minResolutionIndex, maxResolutionIndex)
-  if type(minResolutionIndex) == "nil" then
-    minResolutionIndex = 1 -- Slowest resolution
+local function isResolutionWithinRange(resolutionIndex, options, i)
+  if resolutionIndex < options.minResolutionIndex or resolutionIndex > options.maxResolutionIndex then
+    return false
   end
-  if type(maxResolutionIndex) == "nil" then
-    maxResolutionIndex = #resolutionValues -- Fastest resolution
+
+  if i == 2 and resolutionIndex > options.maxDotResolutionIndex then
+    return false
   end
+
+  if i == 3 and resolutionIndex > options.maxTriResolutionIndex then
+    return false
+  end
+
+  return true
+end
+
+-- Returns a table of resolutions indexes that are within the given range
+local function getSelectedResolutions(resolutionsByType, options)
+  if type(options) == "nil" then
+    options = {}
+  end
+
+  if type(options.minResolutionIndex) == "nil" then
+    options.minResolutionIndex = 1
+  end
+
+  if type(options.maxResolutionIndex) == "nil" then
+    options.maxResolutionIndex = #resolutionValues
+  end
+
+  if type(options.maxDotResolutionIndex) == "nil" then
+    options.maxDotResolutionIndex = #resolutionValues
+  end
+
+  if type(options.maxTriResolutionIndex) == "nil" then
+    options.maxTriResolutionIndex = #resolutionValues
+  end
+
   local selectedResolutions = {}
-  for i=1,3 do
-    for _,resolutionIndex in ipairs(resolutionsByType[i]) do
-      if resolutionIndex >= minResolutionIndex and resolutionIndex <= maxResolutionIndex then
+  for i,type in ipairs(resolutionsByType) do
+    for _,resolutionIndex in ipairs(type) do
+      if isResolutionWithinRange(resolutionIndex, options, i) then
         table.insert(selectedResolutions, resolutionIndex)
       end
     end
@@ -975,6 +1026,7 @@ end
 -- Options are: adjustBias (0=slow -> 100=fast), doubleOrHalfProbaility, dotOrTriProbaility, selectedResolutions
 local function getResolutionVariation(currentResolution, options)
   local currentIndex = gem.getIndexFromValue(currentResolution, resolutionValues)
+
   if type(currentIndex) == "nil" then
     return currentResolution
   end
@@ -989,6 +1041,14 @@ local function getResolutionVariation(currentResolution, options)
 
   if type(options.maxResolutionIndex) == "nil" then
     options.maxResolutionIndex = #resolutionValues
+  end
+
+  if type(options.maxDotResolutionIndex) == "nil" then
+    options.maxDotResolutionIndex = #resolutionValues
+  end
+
+  if type(options.maxTriResolutionIndex) == "nil" then
+    options.maxTriResolutionIndex = #resolutionValues
   end
 
   if type(options.adjustBias) == "nil" then
@@ -1006,11 +1066,11 @@ local function getResolutionVariation(currentResolution, options)
   local resolutionsByType = getResolutionsByType()
 
   if type(options.selectedResolutions) == "nil" then
-    options.selectedResolutions = getSelectedResolutions(resolutionsByType, options.minResolutionIndex, options.maxResolutionIndex)
+    options.selectedResolutions = getSelectedResolutions(resolutionsByType, options)
   end
 
-  --print("BEFORE currentIndex", currentIndex)
-  local resolutionIndex = currentIndex
+  -- Normalize resolution
+  local resolution = currentResolution
   if gem.tableIncludes(resolutionsByType[2], currentIndex) then
     resolution = getEvenFromDotted(resolutionValues[currentIndex])
     --print("getEvenFromDotted", resolution)
@@ -1021,21 +1081,22 @@ local function getResolutionVariation(currentResolution, options)
     resolution = resolutionValues[currentIndex]
     --print("getEvenOrSlow", resolution)
   end
+
   if type(resolution) == "number" then
     local doubleOrHalf = gem.getRandomBoolean(options.doubleOrHalfProbaility)
     -- Double (slow) or half (fast) duration
     if doubleOrHalf then
       local doubleResIndex = gem.getIndexFromValue((resolution * 2), resolutionValues)
+      local halfResIndex = gem.getIndexFromValue((resolution / 2), resolutionValues)
       if gem.getRandomBoolean(options.adjustBias) == false and type(doubleResIndex) == "number" and gem.tableIncludes(options.selectedResolutions, doubleResIndex) then
         resolution = resolutionValues[doubleResIndex]
         --print("Slower resolution", resolution)
-      else
+      elseif type(halfResIndex) == "number" and gem.tableIncludes(options.selectedResolutions, halfResIndex) then
         resolution = resolution / 2
         --print("Faster resolution", resolution)
       end
     end
-    -- Set dotted (or tri) on duration if no change was done to the lenght, or probability hits
-    --if doubleOrHalf == false or gem.getRandomBoolean(options.dotOrTriProbaility) then
+    -- Set dot or tri on duration if probability hits
     if gem.getRandomBoolean(options.dotOrTriProbaility) then
       if gem.tableIncludes(resolutionsByType[3], currentIndex) then
         resolution = getTriplet(resolution)
@@ -1049,7 +1110,9 @@ local function getResolutionVariation(currentResolution, options)
       end
     end
   end
-  currentIndex = gem.getIndexFromValue(resolution, resolutionValues)
+  if type(resolution) == "number" then
+    currentIndex = gem.getIndexFromValue(resolution, resolutionValues)
+  end
   --print("AFTER currentIndex", currentIndex)
   if type(currentIndex) == "number" and gem.tableIncludes(options.selectedResolutions, currentIndex) then
     --print("Got resolution from the current index")
@@ -1081,6 +1144,8 @@ local function quantizeToClosest(beat)
 end
 
 local resolutions = {
+  getSelectedResolutions = getSelectedResolutions,
+
   getResolutionVariation = getResolutionVariation,
 
   getResolutionsByType = getResolutionsByType,

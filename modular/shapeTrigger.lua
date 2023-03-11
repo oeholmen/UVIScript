@@ -14,12 +14,11 @@ setBackgroundColour(backgroundColour)
 -- Variables
 --------------------------------------------------------------------------------
 
--- TODO Create a variant with a 16x16 that only use shapes
-
 local isPlaying = false
 local seqIndex = 0 -- Holds the unique id for the sequencer
 local channel = 1
-local gate = 90 -- TODO Param?
+local gate = 90
+local gateRandomization = 0
 local ruleWidgets = {}
 local resolutionNames = resolutions.getResolutionNames()
 local resolution = 20 -- The default resolution
@@ -27,19 +26,28 @@ local velocity = 64
 local rows = 8 -- Number of rows in the board
 local cols = 8 -- Number of columns in the board
 local cells = {} -- Holds the cell widgets
-local evolve = false -- Every generation changes the base resolution to the resolution that was selected by chance
-local dead = true -- Dead cells are played as pause - add an option for min live cells before accepting dead?
 local locked = true -- Board is locked to move through all live cells before next gen - it starts locked to not kill the initial state
 local currentRowIndex = 1
 local currentColIndex = 1
 local liveCells = 0 -- Holds the current live cells until next iteration
-local fill = true
+local fill = 100
+local morphSettings
+local shapeWidgets = {}
+local shapeOptions = shapes.getShapeOptions()
+local shapeIndex
 local shapeMenu
 local shapeNames = shapes.getShapeNames()
-local shapeMenuItems = {"Empty Board"}
+local shapeMenuItems = {"Random Shape"}
 for _,v in ipairs(shapeNames) do
   table.insert(shapeMenuItems, v)
 end
+
+local morphSteps = {
+  z = rows,
+  phase = 1,
+  factor = 1,
+  amount = 1,
+}
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
@@ -55,31 +63,99 @@ local function clearCells()
       cells[i][j].value = false
       cells[i][j].backgroundColourOn = widgets.getColours().backgroundColourOn
       cells[i][j].backgroundColourOff = widgets.getColours().backgroundColourOff
-      -- If evolve is active, and the sequencer is playing, cells preserve their resolution
-      local preserve = isPlaying and evolve
-      if preserve == false then
-        cells[i][j].displayName = resolutionNames[resolution]
-        cells[i][j].tooltip = resolutions.getResolution(resolution) .. ""
-      end
+      cells[i][j].displayName = resolutionNames[resolution]
+      cells[i][j].tooltip = resolutions.getResolution(resolution) .. ""
     end
   end
 end
 
-local function loadShape(shapeIndex)
-  if type(shapeIndex) == "nil" then
-    shapeIndex = gem.getRandom(#shapeNames)
-    shapeMenu:setValue(shapeIndex + 1, false) 
+local function updateShapeWidgets()
+  -- Update widgets with values from the shape
+  local callChanged = false
+  shapeWidgets.phase:setValue(shapeOptions.phase, callChanged)
+  shapeWidgets.factor:setValue(shapeOptions.factor, callChanged)
+  shapeWidgets.z:setValue(shapeOptions.z, callChanged)
+  shapeWidgets.amount:setValue(shapeOptions.amount, callChanged)
+end
+
+local function isFilled(row, value)
+  local fillValue = math.ceil(value * (fill / 100))
+  return row == value or row < fillValue
+end
+
+local function loadShape(options)
+  local shape = shapeIndex
+  if type(shape) == "nil" then
+    shape = gem.getRandom(#shapeNames)
   end
-  print("--- NEW SHAPE ---", shapeIndex)
+  --print("--- NEW SHAPE ---", shape)
   clearCells() -- Deactivate all cells
-  local values = shapes.get(shapeIndex, {min=1,max=rows,length=cols})
+  local bounds = {
+    min=1,
+    max=rows,
+    length=cols,
+  }
+  local values, shapeOptions = shapes.get(shape, bounds, options)
   for col = 1, cols do
     local value = math.ceil(values[col])
     for row = 1, rows do
-      cells[row][col].value = value == row or (fill and value > row)
+      cells[row][col].value = isFilled(row, value)
     end
   end
   locked = true -- Lock to preserve the shape
+  if type(options) == "nil" then
+    updateShapeWidgets() -- Update the widgets
+  end
+end
+
+local function advanceShape()
+  if type(morphSettings) == "nil" then
+    morphSettings = {
+      z = {
+        value = shapeWidgets.z.value,
+        min = shapeWidgets.z.min,
+        max = shapeWidgets.z.max,
+        steps = morphSteps.z,
+        direction = -1,
+      },
+      phase = {
+        value = shapeWidgets.phase.value,
+        min = shapeWidgets.phase.min,
+        max = shapeWidgets.phase.max,
+        steps = morphSteps.phase,
+        direction = 1,
+      },
+      factor = {
+        value = shapeWidgets.factor.value,
+        min = shapeWidgets.factor.min,
+        max = shapeWidgets.factor.max,
+        steps = morphSteps.factor,
+        direction = 1,
+      },
+      amount = {
+        value = shapeWidgets.amount.value,
+        min = shapeWidgets.amount.min,
+        max = shapeWidgets.amount.max,
+        steps = morphSteps.amount,
+        direction = -1,
+      },
+    }
+  end
+
+  for _,v in pairs(morphSettings) do
+    if v.steps > 1 then
+      v.value, v.direction = gem.advanceValue({min=1,max=v.steps}, v.value, v.min, v.max, v.direction)
+    end
+  end
+
+  local options = {
+    z = morphSettings.z.value,
+    phase = morphSettings.phase.value,
+    factor = morphSettings.factor.value,
+    amount = morphSettings.amount.value,
+  }
+
+  loadShape(options)
 end
 
 -- Returns a random resolution from the live cells
@@ -91,8 +167,6 @@ local function getCell()
     print("No cell")
     return
   end
-
-  print("Found cell.value @ currentRowIndex, currentColIndex", cell.value, currentRowIndex, currentColIndex)
 
   currentColIndex = gem.inc(currentColIndex)
 
@@ -108,7 +182,7 @@ local function getCell()
 
   if cell.value then
     cell.backgroundColourOn = "orange"
-  elseif dead then
+  else
     cell.backgroundColourOff = "505050"
   end
   return cell
@@ -128,6 +202,10 @@ local function countLiveCells()
   locked = liveCells > 0
 end
 
+local function getGate()
+  return gem.randomizeValue(gate, 0, 100, gateRandomization)
+end
+
 local function seq(uniqueId)
   local note = 0
   locked = true -- Ensure the board is locked when starting to preserve the current state
@@ -137,19 +215,20 @@ local function seq(uniqueId)
       countLiveCells()
     end
     if locked == false then
-      loadShape()
+      if liveCells == 0 or type(shapeIndex) == "nil" then
+        loadShape() -- Load a fresh shape if no live cells are present, or we are in random shape mode
+      else
+        advanceShape()
+      end
     end
     local cell = getCell() -- Get cell at current pos
     if type(cell) ~= "nil" then
       local duration = tonumber(cell.tooltip)
       if cell.value then
-        playNote(note, velocity, beat2ms(resolutions.getPlayDuration(duration, gate)), nil, channel)
-        print("playNote", duration)
+        playNote(note, velocity, beat2ms(resolutions.getPlayDuration(duration, getGate())), nil, channel)
+        --print("playNote", duration)
       end
-      if cell.value or (cell.value == false and dead) then
-        print("waitBeat", duration)
-        waitBeat(duration)
-      end
+      waitBeat(duration)
     end
   end
 end
@@ -193,46 +272,14 @@ widgets.label("Shape Trigger", {
 })
 
 widgets.setSection({
-  width = 90,
+  width = 110,
   height = 22,
-  x = 153,
+  x = 375,
   y = 5,
   cols = 10
 })
 
-shapeMenu = widgets.menu("Shape", shapeMenuItems, {
-  tooltip = "If the board is empty or stale, a random shape will be selected",
-  showLabel = false,
-  width = 117,
-  changed = function(self)
-    clearCells()
-    local shapeIndex = self.value - 1
-    if shapeIndex > 0 then
-      loadShape(shapeIndex)
-    end
-  end
-})
-
-widgets.button('Fill', fill, {
-  tooltip = "Fill shape instead of drawing just the line",
-  changed = function(self)
-    fill = self.value
-    shapeMenu:changed()
-  end
-})
-
-widgets.menu("Base Resolution", resolution, resolutionNames, {
-  tooltip = "Set the base resolution",
-  showLabel = false,
-  width = 60,
-  changed = function(self)
-    resolution = self.value
-    clearCells()
-    loadShape()
-  end
-})
-
-widgets.numBox('Ch', channel, {
+widgets.numBox('Channel', channel, {
   tooltip = "Send note events starting on this channel",
   min = 1,
   max = 16,
@@ -288,7 +335,138 @@ for i = 1, rows do
   cells[i] = {}
   for j = 1, cols do
     cells[i][j] = widgets.button(resolutionNames[resolution])
+    --cells[i][j] = widgets.button(i .. '-' .. j)
   end
+end
+
+--------------------------------------------------------------------------------
+-- Setting Panel
+--------------------------------------------------------------------------------
+
+widgets.panel({
+  --backgroundColour = backgroundColour,
+  x = 5,
+  y = widgets.posUnder(widgets.getPanel()) - 5,
+  width = widgets.getPanel().width - 10,
+  height = 60,
+})
+
+widgets.setSection({
+  height = 22,
+  width = 60,
+  cols = 8,
+})
+
+widgets.label("Shape", {
+  width = 42,
+  backgroundColour = "transparent",
+  textColour = "silver"
+})
+
+shapeMenu = widgets.menu("Shape", shapeMenuItems, {
+  tooltip = "Select a shape, or choose 'Random Shape' to change shapes between round",
+  width = 123,
+  showLabel = false,
+  changed = function(self)
+    morphSettings = nil -- Reset
+    clearCells()
+    shapeIndex = self.value - 1
+    if shapeIndex == 0 then
+      shapeIndex = nil
+    else
+      loadShape()
+    end
+  end
+})
+
+widgets.numBox('Fill', fill, {
+  tooltip = "Set a fill percentage for the selected shape. If fill is 0, the shape is drawn as a line.",
+  unit = Unit.Percent,
+  width = 120,
+  changed = function(self)
+    fill = self.value
+    shapeMenu:changed()
+  end
+})
+
+widgets.col(1,7)
+
+widgets.label("Resolution", {
+  width = 66,
+  backgroundColour = "transparent",
+  textColour = "silver"
+})
+
+widgets.menu("Resolution", resolution, resolutionNames, {
+  tooltip = "Set the sequencer resolution",
+  width = 90,
+  showLabel = false,
+  changed = function(self)
+    resolution = self.value
+    clearCells()
+    if type(shapeIndex) == "number" then
+      loadShape(shapeOptions)
+    else
+      clearCells()
+    end
+  end
+})
+
+widgets.numBox("Gate", gate, {
+  tooltip = "Set the gate value",
+  width = 108,
+  unit = Unit.Percent,
+  changed = function(self)
+    gate = self.value
+  end
+})
+
+widgets.numBox("Gate Rnd", gateRandomization, {
+  tooltip = "Set gate randomization amount",
+  width = 108,
+  unit = Unit.Percent,
+  changed = function(self)
+    gateRandomization = self.value
+  end
+})
+
+widgets.setSection({
+  y = widgets.posUnder(shapeMenu),
+  height = 22,
+  width = 167,
+  xSpacing = 10,
+  cols = 8,
+})
+
+shapeWidgets = shapes.getWidgets()
+shapeWidgets.amount = shapes.getAmountWidget()
+
+for k,v in pairs(shapeWidgets) do
+  v.width = v.width - 30
+  v.changed = function(self)
+    morphSettings = nil -- Reset
+    shapeOptions[k] = self.value
+    if type(shapeIndex) == "number" then
+      loadShape(shapeOptions)
+    end
+  end
+
+  widgets.numBox(k, morphSteps[k], {
+    tooltip = "Number of rounds to morph across",
+    x = widgets.posSide(v) - 9,
+    min = 1,
+    max = rows * 2,
+    integer = true,
+    width = 30,
+    showLabel = false,
+    changed = function(self)
+      morphSettings = nil -- Reset
+      morphSteps[k] = self.value
+      if type(shapeIndex) == "number" then
+        loadShape(shapeOptions)
+      end
+    end
+  })
 end
 
 --------------------------------------------------------------------------------

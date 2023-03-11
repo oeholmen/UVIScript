@@ -128,6 +128,26 @@ local function inc(val, inc, resetAt, resetTo)
   return val
 end
 
+local function advanceValue(bounds, value, min, max, direction)
+  local valueRange = bounds.max - bounds.min
+  local changeFactor = max - min
+  local changePerStep = getChangePerStep(changeFactor, valueRange)
+
+  if direction < 0 then
+    changePerStep = -changePerStep
+  end
+
+  value = inc(value, changePerStep)
+  if value > max then
+    direction = -1
+    value = max
+  elseif value < min then
+    direction = 1
+    value = min
+  end
+  return value, direction
+end
+
 local gem = {
   inc = inc,
   avg = avg,
@@ -135,6 +155,7 @@ local gem = {
   round = round,
   getRandom = getRandom,
   getChangeMax = getChangeMax,
+  advanceValue = advanceValue,
   tableIncludes = tableIncludes,
   randomizeValue = randomizeValue,
   trimStartAndEnd = trimStartAndEnd,
