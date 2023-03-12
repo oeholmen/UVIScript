@@ -30,7 +30,7 @@ local locked = true -- Board is locked to move through all live cells before nex
 local currentRowIndex = 1
 local currentColIndex = 1
 local liveCells = 0 -- Holds the current live cells until next iteration
-local fill = 100
+local fillProbability = 75
 local morphSettings
 local shapeWidgets = {}
 local shapeOptions = shapes.getShapeOptions()
@@ -79,8 +79,7 @@ local function updateShapeWidgets()
 end
 
 local function isFilled(row, value)
-  local fillValue = math.ceil(value * (fill / 100))
-  return row == value or row < fillValue
+  return row == value or (row < value and gem.getRandomBoolean(fillProbability))
 end
 
 local function loadShape(options)
@@ -379,12 +378,12 @@ shapeMenu = widgets.menu("Shape", shapeMenuItems, {
   end
 })
 
-widgets.numBox('Fill', fill, {
-  tooltip = "Set a fill percentage for the selected shape. If fill is 0, the shape is drawn as a line.",
+widgets.numBox('Fill', fillProbability, {
+  tooltip = "Set a fill probability for the selected shape. If fill is 0, the shape is drawn as a line, if fill is 100 it will be drawn solid.",
   unit = Unit.Percent,
   width = 120,
   changed = function(self)
-    fill = self.value
+    fillProbability = self.value
     shapeMenu:changed()
   end
 })
@@ -432,7 +431,7 @@ widgets.numBox("Gate Rnd", gateRandomization, {
 
 widgets.setSection({
   y = widgets.posUnder(shapeMenu),
-  height = 22,
+  height = 20,
   width = 167,
   xSpacing = 10,
   cols = 8,

@@ -250,7 +250,7 @@ tableMotion.getSpeedSpreadWidget()
 tableMotion.getStartDirectionWidget()
 
 widgets.menu("Trigger Mode", triggerMode, triggerModes, {
-  tooltip = "Trigger mode determines when a trigger is actived for output (see Quantize)",
+  tooltip = "Trigger mode determines when a trigger is activated for output (see Quantize)",
   changed = function(self) triggerMode = self.value end
 })
 

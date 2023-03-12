@@ -37,7 +37,7 @@ local currentRowIndex = 1
 local currentColIndex = 1
 local liveCells = 0 -- Holds the current live cells until next iteration
 local resolutionMenu
-local fill = false -- TODO Param
+local fillProbability = 50
 local shapeMenu
 local shapeNames = shapes.getShapeNames()
 local shapeMenuItems = {"Empty Board"}
@@ -86,7 +86,7 @@ end
 local function applyRuleOnCell(cell, rule)
   local resIndex = nil
   local beatValue = nil
-  local options = {}
+  local options = nil
   local baseResolutionIndex = resolution
 
   -- When evolve is active, we get the base resolution from the cell
@@ -94,27 +94,32 @@ local function applyRuleOnCell(cell, rule)
     baseResolutionIndex = gem.getIndexFromValue(tonumber(cell.tooltip), resolutions.getResolutions())
   end
 
-  if ruleWidgets[rule].selectedText == "Faster" then
-    options = {adjustBias=100, doubleOrHalfProbaility=100, dotOrTriProbaility=0}
-  elseif ruleWidgets[rule].selectedText == "Dot/Tri" then
-    options = {adjustBias=50, doubleOrHalfProbaility=50, dotOrTriProbaility=100}
-  elseif ruleWidgets[rule].selectedText == "Slower" then
-    options = {adjustBias=0, doubleOrHalfProbaility=100, dotOrTriProbaility=0}
-  elseif ruleWidgets[rule].selectedText == "Base Resolution" then
-    resIndex = baseResolutionIndex
-  elseif ruleWidgets[rule].value <= #resolutionNames then
-    -- Fixed resolution
-    resIndex = ruleWidgets[rule].value
+  if type(ruleWidgets[rule]) ~= "nil" then
+    if ruleWidgets[rule].selectedText == "Faster" then
+      options = {adjustBias=100, doubleOrHalfProbaility=100, dotOrTriProbaility=0}
+    elseif ruleWidgets[rule].selectedText == "Dot/Tri" then
+      options = {adjustBias=50, doubleOrHalfProbaility=50, dotOrTriProbaility=100}
+    elseif ruleWidgets[rule].selectedText == "Slower" then
+      options = {adjustBias=0, doubleOrHalfProbaility=100, dotOrTriProbaility=0}
+    elseif ruleWidgets[rule].selectedText == "Base Resolution" then
+      resIndex = baseResolutionIndex
+    elseif ruleWidgets[rule].value <= #resolutionNames then
+      -- Fixed resolution
+      resIndex = ruleWidgets[rule].value
+    end
   end
 
   if type(resIndex) == "number" then
     beatValue = resolutions.getResolution(resIndex)
-  else
+  elseif type(options) == "table" then
     options.minResolutionIndex = minResolution -- Slowest
     options.maxResolutionIndex = maxResolution -- Fastest
     options.maxDotResolutionIndex = maxDotResolution -- Fastest dotted
     options.maxTriResolutionIndex = maxTriResolution -- Fastest triplet
     beatValue = resolutions.getResolutionVariation(resolutions.getResolution(baseResolutionIndex), options)
+    resIndex = gem.getIndexFromValue(beatValue, resolutions.getResolutions())
+  else
+    beatValue = tonumber(cell.tooltip)
     resIndex = gem.getIndexFromValue(beatValue, resolutions.getResolutions())
   end
 
@@ -123,6 +128,10 @@ local function applyRuleOnCell(cell, rule)
   cell.backgroundColourOff = widgets.getColours().backgroundColourOff
   cell.displayName = resolutionNames[resIndex]
   cell.tooltip = beatValue .. ""
+end
+
+local function isFilled(row, value)
+  return row == value or (row < value and gem.getRandomBoolean(fillProbability))
 end
 
 local function loadShape(shapeIndex)
@@ -136,7 +145,7 @@ local function loadShape(shapeIndex)
   for col = 1, cols do
     local value = math.ceil(values[col])
     for row = 1, rows do
-      cells[row][col].value = value == row or (fill and value > row)
+      cells[row][col].value = isFilled(row, value)
       --[[ if cells[row][col].value and gem.getRandomBoolean() then
         -- Apply rule 1 (rebirth)
         applyRuleOnCell(cells[row][col], 1)
@@ -149,6 +158,9 @@ local function loadShape(shapeIndex)
   locked = true -- Lock to preserve the shape
 end
 
+local changeCount = 0
+local previousChangeCount = 0
+local equalCount = 0
 local function updateBoard()
   -- Create a new board to hold the next generation
   local newGeneration = {}
@@ -210,15 +222,18 @@ local function updateBoard()
       elseif cells[i][j].value == true and count == 3 then
         -- Any live cell with three live neighbours lives on to the next generation.
         newGeneration[i][j] = 3
-      else
-        -- All other live cells die in the next generation. Similarly, all other dead cells stay dead.
+      elseif cells[i][j].value == true then
+        -- All other live cells die in the next generation.
         newGeneration[i][j] = 4
+      else
+        -- All other dead cells stay dead.
+        newGeneration[i][j] = 5
       end
     end
   end
 
   -- Update the cells for the next generation
-  local changeCount = 0
+  changeCount = 0
   for i,v in ipairs(newGeneration) do
     for j,rule in ipairs(v) do
       local alive = rule < #rules
@@ -232,14 +247,20 @@ local function updateBoard()
     end
   end
 
+  if changeCount == previousChangeCount then
+    equalCount = gem.inc(equalCount)
+  end
+  previousChangeCount = changeCount
+
   -- Reset if stale board
-  if changeCount == 0 then
+  if changeCount == 0 or equalCount > rows then
+    equalCount = 0 -- Reset
     --print("Stale board...")
     loadShape()
   end
 end
 
--- Returns a random resolution from the live cells
+-- Returns the next resolution from the live cells
 local function getCell()
   local cell = cells[currentRowIndex][currentColIndex]
 
@@ -280,7 +301,7 @@ local function countLiveCells()
       end
     end
   end
-  --print("Found #liveCells", #liveCells)
+  --print("Found liveCells", liveCells)
   currentRowIndex = 1 -- Reset row position
   currentColIndex = 1 -- Reset col position
   locked = liveCells > 0
@@ -371,10 +392,11 @@ shapeMenu = widgets.menu("Shape", shapeMenuItems, {
   end
 })
 
-widgets.button('Fill', fill, {
-  tooltip = "Fill shape instead of drawing just the line",
+widgets.numBox('Fill', fillProbability, {
+  tooltip = "Set a fill probability for the selected shape. If fill is 0, the shape is drawn as a line, if fill is 100 it will be drawn solid.",
+  unit = Unit.Percent,
   changed = function(self)
-    fill = self.value
+    fillProbability = self.value
     shapeMenu:changed()
   end
 })

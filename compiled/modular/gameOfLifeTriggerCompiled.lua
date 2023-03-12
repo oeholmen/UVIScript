@@ -1,4 +1,4 @@
--- modular/rythmicMotionsTrigger -- 
+-- modular/gameOfLifeTrigger -- 
 --------------------------------------------------------------------------------
 -- Common methods
 --------------------------------------------------------------------------------
@@ -1245,731 +1245,449 @@ local resolutions = {
 }
 
 --------------------------------------------------------------------------------
--- Common functions for processors using table motion
+-- Game Of Life Trigger - Sends note events using note 0 as trigger
 --------------------------------------------------------------------------------
 
-local directionStartModes = {"Up", "Down", "Even Up", "Even Down", "Odd Up", "Odd Down", "Random"}
-local speedTypes = {"Ramp Up", "Ramp Down", "Triangle", "Even", "Odd", "Random"}
-local startModes = shapes.getShapeNames({"Keep State"})
-local movementTypes = {"Evolve", "Morph", "Manual"}
-local uniqueIndex = 1 -- Holds the unique id for each moving spawn
-local morphSeqIndex = 0 -- Holds the unique id for the morphing sequencer
-local movingCells = {}
-local isTableMotionActive = false
-local shapeWidgets = {} -- Holds the widgets for controlling shape
-local resolutionNames = resolutions.getResolutionNames()
-
-local motionOptions = {
-  factor = 2,
-  factorMin = 0,
-  factorMax = 10,
-  moveSpeed = gem.getIndexFromValue("1/16", resolutionNames),
-  moveSpeedMin = 1,
-  moveSpeedMax = #resolutionNames,
-  speedType = speedTypes[1],
-  startMode = 1,
-  movementType = movementTypes[1],
-  directionStartMode = directionStartModes[1],
-  speedRandomizationAmount = 0,
-  tableLength = 32,
-}
-
-local shapeOptions = shapes.getShapeOptions()
-
-local function getSpeedSpreadWidget(width)
-  return widgets.menu("Speed Spread", speedTypes, {
-    width = width,
-    tooltip = "The speed spread works with the speed factor to control speed variations across the table. Ramp Up means fast -> slower, Triangle means slower in the center. (Note: Only used for motion type 'evolve')",
-    changed = function(self) motionOptions.speedType = self.selectedText end
-  })
-end
-
-local function getStartDirectionWidget(width)
-  return widgets.menu("Start Direction", directionStartModes, {
-    width = width,
-    tooltip = "Select start direction for the bars",
-    changed = function(self) motionOptions.directionStartMode = self.selectedText end
-  })
-end
-
-local function getMotionSpeedWidget(width)
-  local motionResolutionMenu
-  local motionResolutionInput
-
-  motionResolutionMenu = widgets.menu("Motion Speed", motionOptions.moveSpeed, resolutionNames, {
-    width = width,
-    tooltip = "Set the speed of the up/down motion in each cell - Controlled by the X-axis on the XY controller",
-    changed = function(self) motionResolutionInput:setValue(self.value) end
-  })
-
-  motionResolutionInput = widgets.numBox("Motion Resolution", motionOptions.moveSpeed, {
-    visible = false,
-    increment = false,
-    min = 1,
-    max = #resolutionNames,
-    changed = function(self)
-      motionOptions.moveSpeed = gem.round(self.value)
-      motionResolutionMenu:setValue(motionOptions.moveSpeed)
-    end
-  })
-
-  return motionResolutionMenu
-end
-
-local function getSpeedFactorWidget(width)
-  return widgets.numBox("Speed Factor", motionOptions.factor, {
-    width = width,
-    mapper = Mapper.Cubic,
-    min = motionOptions.factorMin,
-    max = motionOptions.factorMax,
-    tooltip = "Set the factor of slowdown or speedup per cell. High factor = big difference between cells, 0 = all cells are moving at the same speed. When using morph, this controls phase amount. Controlled by the Y-axis on the XY controller",
-    changed = function(self) motionOptions.factor = self.value end
-  })
-end
-
-local function getSpeedRandWidget(width)
-  return widgets.numBox("Speed Rand", motionOptions.speedRandomizationAmount, {
-    tooltip = "Set the radomization amount applied to speed",
-    width = width,
-    unit = Unit.Percent,
-    integer = false,
-    mapper = Mapper.Quadratic,
-    changed = function(self) motionOptions.speedRandomizationAmount = self.value end
-  })
-end
-
-local function getStartShapeWidget(width)
-  return widgets.menu("Start Shape", startModes, {
-    width = width,
-    tooltip = "Set how the table will look when starting.",
-  })
-end
-
-local function getStartDirection(i)
-  if type(i) == "nil" then
-    i = 1
-  end
-  local direction = 1
-  if motionOptions.directionStartMode == "Down" then
-    direction = -1
-  elseif motionOptions.directionStartMode == "Even Up" then
-    if i % 2 == 0 then
-      direction = 1
-    else
-      direction = -1
-    end
-  elseif motionOptions.directionStartMode == "Even Down" then
-    if i % 2 == 0 then
-      direction = -1
-    else
-      direction = 1
-    end
-  elseif motionOptions.directionStartMode == "Odd Up" then
-    if i % 2 == 0 then
-      direction = -1
-    else
-      direction = 1
-    end
-  elseif motionOptions.directionStartMode == "Odd Down" then
-    if i % 2 == 0 then
-      direction = 1
-    else
-      direction = -1
-    end
-  elseif motionOptions.directionStartMode == "Random" then
-    if gem.getRandomBoolean() then
-      direction = 1
-    else
-      direction = -1
-    end
-  end
-  return direction
-end
-
-local function setTableZero(theTable)
-  for i=1,theTable.length do
-    theTable:setValue(i, 0)
-  end  
-end
-
-local function updateShapeWidgets()
-  -- Update widgets with values from the shape
-  local callChanged = false
-  shapeWidgets.phase:setValue(shapeOptions.phase, callChanged)
-  shapeWidgets.factor:setValue(shapeOptions.factor, callChanged)
-  shapeWidgets.z:setValue(shapeOptions.z, callChanged)
-end
-
-local function setStartMode(theTable, loadShape, stateFunction)
-  -- Reset table according to start mode (unless keep state is selected)
-  if motionOptions.startMode < #startModes then
-    local values = {}
-    local shapeIndex = motionOptions.startMode
-    --print("Calling shapeFunc", shapeFunc)
-    if type(loadShape) == "table" then
-      -- Load the shape with the settings provided
-      values = shapes.get(shapeIndex, theTable, loadShape)
-    elseif loadShape == true then
-      -- Load the shape without settings to get the original form of the shape
-      values, shapeOptions = shapes.get(shapeIndex, theTable)
-    else
-      -- Load the shape with the default settings
-      values, shapeOptions = shapes.get(shapeIndex, theTable, shapeOptions)
-    end
-    for i,v in ipairs(values) do
-      local value = v
-      --[[ if shapeFunc == "sine" then
-        -- Sine prefers round
-        value = gem.round(v)
-      else ]]if v > 1 then
-        value = math.ceil(v)
-      else
-        value = math.floor(v)
-      end
-      --print("Set value, i", value, i)
-      theTable:setValue(i, value)
-      if type(stateFunction) == "function" then
-        --print("Calling stateFunc")
-        stateFunction(i, value)
-      end
-    end
-    if type(loadShape) ~= "table" then
-      updateShapeWidgets()
-    end
-  end
-end
-
-local function getDurationRange()
-  local limitRange = motionOptions.moveSpeedMax - motionOptions.moveSpeedMin
-  local changeMax = gem.getChangeMax(limitRange, motionOptions.speedRandomizationAmount)
-  local min = math.max(motionOptions.moveSpeedMin, (motionOptions.moveSpeed - changeMax))
-  local max = math.min(motionOptions.moveSpeedMax, (motionOptions.moveSpeed + changeMax))
-  return min, max
-end
-
-local function getWaitDuration()
-  if motionOptions.speedRandomizationAmount == 0 then
-    return beat2ms(resolutions.getResolution(motionOptions.moveSpeed))
-  end
-  local min, max = getDurationRange()
-  local resolutionMin = resolutions.getResolution(min) -- Slow
-  local resolutionMax = resolutions.getResolution(max) -- Fast
-  return gem.randomizeValue(beat2ms(resolutions.getResolution(motionOptions.moveSpeed)), beat2ms(resolutionMax), beat2ms(resolutionMin), motionOptions.speedRandomizationAmount)
-end
-
-local function moveTable(theTable, i, value, direction)
-  local middle = math.floor(theTable.length / 2)
-  -- Increment value
-  local amount = i - 1
-  if (i > middle and motionOptions.speedType == "Triangle") or motionOptions.speedType == "Ramp Down" then
-    amount = theTable.length - i
-  elseif motionOptions.speedType == "Random" then
-    amount = gem.getRandom(theTable.length) - 1
-  elseif (motionOptions.speedType == "Even" and i % 2 == 0) or (motionOptions.speedType == "Odd" and i % 2 > 0) then
-    amount = 0
-  elseif motionOptions.speedType == "Even" and i == 1 then
-    amount = i
-  end
-  local min = theTable.min
-  local max = theTable.max
-  local duration = getWaitDuration() + (amount * motionOptions.factor) -- TODO Param for operator?
-  theTable:setValue(i, value)
-  value = gem.inc(value, direction)
-  if value < min then
-    if true or gem.getRandomBoolean() then
-      value = min
-      direction = 1
-      --print("Change direction", direction)
-    else
-      value = max
-    end
-    --print("Reset value", value)
-  elseif value > max then
-    if true or gem.getRandomBoolean() then
-      value = max
-      direction = -1
-      --print("Change direction", direction)
-    else
-      value = min
-    end
-    --print("Reset value", value)
-  end
-  local valueBeforeWait = theTable:getValue(i)
-  wait(duration)
-  -- If value has been manually changed during the wait, we continue from that value
-  if valueBeforeWait ~= theTable:getValue(i) then
-    value = theTable:getValue(i)
-  end
-  return value, direction
-end
-
-local function morph(theTable, uniqueId, stateFunction)
-  print("startMorphing")
-  local direction = getStartDirection()
-  local morphSettings = {
-    z = {
-      value = shapeWidgets.z.value,
-      min = shapeWidgets.z.min,
-      max = shapeWidgets.z.max,
-      direction = direction,
-    },
-    phase = {
-      value = shapeWidgets.phase.value,
-      min = shapeWidgets.phase.min,
-      max = shapeWidgets.phase.max,
-      direction = direction,
-    }
-  }
-  while isTableMotionActive and motionOptions.movementType == "Morph" and morphSeqIndex == uniqueId do
-    morphSettings.z.value, morphSettings.z.direction = gem.advanceValue(theTable, morphSettings.z.value, morphSettings.z.min, morphSettings.z.max, morphSettings.z.direction)
-    if motionOptions.factor > 0 then
-      local factor = motionOptions.factor / motionOptions.factorMax
-      local range = morphSettings.phase.max - morphSettings.phase.min
-      local min = morphSettings.phase.min
-      local max = min + (range * factor)
-      if shapeWidgets.phase.value > min then
-        range = (range / 2) * factor
-        min = shapeWidgets.phase.value - range
-        max = shapeWidgets.phase.value + range
-      end
-      morphSettings.phase.value, morphSettings.phase.direction = gem.advanceValue(theTable, morphSettings.phase.value, min, max, morphSettings.phase.direction)
-    end
-    local options = {
-      z = morphSettings.z.value,
-      phase = morphSettings.phase.value,
-      factor = shapeOptions.factor,
-    }
-    setStartMode(theTable, options, stateFunction)
-    wait(getWaitDuration())
-  end
-end
-
-local function move(theTable, i, uniqueId, stateFunction)
-  local direction = getStartDirection(i)
-  local value = theTable:getValue(i)
-  while isTableMotionActive and movingCells[i] == uniqueId do
-    if type(stateFunction) == "function" then
-      stateFunction(i, value)
-    end
-    value, direction = moveTable(theTable, i, value, direction)
-    -- Wait happens in moveTable
-  end
-end
-
-local function startMoving(theTable, stateFunction)
-  if isTableMotionActive == false then
-    return
-  end
-  -- Reset index to stop motion
-  morphSeqIndex = gem.inc(morphSeqIndex)
-  movingCells = {}
-  if motionOptions.movementType == "Manual" then
-    print("In Manual Mode")
-    return -- Nothing needs to be done in manual mode
-  elseif motionOptions.movementType == "Morph" then
-    print("spawn morph")
-    spawn(morph, theTable, morphSeqIndex, stateFunction)
-  else
-    print("spawn move")
-    for i=1,theTable.length do
-      table.insert(movingCells, uniqueIndex)
-      spawn(move, theTable, i, uniqueIndex, stateFunction)
-      uniqueIndex = gem.inc(uniqueIndex)
-    end
-  end
-end
-
-local tableMotion = {
-  setRange = function(theTable, tableRange, bipolar)
-    if bipolar then
-      theTable:setRange(-tableRange, tableRange)
-    else
-      theTable:setRange(0, tableRange)
-    end
-  end,
-  getSpeedSpreadWidget = getSpeedSpreadWidget,
-  getStartShapeWidget = getStartShapeWidget,
-  getStartDirectionWidget = getStartDirectionWidget,
-  getMotionSpeedWidget = getMotionSpeedWidget,
-  getSpeedFactorWidget = getSpeedFactorWidget,
-  getSpeedRandWidget = getSpeedRandWidget,
-  startMoving = startMoving,
-  isMoving = function() return isTableMotionActive == true end,
-  isNotMoving = function() return isTableMotionActive == false end,
-  setMoving = function(m) isTableMotionActive = m ~= false end,
-  resetUniqueIndex = function() uniqueIndex = 1 end,
-  setShapeWidgets = function(widgets) shapeWidgets = widgets end,
-  getShapeWidgets = function() return shapeWidgets end,
-  getShapeOptions = function() return shapeOptions end,
-  getStartDirection = getStartDirection,
-  moveTable = moveTable,
-  getWaitDuration = getWaitDuration,
-  setStartMode = setStartMode,
-  setTableZero = setTableZero,
-  directionStartModes = directionStartModes,
-  speedTypes = speedTypes,
-  startModes = startModes,
-  movementTypes = movementTypes,
-  options = motionOptions,
-}
-
---------------------------------------------------------------------------------
--- Rythmic Motions - Sends note events using note 0 as trigger
---------------------------------------------------------------------------------
-
-local backgroundColour = "202020" -- Light or Dark
-
+local backgroundColour = "404040"
 setBackgroundColour(backgroundColour)
-
--- TODO Add parts and evolve like in generativeStrategySequencer
 
 --------------------------------------------------------------------------------
 -- Variables
 --------------------------------------------------------------------------------
 
-local tableRange = 16
-local bipolar = true
-local positionTable
-local motionTable
+local title = "Game of Life Trigger"
+local description = "A sequencer that use the rules from game of life to trigger events"
+local isPlaying = false
+local seqIndex = 0 -- Holds the unique id for the sequencer
 local channel = 1
-local triggerMode = 1 -- Holds the strategy for when events are triggered
-local triggerModes = {"Min/Max", "Min", "Max", "Zero", "All"}
-local currentValue = {} -- Holds the current table value to check for changes
-local noteEventId = 0 -- Holds the index if the cell in the table that last triggered an event
+local legato = false
+local voiceId
+local eventTrigger = 0 -- Holds the event trigger, if any
 local resolutionNames = resolutions.getResolutionNames()
-local resolution = #resolutionNames
-local voiceId = nil -- Holds the id of the created note event
+local resolution = 20 -- The default resolution
+local velocity = 64
+local evolutionSpeed = 500 -- Milliseconds
+local rows = 16 -- Number of rows in the board
+local cols = rows -- Number of columns in the board
+local minTriggers = math.ceil((rows + cols) / 8) -- Number of required triggers before sending event
+local cells = {} -- Holds the cell widgets
+local generationCounter = 0
+local shapeIndex
+local fillProbability = 50
+local shapeMenu
+local shapeNames = shapes.getShapeNames()
+local shapeMenuItems = {"Random Shape"}
+for _,v in ipairs(shapeNames) do
+  table.insert(shapeMenuItems, v)
+end
+--local shapeOptions = shapes.getShapeOptions()
+local triggerMode = 1 -- Holds the strategy for when events are triggered
+local triggerModes = {
+  "Rebirth (Three Neighbors)",
+  "Stay Alive (Two Neighbors)",
+  "Stay Alive (Three Neighbors)",
+  "Die",
+}
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
 --------------------------------------------------------------------------------
 
-local function checkTrigger(i, value)
-  --print("Running stateFunc")
-  -- Send note event according to the selected trigger mode
-  local valueHasChanged = value ~= currentValue[i]
-  --print("value, currentValue[i], valueHasChanged", value, currentValue[i], valueHasChanged)
-  -- Only set as trigger if value is changed
-  if valueHasChanged then
-    local isTrigger = false
-    if triggerMode == 1 and (value == motionTable.min or value == motionTable.max) then
-      isTrigger = true
-    elseif triggerMode == 2 and value == motionTable.min then
-      isTrigger = true
-    elseif triggerMode == 3 and value == motionTable.max then
-      isTrigger = true
-    elseif triggerMode == 4 and value == 0 then
-      isTrigger = true
-    elseif triggerMode == 5 and (value == 0 or value == motionTable.min or value == motionTable.max) then
-      isTrigger = true
-    end
-    if isTrigger then
-      noteEventId = i
-      print("Update noteEventId", noteEventId)
+local function clearCells()
+  generationCounter = 0 -- Reset
+  for i = 1, rows do
+    for j = 1, cols do
+      cells[i][j].value = false
     end
   end
-  -- Update the current value
-  currentValue[i] = value
-  --print("Update currentValue", value)
 end
 
-local function resetTableValues(loadShape)
-  -- Reset event id
-  noteEventId = 0
+local function isFilled(row, value)
+  return row == value or (row < value and gem.getRandomBoolean(fillProbability))
+end
 
-  -- Reset position
-  tableMotion.setTableZero(positionTable)
-
-  -- Set start mode
-  tableMotion.setStartMode(motionTable, loadShape, checkTrigger)
-
-  currentValue = {}
-  for i=1,motionTable.length do
-    table.insert(currentValue, nil) -- Set initial value
+local function loadShape(options)
+  local shape = shapeIndex
+  if type(shape) == "nil" then
+    shape = gem.getRandom(#shapeNames)
+  end
+  clearCells() -- Deactivate all cells
+  print("--- NEW SHAPE ---", shape)
+  local bounds = {
+    min = 1,
+    max = rows,
+    length = cols,
+  }
+  local values, shapeOptions = shapes.get(shape, bounds, options)
+  for col = 1, cols do
+    local value = math.ceil(values[col])
+    for row = 1, rows do
+      cells[row][col].value = isFilled(row, value)
+    end
   end
 end
 
-local function setRange()
-  print("Calling setRange")
-  tableMotion.setRange(motionTable, tableRange, bipolar)
-  print("Calling resetTableValues")
-  resetTableValues()
-  print("Done calling resetTableValues")
-end
+local changeCount = 0
+local previousChangeCount = 0
+local equalCount = 0
+local function updateBoard()
+  -- Create a new board to hold the next generation
+  local newGeneration = {}
+  --liveCells = 0 -- Clear live cells
 
-local function playTrigger()
-  print("Play Trigger")
-  if noteEventId > 0 then
-    -- Release the voice if active
-    if type(voiceId) == "userdata" then
-      releaseVoice(voiceId)
-      voiceId = nil
-      print("Releasing trigger")
-    end
-    local velocity = 64
-    voiceId = playNote(0, velocity, -1, nil, channel)
-    print("Creating trigger")
-    -- Mark the position that initiated the event
-    for i=1,motionTable.length do
-      local value = 0
-      if i == noteEventId then
-        value = 1
+  generationCounter = gem.inc(generationCounter)
+  print("--- NEXT GENERATION! ---", generationCounter)
+
+  -- Iterate through each cell on the board
+  for i = 1, rows do
+    newGeneration[i] = {}
+    for j = 1, cols do
+      local count = 0
+
+      -- Count the number of live neighbors
+      for x = -1, 1 do
+        for y = -1, 1 do
+          if x ~= 0 or y ~= 0 then
+            local row = i + x
+            local col = j + y
+
+            -- Check if the cell is on the board
+            if row >= 1 and row <= rows and col >= 1 and col <= cols then
+              local val = 0
+              if cells[row][col].value == true then
+                val = 1
+              end
+              count = count + val
+            end
+          end
+        end
       end
-      positionTable:setValue(i, value)
+
+      -- Alive rules:
+      ---- Cell stays alive (count == 2)
+      ---- Cell stays alive (count == 3)
+      ---- Cell becomes alive (count == 3)
+
+      -- Dead cells go back to the base resolution
+      -- Live cells are evolving according to the setting for the given rule
+
+      -- The rules are very simple. In the next generation, the next click of the clock, the squares are going to change statuses in some way or another:
+      ---- Any live cell with fewer than two live neighbours dies, as if by underpopulation.
+      ---- Any live cell with two or three live neighbours lives on to the next generation.
+      ---- Any live cell with more than three live neighbours dies, as if by overpopulation.
+      ---- Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
+      
+      -- These rules, which compare the behaviour of the automaton to real life, can be condensed into the following:
+      ---- Any live cell with two or three live neighbours survives.
+      ---- Any dead cell with three live neighbours becomes a live cell.
+      ---- All other live cells die in the next generation. Similarly, all other dead cells stay dead.
+
+      -- Apply the rules of the game
+      if cells[i][j].value == false and count == 3 then
+        -- Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
+        newGeneration[i][j] = 1
+      elseif cells[i][j].value == true and count == 2 then
+        -- Any live cell with two live neighbours lives on to the next generation.
+        newGeneration[i][j] = 2
+      elseif cells[i][j].value == true and count == 3 then
+        -- Any live cell with three live neighbours lives on to the next generation.
+        newGeneration[i][j] = 3
+      elseif cells[i][j].value == true then
+        -- All other live cells die in the next generation.
+        newGeneration[i][j] = 4
+      else
+        -- All other dead cells stay dead.
+        newGeneration[i][j] = 5
+      end
     end
-    noteEventId = 0 -- Reset event id
+  end
+
+  -- Update the cells for the next generation
+  changeCount = 0
+  for i,v in ipairs(newGeneration) do
+    for j,rule in ipairs(v) do
+      local alive = rule < #triggerModes
+
+      if cells[i][j].value ~= alive then
+        changeCount = gem.inc(changeCount)
+      end
+
+      cells[i][j].value = alive
+      -- Add trigger if selected rule is found
+      if triggerMode == rule then
+        --print("Found trigger: rule, i, j", rule, i, j)
+        eventTrigger = gem.inc(eventTrigger)
+      end
+    end
+  end
+
+  if changeCount == previousChangeCount then
+    equalCount = gem.inc(equalCount)
+  end
+  previousChangeCount = changeCount
+
+  -- Reset if stale board
+  if changeCount == 0 or equalCount > rows then
+    equalCount = 0 -- Reset
+    print("Stale board...")
+    loadShape()
   end
 end
 
-local function startMoving()
-  tableMotion.startMoving(motionTable, checkTrigger)
+local function release()
+  -- Release voice if still active
+  if type(voiceId) == "userdata" then
+    releaseVoice(voiceId)
+    voiceId = nil
+  end
 end
 
-local function sequenceRunner()
-  startMoving()
-  print("tableMotion.isMoving", tableMotion.isMoving())
-  while tableMotion.isMoving() do
-    playTrigger()
-    waitBeat(resolutions.getResolution(resolution))
+local function evolution(uniqueId)
+  while isPlaying and seqIndex == uniqueId do
+    updateBoard()
+    wait(evolutionSpeed)
+  end
+end
+
+local function seq(uniqueId)
+  while isPlaying and seqIndex == uniqueId do
+    local duration = resolutions.getResolution(resolution)
+    print("eventTrigger", eventTrigger)
+    if eventTrigger >= minTriggers then
+      print("Play trigger!")
+      release() -- Release voice if still active
+      voiceId = playNote(0, velocity, -1, nil, channel)
+    end
+    eventTrigger = 0
+    waitBeat(duration)
+    if legato == false then
+      -- Release if legato is off
+      release()
+    end
   end
 end
 
 local function startPlaying()
-  if tableMotion.isMoving() then
+  if isPlaying then
     return
   end
-  tableMotion.setMoving()
-  run(sequenceRunner)
+  isPlaying = true
+  seqIndex = gem.inc(seqIndex)
+  run(evolution, seqIndex)
+  run(seq, seqIndex)
 end
 
 local function stopPlaying()
-  if tableMotion.isNotMoving() then
+  if isPlaying == false then
     return
   end
-  tableMotion.setMoving(false)
-  resetTableValues()
-  if type(voiceId) == "userdata" then
-    releaseVoice(voiceId)
-    voiceId = nil
-    --print("Releasing trigger")
-  end
+  isPlaying = false
+  release()
 end
 
 --------------------------------------------------------------------------------
--- Motion Sequencer
+-- Header Panel
 --------------------------------------------------------------------------------
 
-local sequencerPanel = widgets.panel({
+widgets.panel({
   width = 720,
   height = 30,
 })
 
-widgets.label("Rythmic Motions Trigger", {
-  tooltip = "A sequencer that triggers rythmic pulses (using note 0) that note inputs can listen to",
-  width = sequencerPanel.width,
+widgets.setSection({
+  xSpacing = 5,
+  ySpacing = 5,
+})
+
+widgets.label(title, {
+  tooltip = description,
+  width = widgets.getPanel().width,
   height = 30,
   alpha = 0.5,
   fontSize = 22,
 })
 
 widgets.setSection({
-  width = 100,
+  width = 120,
   height = 22,
-  x = (widgets.getPanel().width / 2) + 45,
+  x = 345,
   y = 5,
-  xSpacing = 5,
-  ySpacing = 5,
+  cols = 10
 })
 
-local channelInput = widgets.numBox('Channel', channel, {
+widgets.numBox('Channel', channel, {
   tooltip = "Send note events starting on this channel",
   min = 1,
   max = 16,
   integer = true,
-  changed = function(self) channel = self.value end,
+  changed = function(self) channel = self.value end
 })
 
-local autoplayButton = widgets.button('Auto Play', true, 2, 1, {
+local autoplayButton = widgets.button('Auto Play', true, {
   tooltip = "Play automatically on transport",
 })
 
-local playButton = widgets.button('Play', false, 3, 1)
-playButton.changed = function(self)
-  if self.value == true then
-    startPlaying()
-  else
-    stopPlaying()
+local playButton = widgets.button('Play', false, {
+  changed = function(self)
+    if self.value then
+      startPlaying()
+    else
+      stopPlaying()
+    end
+  end
+})
+
+--------------------------------------------------------------------------------
+-- Board
+--------------------------------------------------------------------------------
+
+widgets.setSection({
+  xSpacing = 0,
+  ySpacing = 0,
+})
+
+widgets.panel({
+  backgroundColour = backgroundColour,
+  x = widgets.getPanel().x,
+  y = widgets.posUnder(widgets.getPanel()) + 3,
+  width = 320,
+  height = 240--480,
+})
+
+widgets.setSection({
+  width = (widgets.getPanel().width - ((cols+1) * 1)) / cols,
+  height = (widgets.getPanel().height - ((rows+1) * 1)) / rows,
+  x = 2,
+  y = 0,
+  xSpacing = 1,
+  ySpacing = 1,
+  rowDirection = -1,
+  row = rows - 1,
+  cols = cols,
+})
+
+-- Create the cells
+for i = 1, rows do
+  cells[i] = {}
+  for j = 1, cols do
+    cells[i][j] = widgets.button(" ")
   end
 end
 
 --------------------------------------------------------------------------------
--- Sequencer Panel
+-- Settings Panel
 --------------------------------------------------------------------------------
 
-widgets.xSpacing(0)
-widgets.ySpacing(0)
-widgets.backgroundColour = "606060"
-
 widgets.panel({
-  backgroundColour = backgroundColour,
-  x = sequencerPanel.x,
-  y = widgets.posUnder(sequencerPanel),
-  width = sequencerPanel.width,
-  height = 270,
-})
-
-positionTable = widgets.table("Position", 0, tableMotion.options.tableLength, {
-  enabled = false,
-  persistent = false,
-  sliderColour = "yellow",
-  width = sequencerPanel.width - 120,
-  height = 6,
-  x = 0,
-  y = 0,
-})
-
-motionTable = widgets.table("Motion", 0, tableMotion.options.tableLength, {
-  tooltip = "Events are triggered when the value hits max or min",
-  showPopupDisplay = true,
-  min = -tableRange,
-  max = tableRange,
-  integer = true,
-  sliderColour = "pink",
-  width = positionTable.width,
-  height = 160,
-  x = 0,
-  y = widgets.posUnder(positionTable),
+  backgroundColour = "505050",
+  x = widgets.posSide(widgets.getPanel()) + 5,
+  y = widgets.getPanel().y + 5,--widgets.posUnder(widgets.getPanel()) + 5,
+  width = 390,
+  height = widgets.getPanel().height - 5,
 })
 
 widgets.setSection({
-  width = 109,
-  height = 20,
   x = 10,
-  y = widgets.posUnder(motionTable) + 6,
-  xSpacing = 12,
+  width = 130,
+  height = 20,
+  xSpacing = 5,
   ySpacing = 5,
-  cols = 7
-})
-
-tableMotion.getStartShapeWidget().changed = function(self)
-  tableMotion.options.startMode = self.value
-  resetTableValues(true) -- Load a "fresh" shape without adjustments when selecting a shape
-end
-
-tableMotion.getSpeedSpreadWidget()
-tableMotion.getStartDirectionWidget()
-
-widgets.menu("Trigger Mode", triggerMode, triggerModes, {
-  tooltip = "Trigger mode determines when a trigger is activated for output (see Quantize)",
-  changed = function(self) triggerMode = self.value end
+  cols = 3,
 })
 
 widgets.menu("Quantize", resolution, resolutionNames, {
   tooltip = "Quantize the outputted triggers to the selected resolution",
-  width = 75,
-  changed = function(self) resolution = self.value end
-})
-
-tableMotion.getMotionSpeedWidget(130)
-
-widgets.row(2)
-
-widgets.numBox("Range", tableRange, {
-  min = 2,
-  max = 128,
-  integer = true,
-  tooltip = "Set the table range - high range = fewer events, low range = more events",
+  width = 93,
   changed = function(self)
-    tableRange = self.value
-    setRange()
+    resolution = self.value
+    clearCells()
+    loadShape()
   end
 })
 
-widgets.numBox("Length", tableMotion.options.tableLength, {
-  min = 2,
-  max = 128,
-  integer = true,
-  tooltip = "Set the table length",
+widgets.button("Legato", legato, {
+  tooltip = "In legato mode notes are held until the next note is played",
+  width = 93,
+  y = 25,
+  changed = function(self) legato = self.value end
+})
+
+widgets.menu("Trigger Mode", triggerMode, triggerModes, {
+  tooltip = "Trigger mode determines what rule triggers events for output",
+  width = 175,
+  changed = function(self) triggerMode = self.value end
+})
+
+shapeMenu = widgets.menu("Start Shape", shapeMenuItems, {
+  tooltip = "If the board is empty or stale, the selected shape will be used for starting a new board",
+  --showLabel = false,
+  width = 192,
+  --x = widgets.posSide(triggerInput),
   changed = function(self)
-    tableMotion.options.tableLength = self.value
-    positionTable.length = tableMotion.options.tableLength
-    motionTable.length = tableMotion.options.tableLength
-    resetTableValues()
-    startMoving()
+    clearCells()
+    shapeIndex = self.value - 1
+    if shapeIndex == 0 then
+      shapeIndex = nil
+    else
+      loadShape()
+    end
   end
 })
 
-widgets.button("Bipolar", bipolar, {
+widgets.row()
+widgets.col(1,192)
+
+widgets.numBox('Fill', fillProbability, {
+  tooltip = "Set a fill probability for the selected shape. If fill is 0, the shape is drawn as a line, if fill is 100 it will be drawn solid.",
+  unit = Unit.Percent,
+  width = 174,
+  --x = widgets.posSide(shapeMenu),
+  --y = 25,
   changed = function(self)
-    bipolar = self.value
-    setRange()
+    fillProbability = self.value
+    shapeMenu:changed()
   end
 })
-
-widgets.button("Reset", false, {
-  changed = function(self)
-    resetTableValues()
-    startMoving()
-    self.value = false
-  end
-})
-
-widgets.menu("Motion Type", tableMotion.movementTypes, {
-  width = 75,
-  changed = function(self)
-    tableMotion.options.movementType = self.selectedText
-    startMoving()
-  end
-})
-
-tableMotion.getSpeedFactorWidget(130)
 
 widgets.row()
 
-tableMotion.setShapeWidgets(shapes.getWidgets(149.5, true))
+local speedInput = widgets.numBox('Speed', evolutionSpeed, {
+  tooltip = "Set the speed between generations",
+  unit = Unit.MilliSeconds,
+  mapper = Mapper.Quartic,
+  min = 5,
+  max = 5000,
+  integer = true,
+  width = 192,
+  changed = function(self)
+    evolutionSpeed = self.value
+  end
+})
 
-widgets.col(1, 75)
+local triggerInput = widgets.numBox('Min Triggers', minTriggers, {
+  tooltip = "Set the required number of rule occurences before an event is sent. Low numbers means more events, high number means fewer.",
+  min = 1,
+  max = rows * cols,
+  integer = true,
+  width = 174,
+  --y = widgets.posUnder(speedInput),
+  --x = speedInput.x,
+  changed = function(self)
+    minTriggers = self.value
+  end
+})
 
-tableMotion.getSpeedRandWidget(130)
-
-tableMotion.getShapeWidgets().phase.changed = function(self)
-  tableMotion.getShapeOptions().phase = self.value
-  resetTableValues()
-  startMoving()
-end
-
-tableMotion.getShapeWidgets().factor.changed = function(self)
-  tableMotion.getShapeOptions().factor = self.value
-  resetTableValues()
-  startMoving()
-end
-
-tableMotion.getShapeWidgets().z.changed = function(self)
-  tableMotion.getShapeOptions().z = self.value
-  resetTableValues()
-  startMoving()
-end
-
-local xyShapeMorph = widgets.getPanel():XY('ShapePhase', 'ShapeMorph')
-xyShapeMorph.y = motionTable.y
-xyShapeMorph.x = widgets.posSide(motionTable) - 6
-xyShapeMorph.width = 108
-xyShapeMorph.height = motionTable.height / 2
-
-local xySpeedFactor = widgets.getPanel():XY('MotionResolution', 'SpeedFactor')
-xySpeedFactor.y = widgets.posUnder(xyShapeMorph)
-xySpeedFactor.x = xyShapeMorph.x
-xySpeedFactor.width = xyShapeMorph.width
-xySpeedFactor.height = (motionTable.height / 2) - 5
+-- TODO Randomize z
+-- TODO Randomize phase
+-- TODO Randomize other?
 
 --------------------------------------------------------------------------------
 -- Handle events
 --------------------------------------------------------------------------------
 
 function onInit()
-  print("Init sequencer")
-  tableMotion.resetUniqueIndex()
-  setRange()
+  seqIndex = 0
+  clearCells()
 end
 
 function onNote(e)
