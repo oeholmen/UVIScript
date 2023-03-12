@@ -1245,7 +1245,7 @@ local resolutions = {
 }
 
 --------------------------------------------------------------------------------
--- Game Of Life Trigger - Sends note events using note 0 as trigger
+-- Game of Life Trigger - Sends note events using note 0 as trigger
 --------------------------------------------------------------------------------
 
 local backgroundColour = "404040"
@@ -1267,20 +1267,25 @@ local resolutionNames = resolutions.getResolutionNames()
 local resolution = 20 -- The default resolution
 local velocity = 64
 local evolutionSpeed = 500 -- Milliseconds
-local rows = 16 -- Number of rows in the board
+local rows = 12 -- Number of rows in the board
 local cols = rows -- Number of columns in the board
-local minTriggers = math.ceil((rows + cols) / 8) -- Number of required triggers before sending event
+local minTriggers = math.ceil((rows + cols) / 2) -- Number of required triggers before sending event
+local equalRounds = minTriggers -- Number of stale rounds before shape is regenerated
 local cells = {} -- Holds the cell widgets
 local generationCounter = 0
 local shapeIndex
 local fillProbability = 50
+local generationLabel
 local shapeMenu
 local shapeNames = shapes.getShapeNames()
 local shapeMenuItems = {"Random Shape"}
 for _,v in ipairs(shapeNames) do
   table.insert(shapeMenuItems, v)
 end
---local shapeOptions = shapes.getShapeOptions()
+
+local shapeWidgets = {}
+local shapeOptions = shapes.getShapeOptions()
+
 local triggerMode = 1 -- Holds the strategy for when events are triggered
 local triggerModes = {
   "Rebirth (Three Neighbors)",
@@ -1336,6 +1341,8 @@ local function updateBoard()
   --liveCells = 0 -- Clear live cells
 
   generationCounter = gem.inc(generationCounter)
+  generationLabel.text = "Gen " .. generationCounter
+  --triggerMode = gem.getRandom(#triggerModes) -- Use a random triggermode
   print("--- NEXT GENERATION! ---", generationCounter)
 
   -- Iterate through each cell on the board
@@ -1417,7 +1424,16 @@ local function updateBoard()
       if triggerMode == rule then
         --print("Found trigger: rule, i, j", rule, i, j)
         eventTrigger = gem.inc(eventTrigger)
-      end
+        triggerLabel.text = "Trig " .. eventTrigger
+        if alive then
+          cells[i][j].backgroundColourOn = "orange"
+        else
+          cells[i][j].backgroundColourOff = "gray"
+        end
+      else
+        cells[i][j].backgroundColourOn = widgets.getColours().backgroundColourOn
+        cells[i][j].backgroundColourOff = widgets.getColours().backgroundColourOff
+        end
     end
   end
 
@@ -1427,7 +1443,7 @@ local function updateBoard()
   previousChangeCount = changeCount
 
   -- Reset if stale board
-  if changeCount == 0 or equalCount > rows then
+  if changeCount == 0 or equalCount > equalRounds then
     equalCount = 0 -- Reset
     print("Stale board...")
     loadShape()
@@ -1457,8 +1473,8 @@ local function seq(uniqueId)
       print("Play trigger!")
       release() -- Release voice if still active
       voiceId = playNote(0, velocity, -1, nil, channel)
+      eventTrigger = 0
     end
-    eventTrigger = 0
     waitBeat(duration)
     if legato == false then
       -- Release if legato is off
@@ -1510,9 +1526,23 @@ widgets.label(title, {
 widgets.setSection({
   width = 120,
   height = 22,
-  x = 345,
+  x = 186,
   y = 5,
   cols = 10
+})
+
+generationLabel = widgets.label("Gen " .. generationCounter, {
+  tooltip = "Shows the current generation",
+  backgroundColour = "transparent",
+  textColour = "606060",
+  width = 75,
+})
+
+triggerLabel = widgets.label("Trig " .. eventTrigger, {
+  tooltip = "Shows the current trigger count",
+  backgroundColour = "transparent",
+  textColour = "606060",
+  width = 75,
 })
 
 widgets.numBox('Channel', channel, {
@@ -1548,19 +1578,20 @@ widgets.setSection({
 
 widgets.panel({
   backgroundColour = backgroundColour,
-  x = widgets.getPanel().x,
-  y = widgets.posUnder(widgets.getPanel()) + 3,
-  width = 320,
-  height = 240--480,
+  x = widgets.getPanel().x + 5,
+  y = widgets.posUnder(widgets.getPanel()) + 5,
+  width = 240,
+  height = 192,
 })
 
+local spacing = 2
 widgets.setSection({
-  width = (widgets.getPanel().width - ((cols+1) * 1)) / cols,
-  height = (widgets.getPanel().height - ((rows+1) * 1)) / rows,
+  width = (widgets.getPanel().width - ((cols+1) * spacing)) / cols,
+  height = (widgets.getPanel().height - ((rows+1) * spacing)) / rows,
   x = 2,
   y = 0,
-  xSpacing = 1,
-  ySpacing = 1,
+  xSpacing = spacing,
+  ySpacing = spacing,
   rowDirection = -1,
   row = rows - 1,
   cols = cols,
@@ -1575,54 +1606,29 @@ for i = 1, rows do
 end
 
 --------------------------------------------------------------------------------
--- Settings Panel
+-- Shape Panel
 --------------------------------------------------------------------------------
 
 widgets.panel({
-  backgroundColour = "505050",
+  backgroundColour = "303030",
   x = widgets.posSide(widgets.getPanel()) + 5,
-  y = widgets.getPanel().y + 5,--widgets.posUnder(widgets.getPanel()) + 5,
-  width = 390,
+  y = widgets.getPanel().y + 3,
+  width = 220,
   height = widgets.getPanel().height - 5,
 })
 
 widgets.setSection({
   x = 10,
-  width = 130,
+  y = 6,
+  width = 192,
   height = 20,
   xSpacing = 5,
   ySpacing = 5,
-  cols = 3,
-})
-
-widgets.menu("Quantize", resolution, resolutionNames, {
-  tooltip = "Quantize the outputted triggers to the selected resolution",
-  width = 93,
-  changed = function(self)
-    resolution = self.value
-    clearCells()
-    loadShape()
-  end
-})
-
-widgets.button("Legato", legato, {
-  tooltip = "In legato mode notes are held until the next note is played",
-  width = 93,
-  y = 25,
-  changed = function(self) legato = self.value end
-})
-
-widgets.menu("Trigger Mode", triggerMode, triggerModes, {
-  tooltip = "Trigger mode determines what rule triggers events for output",
-  width = 175,
-  changed = function(self) triggerMode = self.value end
+  cols = 1,
 })
 
 shapeMenu = widgets.menu("Start Shape", shapeMenuItems, {
   tooltip = "If the board is empty or stale, the selected shape will be used for starting a new board",
-  --showLabel = false,
-  width = 192,
-  --x = widgets.posSide(triggerInput),
   changed = function(self)
     clearCells()
     shapeIndex = self.value - 1
@@ -1634,34 +1640,86 @@ shapeMenu = widgets.menu("Start Shape", shapeMenuItems, {
   end
 })
 
-widgets.row()
-widgets.col(1,192)
-
 widgets.numBox('Fill', fillProbability, {
   tooltip = "Set a fill probability for the selected shape. If fill is 0, the shape is drawn as a line, if fill is 100 it will be drawn solid.",
   unit = Unit.Percent,
-  width = 174,
-  --x = widgets.posSide(shapeMenu),
-  --y = 25,
+  width = 112,
+  increment = false,
   changed = function(self)
     fillProbability = self.value
     shapeMenu:changed()
   end
 })
 
-widgets.row()
-
-local speedInput = widgets.numBox('Speed', evolutionSpeed, {
-  tooltip = "Set the speed between generations",
-  unit = Unit.MilliSeconds,
-  mapper = Mapper.Quartic,
-  min = 5,
-  max = 5000,
-  integer = true,
-  width = 192,
-  changed = function(self)
-    evolutionSpeed = self.value
+widgets.button("Reset Shape", {
+  tooltip = "Reset board with the selected shape. If 'Random Shape' is selected, a different shape will be loaded every time.",
+  width = 75,
+  changed = function()
+    if shapeIndex == 0 then
+      loadShape()
+    else
+      loadShape(shapeOptions)
+    end
   end
+})
+
+shapeWidgets = shapes.getWidgets()
+shapeWidgets.amount = shapes.getAmountWidget()
+
+for k,v in pairs(shapeWidgets) do
+  v.changed = function(self)
+    shapeOptions[k] = self.value
+    if type(shapeIndex) == "number" then
+      loadShape(shapeOptions)
+    end
+  end
+end
+
+--------------------------------------------------------------------------------
+-- Quantize Panel
+--------------------------------------------------------------------------------
+
+widgets.panel({
+  backgroundColour = "505050",
+  x = widgets.posSide(widgets.getPanel()) + 5,
+  y = widgets.getPanel().y,
+  width = 230,
+  height = widgets.getPanel().height,
+})
+
+widgets.setSection({
+  x = 10,
+  y = 6,
+  width = 210,
+  height = 20,
+  xSpacing = 5,
+  ySpacing = 5,
+  cols = 1,
+})
+
+local q = widgets.menu("Quantize", resolution, resolutionNames, {
+  tooltip = "Quantize the outputted triggers to the selected resolution",
+  width = 105,
+  increment = false,
+  changed = function(self)
+    resolution = self.value
+    clearCells()
+    loadShape()
+  end
+})
+
+widgets.col()
+
+widgets.button("Legato", legato, {
+  tooltip = "In legato mode notes are held until the next note is played",
+  width = 100,
+  x = widgets.posSide(q),
+  changed = function(self) legato = self.value end
+})
+
+widgets.menu("Trigger On", triggerMode, triggerModes, {
+  tooltip = "Select the rule that triggers events - marked with orange (or gray for dead cells) colour on the board",
+  changed = function(self) triggerMode = self.value end
 })
 
 local triggerInput = widgets.numBox('Min Triggers', minTriggers, {
@@ -1669,17 +1727,35 @@ local triggerInput = widgets.numBox('Min Triggers', minTriggers, {
   min = 1,
   max = rows * cols,
   integer = true,
-  width = 174,
-  --y = widgets.posUnder(speedInput),
-  --x = speedInput.x,
+  --increment = false,
+  --width = 102,
   changed = function(self)
     minTriggers = self.value
   end
 })
 
--- TODO Randomize z
--- TODO Randomize phase
--- TODO Randomize other?
+local triggerInput = widgets.numBox('Reset After', equalRounds, {
+  tooltip = "Set the number of stale rounds that are allowed before regenerating the shape",
+  min = 1,
+  max = (rows * cols) / 2,
+  integer = true,
+  --width = 102,
+  changed = function(self)
+    equalRounds = self.value
+  end
+})
+
+local speedInput = widgets.numBox('Speed', evolutionSpeed, {
+  tooltip = "Set the speed between generations",
+  unit = Unit.MilliSeconds,
+  mapper = Mapper.Quartic,
+  min = evolutionSpeed / 10,
+  max = evolutionSpeed * 10,
+  integer = true,
+  changed = function(self)
+    evolutionSpeed = self.value
+  end
+})
 
 --------------------------------------------------------------------------------
 -- Handle events

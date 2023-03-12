@@ -19,7 +19,6 @@ local seqIndex = 0 -- Holds the unique id for the sequencer
 local channel = 1
 local gate = 90
 local gateRandomization = 0
-local ruleWidgets = {}
 local resolutionNames = resolutions.getResolutionNames()
 local resolution = 20 -- The default resolution
 local velocity = 64
