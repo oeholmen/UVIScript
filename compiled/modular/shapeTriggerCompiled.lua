@@ -38,16 +38,14 @@ local function getIndexFromValue(value, selection)
 end
 
 local function randomizeValue(value, limitMin, limitMax, randomizationAmount)
-  if randomizationAmount > 0 then
-    local limitRange = limitMax - limitMin
-    local changeMax = getChangeMax(limitRange, randomizationAmount)
-    local min = math.max(limitMin, (value - changeMax))
-    local max = math.min(limitMax, (value + changeMax))
-    --print("Before randomize value", value)
-    value = getRandom(min, max)
-    --print("After randomize value/changeMax/min/max", value, changeMax, min, max)
+  if randomizationAmount == 0 then
+    return value
   end
-  return value
+  local limitRange = limitMax - limitMin
+  local changeMax = getChangeMax(limitRange, randomizationAmount)
+  local min = math.max(limitMin, (value - changeMax))
+  local max = math.min(limitMax, (value + changeMax))
+  return getRandom(min, max)
 end
 
 -- sign function: -1 if x<0; 1 if x>0
@@ -68,7 +66,6 @@ end
 
 local function round(value)
   local int, frac = math.modf(value)
-  --print("int/frac", int, frac)
   if math.abs(frac) < 0.5 then
     value = int
   elseif value < 0 then
@@ -92,13 +89,11 @@ local function getRandomFromTable(theTable, except)
   end
   local index = getRandom(#theTable)
   local value = theTable[index]
-  --print("getRandomFromTable index, value", index, value)
   if type(except) ~= "nil" then
     local maxRounds = 10
     while value == except and maxRounds > 0 do
       value = theTable[getRandom(#theTable)]
       maxRounds = maxRounds - 1
-      --print("getRandomFromTable except, maxRounds", except, maxRounds)
     end
   end
   return value
@@ -215,6 +210,8 @@ local widgetColours = {
 local function getValueOrDefault(value, default)
   if type(value) == "nil" then
     return default
+  elseif type(value) == "function" then
+    return value(default, widgetDefaults)
   end
   return value
 end
@@ -834,7 +831,7 @@ local function getAmountWidget(width, showLabel, i)
     showLabel = showLabel ~= false,
     unit = Unit.Percent,
   }
-  if type(width) == "number" then
+  if type(width) == "number" or type(width) == "function" then
     options.width = width
   end
 return widgets.numBox("Amount", getShapeOptions().amount, options)
@@ -863,7 +860,7 @@ local function getShapeWidgets(width, showLabel, i)
   local options = {factor = factorOptions, phase = phaseOptions, z = zOptions}
   for _,v in pairs(options) do
     v.showLabel = showLabel ~= false
-    if type(width) == "number" then
+    if type(width) == "number" or type(width) == "function" then
       v.width = width
     end
     if type(v.min) == "nil" then
@@ -1245,7 +1242,7 @@ local resolutions = {
 }
 
 --------------------------------------------------------------------------------
--- Life Trigger - Sends note events using note 0 as trigger
+-- Shape Trigger - Sends note events using note 0 as trigger
 --------------------------------------------------------------------------------
 
 local backgroundColour = "404040"
@@ -1255,6 +1252,8 @@ setBackgroundColour(backgroundColour)
 -- Variables
 --------------------------------------------------------------------------------
 
+local title = "Shape Trigger"
+local description = "A sequencer that uses shapes to create active/inactive cells, where active cells trigger an event, and inactive are pauses"
 local isPlaying = false
 local seqIndex = 0 -- Holds the unique id for the sequencer
 local channel = 1
@@ -1324,6 +1323,7 @@ end
 
 local function loadShape(options)
   local shape = shapeIndex
+  local values
   if type(shape) == "nil" then
     shape = gem.getRandom(#shapeNames)
   end
@@ -1334,7 +1334,7 @@ local function loadShape(options)
     max=rows,
     length=cols,
   }
-  local values, shapeOptions = shapes.get(shape, bounds, options)
+  values, shapeOptions = shapes.get(shape, bounds, options)
   for col = 1, cols do
     local value = math.ceil(values[col])
     for row = 1, rows do
@@ -1435,7 +1435,6 @@ local function countLiveCells()
       end
     end
   end
-  --print("Found #liveCells", #liveCells)
   currentRowIndex = 1 -- Reset row position
   currentColIndex = 1 -- Reset col position
   locked = liveCells > 0
@@ -1446,7 +1445,6 @@ local function getGate()
 end
 
 local function seq(uniqueId)
-  local note = 0
   locked = true -- Ensure the board is locked when starting to preserve the current state
   while isPlaying and seqIndex == uniqueId do
     -- When board has been unlocked, we can move one generation ahead
@@ -1464,8 +1462,7 @@ local function seq(uniqueId)
     if type(cell) ~= "nil" then
       local duration = tonumber(cell.tooltip)
       if cell.value then
-        playNote(note, velocity, beat2ms(resolutions.getPlayDuration(duration, getGate())), nil, channel)
-        --print("playNote", duration)
+        playNote(0, velocity, beat2ms(resolutions.getPlayDuration(duration, getGate())), nil, channel)
       end
       waitBeat(duration)
     end
@@ -1502,8 +1499,8 @@ widgets.setSection({
   ySpacing = 5,
 })
 
-widgets.label("Shape Trigger", {
-  tooltip = "A sequencer that triggers rythmic pulses (using note 0) that note inputs can listen to",
+widgets.label(title, {
+  tooltip = description,
   width = widgets.getPanel().width,
   height = 30,
   alpha = 0.5,

@@ -38,16 +38,14 @@ local function getIndexFromValue(value, selection)
 end
 
 local function randomizeValue(value, limitMin, limitMax, randomizationAmount)
-  if randomizationAmount > 0 then
-    local limitRange = limitMax - limitMin
-    local changeMax = getChangeMax(limitRange, randomizationAmount)
-    local min = math.max(limitMin, (value - changeMax))
-    local max = math.min(limitMax, (value + changeMax))
-    --print("Before randomize value", value)
-    value = getRandom(min, max)
-    --print("After randomize value/changeMax/min/max", value, changeMax, min, max)
+  if randomizationAmount == 0 then
+    return value
   end
-  return value
+  local limitRange = limitMax - limitMin
+  local changeMax = getChangeMax(limitRange, randomizationAmount)
+  local min = math.max(limitMin, (value - changeMax))
+  local max = math.min(limitMax, (value + changeMax))
+  return getRandom(min, max)
 end
 
 -- sign function: -1 if x<0; 1 if x>0
@@ -68,7 +66,6 @@ end
 
 local function round(value)
   local int, frac = math.modf(value)
-  --print("int/frac", int, frac)
   if math.abs(frac) < 0.5 then
     value = int
   elseif value < 0 then
@@ -92,13 +89,11 @@ local function getRandomFromTable(theTable, except)
   end
   local index = getRandom(#theTable)
   local value = theTable[index]
-  --print("getRandomFromTable index, value", index, value)
   if type(except) ~= "nil" then
     local maxRounds = 10
     while value == except and maxRounds > 0 do
       value = theTable[getRandom(#theTable)]
       maxRounds = maxRounds - 1
-      --print("getRandomFromTable except, maxRounds", except, maxRounds)
     end
   end
   return value
@@ -215,6 +210,8 @@ local widgetColours = {
 local function getValueOrDefault(value, default)
   if type(value) == "nil" then
     return default
+  elseif type(value) == "function" then
+    return value(default, widgetDefaults)
   end
   return value
 end
@@ -566,6 +563,326 @@ local widgets = {
     setOptional(widget, options)
     return widget
   end,
+}
+
+--------------------------------------------------------------------------------
+-- Methods for working with shapes
+--------------------------------------------------------------------------------
+
+-- Holds the shape definitions - functions get the following variables
+-- x is the current time-value getting plotted, from -1.0 to 1.0
+-- z is the current table number, from -1.0 to 1.0
+-- w is the current time-value getting plotted, from 0.0 to 1.0 (same as (x+1)/2)
+-- y is the current table number, from 0.0 to 1.0 (same as (z+1)/2)
+-- i = current index
+-- b = bounds (min, max, length, unipolar)
+-- q = gem.round(1+((x+1)/2)*511)
+local shapes = {
+  ramp = function(x, z, w, y, i, b) return x * z end,
+  triangleShaper = function(x, z, w, y, i) return math.min(2+2*x, math.abs((x-0.5)*2)-1) * z end,
+  sine = function(x, z, w, y, i) return math.sin(x*math.pi) * z end,
+  tangent = function(x, z, w, y, i) return math.tan(x) * z end,
+  sawInPhase = function(x, z, w, y, i) return (gem.sign(x)-x) * z end,
+  sinToNoise = function(x, z, w, y, i) return 2*gem.avg({math.sin(z*x*math.pi),(1-z)*gem.getRandom()}) end,
+  wacky = function(x, z, w, y, i) return math.sin(((x)+1)^(z-1)*math.pi) end,
+  hpfSqrToSqr = function(x, z, w, y, i) if x < 0 then return math.sin((z*0.5)*math.pi)^(x+1) end return -math.sin((z*0.5)*math.pi)^x end,
+  windowYSqr = function(x, z, w, y, i) local v = 1 if math.abs(x) > 0.5 then v = (1-math.abs(x))*2 end return v * math.min(1, math.max(-1,8*math.sin((z+0.02)*x*math.pi*32))) end,
+  filteredSquare = function(x, z, w, y, i) return (1.2*math.sin(x*math.pi)+0.31*math.sin(x*math.pi*3)+0.11*math.sin(x*math.pi*5)+0.033*math.sin(x*math.pi*7)) * z end,
+  organIsh = function(x, z, w, y, i) return (math.sin(x*math.pi)+(0.16*(math.sin(2*x*math.pi)+math.sin(3*x*math.pi)+math.sin(4*x*math.pi)))) * z end,
+  sawAnalog = function(x, z, w, y, i) return (2.001 * (math.sin(x * 0.7905) - 0.5)) * z end,
+  dome = function(x, z, w, y, i) return (2 * (math.sin(x * 1.5705) - 0.5)) * z end,
+  brassy = function(x, z, w, y, i) return math.sin(math.pi*gem.sign(x)*(math.abs(x)^(((1-z)+0.1)*math.pi*math.pi))) end,
+  taffy = function(x, z, w, y, i) return math.sin(x*math.pi*2)*math.cos(x*math.pi)*math.cos(z*math.pi*(math.abs((x*2)^3)-1)*math.pi) end,
+  random = function(x, z, w, y, i) return ((gem.getRandom() * 2) - 1) * z end,
+  harmonicSync = function(x, z, w, y, i) return math.sin(x*math.pi*(2+(62*z*z*z)))*math.sin(x*math.pi) end,
+  softSine = function(x, z, w, y, i) return 0.5*(math.cos(x*math.pi/2)*((math.sin((x)*math.pi)+(1-z)*(math.sin(z*((x*x)^z)*math.pi*32))))) end,
+  tripleSin = function(x, z, w, y, i) return math.cos(x*math.pi/2)*1.6*(.60*math.sin( ((z*16)+1)*3*x ) + .20*math.sin( ((z*16)+1)*9*x ) + .15*math.sin( ((z*16)+1)*15*x)) end,
+  pwm50to100 = function(x, z, w, y, i) if x > z then return 1 end return -1 end,
+  chaosToSine = function(x, z, w, y, i) return math.sin(math.pi*z*z*32*math.log(x+1)) end,
+  sawSinReveal = function(x, z, w, y, i) if x + 1 > z * 2 then return x end return math.sin(x * math.pi) end,
+  domeSmall = function(x, z, w, y, i) return (-1-1.275*math.sin(w*math.pi)) * z end,
+  zero = function(x, z, w, y, i, b) if b.unipolar then return -1 end return 0 end,
+  minMax = function(x, z, w, y, i) return z end,
+  oddAndEven = function(x, z, w, y, i) x = 1 if i % 2 == 0 then x = -1 end return x * z end,
+  lofiTriangle = function(x, z, w, y, i) return ((gem.round(16*math.abs(x))/8.0)-1) * z end,
+  hpfSaw = function(x, z, w, y, i) return (x-(0.635*math.sin(x*math.pi))) * z end,
+  squareTri = function(x, z, w, y, i) return (-1*(gem.sign(x)*0.5)+(math.abs(x)-0.5)) * z end,
+  sineStrech = function(x, z, w, y, i) return math.sin(x^(1+(gem.round(z*32)*2))*math.pi) end,
+  squareSawBit = function(x, z, w, y, i) return math.sin((2-(z/4))*x*x*math.pi)/gem.round(x*32*((z/4)*(z/4)-0.125)) end,
+  loFiTriangles = function(x, z, w, y, i) return (gem.round((2+(z*14))*math.abs(x))/(1+(z*7.0)))-1 end,
+  talkative1 = function(x, z, w, y, i) return 1.4*math.cos(x*math.pi/2)*(.5*math.sin(((z*5)+1)*3*x)+.10*math.sin(((z*6)+1)*2*x)+.08*math.sin((((1-z)*3)+1)*12*x)) end,
+  sinClipper = function(x, z, w, y, i) return math.sin(x*math.pi)*(((z*z)+0.125)*8) end,
+  pitfall = function(x, z, w, y, i) return (x*128)%(z*16)*0.25 end,
+  nascaLines = function(x, z, w, y, i, b) return math.sqrt(1/i)*(((i/b.max)*(z+0.1)*b.max)%3)*0.5 end,
+  kick = function(x, z, w, y, i) return math.sin(math.pi*z*z*32*math.log(x+1)) end,
+  sinToSaw = function(x, z, w, y, i) return math.sin(-x*math.pi)*(1-z)+(-x*z) end,
+  zeroCrossing = function(x, z, w, y, i) return math.sin((x+1)*math.pi*(z+1))*(-math.abs(x)^32+1) end,
+  vosim = function(x, z, w, y, i) return -(w-1)*math.sin(w*math.pi*8*(math.sin(z)+1.5))^2 end,
+  vosimNormalized = function(x, z, w, y, i) return (-(w-1)*math.sin(w*math.pi*9*(math.sin(y)+1.3))^2-.5)*2 end,
+  --tanh = function(x, z, w, y, i) return math.tanh(x) * z end,
+  acos = function(x, z, w, y, i) return math.acos(x) * z end,
+  wings = function(x, z, w, y, i) return math.acos((math.abs(-math.abs(x)+1) + -math.abs(x)+1)/2) * z end,
+  --atan2 = function(x, z, w, y, i) return math.atan2(y, x) * z end,
+  crosser = function(x, z, w, y, i) return gem.avg({x, w}) * z end,
+  diracDelta = function(x, z, w, y, i) return (math.exp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*16) end,
+  diracDeltaFrexp = function(x, z, w, y, i) return (math.frexp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*16) end,
+  diracDeltaRand = function(x, z, w, y, i, b) return (math.exp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*math.min(8, b.rand*32)) end,
+  swipe1 = function(x, z, w, y, i) return math.exp(math.abs(x)/y) * z end,
+  swipe2 = function(x, z, w, y, i) return math.exp(math.tan(x)/math.pi) * z end,
+  swipe3 = function(x, z, w, y, i) return math.exp(x-y) * z end,
+  swipe4 = function(x, z, w, y, i) return (math.exp(x)) * gem.avg({z, x}) end,
+  mayhemInTheMiddle = function(x, z, w, y, i) return math.sin((x * math.pi) + (z * math.tan(w * math.pi))) end,
+  zeroDancer = function(x, z, w, y, i) return math.sin(x / z + z) * z end,
+  shakySine = function(x, z, w, y, i, b)
+    local f = 0
+    local g = b.rand * ((i-1) / b.length)
+    if z < 0 then
+      f = z - g
+    elseif z > 0 then
+      f = z + g
+    end
+    return math.sin(x * math.pi) * f
+  end,
+  testShape = function(x, z, w, y, i, b)
+    return x * z
+  end
+}
+
+local shapeDefinitions = {
+  {name = "Ramp Up", f = shapes.ramp, o = {z = 1}},
+  {name = "Ramp Down", f = shapes.ramp, o = {z = -1}},
+  {name = "Sine", f = shapes.sine},
+  {name = "Triangle", f = shapes.triangleShaper},
+  {name = "Triangle (Off Phs)", f = shapes.triangleShaper, o = {phase = -.5}},
+  {name = "LoFi Triangle", f = shapes.lofiTriangle},
+  {name = "Sqr/Tri", f = shapes.squareTri},
+  {name = "Dome", f = shapes.dome, o = {phase = 0}},
+  {name = "Dome Small", f = shapes.domeSmall, o = {phase = 1}},
+  {name = "Saw", f = shapes.sawInPhase},
+  {name = "HPF Saw", f = shapes.hpfSaw},
+  {name = "Analog Saw", f = shapes.sawAnalog, o = {phase = 0}},
+  {name = "Fltr Sqr",  f = shapes.filteredSquare},
+  {name = "Organ-Ish", f = shapes.organIsh},
+  {name = "Tangent", f = shapes.tangent},
+  --{name = "Tanh", f = shapes.tanh},
+  {name = "Acos", f = shapes.acos},
+  --{name = "Atan2", f = shapes.atan2},
+  {name = "Triple Sine", f = shapes.tripleSin},
+  {name = "Harmonic Sync", f = shapes.harmonicSync},
+  {name = "Soft Sine", f = shapes.softSine},
+  {name = "Even", f = shapes.oddAndEven, o = {z = -1}},
+  {name = "Odd", f = shapes.oddAndEven},
+  {name = "Zero", f = shapes.zero},
+  {name = "Min", f = shapes.minMax, o = {z = -1}},
+  {name = "Max", f = shapes.minMax},
+  {name = "Chaos To Sine", f = shapes.chaosToSine},
+  {name = "Saw/Sin Reveal", f = shapes.sawSinReveal, o = {phase = -1}},
+  {name = "PWM 50 to 100", f = shapes.pwm50to100},
+  {name = "Triple-Sin Window", f = shapes.tripleSin, o = {z = 0}},
+  {name = "Taffy", f = shapes.taffy, o = {z = 0}},
+  {name = "Brassy", f = shapes.brassy, o = {z = 0}},
+  {name = "HPF-Sqr To Sqr", f = shapes.hpfSqrToSqr, o = {z = .01}},
+  {name = "Wacky", f = shapes.wacky, o = {z = .84}},
+  {name = "Sine To Noise", f = shapes.sinToNoise},
+  {name = "Sine Stretch", f = shapes.sineStrech, o = {z = .03}},
+  {name = "SquareSaw Bit", f = shapes.squareSawBit},
+  {name = "LoFi Triangles", f = shapes.loFiTriangles, o = {z = 0}},
+  {name = "Talkative 1", f = shapes.talkative1},
+  {name = "Sin Clipper", f = shapes.sinClipper, o = {z = 0}},
+  {name = "Pitfall", f = shapes.pitfall, o = {z = .15}},
+  {name = "Nasca Lines", f = shapes.nascaLines, o = {z = -.31}},
+  {name = "Window-y SQR Sync", f = shapes.windowYSqr, o = {z = 0}},
+  {name = "Kick", f = shapes.kick, o = {phase = 0, z = -.505}},
+  {name = "Sin To Saw", f = shapes.sinToSaw, o = {z = 0}},
+  {name = "Zero Crossing", f = shapes.zeroCrossing},
+  {name = "VOSIM", f = shapes.vosim},
+  {name = "VOSIM (Norm)", f = shapes.vosimNormalized},
+  {name = "Crosser", f = shapes.crosser, o = {z = 0, factor = 4}},
+  {name = "Mayhem Middle", f = shapes.mayhemInTheMiddle},
+  {name = "Zero Dancer", f = shapes.zeroDancer},
+  {name = "Wings", f = shapes.wings, o = {factor = .5}},
+  {name = "Dirac Delta", f = shapes.diracDelta, o = {factor = .2, z = .02}},
+  {name = "Dirac Delta (frexp)", f = shapes.diracDeltaFrexp, o = {z = .03}},
+  {name = "Dirac Delta Rand", f = shapes.diracDeltaRand, o = {z = .06}},
+  {name = "Swipe 1", f = shapes.swipe1},
+  {name = "Swipe 2", f = shapes.swipe2},
+  {name = "Swipe 3", f = shapes.swipe3},
+  {name = "Swipe 4", f = shapes.swipe4, o = {z = -.25}},
+  {name = "Shaky Sine", f = shapes.shakySine},
+  {name = "Random", f = shapes.random},
+  {name = "Test Shape", f = shapes.testShape},
+}
+
+local function getShapeIndexFromName(shapeName)
+  for i,v in ipairs(shapeDefinitions) do
+    if v.name == shapeName then
+      return i
+    end
+  end
+  return 1
+end
+
+local function getDefaultShapeOptions()
+  return {
+    z = 1,
+    phase = -1,
+    factor = 1,
+    amount = 100,
+  }
+end
+
+local function getValueOrDefault(value, default)
+  if type(value) == "number" then
+    return value
+  end
+  return default
+end
+
+local function getShapeOptions(overrides)
+  local defaultShapeOptions = getDefaultShapeOptions()
+  if type(overrides) == "nil" then
+    return defaultShapeOptions
+  end
+  return {
+    z = getValueOrDefault(overrides.z, defaultShapeOptions.z),
+    phase = getValueOrDefault(overrides.phase, defaultShapeOptions.phase),
+    factor = getValueOrDefault(overrides.factor, defaultShapeOptions.factor),
+    amount = getValueOrDefault(overrides.amount, defaultShapeOptions.amount),
+  }
+end
+
+local function getShapeTemplate(options, shapeTemplate)
+  if type(options) == "nil" and type(shapeTemplate) == "table" then
+    options = shapeTemplate
+  end
+  return getShapeOptions(options)
+end
+
+local function getShapeNames(options, max)
+  if type(max) ~= "number" then
+    max = #shapeDefinitions
+  end
+
+  local items = {}
+
+  for i,s in ipairs(shapeDefinitions) do
+    table.insert(items, s.name)
+    if i == max then
+      break
+    end
+  end
+
+  -- Add any options
+  if type(options) == "table" then
+    for _,o in ipairs(options) do
+      table.insert(items, o)
+    end
+  end
+
+  return items
+end
+
+local getUnipolar = function(v) return (v + 1) / 2 end
+
+local function getShapeBounds(shapeBounds)
+  local bounds = {}
+  if type(shapeBounds) == "nil" then
+    shapeBounds = {}
+  end
+  bounds.min = getValueOrDefault(shapeBounds.min, -1) -- x-azis max value
+  bounds.max = getValueOrDefault(shapeBounds.max, 1) -- x-azis min value
+  bounds.length = getValueOrDefault(shapeBounds.length, 128) -- y-axis steps
+  bounds.unipolar = bounds.min >= 0 --  Whether the shape is unipolar
+  bounds.rand = gem.getRandom() -- A random number that will be equal across all steps
+  return bounds
+end
+
+local function createShape(shapeIndexOrName, shapeBounds, shapeOptions)
+  if type(shapeIndexOrName) == "string" then
+    shapeIndexOrName = getShapeIndexFromName(shapeIndexOrName)
+  end
+  local shapeDefinition = shapeDefinitions[shapeIndexOrName]
+  local bounds = getShapeBounds(shapeBounds)
+  local options = getShapeTemplate(shapeOptions, shapeDefinition.o)
+  local shape = {}
+  for i=1,bounds.length do
+    local x = options.factor * (gem.getChangePerStep(((i-1)*2), bounds.length) + options.phase)
+    local z = options.z
+    local w = getUnipolar(x)
+    local y = getUnipolar(z)
+    local value = shapeDefinition.f(x, z, w, y, i, bounds)
+    if bounds.unipolar then
+      value = getUnipolar(value)
+    end
+    value = (bounds.max * value) * (options.amount / 100)
+    table.insert(shape, math.max(bounds.min, math.min(bounds.max, value)))
+  end
+  return shape, options
+end
+
+local function getAmountWidget(width, showLabel, i)
+  -- Widget for controlling shape amount
+  if type(i) == "nil" then
+    i = ""
+  end
+  local options = {
+    name = "ShapeAmount" .. i,
+    tooltip = "Set the shape amount.",
+    showLabel = showLabel ~= false,
+    unit = Unit.Percent,
+  }
+  if type(width) == "number" or type(width) == "function" then
+    options.width = width
+  end
+return widgets.numBox("Amount", getShapeOptions().amount, options)
+end
+
+local function getShapeWidgets(width, showLabel, i)
+  -- Widgets for controlling shape
+  if type(i) == "nil" then
+    i = ""
+  end
+  local shapeOptions = getShapeOptions()
+  local factorOptions = {
+    name = "ShapeFactor" .. i,
+    tooltip = "Set the factor (multiplier) applied to the value of each step.",
+    min = -8,
+    max = 8,
+  }
+  local phaseOptions = {
+    name = "ShapePhase" .. i,
+    tooltip = "Set the phase applied to the shape (move left/right).",
+  }
+  local zOptions = {
+    name = "ShapeMorph" .. i,
+    tooltip = "Set the morph value. This value is mostly assigned to amplitude, but it depends on the shape.",
+  }
+  local options = {factor = factorOptions, phase = phaseOptions, z = zOptions}
+  for _,v in pairs(options) do
+    v.showLabel = showLabel ~= false
+    if type(width) == "number" or type(width) == "function" then
+      v.width = width
+    end
+    if type(v.min) == "nil" then
+      v.min = -1
+    end
+    if type(v.max) == "nil" then
+      v.max = 1
+    end
+  end
+  return {
+    factor = widgets.numBox("Shape Factor", shapeOptions.factor, options.factor),
+    phase = widgets.numBox("Shape Phase", shapeOptions.phase, options.phase),
+    z = widgets.numBox("Shape Morph", shapeOptions.z, options.z)
+  }
+end
+
+local shapes = {
+  getWidgets = getShapeWidgets,
+  getAmountWidget = getAmountWidget,
+  getShapeNames = getShapeNames,
+  getShapeOptions = getShapeOptions,
+  get = createShape,
 }
 
 --------------------------------------------------------------------------------
@@ -925,7 +1242,7 @@ local resolutions = {
 }
 
 --------------------------------------------------------------------------------
--- Probability Trigger - Sends note events using note 0 as trigger
+-- Swarm Trigger - Sends note events using note 0 as trigger
 --------------------------------------------------------------------------------
 
 setBackgroundColour("101010")
@@ -934,75 +1251,140 @@ setBackgroundColour("101010")
 -- Variables
 --------------------------------------------------------------------------------
 
+local swarmActive = false
 local isPlaying = false
 local seqIndex = 0 -- Holds the unique id for the sequencer
 local channel = 1 -- Send trigger on this channel
 local voiceId = nil -- Holds the id of the created note event
 local velocity = 64
-local legato = false
-local duration = 250
+local duration = 1000 -- Space between swarms
 local durationMin = 3
 local durationMax = 10000
-local durationRandomization = 50
-local quantizeToClosest = true
-local swarmProbability = 50
+local shapeWidgets = {}
+local shapeOptions = shapes.getShapeOptions()
+local swarmLengthInput
+local swarmLength = 32
+local lengthRandomizationAmount = 0
+local spaceRandomizationAmount = 25
+local quantizeToClosest = false
+local swarmProbability = 100
 local resolutionNames = resolutions.getResolutionNames()
+local resolutionValues = resolutions.getResolutions()
+local swarmResolutions = {}
 local resolution = 23
+local resolutionMin = #resolutionNames
+local positionTable
+local sequencerTable
+local shapeIndex = 1
+local playMode = "Active Shape"
+local shapeMenu
+local shapeNames = shapes.getShapeNames()
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
 --------------------------------------------------------------------------------
 
-local function release()
-  -- Release voice if still active
-  if type(voiceId) == "userdata" then
-    releaseVoice(voiceId)
-    voiceId = nil
+local function updateShapeWidgets()
+  -- Update widgets with values from the shape
+  local callChanged = false
+  shapeWidgets.phase:setValue(shapeOptions.phase, callChanged)
+  shapeWidgets.factor:setValue(shapeOptions.factor, callChanged)
+  shapeWidgets.z:setValue(shapeOptions.z, callChanged)
+  shapeWidgets.amount:setValue(shapeOptions.amount, callChanged)
+end
+
+local function setShape(loadNew, randomizeLength)
+  loadNew = loadNew == true
+  randomizeLength = randomizeLength == true
+
+  local values
+  local options
+  local length = swarmLength
+  local minRes = beat2ms(resolutionValues[resolutionMin]) -- Fastest
+  local maxRes = beat2ms(resolutionValues[resolution]) -- Slowest
+
+  if randomizeLength then
+    length = gem.randomizeValue(swarmLength, swarmLengthInput.min, swarmLengthInput.max, lengthRandomizationAmount)
+  end
+
+  -- Update tables
+  positionTable.length = length
+  sequencerTable.length = length
+  sequencerTable:setRange(minRes, maxRes)
+
+  -- Custom shape or no shape selected - do not change
+  if playMode == "Custom" then
+    return
+  end
+
+  -- Use the shape parameters unless we are loading a new shape
+  if loadNew == false then
+    options = shapeOptions
+  end
+
+  values, shapeOptions = shapes.get(shapeIndex, {min=minRes,max=maxRes,length=length}, options)
+  updateShapeWidgets()
+  for i,v in ipairs(values) do
+    sequencerTable:setValue(i, v)
   end
 end
 
-local function sequencer(uniqueId)
-  local swarmActive = false
-  local swarmDuration = 0
-  while isPlaying and seqIndex == uniqueId do
-    local swarmNoteDuration = resolutions.getResolution(resolution)
-    if swarmActive or gem.getRandomBoolean(swarmProbability) then
-      release() -- Release voice if still active
-      voiceId = playNote(0, math.floor(gem.randomizeValue(velocity, 1, 127, 3)), -1, nil, channel)
-      if swarmActive == false then
-        swarmActive = true
-        local maxFactor = 8 -- TODO Param for max factor?
-        local swarmDurationBase = swarmNoteDuration * (gem.getRandom(maxFactor))
-        local randomizationAmount = 100 -- TODO Param for randomization amount?
-        local factor = 2 -- TODO Param?
-        swarmDuration = gem.randomizeValue(swarmDurationBase, (swarmDurationBase / factor), (swarmDurationBase * factor), randomizationAmount)
-        --print("Start swarm - duration", swarmDuration)
+local function swarm(uniqueId)
+  print("Starting swarm", uniqueId)
+  -- Set a random shape, if active, unless custom is selected
+  if playMode == "Random Shape" then
+    -- Fresh shape loaded here
+    shapeMenu.value = gem.getRandom(#shapeNames)-- + shapeItemsDiff
+  end
+  -- Load shape with options
+  setShape(false, playMode ~= "Custom")
+  local swarmPosition = 1
+  while swarmActive and isPlaying and seqIndex == uniqueId do
+    -- Update position table with the current position
+    for i=1,positionTable.length do
+      local value = 0
+      if i == swarmPosition then
+        value = 1
       end
+      positionTable:setValue(i, value)
     end
-    local playDuration = ms2beat(duration)
-    if swarmActive then
-      playDuration = swarmNoteDuration
-      if gem.getRandomBoolean(durationRandomization) then
-        local factor = gem.getRandomFromTable({.125,.25,.5,.75,1.5,2,3,4})
-        playDuration = playDuration * factor
-      end
-    elseif quantizeToClosest then
+    local playDuration = ms2beat(sequencerTable:getValue(swarmPosition))
+    if quantizeToClosest then
       playDuration = resolutions.quantizeToClosest(playDuration)
     end
-    playDuration = resolutions.getPlayDuration(playDuration)
+    playNote(0, math.floor(gem.randomizeValue(velocity, 1, 127, 3)), beat2ms(playDuration), nil, channel)
     waitBeat(playDuration)
-    if swarmActive then
-      swarmDuration = gem.inc(swarmDuration, -playDuration)
-      --print("Swarm active - duration", swarmDuration)
-      if swarmDuration < 0 then
-        --print("End swarm - duration", swarmDuration)
-        swarmActive = false
-        swarmDuration = 0
+    swarmPosition = gem.inc(swarmPosition)
+    swarmActive = swarmPosition <= sequencerTable.length
+    if swarmActive == false then
+      for i=1,positionTable.length do
+        positionTable:setValue(i, 0)
       end
     end
-    if legato == false or swarmActive == false then
-      -- Release if legato is off, or swarm is finished
-      release()
+  end
+end
+
+local function sequenceRunner(uniqueId)
+  print("Starting sequencer", uniqueId)
+  local space = ms2beat(duration)
+  local tickBeat = .5
+  local elapsedBeats = space -- To avoid pause
+  swarmActive = false
+  while isPlaying and seqIndex == uniqueId do
+    if elapsedBeats >= space then
+      if swarmActive == false and gem.getRandomBoolean(swarmProbability) then
+        print("Starting swarm, elapsedBeats, space", elapsedBeats, space)
+        swarmActive = true
+        spawn(swarm, seqIndex)
+        -- Set space until the next swarm (used after the current swarm is completed)
+        space = ms2beat(gem.randomizeValue(duration, durationMin, durationMax, spaceRandomizationAmount))
+      end
+      elapsedBeats = 0 -- Reset
+    end
+    waitBeat(tickBeat)
+    if swarmActive == false then
+      -- Only increment elapsed when swarm is not active
+      elapsedBeats = gem.inc(elapsedBeats, tickBeat)
     end
   end
 end
@@ -1013,7 +1395,7 @@ local function startPlaying()
   end
   isPlaying = true
   seqIndex = gem.inc(seqIndex)
-  run(sequencer, seqIndex)
+  run(sequenceRunner, seqIndex)
 end
 
 local function stopPlaying()
@@ -1021,11 +1403,11 @@ local function stopPlaying()
     return
   end
   isPlaying = false
-  release()
+  swarmActive = false
 end
 
 --------------------------------------------------------------------------------
--- Header
+-- Header Panel
 --------------------------------------------------------------------------------
 
 widgets.panel({
@@ -1052,7 +1434,7 @@ widgets.setSection({
   y = 5,
 })
 
-widgets.numBox('Channel', channel, {
+widgets.numBox("Channel", channel, {
   tooltip = "Send note events starting on this channel",
   min = 1,
   max = 16,
@@ -1075,78 +1457,193 @@ local playButton = widgets.button('Play', false, {
 })
 
 --------------------------------------------------------------------------------
--- Options
+-- XY Panel
 --------------------------------------------------------------------------------
-
-widgets.setSection({
-  xSpacing = 0,
-  ySpacing = 0,
-})
 
 widgets.panel({
   x = widgets.getPanel().x,
   y = widgets.posUnder(widgets.getPanel()),
-  width = widgets.getPanel().width,
-  height = 210,
+  width = 430,
+  height = 110,
 })
 
 local noteWidgetColSpacing = 5
 local noteWidgetRowSpacing = 5
 
-local xySpeedFactor = widgets.getPanel():XY('Duration', 'Probability')
-xySpeedFactor.x = noteWidgetColSpacing
+local xyShapeFactor = widgets.getPanel():XY('ShapePhase', 'ShapeMorph')
+xyShapeFactor.x = noteWidgetColSpacing
+xyShapeFactor.y = noteWidgetRowSpacing
+xyShapeFactor.width = (widgets.getPanel().width / 2) - 7
+xyShapeFactor.height = widgets.getPanel().height - 10
+
+local xySpeedFactor = widgets.getPanel():XY('Space', 'SpaceRand')
+xySpeedFactor.x = widgets.posSide(xyShapeFactor)
 xySpeedFactor.y = noteWidgetRowSpacing
-xySpeedFactor.width = 480
-xySpeedFactor.height = 200
+xySpeedFactor.width = xyShapeFactor.width
+xySpeedFactor.height = widgets.getPanel().height - 10
+
+--------------------------------------------------------------------------------
+-- Shape table
+--------------------------------------------------------------------------------
+
+widgets.panel({
+  x = widgets.getPanel().x,
+  y = widgets.posUnder(widgets.getPanel()),
+  width = widgets.getPanel().width,
+  height = 130,
+})
 
 widgets.setSection({
-  width = 210,
-  x = widgets.posSide(xySpeedFactor) + 12,
-  y = 15,
+  width = 430,
   xSpacing = noteWidgetColSpacing,
-  ySpacing = noteWidgetRowSpacing,
+  ySpacing = 0,
   cols = 1,
 })
 
-widgets.menu("Swarm Base", resolution, resolutionNames, {
+positionTable = widgets.table("Position", 0, swarmLength, {
+  enabled = false,
+  persistent = false,
+  sliderColour = "yellow",
+  height = 6,
+  x = 0,
+  y = 0,
+})
+
+sequencerTable = widgets.table("Sequencer", 0, swarmLength, {
+  tooltip = "Sequencer table - activate 'Custom' to edit the table",
+  showPopupDisplay = true,
+  sliderColour = "pink",
+  height = 123,
+  x = 0,
+  y = widgets.posUnder(positionTable),
+})
+
+--------------------------------------------------------------------------------
+-- Settings Panel
+--------------------------------------------------------------------------------
+
+widgets.panel({
+  x = widgets.posSide(xySpeedFactor) + 5,
+  y = 35,
+  width = 280,
+  height = 245,
+})
+
+widgets.setSection({
+  width = 128,
+  x = 10,
+  y = 5,
+  xSpacing = noteWidgetColSpacing,
+  ySpacing = noteWidgetRowSpacing,
+  cols = 2,
+})
+
+widgets.menu("Swarm Min", resolution, resolutionNames, {
   tooltip = "Set the base resolution of the swarm",
-  changed = function(self) resolution = self.value end
+  width = 81,
+  changed = function(self)
+    resolution = self.value
+    setShape()
+  end
 })
 
-widgets.numBox("Duration Randomization", durationRandomization, {
+widgets.menu("Swarm Max", resolutionMin, resolutionNames, {
+  tooltip = "Set the max resolution of the swarm",
+  width = 81,
+  increment = false,
+  changed = function(self)
+    resolutionMin = self.value
+    setShape()
+  end
+})
+
+widgets.button("Quantize", quantizeToClosest, {
+  tooltip = "Quantize output to the closest 'known' resolution",
+  increment = false,
+  width = 90,
+  height = 45,
+  --y = 28,
+  changed = function(self) quantizeToClosest = self.value end
+})
+
+widgets.row(2)
+
+shapeMenu = widgets.menu("Swarm Shape", shapeIndex, shapeNames, {
+  tooltip = "Set the shape of the swarm. Short bars = fast, long bars = slow. You can edit the shape by activating 'Custom' shape mode.",
+  changed = function(self)
+    shapeIndex = self.value
+    setShape(true)
+  end
+})
+
+local playModeMenu = widgets.menu("Shape Mode", {"Active Shape", "Random Shape", "Custom"}, {
+  tooltip = "Set how shapes are created and selected for playing.",
+  changed = function(self)
+    playMode = self.selectedText
+    local shapeEnabled = playMode == "Active Shape"
+    sequencerTable.enabled = playMode == "Custom"
+    shapeMenu.enabled = shapeEnabled
+    xyShapeFactor.enabled = shapeEnabled
+    for k,v in pairs(shapeWidgets) do
+      v.enabled = shapeEnabled
+    end
+    setShape(true)
+  end
+})
+
+shapeWidgets = shapes.getWidgets()
+shapeWidgets.amount = shapes.getAmountWidget()
+shapeWidgets.amount.displayName = "Shape Amount"
+
+for k,v in pairs(shapeWidgets) do
+  v.changed = function(self)
+    shapeOptions[k] = self.value
+    setShape()
+  end
+end
+
+swarmLengthInput = widgets.numBox("Length", swarmLength, {
+  tooltip = "Swarm length",
+  min = 2,
+  max = 256,
+  integer = true,
+  changed = function(self)
+    swarmLength = self.value
+    setShape()
+  end
+})
+
+widgets.numBox("Rand", lengthRandomizationAmount, {
+  name = "LengthRand",
+  tooltip = "Swarm length randomization amount",
   unit = Unit.Percent,
-  tooltip = "Set the randomization amount for the duration",
-  changed = function(self) durationRandomization = self.value end
-})
-
-widgets.numBox("Space", duration, {
-  name = "Duration",
-  tooltip = "Set the duration between swarms - controlled by the x-axis of the XY controller",
-  unit = Unit.MilliSeconds,
-  min = durationMin, max = durationMax, integer = false,
-  changed = function(self) duration = self.value end
+  changed = function(self) lengthRandomizationAmount = self.value end
 })
 
 widgets.numBox("Swarm Probability", swarmProbability, {
   name = "Probability",
   unit = Unit.Percent,
   integer = false,
-  tooltip = "Set the probability that a swarm will be triggered - controlled by the y-axis of the XY controller",
+  width = 261,
+  tooltip = "Set the probability that a swarm will be triggered",
   changed = function(self) swarmProbability = self.value end
 })
 
-local q = widgets.button("Quantize Closest", quantizeToClosest, {
-  tooltip = "Quantize the space between swarms to the closest 'known' resolution",
-  width = (210 / 2) - 3,
-  increment = false,
-  changed = function(self) quantizeToClosest = self.value end
+widgets.col()
+
+widgets.numBox("Space", duration, {
+  tooltip = "Set the time between swarms",
+  unit = Unit.MilliSeconds,
+  min = durationMin, max = durationMax, integer = false,
+  changed = function(self) duration = self.value end
 })
 
-widgets.button("Legato", legato, {
-  tooltip = "In legato mode notes are held until the next note is played",
-  x = widgets.posSide(q) + 2,
-  width = q.width,
-  changed = function(self) legato = self.value end
+widgets.numBox("Rand", spaceRandomizationAmount, {
+  name = "SpaceRand",
+  tooltip = "Set the space randomization amount",
+  unit = Unit.Percent,
+  integer = false,
+  changed = function(self) spaceRandomizationAmount = self.value end
 })
 
 --------------------------------------------------------------------------------
@@ -1155,6 +1652,7 @@ widgets.button("Legato", legato, {
 
 function onInit()
   seqIndex = 0
+  playModeMenu:changed()
 end
 
 function onNote(e)

@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
--- Life Trigger - Sends note events using note 0 as trigger
+-- Shape Trigger - Sends note events using note 0 as trigger
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
@@ -14,6 +14,8 @@ setBackgroundColour(backgroundColour)
 -- Variables
 --------------------------------------------------------------------------------
 
+local title = "Shape Trigger"
+local description = "A sequencer that uses shapes to create active/inactive cells, where active cells trigger an event, and inactive are pauses"
 local isPlaying = false
 local seqIndex = 0 -- Holds the unique id for the sequencer
 local channel = 1
@@ -83,6 +85,7 @@ end
 
 local function loadShape(options)
   local shape = shapeIndex
+  local values
   if type(shape) == "nil" then
     shape = gem.getRandom(#shapeNames)
   end
@@ -93,7 +96,7 @@ local function loadShape(options)
     max=rows,
     length=cols,
   }
-  local values, shapeOptions = shapes.get(shape, bounds, options)
+  values, shapeOptions = shapes.get(shape, bounds, options)
   for col = 1, cols do
     local value = math.ceil(values[col])
     for row = 1, rows do
@@ -194,7 +197,6 @@ local function countLiveCells()
       end
     end
   end
-  --print("Found #liveCells", #liveCells)
   currentRowIndex = 1 -- Reset row position
   currentColIndex = 1 -- Reset col position
   locked = liveCells > 0
@@ -205,7 +207,6 @@ local function getGate()
 end
 
 local function seq(uniqueId)
-  local note = 0
   locked = true -- Ensure the board is locked when starting to preserve the current state
   while isPlaying and seqIndex == uniqueId do
     -- When board has been unlocked, we can move one generation ahead
@@ -223,8 +224,7 @@ local function seq(uniqueId)
     if type(cell) ~= "nil" then
       local duration = tonumber(cell.tooltip)
       if cell.value then
-        playNote(note, velocity, beat2ms(resolutions.getPlayDuration(duration, getGate())), nil, channel)
-        --print("playNote", duration)
+        playNote(0, velocity, beat2ms(resolutions.getPlayDuration(duration, getGate())), nil, channel)
       end
       waitBeat(duration)
     end
@@ -261,8 +261,8 @@ widgets.setSection({
   ySpacing = 5,
 })
 
-widgets.label("Shape Trigger", {
-  tooltip = "A sequencer that triggers rythmic pulses (using note 0) that note inputs can listen to",
+widgets.label(title, {
+  tooltip = description,
   width = widgets.getPanel().width,
   height = 30,
   alpha = 0.5,

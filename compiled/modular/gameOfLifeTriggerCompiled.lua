@@ -38,16 +38,14 @@ local function getIndexFromValue(value, selection)
 end
 
 local function randomizeValue(value, limitMin, limitMax, randomizationAmount)
-  if randomizationAmount > 0 then
-    local limitRange = limitMax - limitMin
-    local changeMax = getChangeMax(limitRange, randomizationAmount)
-    local min = math.max(limitMin, (value - changeMax))
-    local max = math.min(limitMax, (value + changeMax))
-    --print("Before randomize value", value)
-    value = getRandom(min, max)
-    --print("After randomize value/changeMax/min/max", value, changeMax, min, max)
+  if randomizationAmount == 0 then
+    return value
   end
-  return value
+  local limitRange = limitMax - limitMin
+  local changeMax = getChangeMax(limitRange, randomizationAmount)
+  local min = math.max(limitMin, (value - changeMax))
+  local max = math.min(limitMax, (value + changeMax))
+  return getRandom(min, max)
 end
 
 -- sign function: -1 if x<0; 1 if x>0
@@ -68,7 +66,6 @@ end
 
 local function round(value)
   local int, frac = math.modf(value)
-  --print("int/frac", int, frac)
   if math.abs(frac) < 0.5 then
     value = int
   elseif value < 0 then
@@ -92,13 +89,11 @@ local function getRandomFromTable(theTable, except)
   end
   local index = getRandom(#theTable)
   local value = theTable[index]
-  --print("getRandomFromTable index, value", index, value)
   if type(except) ~= "nil" then
     local maxRounds = 10
     while value == except and maxRounds > 0 do
       value = theTable[getRandom(#theTable)]
       maxRounds = maxRounds - 1
-      --print("getRandomFromTable except, maxRounds", except, maxRounds)
     end
   end
   return value
@@ -215,6 +210,8 @@ local widgetColours = {
 local function getValueOrDefault(value, default)
   if type(value) == "nil" then
     return default
+  elseif type(value) == "function" then
+    return value(default, widgetDefaults)
   end
   return value
 end
@@ -834,7 +831,7 @@ local function getAmountWidget(width, showLabel, i)
     showLabel = showLabel ~= false,
     unit = Unit.Percent,
   }
-  if type(width) == "number" then
+  if type(width) == "number" or type(width) == "function" then
     options.width = width
   end
 return widgets.numBox("Amount", getShapeOptions().amount, options)
@@ -863,7 +860,7 @@ local function getShapeWidgets(width, showLabel, i)
   local options = {factor = factorOptions, phase = phaseOptions, z = zOptions}
   for _,v in pairs(options) do
     v.showLabel = showLabel ~= false
-    if type(width) == "number" then
+    if type(width) == "number" or type(width) == "function" then
       v.width = width
     end
     if type(v.min) == "nil" then
@@ -1270,13 +1267,18 @@ local evolutionSpeed = 500 -- Milliseconds
 local rows = 12 -- Number of rows in the board
 local cols = rows -- Number of columns in the board
 local minTriggers = math.ceil((rows + cols) / 2) -- Number of required triggers before sending event
-local equalRounds = minTriggers -- Number of stale rounds before shape is regenerated
+local equalRounds = math.ceil(minTriggers / 2) -- Number of stale rounds before shape is regenerated
 local cells = {} -- Holds the cell widgets
 local generationCounter = 0
+local maxGenerations = 1000 -- Max generations before reset is forced
 local shapeIndex
 local fillProbability = 50
 local generationLabel
 local shapeMenu
+local speedInput
+local speedRandomization = 0
+local triggerInput
+local triggerRandomization = 0
 local shapeNames = shapes.getShapeNames()
 local shapeMenuItems = {"Random Shape"}
 for _,v in ipairs(shapeNames) do
@@ -1299,7 +1301,6 @@ local triggerModes = {
 --------------------------------------------------------------------------------
 
 local function clearCells()
-  generationCounter = 0 -- Reset
   for i = 1, rows do
     for j = 1, cols do
       cells[i][j].value = false
@@ -1313,6 +1314,7 @@ end
 
 local function loadShape(options)
   local shape = shapeIndex
+  local values
   if type(shape) == "nil" then
     shape = gem.getRandom(#shapeNames)
   end
@@ -1323,7 +1325,7 @@ local function loadShape(options)
     max = rows,
     length = cols,
   }
-  local values, shapeOptions = shapes.get(shape, bounds, options)
+  values, shapeOptions = shapes.get(shape, bounds, options)
   for col = 1, cols do
     local value = math.ceil(values[col])
     for row = 1, rows do
@@ -1338,7 +1340,6 @@ local equalCount = 0
 local function updateBoard()
   -- Create a new board to hold the next generation
   local newGeneration = {}
-  --liveCells = 0 -- Clear live cells
 
   generationCounter = gem.inc(generationCounter)
   generationLabel.text = "Gen " .. generationCounter
@@ -1443,9 +1444,15 @@ local function updateBoard()
   previousChangeCount = changeCount
 
   -- Reset if stale board
-  if changeCount == 0 or equalCount > equalRounds then
-    equalCount = 0 -- Reset
+  if changeCount == 0 or equalCount > equalRounds or generationCounter > maxGenerations then
     print("Stale board...")
+     -- Reset counters
+    equalCount = 0
+    generationCounter = 0
+    -- Set speed for the next round
+    evolutionSpeed = gem.randomizeValue(speedInput.value, speedInput.min, speedInput.max, speedRandomization)
+    -- Set min triggers for the next round
+    minTriggers = gem.randomizeValue(triggerInput.value, triggerInput.min, triggerInput.max, triggerRandomization)
     loadShape()
   end
 end
@@ -1643,7 +1650,7 @@ shapeMenu = widgets.menu("Start Shape", shapeMenuItems, {
 widgets.numBox('Fill', fillProbability, {
   tooltip = "Set a fill probability for the selected shape. If fill is 0, the shape is drawn as a line, if fill is 100 it will be drawn solid.",
   unit = Unit.Percent,
-  width = 112,
+  width = function(w, o) return w * 0.55 end,
   increment = false,
   changed = function(self)
     fillProbability = self.value
@@ -1653,7 +1660,7 @@ widgets.numBox('Fill', fillProbability, {
 
 widgets.button("Reset Shape", {
   tooltip = "Reset board with the selected shape. If 'Random Shape' is selected, a different shape will be loaded every time.",
-  width = 75,
+  width = function(w, o) return (w * 0.45) - o.xSpacing end,
   changed = function()
     if shapeIndex == 0 then
       loadShape()
@@ -1694,13 +1701,12 @@ widgets.setSection({
   height = 20,
   xSpacing = 5,
   ySpacing = 5,
-  cols = 1,
+  cols = 2,
 })
 
-local q = widgets.menu("Quantize", resolution, resolutionNames, {
+local quantizeMenu = widgets.menu("Quantize", resolution, resolutionNames, {
   tooltip = "Quantize the outputted triggers to the selected resolution",
-  width = 105,
-  increment = false,
+  width = function(w, o) return (w * 0.5) end,
   changed = function(self)
     resolution = self.value
     clearCells()
@@ -1708,12 +1714,13 @@ local q = widgets.menu("Quantize", resolution, resolutionNames, {
   end
 })
 
+widgets.row()
 widgets.col()
 
 widgets.button("Legato", legato, {
   tooltip = "In legato mode notes are held until the next note is played",
-  width = 100,
-  x = widgets.posSide(q),
+  width = function(w, o) return (w * 0.5) - o.xSpacing end,
+  x = widgets.posSide(quantizeMenu),
   changed = function(self) legato = self.value end
 })
 
@@ -1722,38 +1729,71 @@ widgets.menu("Trigger On", triggerMode, triggerModes, {
   changed = function(self) triggerMode = self.value end
 })
 
-local triggerInput = widgets.numBox('Min Triggers', minTriggers, {
+widgets.row(2)
+
+triggerInput = widgets.numBox('Min Triggers', minTriggers, {
   tooltip = "Set the required number of rule occurences before an event is sent. Low numbers means more events, high number means fewer.",
   min = 1,
   max = rows * cols,
   integer = true,
-  --increment = false,
-  --width = 102,
+  width = function(w, o) return w * 0.75 end,
   changed = function(self)
     minTriggers = self.value
   end
 })
 
-local triggerInput = widgets.numBox('Reset After', equalRounds, {
-  tooltip = "Set the number of stale rounds that are allowed before regenerating the shape",
-  min = 1,
-  max = (rows * cols) / 2,
-  integer = true,
-  --width = 102,
+widgets.numBox('MinTrigRand', triggerRandomization, {
+  tooltip = "Set the randomization amount for this parameter",
+  showLabel = false,
+  unit = Unit.Percent,
+  width = function(w, o) return (w * 0.25) - o.xSpacing end,
   changed = function(self)
-    equalRounds = self.value
+    triggerRandomization = self.value
   end
 })
 
-local speedInput = widgets.numBox('Speed', evolutionSpeed, {
+speedInput = widgets.numBox('Speed', evolutionSpeed, {
   tooltip = "Set the speed between generations",
   unit = Unit.MilliSeconds,
   mapper = Mapper.Quartic,
   min = evolutionSpeed / 10,
   max = evolutionSpeed * 10,
   integer = true,
+  width = function(w, o) return w * 0.75 end,
   changed = function(self)
     evolutionSpeed = self.value
+  end
+})
+
+widgets.numBox('SpeedRand', speedRandomization, {
+  tooltip = "Set the randomization amount for this parameter",
+  showLabel = false,
+  unit = Unit.Percent,
+  width = function(w, o) return (w * 0.25) - o.xSpacing end,
+  changed = function(self)
+    speedRandomization = self.value
+  end
+})
+
+widgets.numBox('Max Stale', equalRounds, {
+  tooltip = "Set the number of stale rounds that are allowed before regenerating the shape",
+  min = 1,
+  max = (rows * cols) / 2,
+  integer = true,
+  width = function(w, o) return w * 0.4 - o.xSpacing end,
+  changed = function(self)
+    equalRounds = self.value
+  end
+})
+
+widgets.numBox('Max Gen', maxGenerations, {
+  tooltip = "Set the maximum number of generations before regenerating the shape is forced",
+  min = 500,
+  max = 5000,
+  integer = true,
+  width = function(w, o) return (w * 0.6) end,
+  changed = function(self)
+    maxGenerations = self.value
   end
 })
 

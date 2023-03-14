@@ -267,7 +267,7 @@ local function getAmountWidget(width, showLabel, i)
     showLabel = showLabel ~= false,
     unit = Unit.Percent,
   }
-  if type(width) == "number" then
+  if type(width) == "number" or type(width) == "function" then
     options.width = width
   end
 return widgets.numBox("Amount", getShapeOptions().amount, options)
@@ -296,7 +296,7 @@ local function getShapeWidgets(width, showLabel, i)
   local options = {factor = factorOptions, phase = phaseOptions, z = zOptions}
   for _,v in pairs(options) do
     v.showLabel = showLabel ~= false
-    if type(width) == "number" then
+    if type(width) == "number" or type(width) == "function" then
       v.width = width
     end
     if type(v.min) == "nil" then

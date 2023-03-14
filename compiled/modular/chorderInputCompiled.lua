@@ -38,16 +38,14 @@ local function getIndexFromValue(value, selection)
 end
 
 local function randomizeValue(value, limitMin, limitMax, randomizationAmount)
-  if randomizationAmount > 0 then
-    local limitRange = limitMax - limitMin
-    local changeMax = getChangeMax(limitRange, randomizationAmount)
-    local min = math.max(limitMin, (value - changeMax))
-    local max = math.min(limitMax, (value + changeMax))
-    --print("Before randomize value", value)
-    value = getRandom(min, max)
-    --print("After randomize value/changeMax/min/max", value, changeMax, min, max)
+  if randomizationAmount == 0 then
+    return value
   end
-  return value
+  local limitRange = limitMax - limitMin
+  local changeMax = getChangeMax(limitRange, randomizationAmount)
+  local min = math.max(limitMin, (value - changeMax))
+  local max = math.min(limitMax, (value + changeMax))
+  return getRandom(min, max)
 end
 
 -- sign function: -1 if x<0; 1 if x>0
@@ -68,7 +66,6 @@ end
 
 local function round(value)
   local int, frac = math.modf(value)
-  --print("int/frac", int, frac)
   if math.abs(frac) < 0.5 then
     value = int
   elseif value < 0 then
@@ -92,13 +89,11 @@ local function getRandomFromTable(theTable, except)
   end
   local index = getRandom(#theTable)
   local value = theTable[index]
-  --print("getRandomFromTable index, value", index, value)
   if type(except) ~= "nil" then
     local maxRounds = 10
     while value == except and maxRounds > 0 do
       value = theTable[getRandom(#theTable)]
       maxRounds = maxRounds - 1
-      --print("getRandomFromTable except, maxRounds", except, maxRounds)
     end
   end
   return value
@@ -215,6 +210,8 @@ local widgetColours = {
 local function getValueOrDefault(value, default)
   if type(value) == "nil" then
     return default
+  elseif type(value) == "function" then
+    return value(default, widgetDefaults)
   end
   return value
 end

@@ -48,6 +48,8 @@ local widgetColours = {
 local function getValueOrDefault(value, default)
   if type(value) == "nil" then
     return default
+  elseif type(value) == "function" then
+    return value(default, widgetDefaults)
   end
   return value
 end
