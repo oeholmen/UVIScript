@@ -850,73 +850,73 @@ local notes = {
 -- Methods for working with shapes
 --------------------------------------------------------------------------------
 
+local getUnipolar = function(v) return (v + 1) / 2 end
+
 -- Holds the shape definitions - functions get the following variables
 -- x is the current time-value getting plotted, from -1.0 to 1.0
 -- z is the current table number, from -1.0 to 1.0
 -- w is the current time-value getting plotted, from 0.0 to 1.0 (same as (x+1)/2)
 -- y is the current table number, from 0.0 to 1.0 (same as (z+1)/2)
--- i = current index
--- b = bounds (min, max, length, unipolar)
--- q = gem.round(1+((x+1)/2)*511)
+-- pos = current index (from 0)
+-- b = bounds (min, max, length, unipolar, rand)
 local shapes = {
-  ramp = function(x, z, w, y, i, b) return x * z end,
-  triangleShaper = function(x, z, w, y, i) return math.min(2+2*x, math.abs((x-0.5)*2)-1) * z end,
-  sine = function(x, z, w, y, i) return math.sin(x*math.pi) * z end,
-  tangent = function(x, z, w, y, i) return math.tan(x) * z end,
-  sawInPhase = function(x, z, w, y, i) return (gem.sign(x)-x) * z end,
-  sinToNoise = function(x, z, w, y, i) return 2*gem.avg({math.sin(z*x*math.pi),(1-z)*gem.getRandom()}) end,
-  wacky = function(x, z, w, y, i) return math.sin(((x)+1)^(z-1)*math.pi) end,
-  hpfSqrToSqr = function(x, z, w, y, i) if x < 0 then return math.sin((z*0.5)*math.pi)^(x+1) end return -math.sin((z*0.5)*math.pi)^x end,
-  windowYSqr = function(x, z, w, y, i) local v = 1 if math.abs(x) > 0.5 then v = (1-math.abs(x))*2 end return v * math.min(1, math.max(-1,8*math.sin((z+0.02)*x*math.pi*32))) end,
-  filteredSquare = function(x, z, w, y, i) return (1.2*math.sin(x*math.pi)+0.31*math.sin(x*math.pi*3)+0.11*math.sin(x*math.pi*5)+0.033*math.sin(x*math.pi*7)) * z end,
-  organIsh = function(x, z, w, y, i) return (math.sin(x*math.pi)+(0.16*(math.sin(2*x*math.pi)+math.sin(3*x*math.pi)+math.sin(4*x*math.pi)))) * z end,
-  sawAnalog = function(x, z, w, y, i) return (2.001 * (math.sin(x * 0.7905) - 0.5)) * z end,
-  dome = function(x, z, w, y, i) return (2 * (math.sin(x * 1.5705) - 0.5)) * z end,
-  brassy = function(x, z, w, y, i) return math.sin(math.pi*gem.sign(x)*(math.abs(x)^(((1-z)+0.1)*math.pi*math.pi))) end,
-  taffy = function(x, z, w, y, i) return math.sin(x*math.pi*2)*math.cos(x*math.pi)*math.cos(z*math.pi*(math.abs((x*2)^3)-1)*math.pi) end,
-  random = function(x, z, w, y, i) return ((gem.getRandom() * 2) - 1) * z end,
-  harmonicSync = function(x, z, w, y, i) return math.sin(x*math.pi*(2+(62*z*z*z)))*math.sin(x*math.pi) end,
-  softSine = function(x, z, w, y, i) return 0.5*(math.cos(x*math.pi/2)*((math.sin((x)*math.pi)+(1-z)*(math.sin(z*((x*x)^z)*math.pi*32))))) end,
-  tripleSin = function(x, z, w, y, i) return math.cos(x*math.pi/2)*1.6*(.60*math.sin( ((z*16)+1)*3*x ) + .20*math.sin( ((z*16)+1)*9*x ) + .15*math.sin( ((z*16)+1)*15*x)) end,
-  pwm50to100 = function(x, z, w, y, i) if x > z then return 1 end return -1 end,
-  chaosToSine = function(x, z, w, y, i) return math.sin(math.pi*z*z*32*math.log(x+1)) end,
-  sawSinReveal = function(x, z, w, y, i) if x + 1 > z * 2 then return x end return math.sin(x * math.pi) end,
-  domeSmall = function(x, z, w, y, i) return (-1-1.275*math.sin(w*math.pi)) * z end,
-  zero = function(x, z, w, y, i, b) if b.unipolar then return -1 end return 0 end,
-  minMax = function(x, z, w, y, i) return z end,
-  oddAndEven = function(x, z, w, y, i) x = 1 if i % 2 == 0 then x = -1 end return x * z end,
-  lofiTriangle = function(x, z, w, y, i) return ((gem.round(16*math.abs(x))/8.0)-1) * z end,
-  hpfSaw = function(x, z, w, y, i) return (x-(0.635*math.sin(x*math.pi))) * z end,
-  squareTri = function(x, z, w, y, i) return (-1*(gem.sign(x)*0.5)+(math.abs(x)-0.5)) * z end,
-  sineStrech = function(x, z, w, y, i) return math.sin(x^(1+(gem.round(z*32)*2))*math.pi) end,
-  squareSawBit = function(x, z, w, y, i) return math.sin((2-(z/4))*x*x*math.pi)/gem.round(x*32*((z/4)*(z/4)-0.125)) end,
-  loFiTriangles = function(x, z, w, y, i) return (gem.round((2+(z*14))*math.abs(x))/(1+(z*7.0)))-1 end,
-  talkative1 = function(x, z, w, y, i) return 1.4*math.cos(x*math.pi/2)*(.5*math.sin(((z*5)+1)*3*x)+.10*math.sin(((z*6)+1)*2*x)+.08*math.sin((((1-z)*3)+1)*12*x)) end,
-  sinClipper = function(x, z, w, y, i) return math.sin(x*math.pi)*(((z*z)+0.125)*8) end,
-  pitfall = function(x, z, w, y, i) return (x*128)%(z*16)*0.25 end,
-  nascaLines = function(x, z, w, y, i, b) return math.sqrt(1/i)*(((i/b.max)*(z+0.1)*b.max)%3)*0.5 end,
-  kick = function(x, z, w, y, i) return math.sin(math.pi*z*z*32*math.log(x+1)) end,
-  sinToSaw = function(x, z, w, y, i) return math.sin(-x*math.pi)*(1-z)+(-x*z) end,
-  zeroCrossing = function(x, z, w, y, i) return math.sin((x+1)*math.pi*(z+1))*(-math.abs(x)^32+1) end,
-  vosim = function(x, z, w, y, i) return -(w-1)*math.sin(w*math.pi*8*(math.sin(z)+1.5))^2 end,
-  vosimNormalized = function(x, z, w, y, i) return (-(w-1)*math.sin(w*math.pi*9*(math.sin(y)+1.3))^2-.5)*2 end,
-  --tanh = function(x, z, w, y, i) return math.tanh(x) * z end,
-  acos = function(x, z, w, y, i) return math.acos(x) * z end,
-  wings = function(x, z, w, y, i) return math.acos((math.abs(-math.abs(x)+1) + -math.abs(x)+1)/2) * z end,
-  --atan2 = function(x, z, w, y, i) return math.atan2(y, x) * z end,
-  crosser = function(x, z, w, y, i) return gem.avg({x, w}) * z end,
-  diracDelta = function(x, z, w, y, i) return (math.exp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*16) end,
-  diracDeltaFrexp = function(x, z, w, y, i) return (math.frexp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*16) end,
-  diracDeltaRand = function(x, z, w, y, i, b) return (math.exp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*math.min(8, b.rand*32)) end,
-  swipe1 = function(x, z, w, y, i) return math.exp(math.abs(x)/y) * z end,
-  swipe2 = function(x, z, w, y, i) return math.exp(math.tan(x)/math.pi) * z end,
-  swipe3 = function(x, z, w, y, i) return math.exp(x-y) * z end,
-  swipe4 = function(x, z, w, y, i) return (math.exp(x)) * gem.avg({z, x}) end,
-  mayhemInTheMiddle = function(x, z, w, y, i) return math.sin((x * math.pi) + (z * math.tan(w * math.pi))) end,
-  zeroDancer = function(x, z, w, y, i) return math.sin(x / z + z) * z end,
-  shakySine = function(x, z, w, y, i, b)
+  ramp = function(x, z, pos, b) return x * z end,
+  triangleShaper = function(x, z, pos, b) return math.min(2+2*x, math.abs((x-0.5)*2)-1) * z end,
+  sine = function(x, z, pos, b) return math.sin(x*math.pi) * z end,
+  tangent = function(x, z, pos, b) return math.tan(x) * z end,
+  sawInPhase = function(x, z, pos, b) return (gem.sign(x)-x) * z end,
+  sinToNoise = function(x, z, pos, b) return 2*gem.avg({math.sin(z*x*math.pi),(1-z)*gem.getRandom()}) end,
+  wacky = function(x, z, pos, b) return math.sin(((x)+1)^(z-1)*math.pi) end,
+  hpfSqrToSqr = function(x, z, pos, b) if x < 0 then return math.sin((z*0.5)*math.pi)^(x+1) end return -math.sin((z*0.5)*math.pi)^x end,
+  windowYSqr = function(x, z, pos, b) local v = 1 if math.abs(x) > 0.5 then v = (1-math.abs(x))*2 end return v * math.min(1, math.max(-1,8*math.sin((z+0.02)*x*math.pi*32))) end,
+  filteredSquare = function(x, z, pos, b) return (1.2*math.sin(x*math.pi)+0.31*math.sin(x*math.pi*3)+0.11*math.sin(x*math.pi*5)+0.033*math.sin(x*math.pi*7)) * z end,
+  organIsh = function(x, z, pos, b) return (math.sin(x*math.pi)+(0.16*(math.sin(2*x*math.pi)+math.sin(3*x*math.pi)+math.sin(4*x*math.pi)))) * z end,
+  sawAnalog = function(x, z, pos, b) return (2.001 * (math.sin(x * 0.7905) - 0.5)) * z end,
+  dome = function(x, z, pos, b) return (2 * (math.sin(x * 1.5705) - 0.5)) * z end,
+  brassy = function(x, z, pos, b) return math.sin(math.pi*gem.sign(x)*(math.abs(x)^(((1-z)+0.1)*math.pi*math.pi))) end,
+  taffy = function(x, z, pos, b) return math.sin(x*math.pi*2)*math.cos(x*math.pi)*math.cos(z*math.pi*(math.abs((x*2)^3)-1)*math.pi) end,
+  random = function(x, z, pos, b) return ((gem.getRandom() * 2) - 1) * z end,
+  harmonicSync = function(x, z, pos, b) return math.sin(x*math.pi*(2+(62*z*z*z)))*math.sin(x*math.pi) end,
+  softSine = function(x, z, pos, b) return 0.5*(math.cos(x*math.pi/2)*((math.sin((x)*math.pi)+(1-z)*(math.sin(z*((x*x)^z)*math.pi*32))))) end,
+  tripleSin = function(x, z, pos, b) return math.cos(x*math.pi/2)*1.6*(.60*math.sin( ((z*16)+1)*3*x ) + .20*math.sin( ((z*16)+1)*9*x ) + .15*math.sin( ((z*16)+1)*15*x)) end,
+  pwm50to100 = function(x, z, pos, b) if x > z then return 1 end return -1 end,
+  chaosToSine = function(x, z, pos, b) return math.sin(math.pi*z*z*32*math.log(x+1)) end,
+  sawSinReveal = function(x, z, pos, b) if x + 1 > z * 2 then return x end return math.sin(x * math.pi) end,
+  domeSmall = function(x, z, pos, b) return (-1-1.275*math.sin(getUnipolar(x)*math.pi)) * z end,
+  zero = function(x, z, pos, b) if b.unipolar then return -1 end return 0 end,
+  minMax = function(x, z, pos, b) return z end,
+  oddAndEven = function(x, z, pos, b) x = -1 if pos % 2 == 0 then x = 1 end return x * z end,
+  lofiTriangle = function(x, z, pos, b) return ((gem.round(16*math.abs(x))/8.0)-1) * z end,
+  hpfSaw = function(x, z, pos, b) return (x-(0.635*math.sin(x*math.pi))) * z end,
+  squareTri = function(x, z, pos, b) return (-1*(gem.sign(x)*0.5)+(math.abs(x)-0.5)) * z end,
+  sineStrech = function(x, z, pos, b) return math.sin(x^(1+(gem.round(z*32)*2))*math.pi) end,
+  squareSawBit = function(x, z, pos, b) return math.sin((2-(z/4))*x*x*math.pi)/gem.round(x*32*((z/4)*(z/4)-0.125)) end,
+  loFiTriangles = function(x, z, pos, b) return (gem.round((2+(z*14))*math.abs(x))/(1+(z*7.0)))-1 end,
+  talkative1 = function(x, z, pos, b) return 1.4*math.cos(x*math.pi/2)*(.5*math.sin(((z*5)+1)*3*x)+.10*math.sin(((z*6)+1)*2*x)+.08*math.sin((((1-z)*3)+1)*12*x)) end,
+  sinClipper = function(x, z, pos, b) return math.sin(x*math.pi)*(((z*z)+0.125)*8) end,
+  pitfall = function(x, z, pos, b) return (x*128)%(z*16)*0.25 end,
+  nascaLines = function(x, z, pos, b, b) return math.sqrt(1/i)*(((i/b.max)*(z+0.1)*b.max)%3)*0.5 end, -- TODO Check max
+  kick = function(x, z, pos, b) return math.sin(math.pi*z*z*32*math.log(x+1)) end,
+  sinToSaw = function(x, z, pos, b) return math.sin(-x*math.pi)*(1-z)+(-x*z) end,
+  zeroCrossing = function(x, z, pos, b) return math.sin((x+1)*math.pi*(z+1))*(-math.abs(x)^32+1) end,
+  vosim = function(x, z, pos, b) return -(getUnipolar(x)-1)*math.sin(getUnipolar(x)*math.pi*8*(math.sin(z)+1.5))^2 end,
+  vosimNormalized = function(x, z, pos, b) return (-(getUnipolar(x)-1)*math.sin(getUnipolar(x)*math.pi*9*(math.sin(getUnipolar(z))+1.3))^2-.5)*2 end,
+  acos = function(x, z, pos, b) return math.acos(x) * z end,
+  wings = function(x, z, pos, b) return math.acos((math.abs(-math.abs(x)+1) + -math.abs(x)+1)/2) * z end,
+  crosser = function(x, z, pos, b) return gem.avg({x, getUnipolar(x)}) * z end,
+  diracDelta = function(x, z, pos, b) return (math.exp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*16) end,
+  diracDeltaFrexp = function(x, z, pos, b) return (math.frexp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*16) end,
+  diracDeltaRand = function(x, z, pos, b) return (math.exp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*math.min(8, b.rand*32)) end,
+  swipe1 = function(x, z, pos, b) return math.exp(math.abs(x)/getUnipolar(z)) * z end,
+  swipe2 = function(x, z, pos, b) return math.exp(math.tan(x)/math.pi) * z end,
+  swipe3 = function(x, z, pos, b) return math.exp(x-getUnipolar(z)) * z end,
+  swipe4 = function(x, z, pos, b) return (math.exp(x)) * gem.avg({z, x}) end,
+  mayhemInTheMiddle = function(x, z, pos, b) return math.sin((x * math.pi) + (z * math.tan(getUnipolar(x) * math.pi))) end,
+  zeroDancer = function(x, z, pos, b) return math.sin(x / z + z) * z end,
+  exponential = function(x, z, pos, b, percentPos, stepValue, o) return (stepValue + (2-stepValue)*percentPos^o.factor) * z + o.phase end,
+  shakySine = function(x, z, pos, b, percentPos, stepValue)
     local f = 0
-    local g = b.rand * ((i-1) / b.length)
+    local g = b.rand * percentPos
     if z < 0 then
       f = z - g
     elseif z > 0 then
@@ -924,9 +924,9 @@ local shapes = {
     end
     return math.sin(x * math.pi) * f
   end,
-  testShape = function(x, z, w, y, i, b)
+  testShape = function(x, z, pos, b, percentPos, stepValue, o)
     return x * z
-  end
+  end,
 }
 
 local shapeDefinitions = {
@@ -945,9 +945,7 @@ local shapeDefinitions = {
   {name = "Fltr Sqr",  f = shapes.filteredSquare},
   {name = "Organ-Ish", f = shapes.organIsh},
   {name = "Tangent", f = shapes.tangent},
-  --{name = "Tanh", f = shapes.tanh},
   {name = "Acos", f = shapes.acos},
-  --{name = "Atan2", f = shapes.atan2},
   {name = "Triple Sine", f = shapes.tripleSin},
   {name = "Harmonic Sync", f = shapes.harmonicSync},
   {name = "Soft Sine", f = shapes.softSine},
@@ -990,6 +988,8 @@ local shapeDefinitions = {
   {name = "Swipe 3", f = shapes.swipe3},
   {name = "Swipe 4", f = shapes.swipe4, o = {z = -.25}},
   {name = "Shaky Sine", f = shapes.shakySine},
+  --{name = "Exponential", f = shapes.exponential},
+  {name = "Exponential", f = shapes.exponential, o = {factor = 4.5}},
   {name = "Random", f = shapes.random},
   {name = "Test Shape", f = shapes.testShape},
 }
@@ -1063,8 +1063,6 @@ local function getShapeNames(options, max)
   return items
 end
 
-local getUnipolar = function(v) return (v + 1) / 2 end
-
 local function getShapeBounds(shapeBounds)
   local bounds = {}
   if type(shapeBounds) == "nil" then
@@ -1082,21 +1080,21 @@ local function createShape(shapeIndexOrName, shapeBounds, shapeOptions)
   if type(shapeIndexOrName) == "string" then
     shapeIndexOrName = getShapeIndexFromName(shapeIndexOrName)
   end
+  local shape = {} -- Holds the values for each step
   local shapeDefinition = shapeDefinitions[shapeIndexOrName]
   local bounds = getShapeBounds(shapeBounds)
   local options = getShapeTemplate(shapeOptions, shapeDefinition.o)
-  local shape = {}
+  local stepValue = gem.getChangePerStep(2, bounds.length)
   for i=1,bounds.length do
-    local x = options.factor * (gem.getChangePerStep(((i-1)*2), bounds.length) + options.phase)
-    local z = options.z
-    local w = getUnipolar(x)
-    local y = getUnipolar(z)
-    local value = shapeDefinition.f(x, z, w, y, i, bounds)
+    local pos = i - 1
+    local value =  options.factor * stepValue * pos + options.phase
+    local percentPos = pos / bounds.length
+    local x = shapeDefinition.f(value, options.z, pos, bounds, percentPos, stepValue, options)
     if bounds.unipolar then
-      value = getUnipolar(value)
+      x = getUnipolar(x)
     end
-    value = (bounds.max * value) * (options.amount / 100)
-    table.insert(shape, math.max(bounds.min, math.min(bounds.max, value)))
+    x = (bounds.max * x) * (options.amount / 100)
+    table.insert(shape, math.max(bounds.min, math.min(bounds.max, x)))
   end
   return shape, options
 end
@@ -1152,9 +1150,9 @@ local function getShapeWidgets(width, showLabel, i)
     end
   end
   return {
-    factor = widgets.numBox("Shape Factor", shapeOptions.factor, options.factor),
+    z = widgets.numBox("Shape Morph", shapeOptions.z, options.z),
     phase = widgets.numBox("Shape Phase", shapeOptions.phase, options.phase),
-    z = widgets.numBox("Shape Morph", shapeOptions.z, options.z)
+    factor = widgets.numBox("Shape Factor", shapeOptions.factor, options.factor),
   }
 end
 

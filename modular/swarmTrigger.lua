@@ -20,13 +20,15 @@ local channel = 1 -- Send trigger on this channel
 local voiceId = nil -- Holds the id of the created note event
 local velocity = 64
 local duration = 1000 -- Space between swarms
-local durationMin = 3
-local durationMax = 10000
+local durationMin = 0
+local durationMax = 30000
 local shapeWidgets = {}
 local shapeOptions = shapes.getShapeOptions()
 local swarmLengthInput
 local swarmLength = 32
 local lengthRandomizationAmount = 0
+local lengthRandomizationInput
+local space = 0
 local spaceRandomizationAmount = 25
 local quantizeToClosest = false
 local swarmProbability = 100
@@ -41,6 +43,7 @@ local shapeIndex = 1
 local playMode = "Active Shape"
 local shapeMenu
 local shapeNames = shapes.getShapeNames()
+local preInit = true -- Used to avoid loading a new shape when loading a preset
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
@@ -56,7 +59,7 @@ local function updateShapeWidgets()
 end
 
 local function setShape(loadNew, randomizeLength)
-  loadNew = loadNew == true
+  loadNew = loadNew == true and preInit == false
   randomizeLength = randomizeLength == true
 
   local values
@@ -84,19 +87,24 @@ local function setShape(loadNew, randomizeLength)
     options = shapeOptions
   end
 
-  values, shapeOptions = shapes.get(shapeIndex, {min=minRes,max=maxRes,length=length}, options)
+  values, shapeOptions = shapes.get(shapeIndex, sequencerTable, options)
   updateShapeWidgets()
   for i,v in ipairs(values) do
     sequencerTable:setValue(i, v)
   end
 end
 
+local function clearPositionTable()
+  for i=1,positionTable.length do
+    positionTable:setValue(i, 0)
+  end
+end
+
 local function swarm(uniqueId)
   print("Starting swarm", uniqueId)
-  -- Set a random shape, if active, unless custom is selected
   if playMode == "Random Shape" then
     -- Fresh shape loaded here
-    shapeMenu.value = gem.getRandom(#shapeNames)-- + shapeItemsDiff
+    shapeMenu.value = gem.getRandom(#shapeNames)
   end
   -- Load shape with options
   setShape(false, playMode ~= "Custom")
@@ -119,16 +127,15 @@ local function swarm(uniqueId)
     swarmPosition = gem.inc(swarmPosition)
     swarmActive = swarmPosition <= sequencerTable.length
     if swarmActive == false then
-      for i=1,positionTable.length do
-        positionTable:setValue(i, 0)
-      end
+      clearPositionTable()
+      space = ms2beat(gem.randomizeValue(duration, durationMin, durationMax, spaceRandomizationAmount))
     end
   end
 end
 
 local function sequenceRunner(uniqueId)
   print("Starting sequencer", uniqueId)
-  local space = ms2beat(duration)
+  space = ms2beat(duration)
   local tickBeat = .5
   local elapsedBeats = space -- To avoid pause
   swarmActive = false
@@ -138,8 +145,6 @@ local function sequenceRunner(uniqueId)
         print("Starting swarm, elapsedBeats, space", elapsedBeats, space)
         swarmActive = true
         spawn(swarm, seqIndex)
-        -- Set space until the next swarm (used after the current swarm is completed)
-        space = ms2beat(gem.randomizeValue(duration, durationMin, durationMax, spaceRandomizationAmount))
       end
       elapsedBeats = 0 -- Reset
     end
@@ -166,6 +171,7 @@ local function stopPlaying()
   end
   isPlaying = false
   swarmActive = false
+  clearPositionTable()
 end
 
 --------------------------------------------------------------------------------
@@ -273,6 +279,7 @@ positionTable = widgets.table("Position", 0, swarmLength, {
 
 sequencerTable = widgets.table("Sequencer", 0, swarmLength, {
   tooltip = "Sequencer table - activate 'Custom' to edit the table",
+  enabled = false,
   showPopupDisplay = true,
   sliderColour = "pink",
   height = 123,
@@ -301,7 +308,7 @@ widgets.setSection({
 })
 
 widgets.menu("Swarm Min", resolution, resolutionNames, {
-  tooltip = "Set the base resolution of the swarm",
+  tooltip = "Set the slowest resolution of the swarm. This will be the resolution for a full bar in the table.",
   width = 81,
   changed = function(self)
     resolution = self.value
@@ -310,7 +317,7 @@ widgets.menu("Swarm Min", resolution, resolutionNames, {
 })
 
 widgets.menu("Swarm Max", resolutionMin, resolutionNames, {
-  tooltip = "Set the max resolution of the swarm",
+  tooltip = "Set the fastest resolution of the swarm. This will be the resolution for an empty bar in the table.",
   width = 81,
   increment = false,
   changed = function(self)
@@ -323,27 +330,28 @@ widgets.button("Quantize", quantizeToClosest, {
   tooltip = "Quantize output to the closest 'known' resolution",
   increment = false,
   width = 90,
-  height = 45,
-  --y = 28,
+  height = 20,
+  y = 30,
   changed = function(self) quantizeToClosest = self.value end
 })
 
 widgets.row(2)
 
 shapeMenu = widgets.menu("Swarm Shape", shapeIndex, shapeNames, {
-  tooltip = "Set the shape of the swarm. Short bars = fast, long bars = slow. You can edit the shape by activating 'Custom' shape mode.",
+  tooltip = "Set the shape of the swarm. Short bars = fast, long bars = slow. You can edit the shape by selecting 'Custom' from 'Shape Play Mode'.",
   changed = function(self)
     shapeIndex = self.value
     setShape(true)
   end
 })
 
-local playModeMenu = widgets.menu("Shape Mode", {"Active Shape", "Random Shape", "Custom"}, {
-  tooltip = "Set how shapes are created and selected for playing.",
+local playModeMenu = widgets.menu("Shape Play Mode", {"Active Shape", "Random Shape", "Custom"}, {
+  tooltip = "Set how shapes are selected for playing. Use 'Custom' to edit you own shape.",
   changed = function(self)
     playMode = self.selectedText
     local shapeEnabled = playMode == "Active Shape"
     sequencerTable.enabled = playMode == "Custom"
+    lengthRandomizationInput.enabled = playMode == "Active Shape" or playMode == "Random Shape"
     shapeMenu.enabled = shapeEnabled
     xyShapeFactor.enabled = shapeEnabled
     for k,v in pairs(shapeWidgets) do
@@ -375,7 +383,7 @@ swarmLengthInput = widgets.numBox("Length", swarmLength, {
   end
 })
 
-widgets.numBox("Rand", lengthRandomizationAmount, {
+lengthRandomizationInput = widgets.numBox("Rand", lengthRandomizationAmount, {
   name = "LengthRand",
   tooltip = "Swarm length randomization amount",
   unit = Unit.Percent,
@@ -414,7 +422,7 @@ widgets.numBox("Rand", spaceRandomizationAmount, {
 
 function onInit()
   seqIndex = 0
-  playModeMenu:changed()
+  preInit = false
 end
 
 function onNote(e)
