@@ -18,7 +18,7 @@ widgets.label("Strip Channel", {
   textColour = "3fe09f"
 })
 
-widgets.label("Remove channel on incoming note events", {
+widgets.label("Removes channel on incoming note events", {
   width = 300,
   backgroundColour = "transparent",
   textColour = "a0a0a0",

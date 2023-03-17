@@ -291,7 +291,10 @@ widgets.setSection({
   cols = 1,
 })
 
-widgets.label("Shape Actions")
+widgets.label("Shape Actions", {
+  backgroundColour = "transparent",
+  textColour = "silver",
+})
 
 local actionButtons = {}
 

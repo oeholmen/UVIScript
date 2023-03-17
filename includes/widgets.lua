@@ -12,6 +12,7 @@ local widgetDefaults = {
   width = 120,
   height = 20,
   menuHeight = 45,
+  knobHeight = 45,
   xOffset = 0,
   yOffset = 0,
   xSpacing = 0,
@@ -85,6 +86,7 @@ local function setSection(settings)
   widgetDefaults.width = getValueOrDefault(settings.width, widgetDefaults.width)
   widgetDefaults.height = getValueOrDefault(settings.height, widgetDefaults.height)
   widgetDefaults.menuHeight = getValueOrDefault(settings.menuHeight, widgetDefaults.menuHeight)
+  widgetDefaults.knobHeight = getValueOrDefault(settings.knobHeight, widgetDefaults.knobHeight)
   widgetDefaults.xOffset = getValueOrDefault(settings.xOffset, widgetDefaults.xOffset)
   widgetDefaults.yOffset = getValueOrDefault(settings.yOffset, widgetDefaults.yOffset)
   widgetDefaults.xOffset = getValueOrDefault(settings.x, widgetDefaults.xOffset)
@@ -387,6 +389,20 @@ return {--widgets--
     widget.tooltip = options.tooltip
     widget.backgroundColour = widgetColours.widgetBackgroundColour
     widget.textColour = widgetColours.widgetTextColour
+    widget.bounds = getWidgetBounds(options, true)
+    setOptional(widget, options)
+    return widget
+  end,
+  knob = function(displayName, default, options)
+    options = getWidgetOptions(options, displayName, default)
+    local widget = widgetDefaults.panel:Knob(options.name, options.default, options.min, options.max, options.integer)
+    widget.displayName = options.displayName
+    widget.tooltip = options.tooltip
+    widget.backgroundColour = widgetColours.widgetBackgroundColour
+    widget.textColour = widgetColours.widgetTextColour
+    if widget.showLabel == true then
+      options.height = getValueOrDefault(options.height, widgetDefaults.knobHeight)
+    end
     widget.bounds = getWidgetBounds(options, true)
     setOptional(widget, options)
     return widget
