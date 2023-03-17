@@ -50,7 +50,7 @@ local shapes = {
   talkative1 = function(x, z, pos, b) return 1.4*math.cos(x*math.pi/2)*(.5*math.sin(((z*5)+1)*3*x)+.10*math.sin(((z*6)+1)*2*x)+.08*math.sin((((1-z)*3)+1)*12*x)) end,
   sinClipper = function(x, z, pos, b) return math.sin(x*math.pi)*(((z*z)+0.125)*8) end,
   pitfall = function(x, z, pos, b) return (x*128)%(z*16)*0.25 end,
-  nascaLines = function(x, z, pos, b, b) return math.sqrt(1/i)*(((i/b.max)*(z+0.1)*b.max)%3)*0.5 end, -- TODO Check max
+  nascaLines = function(x, z, pos, b) return math.sqrt(1/pos)*(((pos/2)*(z+0.1)*b.max)%3)*0.5 end,
   kick = function(x, z, pos, b) return math.sin(math.pi*z*z*32*math.log(x+1)) end,
   sinToSaw = function(x, z, pos, b) return math.sin(-x*math.pi)*(1-z)+(-x*z) end,
   zeroCrossing = function(x, z, pos, b) return math.sin((x+1)*math.pi*(z+1))*(-math.abs(x)^32+1) end,
@@ -69,6 +69,7 @@ local shapes = {
   mayhemInTheMiddle = function(x, z, pos, b) return math.sin((x * math.pi) + (z * math.tan(getUnipolar(x) * math.pi))) end,
   zeroDancer = function(x, z, pos, b) return math.sin(x / z + z) * z end,
   exponential = function(x, z, pos, b, percentPos, stepValue, o) return (stepValue + (2-stepValue)*percentPos^o.factor) * z + o.phase end,
+  bridge = function(x, z, pos, b, percentPos, stepValue, o) return math.abs(x^2) * z end,
   shakySine = function(x, z, pos, b, percentPos, stepValue)
     local f = 0
     local g = b.rand * percentPos
@@ -143,8 +144,8 @@ local shapeDefinitions = {
   {name = "Swipe 3", f = shapes.swipe3},
   {name = "Swipe 4", f = shapes.swipe4, o = {z = -.25}},
   {name = "Shaky Sine", f = shapes.shakySine},
-  --{name = "Exponential", f = shapes.exponential},
   {name = "Exponential", f = shapes.exponential, o = {factor = 4.5}},
+  {name = "Bridge", f = shapes.bridge},
   {name = "Random", f = shapes.random},
   {name = "Test Shape", f = shapes.testShape},
 }
@@ -168,7 +169,7 @@ local function getDefaultShapeOptions()
 end
 
 local function getValueOrDefault(value, default)
-  if type(value) == "number" then
+  if type(value) ~= "nil" then
     return value
   end
   return default
@@ -254,24 +255,26 @@ local function createShape(shapeIndexOrName, shapeBounds, shapeOptions)
   return shape, options
 end
 
-local function getAmountWidget(width, showLabel, i)
+local function getAmountWidget(options, i)
   -- Widget for controlling shape amount
+  if type(options) == "nil" then
+    options = {}
+  end
   if type(i) == "nil" then
     i = ""
   end
-  local options = {
-    name = "ShapeAmount" .. i,
-    tooltip = "Set the shape amount.",
-    showLabel = showLabel ~= false,
-    unit = Unit.Percent,
-  }
-  if type(width) == "number" or type(width) == "function" then
-    options.width = width
+  options.name = getValueOrDefault(options.name, "ShapeAmount" .. i)
+  options.tooltip = getValueOrDefault(options.tooltip, "Set the shape amount.")
+  options.showLabel = getValueOrDefault(options.showLabel, true)
+  options.unit = getValueOrDefault(options.unit, Unit.Percent)
+  options.integer = getValueOrDefault(options.integer, true)
+  if type(options.width) ~= "nil" then
+    options.width = options.width
   end
-return widgets.numBox("Amount", getShapeOptions().amount, options)
+  return widgets.numBox("Shape Amount", getShapeOptions().amount, options)
 end
 
-local function getShapeWidgets(width, showLabel, i)
+local function getShapeWidgets(options, i)
   -- Widgets for controlling shape
   if type(i) == "nil" then
     i = ""
@@ -293,9 +296,9 @@ local function getShapeWidgets(width, showLabel, i)
   }
   local options = {factor = factorOptions, phase = phaseOptions, z = zOptions}
   for _,v in pairs(options) do
-    v.showLabel = showLabel ~= false
-    if type(width) == "number" or type(width) == "function" then
-      v.width = width
+    v.showLabel = getValueOrDefault(options.showLabel, true)
+    if type(options.width) ~= "nil" then
+      v.width = options.width
     end
     if type(v.min) == "nil" then
       v.min = -1

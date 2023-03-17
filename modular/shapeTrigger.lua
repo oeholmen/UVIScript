@@ -245,6 +245,7 @@ local function stopPlaying()
     return
   end
   isPlaying = false
+  clearCells()
 end
 
 --------------------------------------------------------------------------------

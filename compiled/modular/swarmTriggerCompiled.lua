@@ -614,7 +614,7 @@ local shapes = {
   talkative1 = function(x, z, pos, b) return 1.4*math.cos(x*math.pi/2)*(.5*math.sin(((z*5)+1)*3*x)+.10*math.sin(((z*6)+1)*2*x)+.08*math.sin((((1-z)*3)+1)*12*x)) end,
   sinClipper = function(x, z, pos, b) return math.sin(x*math.pi)*(((z*z)+0.125)*8) end,
   pitfall = function(x, z, pos, b) return (x*128)%(z*16)*0.25 end,
-  nascaLines = function(x, z, pos, b, b) return math.sqrt(1/i)*(((i/b.max)*(z+0.1)*b.max)%3)*0.5 end, -- TODO Check max
+  nascaLines = function(x, z, pos, b) return math.sqrt(1/pos)*(((pos/2)*(z+0.1)*b.max)%3)*0.5 end,
   kick = function(x, z, pos, b) return math.sin(math.pi*z*z*32*math.log(x+1)) end,
   sinToSaw = function(x, z, pos, b) return math.sin(-x*math.pi)*(1-z)+(-x*z) end,
   zeroCrossing = function(x, z, pos, b) return math.sin((x+1)*math.pi*(z+1))*(-math.abs(x)^32+1) end,
@@ -633,6 +633,7 @@ local shapes = {
   mayhemInTheMiddle = function(x, z, pos, b) return math.sin((x * math.pi) + (z * math.tan(getUnipolar(x) * math.pi))) end,
   zeroDancer = function(x, z, pos, b) return math.sin(x / z + z) * z end,
   exponential = function(x, z, pos, b, percentPos, stepValue, o) return (stepValue + (2-stepValue)*percentPos^o.factor) * z + o.phase end,
+  bridge = function(x, z, pos, b, percentPos, stepValue, o) return math.abs(x^2) * z end,
   shakySine = function(x, z, pos, b, percentPos, stepValue)
     local f = 0
     local g = b.rand * percentPos
@@ -707,8 +708,8 @@ local shapeDefinitions = {
   {name = "Swipe 3", f = shapes.swipe3},
   {name = "Swipe 4", f = shapes.swipe4, o = {z = -.25}},
   {name = "Shaky Sine", f = shapes.shakySine},
-  --{name = "Exponential", f = shapes.exponential},
   {name = "Exponential", f = shapes.exponential, o = {factor = 4.5}},
+  {name = "Bridge", f = shapes.bridge},
   {name = "Random", f = shapes.random},
   {name = "Test Shape", f = shapes.testShape},
 }
@@ -732,7 +733,7 @@ local function getDefaultShapeOptions()
 end
 
 local function getValueOrDefault(value, default)
-  if type(value) == "number" then
+  if type(value) ~= "nil" then
     return value
   end
   return default
@@ -818,24 +819,26 @@ local function createShape(shapeIndexOrName, shapeBounds, shapeOptions)
   return shape, options
 end
 
-local function getAmountWidget(width, showLabel, i)
+local function getAmountWidget(options, i)
   -- Widget for controlling shape amount
+  if type(options) == "nil" then
+    options = {}
+  end
   if type(i) == "nil" then
     i = ""
   end
-  local options = {
-    name = "ShapeAmount" .. i,
-    tooltip = "Set the shape amount.",
-    showLabel = showLabel ~= false,
-    unit = Unit.Percent,
-  }
-  if type(width) == "number" or type(width) == "function" then
-    options.width = width
+  options.name = getValueOrDefault(options.name, "ShapeAmount" .. i)
+  options.tooltip = getValueOrDefault(options.tooltip, "Set the shape amount.")
+  options.showLabel = getValueOrDefault(options.showLabel, true)
+  options.unit = getValueOrDefault(options.unit, Unit.Percent)
+  options.integer = getValueOrDefault(options.integer, true)
+  if type(options.width) ~= "nil" then
+    options.width = options.width
   end
-return widgets.numBox("Amount", getShapeOptions().amount, options)
+  return widgets.numBox("Shape Amount", getShapeOptions().amount, options)
 end
 
-local function getShapeWidgets(width, showLabel, i)
+local function getShapeWidgets(options, i)
   -- Widgets for controlling shape
   if type(i) == "nil" then
     i = ""
@@ -857,9 +860,9 @@ local function getShapeWidgets(width, showLabel, i)
   }
   local options = {factor = factorOptions, phase = phaseOptions, z = zOptions}
   for _,v in pairs(options) do
-    v.showLabel = showLabel ~= false
-    if type(width) == "number" or type(width) == "function" then
-      v.width = width
+    v.showLabel = getValueOrDefault(options.showLabel, true)
+    if type(options.width) ~= "nil" then
+      v.width = options.width
     end
     if type(v.min) == "nil" then
       v.min = -1
@@ -974,34 +977,41 @@ local function getEvenFromDotted(value)
   return value / 1.5
 end
 
-local function getResolutionsByType(maxResolutionIndex)
+-- This variable is used by getResolutionsByType as the starting point for finding even/dot/tri resolutions
+local resolutionTypeStartPosIndex = 11 -- 1/1
+
+local function getResolutionsByType(maxResolutionIndex, includeSlowResolutions)
   if type(maxResolutionIndex) == "nil" then
     maxResolutionIndex = #resolutionValues
   end
-  local startPosIndex = 11
+  if type(includeSlowResolutions) == "nil" then
+    includeSlowResolutions = true
+  end
   local resOptions = {}
   -- Create table of resolution indexes by type (1=even,2=dot,3=tri,4=slow)
-  for i=startPosIndex,startPosIndex+2 do
+  for i=resolutionTypeStartPosIndex,resolutionTypeStartPosIndex+2 do
     local resolutionIndex = i
     local resolutionsOfType = {}
     while resolutionIndex <= maxResolutionIndex do
       table.insert(resolutionsOfType, resolutionIndex) -- insert current index in resolution options table
       --print("Insert resolutionIndex", resolutionIndex)
-      resolutionIndex = resolutionIndex + 3 -- increment index
+      resolutionIndex = gem.inc(resolutionIndex, 3) -- increment index
     end
     --print("#resolutionsOfType, i", #resolutionsOfType, i)
     table.insert(resOptions, resolutionsOfType)
   end
   -- Add the resolutions that are whole numbers (1,2,3,4...)
-  local slowResolutions = {}
-  for i,resolution in ipairs(resolutionValues) do
-    if resolution % 1 == 0 then
-      table.insert(slowResolutions, i)
-      --print("getResolutionsByType - included slow resolution", resolution)
+  if includeSlowResolutions then
+    local slowResolutions = {}
+    for i,resolution in ipairs(resolutionValues) do
+      if resolution % 1 == 0 then
+        table.insert(slowResolutions, i)
+        --print("getResolutionsByType - included slow resolution", resolutionValues[i], i)
+      end
     end
+    --print("#slowResolutions", #slowResolutions)
+    table.insert(resOptions, slowResolutions) -- Add the "slow" x resolutions
   end
-  --print("#slowResolutions", #slowResolutions)
-  table.insert(resOptions, slowResolutions) -- Add the "slow" x resolutions
   --print("resOptions", #resOptions)
   return resOptions
 end
@@ -1156,80 +1166,110 @@ local function getResolutionVariation(currentResolution, options)
   return currentResolution
 end
 
+-- If you want to add the resolutions to an existing table, give it as the second argument
+local function getResolutionsFromIndexes(indexes, resolutions)
+  if type(resolutions) == "nil" then
+    resolutions = {}
+  end
+  for _,v in ipairs(indexes) do
+    if gem.tableIncludes(resolutions, v) == false then
+      table.insert(resolutions, resolutionValues[v])
+    end
+  end
+  table.sort(resolutions, function(a,b) return a > b end) -- Ensure sorted desc
+  return resolutions
+end
+
+local quantizeOptions = {"Off", "Any", "Even", "Dot", "Tri", "Even+Dot", "Even+Tri", "Dot+Tri"}
+
 -- Quantize the given beat to the closest recognized resolution value
-local function quantizeToClosest(beat)
-  for i,v in ipairs(resolutionValues) do
+local function quantizeToClosest(beat, quantizeType)
+  if type(quantizeType) == "nil" then
+    quantizeType = quantizeOptions[2] -- Any
+  end
+  if quantizeType == quantizeOptions[1] then
+    -- Quantize off, just return return the given beat value
+    return beat
+  end
+  local includeSlowResolutions = beat > resolutionValues[resolutionTypeStartPosIndex]
+  local resolutionsByType = getResolutionsByType(#resolutionValues, includeSlowResolutions)
+  local quantizeResolutions = {}
+  if includeSlowResolutions then
+    --print("Beat > resolutionsByType[1][1]", beat, resolutionValues[resolutionsByType[1][1]])
+    quantizeResolutions = getResolutionsFromIndexes(resolutionsByType[4], quantizeResolutions) -- Slow
+  else
+    for i=1,3 do
+      if quantizeType == quantizeOptions[2] or string.find(quantizeType, quantizeOptions[i+2], 1, true) then
+        quantizeResolutions = getResolutionsFromIndexes(resolutionsByType[i], quantizeResolutions)
+        --print("Add quantize resolutions", quantizeType)
+      end
+    end
+  end
+  --print("quantizeResolutions min/max/count", quantizeResolutions[1], quantizeResolutions[#quantizeResolutions], #quantizeResolutions)
+  for i,v in ipairs(quantizeResolutions) do
     local currentValue = v
-    local nextValue = resolutionValues[i+1]
+    local nextValue = quantizeResolutions[i+1]
     if beat == currentValue or type(nextValue) == "nil" then
+      print("Found equal, or next is nil", beat, currentValue)
       return currentValue
     end
     if beat < currentValue and beat > nextValue then
       local diffCurrent = currentValue - beat
       local diffNext = beat - nextValue
       if diffCurrent < diffNext then
+        print("Closest to current", beat, currentValue, nextValue)
         return currentValue
       else
+        print("Closest to next", beat, nextValue, currentValue)
         return nextValue
       end
     end
   end
-  return resolutionValues[#resolutionValues]
+  print("No resolution found, returning the given beat value", beat)
+  return beat
 end
 
 local resolutions = {
+  getResolutionsFromIndexes = getResolutionsFromIndexes,
   getSelectedResolutions = getSelectedResolutions,
-
   getResolutionVariation = getResolutionVariation,
-
   getResolutionsByType = getResolutionsByType,
-
   quantizeToClosest = quantizeToClosest,
-
   getDotted = getDotted,
-
   getTriplet = getTriplet,
-
   getEvenFromDotted = getEvenFromDotted,
-  
   getEvenFromTriplet = getEvenFromTriplet,
-  
   getResolution = function(i)
     return resolutionValues[i]
   end,
-  
+  getQuantizeOptions = function()
+    return quantizeOptions
+  end,
   getResolutions = function()
     return resolutionValues
   end,
-  
   getResolutionName = function(i)
     return resolutionNames[i]
   end,
-  
   getResolutionNames = function(options, max)
     if type(max) ~= "number" then
       max = #resolutionNames
     end
-  
     local res = {}
-  
     for i,r in ipairs(resolutionNames) do
       table.insert(res, r)
       if i == max then
         break
       end
     end
-  
     -- Add any options
     if type(options) == "table" then
       for _,o in ipairs(options) do
         table.insert(res, o)
       end
     end
-  
     return res
   end,
-
   getPlayDuration = function(duration, gate)
     if type(gate) == "nil" then
       gate = 100
@@ -1265,8 +1305,9 @@ local swarmLength = 32
 local lengthRandomizationAmount = 0
 local lengthRandomizationInput
 local space = 0
-local spaceRandomizationAmount = 25
-local quantizeToClosest = false
+local spaceRandomizationAmount = 10
+local quantizeOptions = resolutions.getQuantizeOptions()
+local quantizeType = quantizeOptions[1]
 local swarmProbability = 100
 local resolutionNames = resolutions.getResolutionNames()
 local resolutionValues = resolutions.getResolutions()
@@ -1276,7 +1317,8 @@ local resolutionMin = #resolutionNames
 local positionTable
 local sequencerTable
 local shapeIndex = 1
-local playMode = "Active Shape"
+local playOptions = {"Active Shape", "Active+Random Settings", "Random Shape", "Random Shape+Settings", "Custom"}
+local playMode = playOptions[1]
 local shapeMenu
 local shapeNames = shapes.getShapeNames()
 local preInit = true -- Used to avoid loading a new shape when loading a preset
@@ -1285,18 +1327,51 @@ local preInit = true -- Used to avoid loading a new shape when loading a preset
 -- Sequencer Functions
 --------------------------------------------------------------------------------
 
+local function getRandomBipolar()
+  local value = gem.getRandom()
+  if gem.getRandomBoolean() then
+    value = -value
+  end
+  --print("value", value)
+  return value
+end
+
+local function randomizeShapeSettings()
+  shapeWidgets.z:setValue(getRandomBipolar())
+  shapeWidgets.phase:setValue(getRandomBipolar())
+  local factor = getRandomBipolar()
+  if gem.getRandomBoolean() then
+    shapeWidgets.factor:setValue(factor)
+  elseif gem.getRandomBoolean() then
+    shapeWidgets.factor:setValue(factor * 2)
+  else
+    shapeWidgets.factor:setValue(factor * gem.getRandom(shapeWidgets.factor.max))
+  end
+  if gem.getRandomBoolean(75) then
+    shapeWidgets.amount:setValue(gem.getRandom(75, shapeWidgets.amount.max))
+  elseif gem.getRandomBoolean() then
+    shapeWidgets.amount:setValue(gem.getRandom(50, shapeWidgets.amount.max))
+  else
+    shapeWidgets.amount:setValue(gem.getRandom(shapeWidgets.amount.max))
+  end
+  if lengthRandomizationInput.enabled then
+    swarmLengthInput:setValue(gem.randomizeValue(swarmLength, swarmLengthInput.min, swarmLengthInput.max, lengthRandomizationAmount))
+  end
+end
+
 local function updateShapeWidgets()
   -- Update widgets with values from the shape
+  --print("updateShapeWidgets")
   local callChanged = false
+  shapeWidgets.z:setValue(shapeOptions.z, callChanged)
   shapeWidgets.phase:setValue(shapeOptions.phase, callChanged)
   shapeWidgets.factor:setValue(shapeOptions.factor, callChanged)
-  shapeWidgets.z:setValue(shapeOptions.z, callChanged)
   shapeWidgets.amount:setValue(shapeOptions.amount, callChanged)
 end
 
-local function setShape(loadNew, randomizeLength)
+local function setShape(loadNew)
   loadNew = loadNew == true and preInit == false
-  randomizeLength = randomizeLength == true
+  --print("setShape", loadNew)
 
   local values
   local options
@@ -1304,9 +1379,7 @@ local function setShape(loadNew, randomizeLength)
   local minRes = beat2ms(resolutionValues[resolutionMin]) -- Fastest
   local maxRes = beat2ms(resolutionValues[resolution]) -- Slowest
 
-  if randomizeLength then
-    length = gem.randomizeValue(swarmLength, swarmLengthInput.min, swarmLengthInput.max, lengthRandomizationAmount)
-  end
+  --print("minRes, maxRes", minRes, maxRes)
 
   -- Update tables
   positionTable.length = length
@@ -1315,6 +1388,7 @@ local function setShape(loadNew, randomizeLength)
 
   -- Custom shape or no shape selected - do not change
   if playMode == "Custom" then
+    --print("playMode == Custom")
     return
   end
 
@@ -1337,13 +1411,15 @@ local function clearPositionTable()
 end
 
 local function swarm(uniqueId)
-  print("Starting swarm", uniqueId)
-  if playMode == "Random Shape" then
+  --print("Starting swarm", uniqueId)
+  if playMode == playOptions[3] or playMode == playOptions[4] then
     -- Fresh shape loaded here
-    shapeMenu.value = gem.getRandom(#shapeNames)
+    shapeMenu:setValue(gem.getRandom(#shapeNames))
   end
-  -- Load shape with options
-  setShape(false, playMode ~= "Custom")
+  if playMode == playOptions[2] or playMode == playOptions[4] then
+    randomizeShapeSettings()
+  end
+  setShape()
   local swarmPosition = 1
   while swarmActive and isPlaying and seqIndex == uniqueId do
     -- Update position table with the current position
@@ -1354,10 +1430,7 @@ local function swarm(uniqueId)
       end
       positionTable:setValue(i, value)
     end
-    local playDuration = ms2beat(sequencerTable:getValue(swarmPosition))
-    if quantizeToClosest then
-      playDuration = resolutions.quantizeToClosest(playDuration)
-    end
+    local playDuration = resolutions.quantizeToClosest(ms2beat(sequencerTable:getValue(swarmPosition)), quantizeType)
     playNote(0, math.floor(gem.randomizeValue(velocity, 1, 127, 3)), beat2ms(playDuration), nil, channel)
     waitBeat(playDuration)
     swarmPosition = gem.inc(swarmPosition)
@@ -1370,7 +1443,7 @@ local function swarm(uniqueId)
 end
 
 local function sequenceRunner(uniqueId)
-  print("Starting sequencer", uniqueId)
+  --print("Starting sequencer", uniqueId)
   space = ms2beat(duration)
   local tickBeat = .5
   local elapsedBeats = space -- To avoid pause
@@ -1378,7 +1451,7 @@ local function sequenceRunner(uniqueId)
   while isPlaying and seqIndex == uniqueId do
     if elapsedBeats >= space then
       if swarmActive == false and gem.getRandomBoolean(swarmProbability) then
-        print("Starting swarm, elapsedBeats, space", elapsedBeats, space)
+        --print("Starting swarm, elapsedBeats, space", elapsedBeats, space)
         swarmActive = true
         spawn(swarm, seqIndex)
       end
@@ -1474,17 +1547,47 @@ widgets.panel({
 local noteWidgetColSpacing = 5
 local noteWidgetRowSpacing = 5
 
-local xyShapeFactor = widgets.getPanel():XY('ShapePhase', 'ShapeMorph')
-xyShapeFactor.x = noteWidgetColSpacing
-xyShapeFactor.y = noteWidgetRowSpacing
-xyShapeFactor.width = (widgets.getPanel().width / 2) - 7
-xyShapeFactor.height = widgets.getPanel().height - 10
+local xyShapeMorph = widgets.getPanel():XY('ShapePhase', 'ShapeMorph')
+xyShapeMorph.x = noteWidgetColSpacing
+xyShapeMorph.y = noteWidgetRowSpacing
+xyShapeMorph.width = widgets.getPanel().height * 1.3
+xyShapeMorph.height = widgets.getPanel().height - 10
 
-local xySpeedFactor = widgets.getPanel():XY('Space', 'SpaceRand')
-xySpeedFactor.x = widgets.posSide(xyShapeFactor)
-xySpeedFactor.y = noteWidgetRowSpacing
-xySpeedFactor.width = xyShapeFactor.width
-xySpeedFactor.height = widgets.getPanel().height - 10
+local xyShapeFactor = widgets.getPanel():XY('ShapeFactor', 'ShapeAmount')
+xyShapeFactor.x = widgets.posSide(xyShapeMorph)
+xyShapeFactor.y = noteWidgetRowSpacing
+xyShapeFactor.width = xyShapeMorph.width
+xyShapeFactor.height = xyShapeMorph.height
+
+widgets.setSection({
+  x = widgets.posSide(xyShapeFactor),
+  width = 123,
+  xSpacing = noteWidgetColSpacing,
+  ySpacing = 3,
+  cols = 1,
+})
+
+widgets.label("Shape Actions")
+
+local actionButtons = {}
+
+table.insert(actionButtons, widgets.button("Select Random Shape", {
+  changed = function()
+    shapeMenu:setValue(gem.getRandom(#shapeNames))
+  end
+}))
+
+table.insert(actionButtons, widgets.button("Randomize Settings", {
+  changed = function()
+    randomizeShapeSettings()
+  end
+}))
+
+table.insert(actionButtons, widgets.button("Reset Shape Settings", {
+  changed = function()
+    setShape(true)
+  end
+}))
 
 --------------------------------------------------------------------------------
 -- Shape table
@@ -1528,7 +1631,7 @@ sequencerTable = widgets.table("Sequencer", 0, swarmLength, {
 --------------------------------------------------------------------------------
 
 widgets.panel({
-  x = widgets.posSide(xySpeedFactor) + 5,
+  x = widgets.posSide(sequencerTable),
   y = 35,
   width = 280,
   height = 245,
@@ -1562,35 +1665,37 @@ widgets.menu("Swarm Max", resolutionMin, resolutionNames, {
   end
 })
 
-widgets.button("Quantize", quantizeToClosest, {
-  tooltip = "Quantize output to the closest 'known' resolution",
-  increment = false,
+widgets.menu("Quantize", quantizeOptions, {
+  tooltip = "Quantize output to closest resolution of the selected type.",
   width = 90,
-  height = 20,
-  y = 30,
-  changed = function(self) quantizeToClosest = self.value end
+  changed = function(self)
+    quantizeType = self.selectedText
+  end
 })
-
-widgets.row(2)
 
 shapeMenu = widgets.menu("Swarm Shape", shapeIndex, shapeNames, {
   tooltip = "Set the shape of the swarm. Short bars = fast, long bars = slow. You can edit the shape by selecting 'Custom' from 'Shape Play Mode'.",
   changed = function(self)
     shapeIndex = self.value
+    --print("shapeMenu:changed", shapeIndex)
     setShape(true)
   end
 })
 
-local playModeMenu = widgets.menu("Shape Play Mode", {"Active Shape", "Random Shape", "Custom"}, {
+widgets.menu("Shape Play Mode", playOptions, {
   tooltip = "Set how shapes are selected for playing. Use 'Custom' to edit you own shape.",
   changed = function(self)
     playMode = self.selectedText
-    local shapeEnabled = playMode == "Active Shape"
-    sequencerTable.enabled = playMode == "Custom"
-    lengthRandomizationInput.enabled = playMode == "Active Shape" or playMode == "Random Shape"
+    local shapeEnabled = self.value == 1
+    sequencerTable.enabled = self.value == #self.items
+    lengthRandomizationInput.enabled = self.value < #self.items
     shapeMenu.enabled = shapeEnabled
+    xyShapeMorph.enabled = shapeEnabled
     xyShapeFactor.enabled = shapeEnabled
     for k,v in pairs(shapeWidgets) do
+      v.enabled = shapeEnabled
+    end
+    for _,v in ipairs(actionButtons) do
       v.enabled = shapeEnabled
     end
     setShape(true)
@@ -1598,7 +1703,7 @@ local playModeMenu = widgets.menu("Shape Play Mode", {"Active Shape", "Random Sh
 })
 
 shapeWidgets = shapes.getWidgets()
-shapeWidgets.amount = shapes.getAmountWidget()
+shapeWidgets.amount = shapes.getAmountWidget({integer = false})
 shapeWidgets.amount.displayName = "Shape Amount"
 
 for k,v in pairs(shapeWidgets) do

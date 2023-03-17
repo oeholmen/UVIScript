@@ -212,8 +212,9 @@ for page=1,modseq.getMaxPages() do
       changed = function(self) modseq.loadShape(i, true) end
     })
 
-    local shapeWidgets = shapes.getWidgets(114, true, i)
-    shapeWidgets.amount = shapes.getAmountWidget(114, true, i)
+    local widgetOptions = {width=114, showLabel=true}
+    local shapeWidgets = shapes.getWidgets(widgetOptions, i)
+    shapeWidgets.amount = shapes.getAmountWidget(widgetOptions, i)
     shapeWidgets.phase.changed = function(self) modseq.loadShape(i) end
     shapeWidgets.factor.changed = function(self) modseq.loadShape(i) end
     shapeWidgets.z.changed = function(self) modseq.loadShape(i) end

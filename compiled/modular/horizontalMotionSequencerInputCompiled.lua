@@ -895,7 +895,7 @@ local shapes = {
   talkative1 = function(x, z, pos, b) return 1.4*math.cos(x*math.pi/2)*(.5*math.sin(((z*5)+1)*3*x)+.10*math.sin(((z*6)+1)*2*x)+.08*math.sin((((1-z)*3)+1)*12*x)) end,
   sinClipper = function(x, z, pos, b) return math.sin(x*math.pi)*(((z*z)+0.125)*8) end,
   pitfall = function(x, z, pos, b) return (x*128)%(z*16)*0.25 end,
-  nascaLines = function(x, z, pos, b, b) return math.sqrt(1/i)*(((i/b.max)*(z+0.1)*b.max)%3)*0.5 end, -- TODO Check max
+  nascaLines = function(x, z, pos, b) return math.sqrt(1/pos)*(((pos/2)*(z+0.1)*b.max)%3)*0.5 end,
   kick = function(x, z, pos, b) return math.sin(math.pi*z*z*32*math.log(x+1)) end,
   sinToSaw = function(x, z, pos, b) return math.sin(-x*math.pi)*(1-z)+(-x*z) end,
   zeroCrossing = function(x, z, pos, b) return math.sin((x+1)*math.pi*(z+1))*(-math.abs(x)^32+1) end,
@@ -914,6 +914,7 @@ local shapes = {
   mayhemInTheMiddle = function(x, z, pos, b) return math.sin((x * math.pi) + (z * math.tan(getUnipolar(x) * math.pi))) end,
   zeroDancer = function(x, z, pos, b) return math.sin(x / z + z) * z end,
   exponential = function(x, z, pos, b, percentPos, stepValue, o) return (stepValue + (2-stepValue)*percentPos^o.factor) * z + o.phase end,
+  bridge = function(x, z, pos, b, percentPos, stepValue, o) return math.abs(x^2) * z end,
   shakySine = function(x, z, pos, b, percentPos, stepValue)
     local f = 0
     local g = b.rand * percentPos
@@ -988,8 +989,8 @@ local shapeDefinitions = {
   {name = "Swipe 3", f = shapes.swipe3},
   {name = "Swipe 4", f = shapes.swipe4, o = {z = -.25}},
   {name = "Shaky Sine", f = shapes.shakySine},
-  --{name = "Exponential", f = shapes.exponential},
   {name = "Exponential", f = shapes.exponential, o = {factor = 4.5}},
+  {name = "Bridge", f = shapes.bridge},
   {name = "Random", f = shapes.random},
   {name = "Test Shape", f = shapes.testShape},
 }
@@ -1013,7 +1014,7 @@ local function getDefaultShapeOptions()
 end
 
 local function getValueOrDefault(value, default)
-  if type(value) == "number" then
+  if type(value) ~= "nil" then
     return value
   end
   return default
@@ -1099,24 +1100,26 @@ local function createShape(shapeIndexOrName, shapeBounds, shapeOptions)
   return shape, options
 end
 
-local function getAmountWidget(width, showLabel, i)
+local function getAmountWidget(options, i)
   -- Widget for controlling shape amount
+  if type(options) == "nil" then
+    options = {}
+  end
   if type(i) == "nil" then
     i = ""
   end
-  local options = {
-    name = "ShapeAmount" .. i,
-    tooltip = "Set the shape amount.",
-    showLabel = showLabel ~= false,
-    unit = Unit.Percent,
-  }
-  if type(width) == "number" or type(width) == "function" then
-    options.width = width
+  options.name = getValueOrDefault(options.name, "ShapeAmount" .. i)
+  options.tooltip = getValueOrDefault(options.tooltip, "Set the shape amount.")
+  options.showLabel = getValueOrDefault(options.showLabel, true)
+  options.unit = getValueOrDefault(options.unit, Unit.Percent)
+  options.integer = getValueOrDefault(options.integer, true)
+  if type(options.width) ~= "nil" then
+    options.width = options.width
   end
-return widgets.numBox("Amount", getShapeOptions().amount, options)
+  return widgets.numBox("Shape Amount", getShapeOptions().amount, options)
 end
 
-local function getShapeWidgets(width, showLabel, i)
+local function getShapeWidgets(options, i)
   -- Widgets for controlling shape
   if type(i) == "nil" then
     i = ""
@@ -1138,9 +1141,9 @@ local function getShapeWidgets(width, showLabel, i)
   }
   local options = {factor = factorOptions, phase = phaseOptions, z = zOptions}
   for _,v in pairs(options) do
-    v.showLabel = showLabel ~= false
-    if type(width) == "number" or type(width) == "function" then
-      v.width = width
+    v.showLabel = getValueOrDefault(options.showLabel, true)
+    if type(options.width) ~= "nil" then
+      v.width = options.width
     end
     if type(v.min) == "nil" then
       v.min = -1
@@ -1255,34 +1258,41 @@ local function getEvenFromDotted(value)
   return value / 1.5
 end
 
-local function getResolutionsByType(maxResolutionIndex)
+-- This variable is used by getResolutionsByType as the starting point for finding even/dot/tri resolutions
+local resolutionTypeStartPosIndex = 11 -- 1/1
+
+local function getResolutionsByType(maxResolutionIndex, includeSlowResolutions)
   if type(maxResolutionIndex) == "nil" then
     maxResolutionIndex = #resolutionValues
   end
-  local startPosIndex = 11
+  if type(includeSlowResolutions) == "nil" then
+    includeSlowResolutions = true
+  end
   local resOptions = {}
   -- Create table of resolution indexes by type (1=even,2=dot,3=tri,4=slow)
-  for i=startPosIndex,startPosIndex+2 do
+  for i=resolutionTypeStartPosIndex,resolutionTypeStartPosIndex+2 do
     local resolutionIndex = i
     local resolutionsOfType = {}
     while resolutionIndex <= maxResolutionIndex do
       table.insert(resolutionsOfType, resolutionIndex) -- insert current index in resolution options table
       --print("Insert resolutionIndex", resolutionIndex)
-      resolutionIndex = resolutionIndex + 3 -- increment index
+      resolutionIndex = gem.inc(resolutionIndex, 3) -- increment index
     end
     --print("#resolutionsOfType, i", #resolutionsOfType, i)
     table.insert(resOptions, resolutionsOfType)
   end
   -- Add the resolutions that are whole numbers (1,2,3,4...)
-  local slowResolutions = {}
-  for i,resolution in ipairs(resolutionValues) do
-    if resolution % 1 == 0 then
-      table.insert(slowResolutions, i)
-      --print("getResolutionsByType - included slow resolution", resolution)
+  if includeSlowResolutions then
+    local slowResolutions = {}
+    for i,resolution in ipairs(resolutionValues) do
+      if resolution % 1 == 0 then
+        table.insert(slowResolutions, i)
+        --print("getResolutionsByType - included slow resolution", resolutionValues[i], i)
+      end
     end
+    --print("#slowResolutions", #slowResolutions)
+    table.insert(resOptions, slowResolutions) -- Add the "slow" x resolutions
   end
-  --print("#slowResolutions", #slowResolutions)
-  table.insert(resOptions, slowResolutions) -- Add the "slow" x resolutions
   --print("resOptions", #resOptions)
   return resOptions
 end
@@ -1437,80 +1447,110 @@ local function getResolutionVariation(currentResolution, options)
   return currentResolution
 end
 
+-- If you want to add the resolutions to an existing table, give it as the second argument
+local function getResolutionsFromIndexes(indexes, resolutions)
+  if type(resolutions) == "nil" then
+    resolutions = {}
+  end
+  for _,v in ipairs(indexes) do
+    if gem.tableIncludes(resolutions, v) == false then
+      table.insert(resolutions, resolutionValues[v])
+    end
+  end
+  table.sort(resolutions, function(a,b) return a > b end) -- Ensure sorted desc
+  return resolutions
+end
+
+local quantizeOptions = {"Off", "Any", "Even", "Dot", "Tri", "Even+Dot", "Even+Tri", "Dot+Tri"}
+
 -- Quantize the given beat to the closest recognized resolution value
-local function quantizeToClosest(beat)
-  for i,v in ipairs(resolutionValues) do
+local function quantizeToClosest(beat, quantizeType)
+  if type(quantizeType) == "nil" then
+    quantizeType = quantizeOptions[2] -- Any
+  end
+  if quantizeType == quantizeOptions[1] then
+    -- Quantize off, just return return the given beat value
+    return beat
+  end
+  local includeSlowResolutions = beat > resolutionValues[resolutionTypeStartPosIndex]
+  local resolutionsByType = getResolutionsByType(#resolutionValues, includeSlowResolutions)
+  local quantizeResolutions = {}
+  if includeSlowResolutions then
+    --print("Beat > resolutionsByType[1][1]", beat, resolutionValues[resolutionsByType[1][1]])
+    quantizeResolutions = getResolutionsFromIndexes(resolutionsByType[4], quantizeResolutions) -- Slow
+  else
+    for i=1,3 do
+      if quantizeType == quantizeOptions[2] or string.find(quantizeType, quantizeOptions[i+2], 1, true) then
+        quantizeResolutions = getResolutionsFromIndexes(resolutionsByType[i], quantizeResolutions)
+        --print("Add quantize resolutions", quantizeType)
+      end
+    end
+  end
+  --print("quantizeResolutions min/max/count", quantizeResolutions[1], quantizeResolutions[#quantizeResolutions], #quantizeResolutions)
+  for i,v in ipairs(quantizeResolutions) do
     local currentValue = v
-    local nextValue = resolutionValues[i+1]
+    local nextValue = quantizeResolutions[i+1]
     if beat == currentValue or type(nextValue) == "nil" then
+      print("Found equal, or next is nil", beat, currentValue)
       return currentValue
     end
     if beat < currentValue and beat > nextValue then
       local diffCurrent = currentValue - beat
       local diffNext = beat - nextValue
       if diffCurrent < diffNext then
+        print("Closest to current", beat, currentValue, nextValue)
         return currentValue
       else
+        print("Closest to next", beat, nextValue, currentValue)
         return nextValue
       end
     end
   end
-  return resolutionValues[#resolutionValues]
+  print("No resolution found, returning the given beat value", beat)
+  return beat
 end
 
 local resolutions = {
+  getResolutionsFromIndexes = getResolutionsFromIndexes,
   getSelectedResolutions = getSelectedResolutions,
-
   getResolutionVariation = getResolutionVariation,
-
   getResolutionsByType = getResolutionsByType,
-
   quantizeToClosest = quantizeToClosest,
-
   getDotted = getDotted,
-
   getTriplet = getTriplet,
-
   getEvenFromDotted = getEvenFromDotted,
-  
   getEvenFromTriplet = getEvenFromTriplet,
-  
   getResolution = function(i)
     return resolutionValues[i]
   end,
-  
+  getQuantizeOptions = function()
+    return quantizeOptions
+  end,
   getResolutions = function()
     return resolutionValues
   end,
-  
   getResolutionName = function(i)
     return resolutionNames[i]
   end,
-  
   getResolutionNames = function(options, max)
     if type(max) ~= "number" then
       max = #resolutionNames
     end
-  
     local res = {}
-  
     for i,r in ipairs(resolutionNames) do
       table.insert(res, r)
       if i == max then
         break
       end
     end
-  
     -- Add any options
     if type(options) == "table" then
       for _,o in ipairs(options) do
         table.insert(res, o)
       end
     end
-  
     return res
   end,
-
   getPlayDuration = function(duration, gate)
     if type(gate) == "nil" then
       gate = 100

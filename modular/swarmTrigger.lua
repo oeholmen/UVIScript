@@ -29,8 +29,9 @@ local swarmLength = 32
 local lengthRandomizationAmount = 0
 local lengthRandomizationInput
 local space = 0
-local spaceRandomizationAmount = 25
-local quantizeToClosest = false
+local spaceRandomizationAmount = 10
+local quantizeOptions = resolutions.getQuantizeOptions()
+local quantizeType = quantizeOptions[1]
 local swarmProbability = 100
 local resolutionNames = resolutions.getResolutionNames()
 local resolutionValues = resolutions.getResolutions()
@@ -40,7 +41,8 @@ local resolutionMin = #resolutionNames
 local positionTable
 local sequencerTable
 local shapeIndex = 1
-local playMode = "Active Shape"
+local playOptions = {"Active Shape", "Active+Random Settings", "Random Shape", "Random Shape+Settings", "Custom"}
+local playMode = playOptions[1]
 local shapeMenu
 local shapeNames = shapes.getShapeNames()
 local preInit = true -- Used to avoid loading a new shape when loading a preset
@@ -49,18 +51,51 @@ local preInit = true -- Used to avoid loading a new shape when loading a preset
 -- Sequencer Functions
 --------------------------------------------------------------------------------
 
+local function getRandomBipolar()
+  local value = gem.getRandom()
+  if gem.getRandomBoolean() then
+    value = -value
+  end
+  --print("value", value)
+  return value
+end
+
+local function randomizeShapeSettings()
+  shapeWidgets.z:setValue(getRandomBipolar())
+  shapeWidgets.phase:setValue(getRandomBipolar())
+  local factor = getRandomBipolar()
+  if gem.getRandomBoolean() then
+    shapeWidgets.factor:setValue(factor)
+  elseif gem.getRandomBoolean() then
+    shapeWidgets.factor:setValue(factor * 2)
+  else
+    shapeWidgets.factor:setValue(factor * gem.getRandom(shapeWidgets.factor.max))
+  end
+  if gem.getRandomBoolean(75) then
+    shapeWidgets.amount:setValue(gem.getRandom(75, shapeWidgets.amount.max))
+  elseif gem.getRandomBoolean() then
+    shapeWidgets.amount:setValue(gem.getRandom(50, shapeWidgets.amount.max))
+  else
+    shapeWidgets.amount:setValue(gem.getRandom(shapeWidgets.amount.max))
+  end
+  if lengthRandomizationInput.enabled then
+    swarmLengthInput:setValue(gem.randomizeValue(swarmLength, swarmLengthInput.min, swarmLengthInput.max, lengthRandomizationAmount))
+  end
+end
+
 local function updateShapeWidgets()
   -- Update widgets with values from the shape
+  --print("updateShapeWidgets")
   local callChanged = false
+  shapeWidgets.z:setValue(shapeOptions.z, callChanged)
   shapeWidgets.phase:setValue(shapeOptions.phase, callChanged)
   shapeWidgets.factor:setValue(shapeOptions.factor, callChanged)
-  shapeWidgets.z:setValue(shapeOptions.z, callChanged)
   shapeWidgets.amount:setValue(shapeOptions.amount, callChanged)
 end
 
-local function setShape(loadNew, randomizeLength)
+local function setShape(loadNew)
   loadNew = loadNew == true and preInit == false
-  randomizeLength = randomizeLength == true
+  --print("setShape", loadNew)
 
   local values
   local options
@@ -68,9 +103,7 @@ local function setShape(loadNew, randomizeLength)
   local minRes = beat2ms(resolutionValues[resolutionMin]) -- Fastest
   local maxRes = beat2ms(resolutionValues[resolution]) -- Slowest
 
-  if randomizeLength then
-    length = gem.randomizeValue(swarmLength, swarmLengthInput.min, swarmLengthInput.max, lengthRandomizationAmount)
-  end
+  --print("minRes, maxRes", minRes, maxRes)
 
   -- Update tables
   positionTable.length = length
@@ -79,6 +112,7 @@ local function setShape(loadNew, randomizeLength)
 
   -- Custom shape or no shape selected - do not change
   if playMode == "Custom" then
+    --print("playMode == Custom")
     return
   end
 
@@ -101,13 +135,15 @@ local function clearPositionTable()
 end
 
 local function swarm(uniqueId)
-  print("Starting swarm", uniqueId)
-  if playMode == "Random Shape" then
+  --print("Starting swarm", uniqueId)
+  if playMode == playOptions[3] or playMode == playOptions[4] then
     -- Fresh shape loaded here
-    shapeMenu.value = gem.getRandom(#shapeNames)
+    shapeMenu:setValue(gem.getRandom(#shapeNames))
   end
-  -- Load shape with options
-  setShape(false, playMode ~= "Custom")
+  if playMode == playOptions[2] or playMode == playOptions[4] then
+    randomizeShapeSettings()
+  end
+  setShape()
   local swarmPosition = 1
   while swarmActive and isPlaying and seqIndex == uniqueId do
     -- Update position table with the current position
@@ -118,10 +154,7 @@ local function swarm(uniqueId)
       end
       positionTable:setValue(i, value)
     end
-    local playDuration = ms2beat(sequencerTable:getValue(swarmPosition))
-    if quantizeToClosest then
-      playDuration = resolutions.quantizeToClosest(playDuration)
-    end
+    local playDuration = resolutions.quantizeToClosest(ms2beat(sequencerTable:getValue(swarmPosition)), quantizeType)
     playNote(0, math.floor(gem.randomizeValue(velocity, 1, 127, 3)), beat2ms(playDuration), nil, channel)
     waitBeat(playDuration)
     swarmPosition = gem.inc(swarmPosition)
@@ -134,7 +167,7 @@ local function swarm(uniqueId)
 end
 
 local function sequenceRunner(uniqueId)
-  print("Starting sequencer", uniqueId)
+  --print("Starting sequencer", uniqueId)
   space = ms2beat(duration)
   local tickBeat = .5
   local elapsedBeats = space -- To avoid pause
@@ -142,7 +175,7 @@ local function sequenceRunner(uniqueId)
   while isPlaying and seqIndex == uniqueId do
     if elapsedBeats >= space then
       if swarmActive == false and gem.getRandomBoolean(swarmProbability) then
-        print("Starting swarm, elapsedBeats, space", elapsedBeats, space)
+        --print("Starting swarm, elapsedBeats, space", elapsedBeats, space)
         swarmActive = true
         spawn(swarm, seqIndex)
       end
@@ -238,17 +271,47 @@ widgets.panel({
 local noteWidgetColSpacing = 5
 local noteWidgetRowSpacing = 5
 
-local xyShapeFactor = widgets.getPanel():XY('ShapePhase', 'ShapeMorph')
-xyShapeFactor.x = noteWidgetColSpacing
-xyShapeFactor.y = noteWidgetRowSpacing
-xyShapeFactor.width = (widgets.getPanel().width / 2) - 7
-xyShapeFactor.height = widgets.getPanel().height - 10
+local xyShapeMorph = widgets.getPanel():XY('ShapePhase', 'ShapeMorph')
+xyShapeMorph.x = noteWidgetColSpacing
+xyShapeMorph.y = noteWidgetRowSpacing
+xyShapeMorph.width = widgets.getPanel().height * 1.3
+xyShapeMorph.height = widgets.getPanel().height - 10
 
-local xySpeedFactor = widgets.getPanel():XY('Space', 'SpaceRand')
-xySpeedFactor.x = widgets.posSide(xyShapeFactor)
-xySpeedFactor.y = noteWidgetRowSpacing
-xySpeedFactor.width = xyShapeFactor.width
-xySpeedFactor.height = widgets.getPanel().height - 10
+local xyShapeFactor = widgets.getPanel():XY('ShapeFactor', 'ShapeAmount')
+xyShapeFactor.x = widgets.posSide(xyShapeMorph)
+xyShapeFactor.y = noteWidgetRowSpacing
+xyShapeFactor.width = xyShapeMorph.width
+xyShapeFactor.height = xyShapeMorph.height
+
+widgets.setSection({
+  x = widgets.posSide(xyShapeFactor),
+  width = 123,
+  xSpacing = noteWidgetColSpacing,
+  ySpacing = 3,
+  cols = 1,
+})
+
+widgets.label("Shape Actions")
+
+local actionButtons = {}
+
+table.insert(actionButtons, widgets.button("Select Random Shape", {
+  changed = function()
+    shapeMenu:setValue(gem.getRandom(#shapeNames))
+  end
+}))
+
+table.insert(actionButtons, widgets.button("Randomize Settings", {
+  changed = function()
+    randomizeShapeSettings()
+  end
+}))
+
+table.insert(actionButtons, widgets.button("Reset Shape Settings", {
+  changed = function()
+    setShape(true)
+  end
+}))
 
 --------------------------------------------------------------------------------
 -- Shape table
@@ -292,7 +355,7 @@ sequencerTable = widgets.table("Sequencer", 0, swarmLength, {
 --------------------------------------------------------------------------------
 
 widgets.panel({
-  x = widgets.posSide(xySpeedFactor) + 5,
+  x = widgets.posSide(sequencerTable),
   y = 35,
   width = 280,
   height = 245,
@@ -326,35 +389,37 @@ widgets.menu("Swarm Max", resolutionMin, resolutionNames, {
   end
 })
 
-widgets.button("Quantize", quantizeToClosest, {
-  tooltip = "Quantize output to the closest 'known' resolution",
-  increment = false,
+widgets.menu("Quantize", quantizeOptions, {
+  tooltip = "Quantize output to closest resolution of the selected type.",
   width = 90,
-  height = 20,
-  y = 30,
-  changed = function(self) quantizeToClosest = self.value end
+  changed = function(self)
+    quantizeType = self.selectedText
+  end
 })
-
-widgets.row(2)
 
 shapeMenu = widgets.menu("Swarm Shape", shapeIndex, shapeNames, {
   tooltip = "Set the shape of the swarm. Short bars = fast, long bars = slow. You can edit the shape by selecting 'Custom' from 'Shape Play Mode'.",
   changed = function(self)
     shapeIndex = self.value
+    --print("shapeMenu:changed", shapeIndex)
     setShape(true)
   end
 })
 
-local playModeMenu = widgets.menu("Shape Play Mode", {"Active Shape", "Random Shape", "Custom"}, {
+widgets.menu("Shape Play Mode", playOptions, {
   tooltip = "Set how shapes are selected for playing. Use 'Custom' to edit you own shape.",
   changed = function(self)
     playMode = self.selectedText
-    local shapeEnabled = playMode == "Active Shape"
-    sequencerTable.enabled = playMode == "Custom"
-    lengthRandomizationInput.enabled = playMode == "Active Shape" or playMode == "Random Shape"
+    local shapeEnabled = self.value == 1
+    sequencerTable.enabled = self.value == #self.items
+    lengthRandomizationInput.enabled = self.value < #self.items
     shapeMenu.enabled = shapeEnabled
+    xyShapeMorph.enabled = shapeEnabled
     xyShapeFactor.enabled = shapeEnabled
     for k,v in pairs(shapeWidgets) do
+      v.enabled = shapeEnabled
+    end
+    for _,v in ipairs(actionButtons) do
       v.enabled = shapeEnabled
     end
     setShape(true)
@@ -362,7 +427,7 @@ local playModeMenu = widgets.menu("Shape Play Mode", {"Active Shape", "Random Sh
 })
 
 shapeWidgets = shapes.getWidgets()
-shapeWidgets.amount = shapes.getAmountWidget()
+shapeWidgets.amount = shapes.getAmountWidget({integer = false})
 shapeWidgets.amount.displayName = "Shape Amount"
 
 for k,v in pairs(shapeWidgets) do

@@ -195,8 +195,9 @@ for page=1,modseq.getMaxPages() do
       end
     })
 
-    local shapeWidgets = shapes.getWidgets(115, true, i)
-    shapeWidgets.amount = shapes.getAmountWidget(115, true, i)
+    local widgetOptions = {width=115, showLabel=true}
+    local shapeWidgets = shapes.getWidgets(widgetOptions, i)
+    shapeWidgets.amount = shapes.getAmountWidget(widgetOptions, i)
 
     local smoothButton = widgets.button("Smooth", false, {
       name = "Smooth" .. i,

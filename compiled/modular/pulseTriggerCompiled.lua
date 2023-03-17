@@ -656,34 +656,41 @@ local function getEvenFromDotted(value)
   return value / 1.5
 end
 
-local function getResolutionsByType(maxResolutionIndex)
+-- This variable is used by getResolutionsByType as the starting point for finding even/dot/tri resolutions
+local resolutionTypeStartPosIndex = 11 -- 1/1
+
+local function getResolutionsByType(maxResolutionIndex, includeSlowResolutions)
   if type(maxResolutionIndex) == "nil" then
     maxResolutionIndex = #resolutionValues
   end
-  local startPosIndex = 11
+  if type(includeSlowResolutions) == "nil" then
+    includeSlowResolutions = true
+  end
   local resOptions = {}
   -- Create table of resolution indexes by type (1=even,2=dot,3=tri,4=slow)
-  for i=startPosIndex,startPosIndex+2 do
+  for i=resolutionTypeStartPosIndex,resolutionTypeStartPosIndex+2 do
     local resolutionIndex = i
     local resolutionsOfType = {}
     while resolutionIndex <= maxResolutionIndex do
       table.insert(resolutionsOfType, resolutionIndex) -- insert current index in resolution options table
       --print("Insert resolutionIndex", resolutionIndex)
-      resolutionIndex = resolutionIndex + 3 -- increment index
+      resolutionIndex = gem.inc(resolutionIndex, 3) -- increment index
     end
     --print("#resolutionsOfType, i", #resolutionsOfType, i)
     table.insert(resOptions, resolutionsOfType)
   end
   -- Add the resolutions that are whole numbers (1,2,3,4...)
-  local slowResolutions = {}
-  for i,resolution in ipairs(resolutionValues) do
-    if resolution % 1 == 0 then
-      table.insert(slowResolutions, i)
-      --print("getResolutionsByType - included slow resolution", resolution)
+  if includeSlowResolutions then
+    local slowResolutions = {}
+    for i,resolution in ipairs(resolutionValues) do
+      if resolution % 1 == 0 then
+        table.insert(slowResolutions, i)
+        --print("getResolutionsByType - included slow resolution", resolutionValues[i], i)
+      end
     end
+    --print("#slowResolutions", #slowResolutions)
+    table.insert(resOptions, slowResolutions) -- Add the "slow" x resolutions
   end
-  --print("#slowResolutions", #slowResolutions)
-  table.insert(resOptions, slowResolutions) -- Add the "slow" x resolutions
   --print("resOptions", #resOptions)
   return resOptions
 end
@@ -838,80 +845,110 @@ local function getResolutionVariation(currentResolution, options)
   return currentResolution
 end
 
+-- If you want to add the resolutions to an existing table, give it as the second argument
+local function getResolutionsFromIndexes(indexes, resolutions)
+  if type(resolutions) == "nil" then
+    resolutions = {}
+  end
+  for _,v in ipairs(indexes) do
+    if gem.tableIncludes(resolutions, v) == false then
+      table.insert(resolutions, resolutionValues[v])
+    end
+  end
+  table.sort(resolutions, function(a,b) return a > b end) -- Ensure sorted desc
+  return resolutions
+end
+
+local quantizeOptions = {"Off", "Any", "Even", "Dot", "Tri", "Even+Dot", "Even+Tri", "Dot+Tri"}
+
 -- Quantize the given beat to the closest recognized resolution value
-local function quantizeToClosest(beat)
-  for i,v in ipairs(resolutionValues) do
+local function quantizeToClosest(beat, quantizeType)
+  if type(quantizeType) == "nil" then
+    quantizeType = quantizeOptions[2] -- Any
+  end
+  if quantizeType == quantizeOptions[1] then
+    -- Quantize off, just return return the given beat value
+    return beat
+  end
+  local includeSlowResolutions = beat > resolutionValues[resolutionTypeStartPosIndex]
+  local resolutionsByType = getResolutionsByType(#resolutionValues, includeSlowResolutions)
+  local quantizeResolutions = {}
+  if includeSlowResolutions then
+    --print("Beat > resolutionsByType[1][1]", beat, resolutionValues[resolutionsByType[1][1]])
+    quantizeResolutions = getResolutionsFromIndexes(resolutionsByType[4], quantizeResolutions) -- Slow
+  else
+    for i=1,3 do
+      if quantizeType == quantizeOptions[2] or string.find(quantizeType, quantizeOptions[i+2], 1, true) then
+        quantizeResolutions = getResolutionsFromIndexes(resolutionsByType[i], quantizeResolutions)
+        --print("Add quantize resolutions", quantizeType)
+      end
+    end
+  end
+  --print("quantizeResolutions min/max/count", quantizeResolutions[1], quantizeResolutions[#quantizeResolutions], #quantizeResolutions)
+  for i,v in ipairs(quantizeResolutions) do
     local currentValue = v
-    local nextValue = resolutionValues[i+1]
+    local nextValue = quantizeResolutions[i+1]
     if beat == currentValue or type(nextValue) == "nil" then
+      print("Found equal, or next is nil", beat, currentValue)
       return currentValue
     end
     if beat < currentValue and beat > nextValue then
       local diffCurrent = currentValue - beat
       local diffNext = beat - nextValue
       if diffCurrent < diffNext then
+        print("Closest to current", beat, currentValue, nextValue)
         return currentValue
       else
+        print("Closest to next", beat, nextValue, currentValue)
         return nextValue
       end
     end
   end
-  return resolutionValues[#resolutionValues]
+  print("No resolution found, returning the given beat value", beat)
+  return beat
 end
 
 local resolutions = {
+  getResolutionsFromIndexes = getResolutionsFromIndexes,
   getSelectedResolutions = getSelectedResolutions,
-
   getResolutionVariation = getResolutionVariation,
-
   getResolutionsByType = getResolutionsByType,
-
   quantizeToClosest = quantizeToClosest,
-
   getDotted = getDotted,
-
   getTriplet = getTriplet,
-
   getEvenFromDotted = getEvenFromDotted,
-  
   getEvenFromTriplet = getEvenFromTriplet,
-  
   getResolution = function(i)
     return resolutionValues[i]
   end,
-  
+  getQuantizeOptions = function()
+    return quantizeOptions
+  end,
   getResolutions = function()
     return resolutionValues
   end,
-  
   getResolutionName = function(i)
     return resolutionNames[i]
   end,
-  
   getResolutionNames = function(options, max)
     if type(max) ~= "number" then
       max = #resolutionNames
     end
-  
     local res = {}
-  
     for i,r in ipairs(resolutionNames) do
       table.insert(res, r)
       if i == max then
         break
       end
     end
-  
     -- Add any options
     if type(options) == "table" then
       for _,o in ipairs(options) do
         table.insert(res, o)
       end
     end
-  
     return res
   end,
-
   getPlayDuration = function(duration, gate)
     if type(gate) == "nil" then
       gate = 100
