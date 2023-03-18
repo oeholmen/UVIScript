@@ -2369,7 +2369,7 @@ tableMotion.getSpeedFactorWidget(130)
 
 widgets.row()
 
-tableMotion.setShapeWidgets(shapes.getWidgets(150, true))
+tableMotion.setShapeWidgets(shapes.getWidgets({width=150}))
 
 widgets.button("Bipolar", bipolar, {
   tooltip = "Toggle table bipolar mode",

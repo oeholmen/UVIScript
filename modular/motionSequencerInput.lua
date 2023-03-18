@@ -320,7 +320,7 @@ tableMotion.getSpeedFactorWidget(noteWidgetWidth)
 
 widgets.row()
 
-tableMotion.setShapeWidgets(shapes.getWidgets(noteWidgetWidth, true))
+tableMotion.setShapeWidgets(shapes.getWidgets({width=noteWidgetWidth}))
 
 widgets.numBox("Octave Range", octaveRange, {
   tooltip = "Set the octave range",

@@ -1978,7 +1978,7 @@ tableMotion.getSpeedFactorWidget(130)
 
 widgets.row()
 
-tableMotion.setShapeWidgets(shapes.getWidgets(149.5, true))
+tableMotion.setShapeWidgets(shapes.getWidgets({width=149.5}))
 
 widgets.col(1, 75)
 
