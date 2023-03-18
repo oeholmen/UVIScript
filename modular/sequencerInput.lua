@@ -8,7 +8,6 @@ local modular = require "includes.modular"
 local resolutions = require "includes.resolutions"
 
 local isPlaying = false
-local channel = 0 -- 0 = Omni
 local forward = false
 local baseNote = 48
 local tableLength = 8
@@ -67,11 +66,7 @@ widgets.button("Forward", forward, {
   changed = function(self) forward = self.value end,
 })
 
-widgets.menu("Channel", widgets.channels(), {
-  tooltip = "Listen to triggers (note=0 events) on this channel - if a note event is not being listened to, it will be pass through",
-  showLabel = false,
-  changed = function(self) channel = self.value - 1 end
-})
+modular.getChannelWidget()
 
 widgets.setSection({
   width = 710,
@@ -170,6 +165,10 @@ widgets.numBox("Offset Rand", pitchOffsetSwapProbability, {
 -- Handle Events
 --------------------------------------------------------------------------------
 
+function onInit()
+  seqIndex = 0
+end
+
 local function setPosition()
   print("setPosition", sequencerPos)
   for i=1,tableLength do
@@ -181,9 +180,9 @@ local function setPosition()
   end
 end
 
-local function sequenceRunner()
+local function sequenceRunner(uniqueId)
   print("Starting sequenceRunner")
-  while isPlaying do
+  while isPlaying and seqIndex == uniqueId do
     setPosition()
     waitBeat(resolutions.getResolution(resolution))
     if isPlaying then
@@ -197,7 +196,8 @@ local function startPlaying()
     return
   end
   isPlaying = true
-  run(sequenceRunner)
+  seqIndex = gem.inc(seqIndex)
+  run(sequenceRunner, seqIndex)
 end
 
 local function stopPlaying()
@@ -225,10 +225,11 @@ function onNote(e)
     noteInput:setValue(e.note)
     listenButton:setValue(false)
   end
-  if modular.isTrigger(e, channel) then
+  if modular.isTrigger(e) then
     if forward then
       postEvent(e)
     end
+    print("modular.handleTrigger", e.channel)
     if modular.handleTrigger(e, getNote()) then
       if resolution == #resolutionNames then
         setPosition()
@@ -243,7 +244,7 @@ function onNote(e)
 end
 
 function onRelease(e)
-  if modular.isTrigger(e, channel) then
+  if modular.isTrigger(e) then
     if forward then
       postEvent(e)
     end

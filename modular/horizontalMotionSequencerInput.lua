@@ -36,7 +36,6 @@ local activeScale = {} -- Holds the active scale
 local noteState = {} -- Holds the state (on/off) for notes in the scale
 local currentValue = {} -- Holds the current table value to check for changes
 local forward = false
-local channel = 0
 local numNoteLabels = 9 -- Holds the maximum amount of note labels that are required when full range is used
 local noteLabels = {} -- Holds the labels for the notes
 local noteNumberToNoteName = notes.getNoteMapping()
@@ -253,11 +252,7 @@ widgets.button("Forward", forward, {
   changed = function(self) forward = self.value end,
 })
 
-widgets.menu("Channel", widgets.channels(), {
-  tooltip = "Listen to note events on this channel - if a note event is not being listened to, it will be pass through",
-  showLabel = false,
-  changed = function(self) channel = self.value - 1 end
-})
+modular.getChannelWidget()
 
 --------------------------------------------------------------------------------
 -- Settings Panel
@@ -465,7 +460,7 @@ function onInit()
 end
 
 function onNote(e)
-  if modular.isTrigger(e, channel) then
+  if modular.isTrigger(e) then
     if forward then
       postEvent(e)
     end
@@ -477,7 +472,7 @@ function onNote(e)
 end
 
 function onRelease(e)
-  if modular.isTrigger(e, channel) then
+  if modular.isTrigger(e) then
     if forward then
       postEvent(e)
     end

@@ -142,6 +142,13 @@ local function advanceValue(bounds, value, min, max, direction)
   return value, direction
 end
 
+local function getValueOrDefault(value, default)
+  if type(value) ~= "nil" then
+    return value
+  end
+  return default
+end
+
 return {--gem--
   inc = inc,
   avg = avg,
@@ -155,6 +162,7 @@ return {--gem--
   trimStartAndEnd = trimStartAndEnd,
   getChangePerStep = getChangePerStep,
   getRandomBoolean = getRandomBoolean,
+  getValueOrDefault = getValueOrDefault,
   getIndexFromValue = getIndexFromValue,
   getRandomFromTable = getRandomFromTable,
 }

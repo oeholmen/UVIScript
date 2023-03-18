@@ -16,7 +16,6 @@ widgets.setColours({
   backgroundColour = "4D455D",
 })
 
-local channel = 0 -- 0 = Omni
 local forward = false
 
 local sequencerPanel = widgets.panel({
@@ -52,11 +51,7 @@ widgets.button("Forward", forward, {
   changed = function(self) forward = self.value end,
 })
 
-widgets.menu("Channel", widgets.channels(), {
-  tooltip = "Listen to triggers (note=0 events) on this channel - if a note event is not being listened to, it will be pass through",
-  showLabel = false,
-  changed = function(self) channel = self.value - 1 end
-})
+modular.getChannelWidget()
 
 --------------------------------------------------------------------------------
 -- Notes
@@ -100,7 +95,7 @@ local function getNote()
 end
 
 function onNote(e)
-  if modular.isTrigger(e, channel) then
+  if modular.isTrigger(e) then
     if forward then
       postEvent(e)
     end
@@ -113,7 +108,7 @@ function onNote(e)
 end
 
 function onRelease(e)
-  if modular.isTrigger(e, channel) then
+  if modular.isTrigger(e) then
     if forward then
       postEvent(e)
     end

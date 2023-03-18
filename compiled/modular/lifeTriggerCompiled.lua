@@ -143,6 +143,13 @@ local function advanceValue(bounds, value, min, max, direction)
   return value, direction
 end
 
+local function getValueOrDefault(value, default)
+  if type(value) ~= "nil" then
+    return value
+  end
+  return default
+end
+
 local gem = {
   inc = inc,
   avg = avg,
@@ -156,6 +163,7 @@ local gem = {
   trimStartAndEnd = trimStartAndEnd,
   getChangePerStep = getChangePerStep,
   getRandomBoolean = getRandomBoolean,
+  getValueOrDefault = getValueOrDefault,
   getIndexFromValue = getIndexFromValue,
   getRandomFromTable = getRandomFromTable,
 }
@@ -748,23 +756,16 @@ local function getDefaultShapeOptions()
   }
 end
 
-local function getValueOrDefault(value, default)
-  if type(value) ~= "nil" then
-    return value
-  end
-  return default
-end
-
 local function getShapeOptions(overrides)
   local defaultShapeOptions = getDefaultShapeOptions()
   if type(overrides) == "nil" then
     return defaultShapeOptions
   end
   return {
-    z = getValueOrDefault(overrides.z, defaultShapeOptions.z),
-    phase = getValueOrDefault(overrides.phase, defaultShapeOptions.phase),
-    factor = getValueOrDefault(overrides.factor, defaultShapeOptions.factor),
-    amount = getValueOrDefault(overrides.amount, defaultShapeOptions.amount),
+    z = gem.getValueOrDefault(overrides.z, defaultShapeOptions.z),
+    phase = gem.getValueOrDefault(overrides.phase, defaultShapeOptions.phase),
+    factor = gem.getValueOrDefault(overrides.factor, defaultShapeOptions.factor),
+    amount = gem.getValueOrDefault(overrides.amount, defaultShapeOptions.amount),
   }
 end
 
@@ -804,9 +805,9 @@ local function getShapeBounds(shapeBounds)
   if type(shapeBounds) == "nil" then
     shapeBounds = {}
   end
-  bounds.min = getValueOrDefault(shapeBounds.min, -1) -- x-azis max value
-  bounds.max = getValueOrDefault(shapeBounds.max, 1) -- x-azis min value
-  bounds.length = getValueOrDefault(shapeBounds.length, 128) -- y-axis steps
+  bounds.min = gem.getValueOrDefault(shapeBounds.min, -1) -- x-azis max value
+  bounds.max = gem.getValueOrDefault(shapeBounds.max, 1) -- x-azis min value
+  bounds.length = gem.getValueOrDefault(shapeBounds.length, 128) -- y-axis steps
   bounds.unipolar = bounds.min >= 0 --  Whether the shape is unipolar
   bounds.rand = gem.getRandom() -- A random number that will be equal across all steps
   return bounds
@@ -843,11 +844,11 @@ local function getAmountWidget(options, i)
   if type(i) == "nil" then
     i = ""
   end
-  options.name = getValueOrDefault(options.name, "ShapeAmount" .. i)
-  options.tooltip = getValueOrDefault(options.tooltip, "Set the shape amount.")
-  options.showLabel = getValueOrDefault(options.showLabel, true)
-  options.unit = getValueOrDefault(options.unit, Unit.Percent)
-  options.integer = getValueOrDefault(options.integer, true)
+  options.name = gem.getValueOrDefault(options.name, "ShapeAmount" .. i)
+  options.tooltip = gem.getValueOrDefault(options.tooltip, "Set the shape amount.")
+  options.showLabel = gem.getValueOrDefault(options.showLabel, true)
+  options.unit = gem.getValueOrDefault(options.unit, Unit.Percent)
+  options.integer = gem.getValueOrDefault(options.integer, true)
   if type(options.width) ~= "nil" then
     options.width = options.width
   end
@@ -876,7 +877,7 @@ local function getShapeWidgets(options, i)
   }
   local options = {factor = factorOptions, phase = phaseOptions, z = zOptions}
   for _,v in pairs(options) do
-    v.showLabel = getValueOrDefault(options.showLabel, true)
+    v.showLabel = gem.getValueOrDefault(options.showLabel, true)
     if type(options.width) ~= "nil" then
       v.width = options.width
     end

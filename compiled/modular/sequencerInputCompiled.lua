@@ -143,6 +143,13 @@ local function advanceValue(bounds, value, min, max, direction)
   return value, direction
 end
 
+local function getValueOrDefault(value, default)
+  if type(value) ~= "nil" then
+    return value
+  end
+  return default
+end
+
 local gem = {
   inc = inc,
   avg = avg,
@@ -156,6 +163,7 @@ local gem = {
   trimStartAndEnd = trimStartAndEnd,
   getChangePerStep = getChangePerStep,
   getRandomBoolean = getRandomBoolean,
+  getValueOrDefault = getValueOrDefault,
   getIndexFromValue = getIndexFromValue,
   getRandomFromTable = getRandomFromTable,
 }
@@ -586,6 +594,7 @@ local widgets = {
 --------------------------------------------------------------------------------
 
 local activeVoices = {}
+local channel = 0 -- 0 = Omni
 
 local function isNoteInActiveVoices(note)
   for _,v in ipairs(activeVoices) do
@@ -596,13 +605,15 @@ local function isNoteInActiveVoices(note)
   return false
 end
 
-local function isTrigger(e, channel)
+local function isTrigger(e)
   local isListeningForEvent = channel == 0 or channel == e.channel
   local isTrigger = e.note == 0 -- Note 0 is used as trigger
+  print("isTrigger and isListeningForEvent, channel, e.channel", isTrigger, isListeningForEvent, channel, e.channel)
   return isTrigger and isListeningForEvent
 end
 
 local function handleTrigger(e, note, data)
+  print("handleTrigger, note, isNoteInActiveVoices(note)", note, isNoteInActiveVoices(note))
   if type(note) == "number" and isNoteInActiveVoices(note) == false then
     local id = playNote(note, e.velocity, -1, nil, e.channel)
     table.insert(activeVoices, {id=id,note=note,channel=e.channel,data=data})
@@ -627,16 +638,35 @@ local function handleReleaseTrigger(e)
   return hasReleased
 end
 
+local function releaseActiveVoicesInModular()
+  for i,v in ipairs(activeVoices) do
+    releaseVoice(v.id)
+  end
+  activeVoices = {}
+end
+
+local function getChannelWidget(options)
+  if type(options) == "nil" then
+    options = {}
+  end
+  options.tooltip = gem.getValueOrDefault(options.tooltip, "Listen to triggers (note=0 events) on this channel - if a note event is not being listened to, it will be pass through")
+  options.showLabel = gem.getValueOrDefault(options.showLabel, false)
+  options.changed = gem.getValueOrDefault(options.changed, function(self)
+    channel = self.value - 1
+    releaseActiveVoicesInModular()
+  end)
+
+  return widgets.menu("Channel", widgets.channels(), options)
+end
+
 local modular = {
-  releaseVoices = function()
-    for i,v in ipairs(activeVoices) do
-      releaseVoice(v.id)
-    end
-    activeVoices = {}
-  end,
   isTrigger = isTrigger,
   handleTrigger = handleTrigger,
   handleReleaseTrigger = handleReleaseTrigger,
+  releaseVoices = releaseActiveVoicesInModular,
+  getChannelWidget = getChannelWidget,
+  setChannel = function(c) channel = c end,
+  getChannel = function() return channel end,
   getNumVoices = function() return #activeVoices end,
   getActiveVoices = function() return activeVoices end,
 }
@@ -1039,7 +1069,6 @@ local resolutions = {
 -----------------------------------------------------------------------------------------------------------------
 
 local isPlaying = false
-local channel = 0 -- 0 = Omni
 local forward = false
 local baseNote = 48
 local tableLength = 8
@@ -1098,11 +1127,7 @@ widgets.button("Forward", forward, {
   changed = function(self) forward = self.value end,
 })
 
-widgets.menu("Channel", widgets.channels(), {
-  tooltip = "Listen to triggers (note=0 events) on this channel - if a note event is not being listened to, it will be pass through",
-  showLabel = false,
-  changed = function(self) channel = self.value - 1 end
-})
+modular.getChannelWidget()
 
 widgets.setSection({
   width = 710,
@@ -1201,6 +1226,10 @@ widgets.numBox("Offset Rand", pitchOffsetSwapProbability, {
 -- Handle Events
 --------------------------------------------------------------------------------
 
+function onInit()
+  seqIndex = 0
+end
+
 local function setPosition()
   print("setPosition", sequencerPos)
   for i=1,tableLength do
@@ -1212,9 +1241,9 @@ local function setPosition()
   end
 end
 
-local function sequenceRunner()
+local function sequenceRunner(uniqueId)
   print("Starting sequenceRunner")
-  while isPlaying do
+  while isPlaying and seqIndex == uniqueId do
     setPosition()
     waitBeat(resolutions.getResolution(resolution))
     if isPlaying then
@@ -1228,7 +1257,8 @@ local function startPlaying()
     return
   end
   isPlaying = true
-  run(sequenceRunner)
+  seqIndex = gem.inc(seqIndex)
+  run(sequenceRunner, seqIndex)
 end
 
 local function stopPlaying()
@@ -1256,10 +1286,11 @@ function onNote(e)
     noteInput:setValue(e.note)
     listenButton:setValue(false)
   end
-  if modular.isTrigger(e, channel) then
+  if modular.isTrigger(e) then
     if forward then
       postEvent(e)
     end
+    print("modular.handleTrigger", e.channel)
     if modular.handleTrigger(e, getNote()) then
       if resolution == #resolutionNames then
         setPosition()
@@ -1274,7 +1305,7 @@ function onNote(e)
 end
 
 function onRelease(e)
-  if modular.isTrigger(e, channel) then
+  if modular.isTrigger(e) then
     if forward then
       postEvent(e)
     end

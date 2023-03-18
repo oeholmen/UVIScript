@@ -44,7 +44,6 @@ local chordDefinitions = {
 local noteDisplay = {} -- Holds the widgets that displays the notes being played
 local maxVoices = 16 -- Max number of oplyphonic voices
 local noteNumberToNoteName = notes.getNoteMapping()
-local channel = 0 -- 0 = Omni
 local forward = false
 local scale = {}
 local key = 1
@@ -159,11 +158,7 @@ widgets.button("Forward", forward, {
   changed = function(self) forward = self.value end,
 })
 
-widgets.menu("Channel", widgets.channels(), {
-  tooltip = "Listen to note events on this channel - if a note event is not being listened to, it will be pass through",
-  showLabel = false,
-  changed = function(self) channel = self.value - 1 end
-})
+modular.getChannelWidget()
 
 -- Add params that are to be editable per part
 for i=1,1 do
@@ -780,7 +775,7 @@ function onInit()
 end
 
 function onNote(e)
-  if modular.isTrigger(e, channel) then
+  if modular.isTrigger(e) then
     if forward then
       postEvent(e)
     end
@@ -791,7 +786,7 @@ function onNote(e)
 end
 
 function onRelease(e)
-  if modular.isTrigger(e, channel) then
+  if modular.isTrigger(e) then
     if forward then
       postEvent(e)
     end

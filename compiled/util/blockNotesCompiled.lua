@@ -1,4 +1,4 @@
--- modular/pulseTrigger -- 
+-- util/blockNotes -- 
 --------------------------------------------------------------------------------
 -- Common methods
 --------------------------------------------------------------------------------
@@ -589,547 +589,73 @@ local widgets = {
   end,
 }
 
---------------------------------------------------------------------------------
--- Common Resolutions
---------------------------------------------------------------------------------
+------------------------------------------------------------------
+-- Block all incoming note events for note = 0
+------------------------------------------------------------------
 
-local function getDotted(value)
-  return value * 1.5
-end
+local channel = 0 -- 0 = Omni
 
-local function getTriplet(value)
-  return value / 3
-end
-
--- NOTE: Make sure resolutionValues and resolutionNames are in sync
-local resolutionValues = {
-  128, -- "32x" -- 1
-  64, -- "16x" -- 2
-  32, -- "8x" -- 3
-  28, -- "7x" -- 4
-  24, -- "6x" -- 5
-  20, -- "5x" -- 6
-  16, -- "4x" -- 7
-  12, -- "3x" -- 8
-  8, -- "2x" -- 9
-  6, -- "1/1 dot" -- 10
-  4, -- "1/1" -- 11
-  3, -- "1/2 dot" -- 12
-  getTriplet(8), -- "1/1 tri" -- 13
-  2, -- "1/2" -- 14
-  getDotted(1), -- "1/4 dot", -- 15
-  getTriplet(4), -- "1/2 tri", -- 16
-  1, -- "1/4", -- 17
-  getDotted(0.5), -- "1/8 dot", -- 18
-  getTriplet(2), -- "1/4 tri", -- 19
-  0.5,  -- "1/8", -- 20
-  getDotted(0.25), -- "1/16 dot", -- 21
-  getTriplet(1), -- "1/8 tri", -- 22
-  0.25, -- "1/16", -- 23
-  getDotted(0.125), -- "1/32 dot", -- 24
-  getTriplet(0.5), -- "1/16 tri", -- 25
-  0.125, -- "1/32" -- 26
-  getDotted(0.0625), -- "1/64 dot", -- 27
-  getTriplet(0.25), -- "1/32 tri", -- 28
-  0.0625, -- "1/64", -- 29
-  getDotted(0.03125), -- "1/128 dot" -- 30
-  getTriplet(0.125), -- "1/64 tri" -- 31
-  0.03125 -- "1/128" -- 32
-}
-
-local resolutionNames = {
-  "32x", -- 1
-  "16x", -- 2
-  "8x", -- 3
-  "7x", -- 4
-  "6x", -- 5
-  "5x", -- 6
-  "4x", -- 7
-  "3x", -- 8
-  "2x", -- 9
-  "1/1 dot", -- 10
-  "1/1", -- 11
-  "1/2 dot", -- 12
-  "1/1 tri", -- 13
-  "1/2", -- 14
-  "1/4 dot", -- 15
-  "1/2 tri", -- 16
-  "1/4", -- 17
-  "1/8 dot", -- 18
-  "1/4 tri", -- 19
-  "1/8", -- 20
-  "1/16 dot", -- 21
-  "1/8 tri", -- 22
-  "1/16", -- 23
-  "1/32 dot", -- 24
-  "1/16 tri", -- 25
-  "1/32", -- 26
-  "1/64 dot", -- 27
-  "1/32 tri", -- 28
-  "1/64", -- 29
-  "1/128 dot", -- 30
-  "1/64 tri", -- 31
-  "1/128" -- 32
-}
-
-local function getEvenFromTriplet(value)
-  return value * 3
-end
-
-local function getEvenFromDotted(value)
-  return value / 1.5
-end
-
--- This variable is used by getResolutionsByType as the starting point for finding even/dot/tri resolutions
-local resolutionTypeStartPosIndex = 11 -- 1/1
-
-local function getResolutionsByType(maxResolutionIndex, includeSlowResolutions)
-  if type(maxResolutionIndex) == "nil" then
-    maxResolutionIndex = #resolutionValues
-  end
-  if type(includeSlowResolutions) == "nil" then
-    includeSlowResolutions = true
-  end
-  local resOptions = {}
-  -- Create table of resolution indexes by type (1=even,2=dot,3=tri,4=slow)
-  for i=resolutionTypeStartPosIndex,resolutionTypeStartPosIndex+2 do
-    local resolutionIndex = i
-    local resolutionsOfType = {}
-    while resolutionIndex <= maxResolutionIndex do
-      table.insert(resolutionsOfType, resolutionIndex) -- insert current index in resolution options table
-      --print("Insert resolutionIndex", resolutionIndex)
-      resolutionIndex = gem.inc(resolutionIndex, 3) -- increment index
-    end
-    --print("#resolutionsOfType, i", #resolutionsOfType, i)
-    table.insert(resOptions, resolutionsOfType)
-  end
-  -- Add the resolutions that are whole numbers (1,2,3,4...)
-  if includeSlowResolutions then
-    local slowResolutions = {}
-    for i,resolution in ipairs(resolutionValues) do
-      if resolution % 1 == 0 then
-        table.insert(slowResolutions, i)
-        --print("getResolutionsByType - included slow resolution", resolutionValues[i], i)
-      end
-    end
-    --print("#slowResolutions", #slowResolutions)
-    table.insert(resOptions, slowResolutions) -- Add the "slow" x resolutions
-  end
-  --print("resOptions", #resOptions)
-  return resOptions
-end
-
-local function isResolutionWithinRange(resolutionIndex, options, i)
-  if resolutionIndex < options.minResolutionIndex or resolutionIndex > options.maxResolutionIndex then
-    return false
-  end
-
-  if i == 2 and resolutionIndex > options.maxDotResolutionIndex then
-    return false
-  end
-
-  if i == 3 and resolutionIndex > options.maxTriResolutionIndex then
-    return false
-  end
-
-  return true
-end
-
--- Returns a table of resolutions indexes that are within the given range
-local function getSelectedResolutions(resolutionsByType, options)
-  if type(options) == "nil" then
-    options = {}
-  end
-
-  if type(options.minResolutionIndex) == "nil" then
-    options.minResolutionIndex = 1
-  end
-
-  if type(options.maxResolutionIndex) == "nil" then
-    options.maxResolutionIndex = #resolutionValues
-  end
-
-  if type(options.maxDotResolutionIndex) == "nil" then
-    options.maxDotResolutionIndex = #resolutionValues
-  end
-
-  if type(options.maxTriResolutionIndex) == "nil" then
-    options.maxTriResolutionIndex = #resolutionValues
-  end
-
-  local selectedResolutions = {}
-  for i,type in ipairs(resolutionsByType) do
-    for _,resolutionIndex in ipairs(type) do
-      if isResolutionWithinRange(resolutionIndex, options, i) then
-        table.insert(selectedResolutions, resolutionIndex)
-      end
-    end
-  end
-  return selectedResolutions
-end
-
--- Tries to adjust the given resolution by adjusting
--- length, and/or setting a even/dot/tri value variant
--- Options are: adjustBias (0=slow -> 100=fast), doubleOrHalfProbaility, dotOrTriProbaility, selectedResolutions
-local function getResolutionVariation(currentResolution, options)
-  local currentIndex = gem.getIndexFromValue(currentResolution, resolutionValues)
-
-  if type(currentIndex) == "nil" then
-    return currentResolution
-  end
-
-  if type(options) == "nil" then
-    options = {}
-  end
-
-  if type(options.minResolutionIndex) == "nil" then
-    options.minResolutionIndex = 1
-  end
-
-  if type(options.maxResolutionIndex) == "nil" then
-    options.maxResolutionIndex = #resolutionValues
-  end
-
-  if type(options.maxDotResolutionIndex) == "nil" then
-    options.maxDotResolutionIndex = #resolutionValues
-  end
-
-  if type(options.maxTriResolutionIndex) == "nil" then
-    options.maxTriResolutionIndex = #resolutionValues
-  end
-
-  if type(options.adjustBias) == "nil" then
-    options.adjustBias = 50
-  end
-
-  if type(options.doubleOrHalfProbaility) == "nil" then
-    options.doubleOrHalfProbaility = 50
-  end
-
-  if type(options.dotOrTriProbaility) == "nil" then
-    options.dotOrTriProbaility = 50
-  end
-
-  local resolutionsByType = getResolutionsByType()
-
-  if type(options.selectedResolutions) == "nil" then
-    options.selectedResolutions = getSelectedResolutions(resolutionsByType, options)
-  end
-
-  -- Normalize resolution
-  local resolution = currentResolution
-  if gem.tableIncludes(resolutionsByType[2], currentIndex) then
-    resolution = getEvenFromDotted(resolutionValues[currentIndex])
-    --print("getEvenFromDotted", resolution)
-  elseif gem.tableIncludes(resolutionsByType[3], currentIndex) then
-    resolution = getEvenFromTriplet(resolutionValues[currentIndex])
-    --print("getEvenFromTriplet", resolution)
-  elseif gem.tableIncludes(resolutionsByType[1], currentIndex) or gem.tableIncludes(resolutionsByType[4], currentIndex) then
-    resolution = resolutionValues[currentIndex]
-    --print("getEvenOrSlow", resolution)
-  end
-
-  if type(resolution) == "number" then
-    local doubleOrHalf = gem.getRandomBoolean(options.doubleOrHalfProbaility)
-    -- Double (slow) or half (fast) duration
-    if doubleOrHalf then
-      local doubleResIndex = gem.getIndexFromValue((resolution * 2), resolutionValues)
-      local halfResIndex = gem.getIndexFromValue((resolution / 2), resolutionValues)
-      if gem.getRandomBoolean(options.adjustBias) == false and type(doubleResIndex) == "number" and gem.tableIncludes(options.selectedResolutions, doubleResIndex) then
-        resolution = resolutionValues[doubleResIndex]
-        --print("Slower resolution", resolution)
-      elseif type(halfResIndex) == "number" and gem.tableIncludes(options.selectedResolutions, halfResIndex) then
-        resolution = resolution / 2
-        --print("Faster resolution", resolution)
-      end
-    end
-    -- Set dot or tri on duration if probability hits
-    if gem.getRandomBoolean(options.dotOrTriProbaility) then
-      if gem.tableIncludes(resolutionsByType[3], currentIndex) then
-        resolution = getTriplet(resolution)
-        --print("getTriplet", resolution)
-      else
-        local dottedResIndex = gem.getIndexFromValue(getDotted(resolution), resolutionValues)
-        if type(dottedResIndex) == "number" and gem.tableIncludes(options.selectedResolutions, dottedResIndex) then
-          resolution = resolutionValues[dottedResIndex]
-          --print("getDotted", resolution)
-        end
-      end
-    end
-  end
-  if type(resolution) == "number" then
-    currentIndex = gem.getIndexFromValue(resolution, resolutionValues)
-  end
-  --print("AFTER currentIndex", currentIndex)
-  if type(currentIndex) == "number" and gem.tableIncludes(options.selectedResolutions, currentIndex) then
-    --print("Got resolution from the current index")
-    return resolutionValues[currentIndex]
-  end
-
-  return currentResolution
-end
-
--- If you want to add the resolutions to an existing table, give it as the second argument
-local function getResolutionsFromIndexes(indexes, resolutions)
-  if type(resolutions) == "nil" then
-    resolutions = {}
-  end
-  for _,v in ipairs(indexes) do
-    if gem.tableIncludes(resolutions, v) == false then
-      table.insert(resolutions, resolutionValues[v])
-    end
-  end
-  table.sort(resolutions, function(a,b) return a > b end) -- Ensure sorted desc
-  return resolutions
-end
-
-local quantizeOptions = {"Off", "Any", "Even", "Dot", "Tri", "Even+Dot", "Even+Tri", "Dot+Tri"}
-
--- Quantize the given beat to the closest recognized resolution value
-local function quantizeToClosest(beat, quantizeType)
-  if type(quantizeType) == "nil" then
-    quantizeType = quantizeOptions[2] -- Any
-  end
-  if quantizeType == quantizeOptions[1] then
-    -- Quantize off, just return return the given beat value
-    return beat
-  end
-  local includeSlowResolutions = beat > resolutionValues[resolutionTypeStartPosIndex]
-  local resolutionsByType = getResolutionsByType(#resolutionValues, includeSlowResolutions)
-  local quantizeResolutions = {}
-  if includeSlowResolutions then
-    --print("Beat > resolutionsByType[1][1]", beat, resolutionValues[resolutionsByType[1][1]])
-    quantizeResolutions = getResolutionsFromIndexes(resolutionsByType[4], quantizeResolutions) -- Slow
-  else
-    for i=1,3 do
-      if quantizeType == quantizeOptions[2] or string.find(quantizeType, quantizeOptions[i+2], 1, true) then
-        quantizeResolutions = getResolutionsFromIndexes(resolutionsByType[i], quantizeResolutions)
-        --print("Add quantize resolutions", quantizeType)
-      end
-    end
-  end
-  --print("quantizeResolutions min/max/count", quantizeResolutions[1], quantizeResolutions[#quantizeResolutions], #quantizeResolutions)
-  for i,v in ipairs(quantizeResolutions) do
-    local currentValue = v
-    local nextValue = quantizeResolutions[i+1]
-    if beat == currentValue or type(nextValue) == "nil" then
-      print("Found equal, or next is nil", beat, currentValue)
-      return currentValue
-    end
-    if beat < currentValue and beat > nextValue then
-      local diffCurrent = currentValue - beat
-      local diffNext = beat - nextValue
-      if diffCurrent < diffNext then
-        print("Closest to current", beat, currentValue, nextValue)
-        return currentValue
-      else
-        print("Closest to next", beat, nextValue, currentValue)
-        return nextValue
-      end
-    end
-  end
-  print("No resolution found, returning the given beat value", beat)
-  return beat
-end
-
-local resolutions = {
-  getResolutionsFromIndexes = getResolutionsFromIndexes,
-  getSelectedResolutions = getSelectedResolutions,
-  getResolutionVariation = getResolutionVariation,
-  getResolutionsByType = getResolutionsByType,
-  quantizeToClosest = quantizeToClosest,
-  getDotted = getDotted,
-  getTriplet = getTriplet,
-  getEvenFromDotted = getEvenFromDotted,
-  getEvenFromTriplet = getEvenFromTriplet,
-  getResolution = function(i)
-    return resolutionValues[i]
-  end,
-  getQuantizeOptions = function()
-    return quantizeOptions
-  end,
-  getResolutions = function()
-    return resolutionValues
-  end,
-  getResolutionName = function(i)
-    return resolutionNames[i]
-  end,
-  getResolutionNames = function(options, max)
-    if type(max) ~= "number" then
-      max = #resolutionNames
-    end
-    local res = {}
-    for i,r in ipairs(resolutionNames) do
-      table.insert(res, r)
-      if i == max then
-        break
-      end
-    end
-    -- Add any options
-    if type(options) == "table" then
-      for _,o in ipairs(options) do
-        table.insert(res, o)
-      end
-    end
-    return res
-  end,
-  getPlayDuration = function(duration, gate)
-    if type(gate) == "nil" then
-      gate = 100
-    end
-    local maxResolution = resolutionValues[#resolutionValues]
-    return math.max(maxResolution, duration * (gate / 100)) -- Never shorter than the system max resolution
-  end  
-}
-
---------------------------------------------------------------------------------
--- Pulse Trigger - Sends note events using note 0 as trigger
---------------------------------------------------------------------------------
-
---------------------------------------------------------------------------------
--- Variables
---------------------------------------------------------------------------------
-
-local isPlaying = false
-local seqIndex = 0 -- Holds the unique id for the sequencer
-local channel = 1
-local resolutionNames = resolutions.getResolutionNames()
-local velocity = 75
-local resolution = 23
-local gate = 90
-
---------------------------------------------------------------------------------
--- Sequencer Functions
---------------------------------------------------------------------------------
-
-local function pulse(uniqueId)
-  local note = 0
-  while isPlaying and seqIndex == uniqueId do
-    local duration = resolutions.getResolution(resolution)
-    playNote(note, velocity, beat2ms(resolutions.getPlayDuration(duration, gate)), nil, channel)
-    waitBeat(duration)
-  end
-end
-
-local function startPlaying()
-  if isPlaying then
-    return
-  end
-  isPlaying = true
-  seqIndex = gem.inc(seqIndex)
-  run(pulse, seqIndex)
-end
-
-local function stopPlaying()
-  if isPlaying == false then
-    return
-  end
-  isPlaying = false
-end
-
---------------------------------------------------------------------------------
--- Header Panel
---------------------------------------------------------------------------------
-
-widgets.panel({
+local sequencerPanel = widgets.panel({
   width = 720,
   height = 50,
 })
 
-widgets.setSection({
-  width = widgets.getPanel().width,
-  height = widgets.getPanel().height,
+widgets.label("Block Trigger Events", {
+  width = sequencerPanel.width,
+  height = 50,
+  alpha = 0.75,
+  fontSize = 30,
+  backgroundColour = "505050",
+  textColour = "red"
 })
 
-local sequencerLabel = widgets.label("Pulse Trigger", {
-  tooltip = "A sequencer that provides a steady pulse (using note 0) that note inputs can listen to",
-  editable = true,
-  alpha = 0.5,
-  fontSize = 22,
+widgets.label("Block events where note = 0", {
+  tooltip = "Block incoming note events where note = 0",
+  width = 200,
+  backgroundColour = "transparent",
+  textColour = "a0a0a0",
+  x = 260,
+  y = 23,
 })
 
 widgets.setSection({
-  width = 100,
-  height = 22,
-  xOffset = 165,
-  yOffset = (widgets.getPanel().height / 2) - 10,
+  x = 460,
+  y = 23,
   xSpacing = 5,
+  height = 22
 })
 
-widgets.menu("Pulse Duration", resolution, resolutionNames, {
-  showLabel = false,
-  tooltip = "Start the bounce from this resolution",
-  changed = function(self) resolution = self.value end
+widgets.menu("Channel", widgets.channels(), {
+  tooltip = "Only block incoming note 0 on the given channel - (Omni blocks all)",
+  y = 0,
+  changed = function(self) channel = self.value - 1 end
 })
 
-widgets.numBox("Gate", gate, {
-  tooltip = "Set the gate length",
-  width = 120,
-  unit = Unit.Percent,
-  changed = function(self) gate = self.value end
+local activeButton = widgets.button("Active", true, {
+  tooltip = "Toggle state",
 })
 
-widgets.numBox('Channel', channel, {
-  tooltip = "Send note events starting on this channel",
-  min = 1,
-  max = 16,
-  integer = true,
-  changed = function(self) channel = self.value end
-})
+--------------------------------------------------------------------------------
+-- Handle Events
+--------------------------------------------------------------------------------
 
-local autoplayButton = widgets.button('Auto Play', true, {
-  tooltip = "Play automatically on transport",
-  width = 100,
-})
-
-local playButton = widgets.button('Play', false, {
-  changed = function(self)
-    if self.value == true then
-      startPlaying()
-    else
-      stopPlaying()
+local function isOpen(e)
+  if activeButton.value then
+    if (channel == 0 or channel == e.channel) and e.note == 0 then
+        return false
     end
   end
-})
-
---------------------------------------------------------------------------------
--- Handle events
---------------------------------------------------------------------------------
-
-function onInit()
-  seqIndex = 0
+  return true
 end
 
 function onNote(e)
-  if autoplayButton.value == true then
+  if isOpen(e) then
     postEvent(e)
-  else
-    playButton:setValue(true)
   end
 end
 
 function onRelease(e)
-  if autoplayButton.value == true then
+  if isOpen(e) then
     postEvent(e)
-  else
-    playButton:setValue(false)
   end
-end
-
-function onTransport(start)
-  if autoplayButton.value == true then
-    playButton:setValue(start)
-  end
-end
-
---------------------------------------------------------------------------------
--- Save / Load
---------------------------------------------------------------------------------
-
-function onSave()
-  return {sequencerLabel.text}
-end
-
-function onLoad(data)
-  sequencerLabel.text = data[1]
 end

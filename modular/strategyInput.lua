@@ -9,7 +9,6 @@ local notes = require "includes.notes"
 local scales = require "includes.scales"
 local resolutions = require "includes.resolutions"
 
-local channel = 0 -- 0 = Omni
 local forward = false
 local voices = 1 -- Holds the maximum amount of seen voices
 local strategyPropbability = 100
@@ -301,11 +300,7 @@ widgets.button("Forward", forward, {
   changed = function(self) forward = self.value end,
 })
 
-widgets.menu("Channel", widgets.channels(), {
-  tooltip = "Listen to triggers (note=0 events) on this channel. In omni mode, each channel is sent to a separate voice.",
-  showLabel = false,
-  changed = function(self) channel = self.value - 1 end
-})
+modular.getChannelWidget()
 
 --------------------------------------------------------------------------------
 -- Strategy Panel
@@ -575,7 +570,7 @@ function onInit()
 end
 
 function onNote(e)
-  if modular.isTrigger(e, channel) then
+  if modular.isTrigger(e) then
     if forward then
       postEvent(e)
     end
@@ -591,7 +586,7 @@ function onNote(e)
 end
 
 function onRelease(e)
-  if modular.isTrigger(e, channel) then
+  if modular.isTrigger(e) then
     if forward then
       postEvent(e)
     end

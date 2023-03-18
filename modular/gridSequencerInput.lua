@@ -48,7 +48,6 @@ local startOctave = -1 -- Holds the start octave when creating the scale
 local octaves = 9 -- Holds the octave range
 local noteRandomizationProbability = 0
 local manualInput = false
-local channel = 0 -- 0 = Omni
 local forward = false
 
 -- X Axis (index 1)
@@ -525,14 +524,11 @@ local forwardButton = widgets.button("Forward", forward, {
   changed = function(self) forward = self.value end,
 })
 
-local channelInput = widgets.menu("Channel", widgets.channels(), {
-  tooltip = "Listen to note events on this channel - if a note event is not being listened to, it will be pass through",
-  showLabel = false,
+modular.getChannelWidget({
   width = 100,
   height = 22,
   x = widgets.posSide(forwardButton) + xSpacing,
   y = forwardButton.y,
-  changed = function(self) channel = self.value - 1 end
 })
 
 --------------------------------------------------------------------------------
@@ -1005,7 +1001,7 @@ function onNote(e)
     end
     noteListen = false
   end
-  if modular.isTrigger(e, channel) then
+  if modular.isTrigger(e) then
     if forward then
       postEvent(e)
     end
@@ -1016,7 +1012,7 @@ function onNote(e)
 end
 
 function onRelease(e)
-  if modular.isTrigger(e, channel) then
+  if modular.isTrigger(e) then
     if forward then
       postEvent(e)
     end

@@ -1,5 +1,5 @@
 ------------------------------------------------------------------
--- Block all incoming note events
+-- Block all incoming note events for note = 0
 ------------------------------------------------------------------
 
 local widgets = require "includes.widgets"
@@ -10,7 +10,7 @@ local sequencerPanel = widgets.panel({
   height = 50,
 })
 
-widgets.label("Block Note Events", {
+widgets.label("Block Trigger Events", {
   width = sequencerPanel.width,
   height = 50,
   alpha = 0.75,
@@ -19,7 +19,8 @@ widgets.label("Block Note Events", {
   textColour = "red"
 })
 
-widgets.label("Block incoming note events", {
+widgets.label("Block events where note = 0", {
+  tooltip = "Block incoming note events where note = 0",
   width = 200,
   backgroundColour = "transparent",
   textColour = "a0a0a0",
@@ -35,7 +36,7 @@ widgets.setSection({
 })
 
 widgets.menu("Channel", widgets.channels(), {
-  tooltip = "Only block incoming notes on the given channel - (Omni blocks all)",
+  tooltip = "Only block incoming note 0 on the given channel - (Omni blocks all)",
   y = 0,
   changed = function(self) channel = self.value - 1 end
 })
@@ -50,7 +51,7 @@ local activeButton = widgets.button("Active", true, {
 
 local function isOpen(e)
   if activeButton.value then
-    if channel == 0 or channel == e.channel then
+    if (channel == 0 or channel == e.channel) and e.note == 0 then
         return false
     end
   end

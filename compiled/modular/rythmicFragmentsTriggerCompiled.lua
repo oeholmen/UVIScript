@@ -143,6 +143,13 @@ local function advanceValue(bounds, value, min, max, direction)
   return value, direction
 end
 
+local function getValueOrDefault(value, default)
+  if type(value) ~= "nil" then
+    return value
+  end
+  return default
+end
+
 local gem = {
   inc = inc,
   avg = avg,
@@ -156,6 +163,7 @@ local gem = {
   trimStartAndEnd = trimStartAndEnd,
   getChangePerStep = getChangePerStep,
   getRandomBoolean = getRandomBoolean,
+  getValueOrDefault = getValueOrDefault,
   getIndexFromValue = getIndexFromValue,
   getRandomFromTable = getRandomFromTable,
 }
@@ -1642,7 +1650,7 @@ local function play(voice, uniqueId, partDuration)
       local noteDuration = resolutions.getPlayDuration(duration, randomizeGate(gate))
       remainingDuration = duration - noteDuration
       local id = playNote(0, velocity, -1, nil, (voice + channel - 1))
-      --print("Play velocity/gate/duration", velocity, gate, noteDuration)
+      print("Play duration/voice/channel", noteDuration, voice, (voice + channel - 1))
       waitBeat(noteDuration)
       releaseVoice(id)
       if type(activeFragment) == "table" then
@@ -1776,8 +1784,6 @@ local function sequenceRunner(uniqueId)
     beatCounter = gem.inc(beatCounter) -- Increment counter
     if beatCounter > beatBase then
       beatCounter = 1 -- Reset counter
-      print("type(evolveFragmentProbability)", type(evolveFragmentProbability))
-      print("type(evolveButton)", type(evolveButton))
       if evolveButton.value and gem.getRandomBoolean(evolveFragmentProbability.value) then
         previous = rythmicFragments.evolveFragments(previous, randomizeCurrentResolutionProbability.value, adjustBias.value)
       end
