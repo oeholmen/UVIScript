@@ -48,7 +48,6 @@ local startOctave = -1 -- Holds the start octave when creating the scale
 local octaves = 9 -- Holds the octave range
 local noteRandomizationProbability = 0
 local manualInput = false
-local forward = false
 
 -- X Axis (index 1)
 table.insert(gridXY, {
@@ -515,13 +514,11 @@ showListenersButton.changed = function(self)
   showListeners(self.value)
 end
 
-local forwardButton = widgets.button("Forward", forward, {
+local forwardButton = modular.getForwardWidget({
   x = widgets.posSide(showListenersButton) + xSpacing,
   y = showListenersButton.y,
   width = 100,
   height = 22,
-  tooltip = "Forward triggers (note=0 events) to the next processor",
-  changed = function(self) forward = self.value end,
 })
 
 modular.getChannelWidget({
@@ -1002,9 +999,6 @@ function onNote(e)
     noteListen = false
   end
   if modular.isTrigger(e) then
-    if forward then
-      postEvent(e)
-    end
     handleTrigger(e)
   else
     postEvent(e)
@@ -1013,9 +1007,6 @@ end
 
 function onRelease(e)
   if modular.isTrigger(e) then
-    if forward then
-      postEvent(e)
-    end
     handleReleaseTrigger(e)
   else
     postEvent(e)

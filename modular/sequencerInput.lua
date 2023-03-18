@@ -8,7 +8,6 @@ local modular = require "includes.modular"
 local resolutions = require "includes.resolutions"
 
 local isPlaying = false
-local forward = false
 local baseNote = 48
 local tableLength = 8
 local sequencerPos = 1
@@ -61,11 +60,7 @@ widgets.menu("Resolution", resolution, resolutionNames, {
   end
 })
 
-widgets.button("Forward", forward, {
-  tooltip = "Forward triggers (note=0 events) to the next processor",
-  changed = function(self) forward = self.value end,
-})
-
+modular.getForwardWidget()
 modular.getChannelWidget()
 
 widgets.setSection({
@@ -226,9 +221,6 @@ function onNote(e)
     listenButton:setValue(false)
   end
   if modular.isTrigger(e) then
-    if forward then
-      postEvent(e)
-    end
     print("modular.handleTrigger", e.channel)
     if modular.handleTrigger(e, getNote()) then
       if resolution == #resolutionNames then
@@ -245,9 +237,6 @@ end
 
 function onRelease(e)
   if modular.isTrigger(e) then
-    if forward then
-      postEvent(e)
-    end
     modular.handleReleaseTrigger(e)
   else
     postEvent(e)

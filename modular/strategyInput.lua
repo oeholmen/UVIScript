@@ -9,7 +9,6 @@ local notes = require "includes.notes"
 local scales = require "includes.scales"
 local resolutions = require "includes.resolutions"
 
-local forward = false
 local voices = 1 -- Holds the maximum amount of seen voices
 local strategyPropbability = 100
 local strategyInput = ""
@@ -295,11 +294,7 @@ widgets.setSection({
   x = 510,
 })
 
-widgets.button("Forward", forward, {
-  tooltip = "Forward triggers (note=0 events) to the next processor",
-  changed = function(self) forward = self.value end,
-})
-
+modular.getForwardWidget()
 modular.getChannelWidget()
 
 --------------------------------------------------------------------------------
@@ -571,9 +566,6 @@ end
 
 function onNote(e)
   if modular.isTrigger(e) then
-    if forward then
-      postEvent(e)
-    end
     if modular.handleTrigger(e, getNote(e.channel)) then
       voicesLabel.text = "Playing " .. voiceSlotStrategyInput.text
       spawn(flashVoicesLabel)
@@ -587,9 +579,6 @@ end
 
 function onRelease(e)
   if modular.isTrigger(e) then
-    if forward then
-      postEvent(e)
-    end
     modular.handleReleaseTrigger(e)
   else
     postEvent(e)

@@ -594,7 +594,8 @@ local widgets = {
 --------------------------------------------------------------------------------
 
 local activeVoices = {}
-local channel = 0 -- 0 = Omni
+local listenOnChannel = 0 -- 0 = Omni
+local forwardModularEvents = false
 
 local function isNoteInActiveVoices(note)
   for _,v in ipairs(activeVoices) do
@@ -606,9 +607,12 @@ local function isNoteInActiveVoices(note)
 end
 
 local function isTrigger(e)
-  local isListeningForEvent = channel == 0 or channel == e.channel
+  local isListeningForEvent = listenOnChannel == 0 or listenOnChannel == e.channel
   local isTrigger = e.note == 0 -- Note 0 is used as trigger
-  print("isTrigger and isListeningForEvent, channel, e.channel", isTrigger, isListeningForEvent, channel, e.channel)
+  print("isTrigger and isListeningForEvent, channel, e.channel", isTrigger, isListeningForEvent, listenOnChannel, e.channel)
+  if isTrigger and isListeningForEvent and forwardModularEvents then
+    postEvent(e)
+  end
   return isTrigger and isListeningForEvent
 end
 
@@ -645,6 +649,15 @@ local function releaseActiveVoicesInModular()
   activeVoices = {}
 end
 
+local function getForwardWidget(options)
+  if type(options) == "nil" then
+    options = {}
+  end
+  options.tooltip = gem.getValueOrDefault(options.tooltip, "Forward triggers (note=0 events) to the next processor")
+  options.changed = gem.getValueOrDefault(options.changed, function(self) forwardModularEvents = self.value end)
+  return widgets.button("Forward", forwardModularEvents, options)
+end
+
 local function getChannelWidget(options)
   if type(options) == "nil" then
     options = {}
@@ -652,7 +665,7 @@ local function getChannelWidget(options)
   options.tooltip = gem.getValueOrDefault(options.tooltip, "Listen to triggers (note=0 events) on this channel - if a note event is not being listened to, it will be pass through")
   options.showLabel = gem.getValueOrDefault(options.showLabel, false)
   options.changed = gem.getValueOrDefault(options.changed, function(self)
-    channel = self.value - 1
+    listenOnChannel = self.value - 1
     releaseActiveVoicesInModular()
   end)
 
@@ -665,8 +678,11 @@ local modular = {
   handleReleaseTrigger = handleReleaseTrigger,
   releaseVoices = releaseActiveVoicesInModular,
   getChannelWidget = getChannelWidget,
-  setChannel = function(c) channel = c end,
-  getChannel = function() return channel end,
+  getForwardWidget = getForwardWidget,
+  setChannel = function(c) listenOnChannel = c end,
+  getChannel = function() return listenOnChannel end,
+  setForward = function(f) forwardModularEvents = f end,
+  getForward = function() return forwardModularEvents end,
   getNumVoices = function() return #activeVoices end,
   getActiveVoices = function() return activeVoices end,
 }
@@ -936,7 +952,6 @@ local startOctave = -1 -- Holds the start octave when creating the scale
 local octaves = 9 -- Holds the octave range
 local noteRandomizationProbability = 0
 local manualInput = false
-local forward = false
 
 -- X Axis (index 1)
 table.insert(gridXY, {
@@ -1403,13 +1418,11 @@ showListenersButton.changed = function(self)
   showListeners(self.value)
 end
 
-local forwardButton = widgets.button("Forward", forward, {
+local forwardButton = modular.getForwardWidget({
   x = widgets.posSide(showListenersButton) + xSpacing,
   y = showListenersButton.y,
   width = 100,
   height = 22,
-  tooltip = "Forward triggers (note=0 events) to the next processor",
-  changed = function(self) forward = self.value end,
 })
 
 modular.getChannelWidget({
@@ -1890,9 +1903,6 @@ function onNote(e)
     noteListen = false
   end
   if modular.isTrigger(e) then
-    if forward then
-      postEvent(e)
-    end
     handleTrigger(e)
   else
     postEvent(e)
@@ -1901,9 +1911,6 @@ end
 
 function onRelease(e)
   if modular.isTrigger(e) then
-    if forward then
-      postEvent(e)
-    end
     handleReleaseTrigger(e)
   else
     postEvent(e)

@@ -16,8 +16,6 @@ widgets.setColours({
   backgroundColour = "4D455D",
 })
 
-local forward = false
-
 local sequencerPanel = widgets.panel({
   width = 720,
   height = 30,
@@ -46,11 +44,7 @@ local inputButton = widgets.button(" ", false, {
   backgroundColourOff = "202020"
 })
 
-widgets.button("Forward", forward, {
-  tooltip = "Forward triggers (note=0 events) to the next processor",
-  changed = function(self) forward = self.value end,
-})
-
+modular.getForwardWidget()
 modular.getChannelWidget()
 
 --------------------------------------------------------------------------------
@@ -96,9 +90,6 @@ end
 
 function onNote(e)
   if modular.isTrigger(e) then
-    if forward then
-      postEvent(e)
-    end
     if modular.handleTrigger(e, getNote()) then
       spawn(flashInput)
     end
@@ -109,9 +100,6 @@ end
 
 function onRelease(e)
   if modular.isTrigger(e) then
-    if forward then
-      postEvent(e)
-    end
     modular.handleReleaseTrigger(e)
   else
     postEvent(e)

@@ -44,7 +44,6 @@ local chordDefinitions = {
 local noteDisplay = {} -- Holds the widgets that displays the notes being played
 local maxVoices = 16 -- Max number of oplyphonic voices
 local noteNumberToNoteName = notes.getNoteMapping()
-local forward = false
 local scale = {}
 local key = 1
 local noteMin = 24
@@ -153,11 +152,7 @@ widgets.setSection({
   ySpacing = 5,
 })
 
-widgets.button("Forward", forward, {
-  tooltip = "Forward triggers (note=0 events) to the next processor",
-  changed = function(self) forward = self.value end,
-})
-
+modular.getForwardWidget()
 modular.getChannelWidget()
 
 -- Add params that are to be editable per part
@@ -776,9 +771,6 @@ end
 
 function onNote(e)
   if modular.isTrigger(e) then
-    if forward then
-      postEvent(e)
-    end
     handleTrigger(e)
   else
     postEvent(e)
@@ -787,9 +779,6 @@ end
 
 function onRelease(e)
   if modular.isTrigger(e) then
-    if forward then
-      postEvent(e)
-    end
     modular.handleReleaseTrigger(e)
   else
     postEvent(e)

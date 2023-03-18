@@ -35,7 +35,6 @@ local scaleDefinitionIndex = #scaleNames
 local activeScale = {} -- Holds the active scale
 local noteState = {} -- Holds the state (on/off) for notes in the scale
 local currentValue = {} -- Holds the current table value to check for changes
-local forward = false
 local numNoteLabels = 9 -- Holds the maximum amount of note labels that are required when full range is used
 local noteLabels = {} -- Holds the labels for the notes
 local noteNumberToNoteName = notes.getNoteMapping()
@@ -247,11 +246,7 @@ widgets.menu("Play Mode", playModes, {
   changed = function(self) playMode = self.selectedText end
 })
 
-widgets.button("Forward", forward, {
-  tooltip = "Forward triggers (note=0 events) to the next processor",
-  changed = function(self) forward = self.value end,
-})
-
+modular.getForwardWidget()
 modular.getChannelWidget()
 
 --------------------------------------------------------------------------------
@@ -461,9 +456,6 @@ end
 
 function onNote(e)
   if modular.isTrigger(e) then
-    if forward then
-      postEvent(e)
-    end
     startPlaying()
     modular.handleTrigger(e, getNote())
   else
@@ -473,9 +465,6 @@ end
 
 function onRelease(e)
   if modular.isTrigger(e) then
-    if forward then
-      postEvent(e)
-    end
     modular.handleReleaseTrigger(e)
   else
     postEvent(e)
