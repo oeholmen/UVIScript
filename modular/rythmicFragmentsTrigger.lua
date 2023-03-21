@@ -3,6 +3,7 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
+local widgets = require "includes.widgets"
 local resolutions = require "includes.resolutions"
 local rythmicFragments = require "includes.rythmicFragments"
 
@@ -47,8 +48,8 @@ local seqIndex = 0 -- Holds the unique id for the sequencer
 local playIndex = 0 -- Holds the unique id for each playing voice
 local playingIndex = {}
 local channel = 1
---local seqGateTable
---local gateRandomization
+local seqGateTable
+local gateRandomization
 local numVoices = 1
 local maxVoices = 4
 local playingVoices = {}
@@ -63,24 +64,18 @@ local evolveButton
 local evolveFragmentProbability
 local randomizeCurrentResolutionProbability
 local adjustBias
+local voiceToSourceMapping = {} -- Holds the sources for each voice
 local fragmentSlots = {}
-local voiceToFragment = false
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
 --------------------------------------------------------------------------------
 
 local function randomizeGate(gate)
-  if type(seqGateTable) == "nil" then
-    return gate
-  end
   return gem.randomizeValue(gate, seqGateTable.min, seqGateTable.max, gateRandomization.value)
 end
 
 local function getGate(pos)
-  if type(seqGateTable) == "nil" then
-    return 100
-  end
   return seqGateTable:getValue(pos), gem.inc(pos, 1, seqGateTable.length)
 end
 
@@ -102,6 +97,18 @@ local function initVoices()
   end
 end
 
+local function getSourcesForVoice(voice)
+  local sources = {}
+  for source,v in ipairs(voiceToSourceMapping[voice]) do
+    if gem.getRandomBoolean(v.value) then
+      table.insert(sources, source)
+      print("Added source for voice", source, voice)
+    end
+  end
+  print("Voice #sources", voice, #sources)
+  return sources
+end
+
 local function play(voice, uniqueId, partDuration)
   --print("voice, uniqueId, partDuration", voice, uniqueId, partDuration)
   local playDuration = 0 -- Keep track of the played duration
@@ -115,7 +122,6 @@ local function play(voice, uniqueId, partDuration)
   local fragmentRepeatProbability = 0
   local reverseFragment = false
   local fragmentRepeatCount = 0
-  --local velocityPos = 1
   local velocity = 64
   local gatePos = 1
   local gate = nil
@@ -123,15 +129,9 @@ local function play(voice, uniqueId, partDuration)
   while isPlaying and playingIndex[voice] == uniqueId do
     roundCounterPerVoice[voice] = roundCounterPerVoice[voice] + 1
 
-    --velocity, velocityPos = getVelocity(velocityPos)
     gate, gatePos = getGate(gatePos)
 
-    -- TODO Param for source per voice?
-    -- Default is multivoice uses the fragment that corresponds to the voice
-    local sources = nil
-    if voiceToFragment then
-      sources = {voice}
-    end
+    local sources = getSourcesForVoice(voice)
 
     duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = rythmicFragments.getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount, sources)
 
@@ -329,6 +329,15 @@ rythmPanel.y = sequencerPanel.y + sequencerPanel.height + 0
 rythmPanel.width = sequencerPanel.width
 rythmPanel.height = (102 * (maxVoices / 2)) + 60
 
+local voiceToSourceMappingPanel = widgets.panel({
+  backgroundColour = "404040",
+  x = rythmPanel.x,
+  y = rythmPanel.y,
+  width = rythmPanel.width,
+  height = rythmPanel.height,
+  visible = false,
+})
+
 --------------------------------------------------------------------------------
 -- Sequencer Options
 --------------------------------------------------------------------------------
@@ -343,36 +352,44 @@ sequencerLabel.fontSize = 22
 sequencerLabel.position = {0,0}
 sequencerLabel.size = {sequencerPanel.width,30}
 
-local voiceToFragmentButton = sequencerPanel:OnOffButton("VoiceToFragmentButton", voiceToFragment)
-voiceToFragmentButton.displayName = "Voice to fragment"
-voiceToFragmentButton.tooltip = "Activate to let each voice use the corresponding fragment."
-voiceToFragmentButton.backgroundColourOff = backgroundColourOff
-voiceToFragmentButton.backgroundColourOn = backgroundColourOn
-voiceToFragmentButton.textColourOff = textColourOff
-voiceToFragmentButton.textColourOn = textColourOn
-voiceToFragmentButton.size = {96,22}
-voiceToFragmentButton.x = sequencerPanel.width - (voiceToFragmentButton.width * 5) - 25
-voiceToFragmentButton.y = 5
-voiceToFragmentButton.changed = function(self)
-  voiceToFragment = self.value
+local voicemappingButton = sequencerPanel:Button("VoicemappingButton")
+voicemappingButton.displayName = "Settings"
+voicemappingButton.tooltip = "Edit the voice to source mapping, and gate pattern"
+voicemappingButton.size = {96,22}
+voicemappingButton.x = sequencerPanel.width - (voicemappingButton.width * 5) - 25
+voicemappingButton.y = 5
+voicemappingButton.changed = function(self)
+  rythmPanel.visible = rythmPanel.visible == false -- Toggle
+  voiceToSourceMappingPanel.visible = rythmPanel.visible == false
+  if voiceToSourceMappingPanel.visible then
+    self.displayName = "Close"
+  else
+    self.displayName = "Settings"
+  end
 end
 
 local numVoicesInput = sequencerPanel:NumBox("NumVoices", numVoices, 1, maxVoices, true)
 numVoicesInput.displayName = "Voices"
-numVoicesInput.tooltip = "Number of voices"
-numVoicesInput.size = voiceToFragmentButton.size
-numVoicesInput.x = voiceToFragmentButton.x + voiceToFragmentButton.width + 5
-numVoicesInput.y = voiceToFragmentButton.y
+numVoicesInput.tooltip = "Number of voices. Each voice is mapped to the corresponding channel."
+numVoicesInput.size = voicemappingButton.size
+numVoicesInput.x = voicemappingButton.x + voicemappingButton.width + 5
+numVoicesInput.y = voicemappingButton.y
 numVoicesInput.backgroundColour = menuBackgroundColour
 numVoicesInput.textColour = menuTextColour
 numVoicesInput.changed = function(self)
   numVoices = self.value
+  for voice=1,maxVoices do
+    for _,v in ipairs(voiceToSourceMapping[voice]) do
+      v.enabled = voice <= numVoices
+    end
+  end
+
   initVoices()
 end
 
 local channelInput = sequencerPanel:NumBox("Channel", channel, 1, 16, true)
 channelInput.displayName = "Channel"
-channelInput.tooltip = "Send note events starting on this channel"
+channelInput.tooltip = "Send note events starting on this channel. If there are multiple voices, each voice is assigned to a separate channel, starting from the channel set here."
 channelInput.size = numVoicesInput.size
 channelInput.x = numVoicesInput.x + numVoicesInput.width + 5
 channelInput.y = numVoicesInput.y
@@ -416,68 +433,6 @@ end
 --------------------------------------------------------------------------------
 
 paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, nil, colours, maxVoices, 18, 12)
-
---[[ local templates = {
-  "Action...",
-  "Clear all fragment settings",
-  "Clear fragment inputs",
-  "Randomize all fragment settings",
-  "Randomize fragment inputs",
-  "Randomize fragments (single)",
-  "Randomize fragments (slow)",
-  "Randomize fragments (extended)",
-}
-local templateMenu = rythmPanel:Menu("Templates", templates)
-templateMenu.tooltip = "Randomize fragments - NOTE: Will change current settings!"
-templateMenu.showLabel = false
-templateMenu.height = 18
-templateMenu.width = 100
-templateMenu.x = 685 - templateMenu.width
-templateMenu.y = rythmLabel.y
-templateMenu.backgroundColour = menuBackgroundColour
-templateMenu.textColour = widgetTextColour
-templateMenu.arrowColour = menuArrowColour
-templateMenu.outlineColour = menuOutlineColour
-templateMenu.changed = function(self)
-  if self.value == 1 then
-    return
-  end
-  for _,v in ipairs(paramsPerFragment) do
-    if self.selectedText == "Clear fragment inputs" then
-      v.fragmentInput.text = ""
-    elseif self.selectedText == "Clear all fragment settings" then
-      v.fragmentInput.text = ""
-      v.fragmentPlayProbability.value = v.fragmentPlayProbability.default
-      v.fragmentActive.value = v.fragmentActive.default
-      v.fragmentRepeatProbability.value = v.fragmentRepeatProbability.default
-      v.fragmentRepeatProbabilityDecay.value = v.fragmentRepeatProbabilityDecay.default
-      v.fragmentMinRepeats.value = v.fragmentMinRepeats.default
-      v.reverseFragmentProbability.value = v.reverseFragmentProbability.default
-      v.randomizeFragmentProbability.value = v.randomizeFragmentProbability.default
-      v.restProbability.value = v.restProbability.default
-    elseif self.selectedText == "Randomize all fragment settings" then
-      v.fragmentInput.text = getRandomFragment(1)
-      v.fragmentPlayProbability.value = gem.getRandom(100)
-      v.fragmentActive.value = true
-      v.fragmentRepeatProbability.value = gem.getRandom(100)
-      v.fragmentRepeatProbabilityDecay.value = gem.getRandom(100)
-      v.fragmentMinRepeats.value = gem.getRandom(100)
-      v.reverseFragmentProbability.value = gem.getRandom(100)
-      v.randomizeFragmentProbability.value = gem.getRandom(100)
-      v.restProbability.value = gem.getRandom(100)
-    elseif self.selectedText == "Randomize fragment inputs" then
-      v.fragmentInput.text = getRandomFragment(1)
-    elseif self.selectedText == "Randomize fragments (single)" then
-      v.fragmentInput.text = getRandomFragment(2)
-    elseif self.selectedText == "Randomize fragments (extended)" then
-      v.fragmentInput.text = getRandomFragment(3)
-    elseif self.selectedText == "Randomize fragments (slow)" then
-      v.fragmentInput.text = getRandomFragment(4)
-    end
-  end
-  -- Must be last
-  self:setValue(1, false)
-end ]]
 
 --- Structure - Store/recall parts, set playing order etc. ---
 
@@ -733,40 +688,113 @@ recallButton.changed = function(self)
   end
 end
 
---[[ seqGateTable = rythmPanel:Table("Velocity", 8, 90, 0, 100, true)
-seqGateTable.unit = Unit.Percent
-seqGateTable.tooltip = "Set gate pattern. If a gate step is set to zero, that step is muted."
-seqGateTable.showPopupDisplay = true
-seqGateTable.fillStyle = "solid"
-seqGateTable.sliderColour = sliderColour
-seqGateTable.width = rythmPanel.width - 140
-seqGateTable.height = 45
-seqGateTable.x = 10
-seqGateTable.y = rythmPanel.height - 57
+--------------------------------------------------------------------------------
+-- Voice mapping panel
+--------------------------------------------------------------------------------
 
-local gateTableLength = rythmPanel:NumBox("GateTableLength", 8, 1, 64, true)
-gateTableLength.displayName = "Gate Len"
-gateTableLength.tooltip = "Length of gate pattern table"
-gateTableLength.width = 120
-gateTableLength.height = seqGateTable.height / 2
-gateTableLength.x = seqGateTable.x + seqGateTable.width + 1
-gateTableLength.y = seqGateTable.y
-gateTableLength.backgroundColour = menuBackgroundColour
-gateTableLength.textColour = menuTextColour
-gateTableLength.changed = function(self)
-  seqGateTable.length = self.value
+widgets.setSection({
+  x = 12,
+  y = 12,
+  xSpacing = 5,
+  ySpacing = 5,
+  width = (700 / 4) - 5,
+  cols = 4,
+})
+
+widgets.button("All On", {
+  tooltip = "Set all sources to 100% for all voices",
+  changed = function()
+    for voice,v in ipairs(voiceToSourceMapping) do
+      for source,w in ipairs(v) do
+        w.value = 100
+      end
+    end
+  end
+})
+
+widgets.button("Voice To Source", {
+  tooltip = "Map each voice to the corresponding source",
+  changed = function()
+    for voice,v in ipairs(voiceToSourceMapping) do
+      for source,w in ipairs(v) do
+        local val = 0
+        if voice == source then
+          val = 100
+        end    
+        w.value = val
+      end
+    end
+  end
+})
+
+widgets.button("All Off", {
+  tooltip = "Set all sources to 0% for all voices",
+  changed = function()
+    for voice,v in ipairs(voiceToSourceMapping) do
+      for source,w in ipairs(v) do
+        w.value = 0
+      end
+    end
+  end
+})
+
+widgets.button("Randomize", {
+  tooltip = "Set all sources to a random amount for all voices",
+  changed = function()
+    for voice,v in ipairs(voiceToSourceMapping) do
+      for source,w in ipairs(v) do
+        w.value = gem.getRandom(100)
+      end
+    end
+  end
+})
+
+for voice=1,maxVoices do
+  widgets.label("Voice " .. voice)
+  voiceToSourceMapping[voice] = {}
 end
 
-gateRandomization = rythmPanel:NumBox("GateRandomization", 15, 0, 100, true)
-gateRandomization.unit = Unit.Percent
-gateRandomization.displayName = "Gate Rand"
-gateRandomization.tooltip = "Amount of radomization applied to note gate"
-gateRandomization.backgroundColour = menuBackgroundColour
-gateRandomization.textColour = menuTextColour
-gateRandomization.width = gateTableLength.width
-gateRandomization.height = gateTableLength.height
-gateRandomization.x = gateTableLength.x
-gateRandomization.y = gateTableLength.y + gateTableLength.height + 1 ]]
+for source=1,maxVoices do
+  for voice=1,maxVoices do
+    table.insert(voiceToSourceMapping[voice], widgets.numBox("Source " .. source, 100, {
+      name = "source" .. source .. "voice" .. voice,
+      tooltip = "Set source " .. source .. " probability for voice " .. voice,
+      unit = Unit.Percent,
+      enabled = voice <= numVoices
+    }))
+  end
+end
+
+widgets.setSection({
+  x = 12,
+  y = widgets.posUnder(voiceToSourceMapping[maxVoices][maxVoices]) + 5,
+})
+
+seqGateTable = widgets.table("Gate Pattern", 90, 8, {
+  unit = Unit.Percent,
+  tooltip = "Set gate pattern. If a gate step is set to zero, that step is muted.",
+  showLabel = true,
+  showPopupDisplay = true,
+  width = 700,
+  height = 60,
+})
+
+widgets.row(1,60)
+
+widgets.numBox("Pattern Length", 8, {
+  tooltip = "Length of gate pattern table",
+  min = 1,
+  max = 64,
+  integer = true,
+  changed = function(self)
+    seqGateTable.length = self.value
+  end
+})
+
+gateRandomization = widgets.numBox("Gate Randomization", 0, {
+  tooltip = "Amount of radomization applied to note gate",
+  unit = Unit.Percent,
+})
 
 --------------------------------------------------------------------------------
 -- Handle events

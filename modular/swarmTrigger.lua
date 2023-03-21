@@ -85,12 +85,10 @@ end
 
 local function updateShapeWidgets()
   -- Update widgets with values from the shape
-  --print("updateShapeWidgets")
   local callChanged = false
-  shapeWidgets.z:setValue(shapeOptions.z, callChanged)
-  shapeWidgets.phase:setValue(shapeOptions.phase, callChanged)
-  shapeWidgets.factor:setValue(shapeOptions.factor, callChanged)
-  shapeWidgets.amount:setValue(shapeOptions.amount, callChanged)
+  for k,v in pairs(shapeWidgets) do
+    v:setValue(shapeOptions[k], callChanged)
+  end
 end
 
 local function setShape(loadNew)

@@ -385,7 +385,7 @@ for i=1,1 do
     end
   })
 
-  local scaleMenu = scales.widget(widgets.getSectionValue('width'), true)
+  local scaleMenu = scales.widget()
   scaleMenu.persistent = false -- Avoid running changed function on load, overwriting scaleInput
 
   widgets.label("Scale Definition", {
@@ -407,6 +407,7 @@ for i=1,1 do
   scaleInput.changed = function(self)
     print("scaleInput.changed", self.text)
     scaleDefinition = scales.getScaleDefinitionFromText(self.text)
+    self.tooltip = scales.getScaleInputTooltip(scaleDefinition)
     setScale()
   end
 

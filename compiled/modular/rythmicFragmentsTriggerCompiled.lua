@@ -56,12 +56,16 @@ local function sign(x)
   return 1
 end
 
-local function avg(t)
+local function sum(t)
   local sum = 0
   for _,v in pairs(t) do -- Get the sum of all numbers in t
     sum = sum + v
   end
-  return sum / #t
+  return sum
+end
+
+local function avg(t)
+  return sum(t) / #t
 end
 
 local function round(value)
@@ -151,8 +155,10 @@ local function getValueOrDefault(value, default)
 end
 
 local gem = {
+  e = 2.71828,
   inc = inc,
   avg = avg,
+  sum = sum,
   sign = sign,
   round = round,
   getRandom = getRandom,
@@ -166,6 +172,427 @@ local gem = {
   getValueOrDefault = getValueOrDefault,
   getIndexFromValue = getIndexFromValue,
   getRandomFromTable = getRandomFromTable,
+}
+
+--------------------------------------------------------------------------------
+-- Functions for creating an positioning widgets
+--------------------------------------------------------------------------------
+
+local panelNameIndex = 1
+local widgetNameIndex = 1
+local currentX = 0
+local currentY = 0
+
+local widgetDefaults = {
+  panel = Panel("DefaultPanel"),
+  width = 120,
+  height = 20,
+  menuHeight = 45,
+  knobHeight = 45,
+  xOffset = 0,
+  yOffset = 0,
+  xSpacing = 0,
+  ySpacing = 0,
+  col = 0,
+  row = 0,
+  rowDirection = 1,
+  cols = 6
+}
+
+local widgetColours = {
+  backgroundColour = "202020",
+  panelBackgroundColour = "202020",
+  widgetBackgroundColour = "01011F", -- Dark
+  menuBackgroundColour = "01011F", -- widgetBackgroundColour
+  widgetTextColour = "9f02ACFE", -- Light
+  tableBackgroundColour = "191E25",
+  sliderColour = "5FB5FF", -- Table slider colour
+  labelTextColour = "black", -- Light
+  labelBackgroundColour = "CFFFFE",
+  menuArrowColour = "66AEFEFF", -- labelTextColour
+  menuOutlineColour = "5f9f02ACFE", -- widgetTextColour
+  menuTextColour = "9f02ACFE",
+  backgroundColourOff = "ff084486",
+  backgroundColourOn = "ff02ACFE",
+  textColourOff = "ff22FFFF",
+  textColourOn = "efFFFFFF",
+  buttonBackgroundColourOff = "#606060",
+  buttonBackgroundColourOn = "#303030",
+  buttonTextColourOff = "white",
+  buttonTextColourOn = "silver",
+}
+
+local function getValueOrDefault(value, default)
+  if type(value) == "nil" then
+    return default
+  elseif type(value) == "function" then
+    return value(default, widgetDefaults)
+  end
+  return value
+end
+
+local function setColours(colours)
+  widgetColours.backgroundColour = getValueOrDefault(colours.backgroundColour, widgetColours.backgroundColour)
+  widgetColours.panelBackgroundColour = getValueOrDefault(colours.panelBackgroundColour, widgetColours.panelBackgroundColour)
+  widgetColours.widgetBackgroundColour = getValueOrDefault(colours.widgetBackgroundColour, widgetColours.widgetBackgroundColour)
+  widgetColours.menuBackgroundColour = getValueOrDefault(colours.menuBackgroundColour, widgetColours.menuBackgroundColour)
+  widgetColours.widgetTextColour = getValueOrDefault(colours.widgetTextColour, widgetColours.widgetTextColour)
+  widgetColours.tableBackgroundColour = getValueOrDefault(colours.tableBackgroundColour, widgetColours.tableBackgroundColour)
+  widgetColours.sliderColour = getValueOrDefault(colours.sliderColour, widgetColours.sliderColour)
+  widgetColours.labelTextColour = getValueOrDefault(colours.labelTextColour, widgetColours.labelTextColour)
+  widgetColours.labelBackgroundColour = getValueOrDefault(colours.labelBackgroundColour, widgetColours.labelBackgroundColour)
+  widgetColours.menuArrowColour = getValueOrDefault(colours.menuArrowColour, widgetColours.menuArrowColour)
+  widgetColours.menuOutlineColour = getValueOrDefault(colours.menuOutlineColour, widgetColours.menuOutlineColour)
+  widgetColours.menuTextColour = getValueOrDefault(colours.menuTextColour, widgetColours.menuTextColour)
+  widgetColours.backgroundColourOff = getValueOrDefault(colours.backgroundColourOff, widgetColours.backgroundColourOff)
+  widgetColours.backgroundColourOn = getValueOrDefault(colours.backgroundColourOn, widgetColours.backgroundColourOn)
+  widgetColours.textColourOff = getValueOrDefault(colours.textColourOff, widgetColours.textColourOff)
+  widgetColours.textColourOn = getValueOrDefault(colours.textColourOn, widgetColours.textColourOn)
+  widgetColours.buttonBackgroundColourOff = getValueOrDefault(colours.buttonBackgroundColourOff, widgetColours.buttonBackgroundColourOff)
+  widgetColours.buttonBackgroundColourOn = getValueOrDefault(colours.buttonBackgroundColourOn, widgetColours.buttonBackgroundColourOn)
+  widgetColours.buttonTextColourOff = getValueOrDefault(colours.buttonTextColourOff, widgetColours.buttonTextColourOff)
+  widgetColours.buttonTextColourOn = getValueOrDefault(colours.buttonTextColourOn, widgetColours.buttonTextColourOn)
+end
+
+local function setSection(settings)
+  if type(settings) ~= "table" then
+    settings = {}
+  end
+  setColours(settings)
+  widgetDefaults.width = getValueOrDefault(settings.width, widgetDefaults.width)
+  widgetDefaults.height = getValueOrDefault(settings.height, widgetDefaults.height)
+  widgetDefaults.menuHeight = getValueOrDefault(settings.menuHeight, widgetDefaults.menuHeight)
+  widgetDefaults.knobHeight = getValueOrDefault(settings.knobHeight, widgetDefaults.knobHeight)
+  widgetDefaults.xOffset = getValueOrDefault(settings.xOffset, widgetDefaults.xOffset)
+  widgetDefaults.yOffset = getValueOrDefault(settings.yOffset, widgetDefaults.yOffset)
+  widgetDefaults.xOffset = getValueOrDefault(settings.x, widgetDefaults.xOffset)
+  widgetDefaults.yOffset = getValueOrDefault(settings.y, widgetDefaults.yOffset)
+  widgetDefaults.xSpacing = getValueOrDefault(settings.xSpacing, widgetDefaults.xSpacing)
+  widgetDefaults.ySpacing = getValueOrDefault(settings.ySpacing, widgetDefaults.ySpacing)
+  widgetDefaults.cols = getValueOrDefault(settings.cols, widgetDefaults.cols)
+  widgetDefaults.col = getValueOrDefault(settings.col, 0)
+  widgetDefaults.row = getValueOrDefault(settings.row, 0)
+  widgetDefaults.rowDirection = getValueOrDefault(settings.rowDirection, 1)
+  currentX = widgetDefaults.xOffset
+  if widgetDefaults.rowDirection < 0 and widgetDefaults.row > 0 then
+    -- Find y when direction is reverse
+    local heightPerRow = widgetDefaults.height + widgetDefaults.ySpacing
+    currentY = (heightPerRow * widgetDefaults.row) + widgetDefaults.ySpacing
+  else
+    currentY = widgetDefaults.yOffset
+  end
+end
+
+local function getWidgetName(name, displayName, useDisplayNameAsWidgetName, panel)
+  if panel then
+    name = getValueOrDefault(name, "Panel" .. panelNameIndex)
+    panelNameIndex = panelNameIndex + 1
+  elseif type(name) == "nil" then
+    name = ""
+    if useDisplayNameAsWidgetName and type(displayName) == "string" then
+      name = string.gsub(displayName, "[^a-zA-Z]+", "")
+    end
+    if string.len(name) == 0 then
+      name = "Widget" .. widgetNameIndex
+      widgetNameIndex = widgetNameIndex + 1
+    end
+  end
+  --print("Widget name", name)
+  return name
+end
+
+local function incrementRow(row, h)
+  if type(row) == "nil" then
+    row = 1
+  end
+  if type(h) == "nil" then
+    h = widgetDefaults.height
+  end
+  widgetDefaults.row = widgetDefaults.row + row
+  widgetDefaults.col = 0
+  currentX = widgetDefaults.xOffset
+
+  local height = math.max(1, row) * h
+  local ySpacing = math.max(1, row) * widgetDefaults.ySpacing
+  local yAdjust = height + ySpacing
+  if row > 0 then
+    currentY = currentY + yAdjust
+  else
+    currentY = currentY - yAdjust
+  end
+end
+
+local function incrementCol(col, w, h)
+  if type(col) == "nil" then
+    col = 1
+  end
+  if type(w) == "nil" then
+    w = widgetDefaults.width
+  end
+
+  local width = math.max(1, col) * w
+  local xSpacing = math.max(1, col) * widgetDefaults.xSpacing
+  currentX = currentX + width + xSpacing
+
+  widgetDefaults.col = widgetDefaults.col + col
+  if widgetDefaults.col >= widgetDefaults.cols then
+    incrementRow(widgetDefaults.rowDirection, h)
+  end
+end
+
+local function getWidgetBounds(options, increment)
+  local x = getValueOrDefault(options.x, currentX)
+  local y = getValueOrDefault(options.y, currentY)
+  local w = getValueOrDefault(options.width, widgetDefaults.width)
+  local h = getValueOrDefault(options.height, widgetDefaults.height)
+
+  -- Increment position
+  if increment then
+    if type(options.increment) == "boolean" then
+      if options.increment then
+        options.increment = 1
+      else
+        options.increment = 0
+      end
+    end
+    local i = getValueOrDefault(options.increment, 1)
+    incrementCol(i, w, h)
+  end
+
+  return {x, y, w, h}
+end
+
+local function getWidgetOptions(options, displayName, default, panel)
+  if type(options) ~= "table" then
+    options = {}
+  end
+  options.default = getValueOrDefault(default, options.default)
+  options.name = getWidgetName(options.name, displayName, type(default) ~= "nil", panel)
+  options.displayName = getValueOrDefault(displayName, options.name)
+  options.tooltip = getValueOrDefault(options.tooltip, options.displayName)
+  options.integer = getValueOrDefault(options.integer, (options.unit == Unit.Percent or options.unit == Unit.MidiKey))
+  options.min = getValueOrDefault(options.min, 0)
+  options.default = getValueOrDefault(options.default, options.min)
+  if options.unit == Unit.MidiKey then
+    options.max = getValueOrDefault(options.max, 127)
+  elseif options.unit == Unit.Percent then
+    options.max = getValueOrDefault(options.max, 100)
+  else
+    options.max = getValueOrDefault(options.max, 1)
+  end
+  return options
+end
+
+local function setOptional(widget, options)
+  if type(options.changed) == "function" then
+    widget.changed = options.changed
+  end
+  if type(options.alpha) == "number" then
+    widget.alpha = options.alpha
+  end
+  if type(options.fontSize) == "number" then
+    widget.fontSize = options.fontSize
+  end
+  if type(options.unit) == "number" then
+    widget.unit = options.unit
+  end
+  if type(options.mapper) == "number" then
+    widget.mapper = options.mapper
+  end
+  if type(options.showLabel) == "boolean" then
+    widget.showLabel = options.showLabel
+  end
+  if type(options.persistent) == "boolean" then
+    widget.persistent = options.persistent
+  end
+  if type(options.enabled) == "boolean" then
+    widget.enabled = options.enabled
+  end
+  if type(options.showPopupDisplay) == "boolean" then
+    widget.showPopupDisplay = options.showPopupDisplay
+  end
+  if type(options.hierarchical) == "boolean" then
+    widget.hierarchical = options.hierarchical
+  end
+  if type(options.editable) == "boolean" then
+    widget.editable = options.editable
+  end
+  if type(options.visible) == "boolean" then
+    widget.visible = options.visible
+  end
+  if type(options.backgroundColour) == "string" then
+    widget.backgroundColour = options.backgroundColour
+  end
+  if type(options.fillStyle) == "string" then
+    widget.fillStyle = options.fillStyle
+  end
+  if type(options.sliderColour) == "string" then
+    widget.sliderColour = options.sliderColour
+  end
+  if type(options.backgroundColourWhenEditing) == "string" then
+    widget.backgroundColourWhenEditing = options.backgroundColourWhenEditing
+  end
+  if type(options.textColourWhenEditing) == "string" then
+    widget.textColourWhenEditing = options.textColourWhenEditing
+  end
+  if type(options.textColour) == "string" then
+    widget.textColour = options.textColour
+  end
+  if type(options.backgroundColourOff) == "string" then
+    widget.backgroundColourOff = options.backgroundColourOff
+  end
+  if type(options.backgroundColourOn) == "string" then
+    widget.backgroundColourOn = options.backgroundColourOn
+  end
+  if type(options.textColourOff) == "string" then
+    widget.textColourOff = options.textColourOff
+  end
+  if type(options.textColourOn) == "string" then
+    widget.textColourOn = options.textColourOn
+  end
+end
+
+local widgets = {
+  setColours = setColours,
+  setSection = setSection,
+  section = setSection,
+  channels = function()
+    local channels = {"Omni"}
+    for j=1,16 do
+      table.insert(channels, "" .. j)
+    end
+    return channels
+  end,
+  getColours = function() return widgetColours end,
+  getPanel = function() return widgetDefaults.panel end,
+  getSectionValue = function(k) return widgetDefaults[k] end,
+  xOffset = function(val) widgetDefaults.xOffset = val end,
+  yOffset = function(val) widgetDefaults.yOffset = val end,
+  x = function(val) widgetDefaults.xOffset = val end,
+  y = function(val) widgetDefaults.yOffset = val end,
+  xSpacing = function(val) widgetDefaults.xSpacing = val end,
+  ySpacing = function(val) widgetDefaults.ySpacing = val end,
+  posSide = function(widget) return widget.x + widget.width + widgetDefaults.xSpacing end,
+  posUnder = function(widget) return widget.y + widget.height + widgetDefaults.ySpacing end,
+  width = function(val) widgetDefaults.width = val end,
+  height = function(val) widgetDefaults.height = val end,
+  col = function(i, w, h) incrementCol(i, w, h) end,
+  row = function(i, h) incrementRow(i, h) end,
+  panel = function(options)
+    if type(options) ~= "table" then
+      options = {}
+    end
+    -- The first time, we use the default panel
+    local create = panelNameIndex > 1
+    if create == false then
+      options.name = widgetDefaults.panel.name
+    end
+    options = getWidgetOptions(options, nil, nil, true)
+    if create then
+      widgetDefaults.panel = Panel(options.name)
+      --print("Created panel", options.name)
+    end
+    widgetDefaults.panel.backgroundColour = widgetColours.panelBackgroundColour
+    widgetDefaults.panel.bounds = getWidgetBounds(options, false)
+    setOptional(widgetDefaults.panel, options)
+    return widgetDefaults.panel
+  end,
+  button = function(displayName, default, options)
+    local isOnOff = true
+    if type(default) == "table" then
+      options = default
+      default = nil
+      isOnOff = false
+    end
+    options = getWidgetOptions(options, displayName, default)
+    local widget
+    if isOnOff then
+      widget = widgetDefaults.panel:OnOffButton(options.name, (options.default == true))
+      widget.backgroundColourOff = widgetColours.backgroundColourOff
+      widget.backgroundColourOn = widgetColours.backgroundColourOn
+      widget.textColourOff = widgetColours.textColourOff
+      widget.textColourOn = widgetColours.textColourOn
+    else
+      widget = widgetDefaults.panel:Button(options.name)
+      widget.backgroundColourOff = widgetColours.buttonBackgroundColourOff
+      widget.backgroundColourOn = widgetColours.buttonBackgroundColourOn
+      widget.textColourOff = widgetColours.buttonTextColourOff
+      widget.textColourOn = widgetColours.buttonTextColourOn
+    end
+    widget.displayName = options.displayName
+    widget.tooltip = options.tooltip
+    widget.bounds = getWidgetBounds(options, true)
+    setOptional(widget, options)
+    return widget
+  end,
+  label = function(displayName, options)
+    options = getWidgetOptions(options, displayName)
+    local widget = widgetDefaults.panel:Label("Label")
+    widget.text = options.displayName
+    widget.tooltip = options.tooltip
+    widget.backgroundColour = widgetColours.labelBackgroundColour
+    widget.textColour = widgetColours.labelTextColour
+    widget.bounds = getWidgetBounds(options, true)
+    setOptional(widget, options)
+    return widget
+  end,
+  menu = function(displayName, default, items, options)
+    if type(default) == "table" then
+      options = items
+      items = default
+      default = 1
+    end
+    options = getWidgetOptions(options, displayName, default)
+    local widget = widgetDefaults.panel:Menu(options.name, items)
+    widget.selected = options.default
+    widget.displayName = options.displayName
+    widget.tooltip = options.tooltip
+    widget.backgroundColour = widgetColours.menuBackgroundColour
+    widget.textColour = widgetColours.menuTextColour
+    widget.arrowColour = widgetColours.menuArrowColour
+    widget.outlineColour = widgetColours.menuOutlineColour
+    setOptional(widget, options)
+    if widget.showLabel == true then
+      options.height = getValueOrDefault(options.height, widgetDefaults.menuHeight)
+    end
+    widget.bounds = getWidgetBounds(options, true)
+    return widget
+  end,
+  numBox = function(displayName, default, options)
+    options = getWidgetOptions(options, displayName, default)
+    local widget = widgetDefaults.panel:NumBox(options.name, options.default, options.min, options.max, options.integer)
+    widget.displayName = options.displayName
+    widget.tooltip = options.tooltip
+    widget.backgroundColour = widgetColours.widgetBackgroundColour
+    widget.textColour = widgetColours.widgetTextColour
+    widget.bounds = getWidgetBounds(options, true)
+    setOptional(widget, options)
+    return widget
+  end,
+  knob = function(displayName, default, options)
+    options = getWidgetOptions(options, displayName, default)
+    local widget = widgetDefaults.panel:Knob(options.name, options.default, options.min, options.max, options.integer)
+    widget.displayName = options.displayName
+    widget.tooltip = options.tooltip
+    widget.backgroundColour = widgetColours.widgetBackgroundColour
+    widget.textColour = widgetColours.widgetTextColour
+    if widget.showLabel == true then
+      options.height = getValueOrDefault(options.height, widgetDefaults.knobHeight)
+    end
+    widget.bounds = getWidgetBounds(options, true)
+    setOptional(widget, options)
+    return widget
+  end,
+  table = function(displayName, default, size, options)
+    options = getWidgetOptions(options, displayName, default)
+    local widget = widgetDefaults.panel:Table(options.name, size, options.default, options.min, options.max, options.integer)
+    widget.fillStyle = "solid"
+    widget.backgroundColour = widgetColours.tableBackgroundColour
+    widget.sliderColour = widgetColours.sliderColour
+    widget.bounds = getWidgetBounds(options, true)
+    setOptional(widget, options)
+    return widget
+  end,
 }
 
 --------------------------------------------------------------------------------
@@ -1544,8 +1971,8 @@ local seqIndex = 0 -- Holds the unique id for the sequencer
 local playIndex = 0 -- Holds the unique id for each playing voice
 local playingIndex = {}
 local channel = 1
---local seqGateTable
---local gateRandomization
+local seqGateTable
+local gateRandomization
 local numVoices = 1
 local maxVoices = 4
 local playingVoices = {}
@@ -1560,24 +1987,18 @@ local evolveButton
 local evolveFragmentProbability
 local randomizeCurrentResolutionProbability
 local adjustBias
+local voiceToSourceMapping = {} -- Holds the sources for each voice
 local fragmentSlots = {}
-local voiceToFragment = false
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
 --------------------------------------------------------------------------------
 
 local function randomizeGate(gate)
-  if type(seqGateTable) == "nil" then
-    return gate
-  end
   return gem.randomizeValue(gate, seqGateTable.min, seqGateTable.max, gateRandomization.value)
 end
 
 local function getGate(pos)
-  if type(seqGateTable) == "nil" then
-    return 100
-  end
   return seqGateTable:getValue(pos), gem.inc(pos, 1, seqGateTable.length)
 end
 
@@ -1599,6 +2020,18 @@ local function initVoices()
   end
 end
 
+local function getSourcesForVoice(voice)
+  local sources = {}
+  for source,v in ipairs(voiceToSourceMapping[voice]) do
+    if gem.getRandomBoolean(v.value) then
+      table.insert(sources, source)
+      print("Added source for voice", source, voice)
+    end
+  end
+  print("Voice #sources", voice, #sources)
+  return sources
+end
+
 local function play(voice, uniqueId, partDuration)
   --print("voice, uniqueId, partDuration", voice, uniqueId, partDuration)
   local playDuration = 0 -- Keep track of the played duration
@@ -1612,7 +2045,6 @@ local function play(voice, uniqueId, partDuration)
   local fragmentRepeatProbability = 0
   local reverseFragment = false
   local fragmentRepeatCount = 0
-  --local velocityPos = 1
   local velocity = 64
   local gatePos = 1
   local gate = nil
@@ -1620,15 +2052,9 @@ local function play(voice, uniqueId, partDuration)
   while isPlaying and playingIndex[voice] == uniqueId do
     roundCounterPerVoice[voice] = roundCounterPerVoice[voice] + 1
 
-    --velocity, velocityPos = getVelocity(velocityPos)
     gate, gatePos = getGate(gatePos)
 
-    -- TODO Param for source per voice?
-    -- Default is multivoice uses the fragment that corresponds to the voice
-    local sources = nil
-    if voiceToFragment then
-      sources = {voice}
-    end
+    local sources = getSourcesForVoice(voice)
 
     duration, isFragmentStart, isRepeat, mustRepeat, rest, activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount = rythmicFragments.getDuration(activeFragment, fragmentPos, fragmentRepeatProbability, reverseFragment, fragmentRepeatCount, sources)
 
@@ -1826,6 +2252,15 @@ rythmPanel.y = sequencerPanel.y + sequencerPanel.height + 0
 rythmPanel.width = sequencerPanel.width
 rythmPanel.height = (102 * (maxVoices / 2)) + 60
 
+local voiceToSourceMappingPanel = widgets.panel({
+  backgroundColour = "404040",
+  x = rythmPanel.x,
+  y = rythmPanel.y,
+  width = rythmPanel.width,
+  height = rythmPanel.height,
+  visible = false,
+})
+
 --------------------------------------------------------------------------------
 -- Sequencer Options
 --------------------------------------------------------------------------------
@@ -1840,36 +2275,44 @@ sequencerLabel.fontSize = 22
 sequencerLabel.position = {0,0}
 sequencerLabel.size = {sequencerPanel.width,30}
 
-local voiceToFragmentButton = sequencerPanel:OnOffButton("VoiceToFragmentButton", voiceToFragment)
-voiceToFragmentButton.displayName = "Voice to fragment"
-voiceToFragmentButton.tooltip = "Activate to let each voice use the corresponding fragment."
-voiceToFragmentButton.backgroundColourOff = backgroundColourOff
-voiceToFragmentButton.backgroundColourOn = backgroundColourOn
-voiceToFragmentButton.textColourOff = textColourOff
-voiceToFragmentButton.textColourOn = textColourOn
-voiceToFragmentButton.size = {96,22}
-voiceToFragmentButton.x = sequencerPanel.width - (voiceToFragmentButton.width * 5) - 25
-voiceToFragmentButton.y = 5
-voiceToFragmentButton.changed = function(self)
-  voiceToFragment = self.value
+local voicemappingButton = sequencerPanel:Button("VoicemappingButton")
+voicemappingButton.displayName = "Settings"
+voicemappingButton.tooltip = "Edit the voice to source mapping, and gate pattern"
+voicemappingButton.size = {96,22}
+voicemappingButton.x = sequencerPanel.width - (voicemappingButton.width * 5) - 25
+voicemappingButton.y = 5
+voicemappingButton.changed = function(self)
+  rythmPanel.visible = rythmPanel.visible == false -- Toggle
+  voiceToSourceMappingPanel.visible = rythmPanel.visible == false
+  if voiceToSourceMappingPanel.visible then
+    self.displayName = "Close"
+  else
+    self.displayName = "Settings"
+  end
 end
 
 local numVoicesInput = sequencerPanel:NumBox("NumVoices", numVoices, 1, maxVoices, true)
 numVoicesInput.displayName = "Voices"
-numVoicesInput.tooltip = "Number of voices"
-numVoicesInput.size = voiceToFragmentButton.size
-numVoicesInput.x = voiceToFragmentButton.x + voiceToFragmentButton.width + 5
-numVoicesInput.y = voiceToFragmentButton.y
+numVoicesInput.tooltip = "Number of voices. Each voice is mapped to the corresponding channel."
+numVoicesInput.size = voicemappingButton.size
+numVoicesInput.x = voicemappingButton.x + voicemappingButton.width + 5
+numVoicesInput.y = voicemappingButton.y
 numVoicesInput.backgroundColour = menuBackgroundColour
 numVoicesInput.textColour = menuTextColour
 numVoicesInput.changed = function(self)
   numVoices = self.value
+  for voice=1,maxVoices do
+    for _,v in ipairs(voiceToSourceMapping[voice]) do
+      v.enabled = voice <= numVoices
+    end
+  end
+
   initVoices()
 end
 
 local channelInput = sequencerPanel:NumBox("Channel", channel, 1, 16, true)
 channelInput.displayName = "Channel"
-channelInput.tooltip = "Send note events starting on this channel"
+channelInput.tooltip = "Send note events starting on this channel. If there are multiple voices, each voice is assigned to a separate channel, starting from the channel set here."
 channelInput.size = numVoicesInput.size
 channelInput.x = numVoicesInput.x + numVoicesInput.width + 5
 channelInput.y = numVoicesInput.y
@@ -1913,68 +2356,6 @@ end
 --------------------------------------------------------------------------------
 
 paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, nil, colours, maxVoices, 18, 12)
-
---[[ local templates = {
-  "Action...",
-  "Clear all fragment settings",
-  "Clear fragment inputs",
-  "Randomize all fragment settings",
-  "Randomize fragment inputs",
-  "Randomize fragments (single)",
-  "Randomize fragments (slow)",
-  "Randomize fragments (extended)",
-}
-local templateMenu = rythmPanel:Menu("Templates", templates)
-templateMenu.tooltip = "Randomize fragments - NOTE: Will change current settings!"
-templateMenu.showLabel = false
-templateMenu.height = 18
-templateMenu.width = 100
-templateMenu.x = 685 - templateMenu.width
-templateMenu.y = rythmLabel.y
-templateMenu.backgroundColour = menuBackgroundColour
-templateMenu.textColour = widgetTextColour
-templateMenu.arrowColour = menuArrowColour
-templateMenu.outlineColour = menuOutlineColour
-templateMenu.changed = function(self)
-  if self.value == 1 then
-    return
-  end
-  for _,v in ipairs(paramsPerFragment) do
-    if self.selectedText == "Clear fragment inputs" then
-      v.fragmentInput.text = ""
-    elseif self.selectedText == "Clear all fragment settings" then
-      v.fragmentInput.text = ""
-      v.fragmentPlayProbability.value = v.fragmentPlayProbability.default
-      v.fragmentActive.value = v.fragmentActive.default
-      v.fragmentRepeatProbability.value = v.fragmentRepeatProbability.default
-      v.fragmentRepeatProbabilityDecay.value = v.fragmentRepeatProbabilityDecay.default
-      v.fragmentMinRepeats.value = v.fragmentMinRepeats.default
-      v.reverseFragmentProbability.value = v.reverseFragmentProbability.default
-      v.randomizeFragmentProbability.value = v.randomizeFragmentProbability.default
-      v.restProbability.value = v.restProbability.default
-    elseif self.selectedText == "Randomize all fragment settings" then
-      v.fragmentInput.text = getRandomFragment(1)
-      v.fragmentPlayProbability.value = gem.getRandom(100)
-      v.fragmentActive.value = true
-      v.fragmentRepeatProbability.value = gem.getRandom(100)
-      v.fragmentRepeatProbabilityDecay.value = gem.getRandom(100)
-      v.fragmentMinRepeats.value = gem.getRandom(100)
-      v.reverseFragmentProbability.value = gem.getRandom(100)
-      v.randomizeFragmentProbability.value = gem.getRandom(100)
-      v.restProbability.value = gem.getRandom(100)
-    elseif self.selectedText == "Randomize fragment inputs" then
-      v.fragmentInput.text = getRandomFragment(1)
-    elseif self.selectedText == "Randomize fragments (single)" then
-      v.fragmentInput.text = getRandomFragment(2)
-    elseif self.selectedText == "Randomize fragments (extended)" then
-      v.fragmentInput.text = getRandomFragment(3)
-    elseif self.selectedText == "Randomize fragments (slow)" then
-      v.fragmentInput.text = getRandomFragment(4)
-    end
-  end
-  -- Must be last
-  self:setValue(1, false)
-end ]]
 
 --- Structure - Store/recall parts, set playing order etc. ---
 
@@ -2230,40 +2611,113 @@ recallButton.changed = function(self)
   end
 end
 
---[[ seqGateTable = rythmPanel:Table("Velocity", 8, 90, 0, 100, true)
-seqGateTable.unit = Unit.Percent
-seqGateTable.tooltip = "Set gate pattern. If a gate step is set to zero, that step is muted."
-seqGateTable.showPopupDisplay = true
-seqGateTable.fillStyle = "solid"
-seqGateTable.sliderColour = sliderColour
-seqGateTable.width = rythmPanel.width - 140
-seqGateTable.height = 45
-seqGateTable.x = 10
-seqGateTable.y = rythmPanel.height - 57
+--------------------------------------------------------------------------------
+-- Voice mapping panel
+--------------------------------------------------------------------------------
 
-local gateTableLength = rythmPanel:NumBox("GateTableLength", 8, 1, 64, true)
-gateTableLength.displayName = "Gate Len"
-gateTableLength.tooltip = "Length of gate pattern table"
-gateTableLength.width = 120
-gateTableLength.height = seqGateTable.height / 2
-gateTableLength.x = seqGateTable.x + seqGateTable.width + 1
-gateTableLength.y = seqGateTable.y
-gateTableLength.backgroundColour = menuBackgroundColour
-gateTableLength.textColour = menuTextColour
-gateTableLength.changed = function(self)
-  seqGateTable.length = self.value
+widgets.setSection({
+  x = 12,
+  y = 12,
+  xSpacing = 5,
+  ySpacing = 5,
+  width = (700 / 4) - 5,
+  cols = 4,
+})
+
+widgets.button("All On", {
+  tooltip = "Set all sources to 100% for all voices",
+  changed = function()
+    for voice,v in ipairs(voiceToSourceMapping) do
+      for source,w in ipairs(v) do
+        w.value = 100
+      end
+    end
+  end
+})
+
+widgets.button("Voice To Source", {
+  tooltip = "Map each voice to the corresponding source",
+  changed = function()
+    for voice,v in ipairs(voiceToSourceMapping) do
+      for source,w in ipairs(v) do
+        local val = 0
+        if voice == source then
+          val = 100
+        end    
+        w.value = val
+      end
+    end
+  end
+})
+
+widgets.button("All Off", {
+  tooltip = "Set all sources to 0% for all voices",
+  changed = function()
+    for voice,v in ipairs(voiceToSourceMapping) do
+      for source,w in ipairs(v) do
+        w.value = 0
+      end
+    end
+  end
+})
+
+widgets.button("Randomize", {
+  tooltip = "Set all sources to a random amount for all voices",
+  changed = function()
+    for voice,v in ipairs(voiceToSourceMapping) do
+      for source,w in ipairs(v) do
+        w.value = gem.getRandom(100)
+      end
+    end
+  end
+})
+
+for voice=1,maxVoices do
+  widgets.label("Voice " .. voice)
+  voiceToSourceMapping[voice] = {}
 end
 
-gateRandomization = rythmPanel:NumBox("GateRandomization", 15, 0, 100, true)
-gateRandomization.unit = Unit.Percent
-gateRandomization.displayName = "Gate Rand"
-gateRandomization.tooltip = "Amount of radomization applied to note gate"
-gateRandomization.backgroundColour = menuBackgroundColour
-gateRandomization.textColour = menuTextColour
-gateRandomization.width = gateTableLength.width
-gateRandomization.height = gateTableLength.height
-gateRandomization.x = gateTableLength.x
-gateRandomization.y = gateTableLength.y + gateTableLength.height + 1 ]]
+for source=1,maxVoices do
+  for voice=1,maxVoices do
+    table.insert(voiceToSourceMapping[voice], widgets.numBox("Source " .. source, 100, {
+      name = "source" .. source .. "voice" .. voice,
+      tooltip = "Set source " .. source .. " probability for voice " .. voice,
+      unit = Unit.Percent,
+      enabled = voice <= numVoices
+    }))
+  end
+end
+
+widgets.setSection({
+  x = 12,
+  y = widgets.posUnder(voiceToSourceMapping[maxVoices][maxVoices]) + 5,
+})
+
+seqGateTable = widgets.table("Gate Pattern", 90, 8, {
+  unit = Unit.Percent,
+  tooltip = "Set gate pattern. If a gate step is set to zero, that step is muted.",
+  showLabel = true,
+  showPopupDisplay = true,
+  width = 700,
+  height = 60,
+})
+
+widgets.row(1,60)
+
+widgets.numBox("Pattern Length", 8, {
+  tooltip = "Length of gate pattern table",
+  min = 1,
+  max = 64,
+  integer = true,
+  changed = function(self)
+    seqGateTable.length = self.value
+  end
+})
+
+gateRandomization = widgets.numBox("Gate Randomization", 0, {
+  tooltip = "Amount of radomization applied to note gate",
+  unit = Unit.Percent,
+})
 
 --------------------------------------------------------------------------------
 -- Handle events

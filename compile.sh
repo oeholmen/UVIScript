@@ -14,6 +14,7 @@ luaScripts=(
   generators/noteFragmentGenerator
   modular/bounceTrigger
   modular/chorderInput
+  modular/gameOfLifeInput
   modular/gameOfLifeTrigger
   modular/gridSequencerInput
   modular/horizontalMotionSequencerInput

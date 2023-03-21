@@ -55,7 +55,7 @@ local function checkTrigger(i, value)
     end
     if isTrigger then
       noteEventId = i
-      print("Update noteEventId", noteEventId)
+      --print("Update noteEventId", noteEventId)
     end
   end
   -- Update the current value

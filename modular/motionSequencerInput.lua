@@ -34,7 +34,6 @@ local numNoteLabels = 9 -- Holds the maximum amount of note labels that are requ
 local noteLabels = {} -- Holds the labels for the notes
 local noteNumberToNoteName = notes.getNoteMapping()
 
-
 --------------------------------------------------------------------------------
 -- Sequencer Functions
 --------------------------------------------------------------------------------
@@ -264,7 +263,7 @@ widgets.menu("Motion Type", tableMotion.movementTypes, {
   end
 })
 
-scales.widget(noteWidgetWidth).changed = function(self)
+scales.widget().changed = function(self)
   scaleDefinitionIndex = self.value
   setScale()
 end

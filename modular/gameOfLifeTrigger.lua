@@ -36,6 +36,7 @@ local maxGenerations = 1000 -- Max generations before reset is forced
 local shapeIndex
 local fillProbability = 50
 local generationLabel
+local triggerLabel
 local shapeMenu
 local speedInput
 local speedRandomization = 0

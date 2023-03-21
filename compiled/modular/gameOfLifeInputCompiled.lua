@@ -1,4 +1,4 @@
--- modular/chorderInput -- 
+-- modular/gameOfLifeInput -- 
 --------------------------------------------------------------------------------
 -- Common methods
 --------------------------------------------------------------------------------
@@ -858,841 +858,782 @@ local scales = {
 }
 
 --------------------------------------------------------------------------------
--- Common functions for notes
+-- Methods for working with shapes
 --------------------------------------------------------------------------------
 
-local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
+local getUnipolar = function(v) return (v + 1) / 2 end
 
-local notes = {
-  getNoteNames = function()
-    return notenames
-  end,
-
-  getOctave = function(noteNumber)
-    return math.floor(noteNumber / 12) - 2
-  end,
-
-  -- Used for mapping - does not include octave, only name of note (C, C#...)
-  getNoteMapping = function()
-    local noteNumberToNoteName = {}
-    local notenamePos = 1
-    for i=0,127 do
-      table.insert(noteNumberToNoteName, notenames[notenamePos])
-      notenamePos = notenamePos + 1
-      if notenamePos > #notenames then
-        notenamePos = 1
-      end
+-- Holds the shape definitions - functions get the following variables
+-- x is the current time-value getting plotted, from -1.0 to 1.0
+-- z is the current table number, from -1.0 to 1.0
+-- w is the current time-value getting plotted, from 0.0 to 1.0 (same as (x+1)/2)
+-- y is the current table number, from 0.0 to 1.0 (same as (z+1)/2)
+-- pos = current index (from 0)
+-- b = bounds (min, max, length, unipolar, rand)
+local shapes = {
+  ramp = function(x, z, pos, b) return x * z end,
+  triangleShaper = function(x, z, pos, b) return math.min(2+2*x, math.abs((x-0.5)*2)-1) * z end,
+  sine = function(x, z, pos, b) return math.sin(x*math.pi) * z end,
+  tangent = function(x, z, pos, b) return math.tan(x) * z end,
+  sawInPhase = function(x, z, pos, b) return (gem.sign(x)-x) * z end,
+  sinToNoise = function(x, z, pos, b) return 2*gem.avg({math.sin(z*x*math.pi),(1-z)*gem.getRandom()}) end,
+  wacky = function(x, z, pos, b) return math.sin(((x)+1)^(z-1)*math.pi) end,
+  hpfSqrToSqr = function(x, z, pos, b) if x < 0 then return math.sin((z*0.5)*math.pi)^(x+1) end return -math.sin((z*0.5)*math.pi)^x end,
+  windowYSqr = function(x, z, pos, b) local v = 1 if math.abs(x) > 0.5 then v = (1-math.abs(x))*2 end return v * math.min(1, math.max(-1,8*math.sin((z+0.02)*x*math.pi*32))) end,
+  filteredSquare = function(x, z, pos, b) return (1.2*math.sin(x*math.pi)+0.31*math.sin(x*math.pi*3)+0.11*math.sin(x*math.pi*5)+0.033*math.sin(x*math.pi*7)) * z end,
+  organIsh = function(x, z, pos, b) return (math.sin(x*math.pi)+(0.16*(math.sin(2*x*math.pi)+math.sin(3*x*math.pi)+math.sin(4*x*math.pi)))) * z end,
+  sawAnalog = function(x, z, pos, b) return (2.001 * (math.sin(x * 0.7905) - 0.5)) * z end,
+  dome = function(x, z, pos, b) return (2 * (math.sin(x * 1.5705) - 0.5)) * z end,
+  brassy = function(x, z, pos, b) return math.sin(math.pi*gem.sign(x)*(math.abs(x)^(((1-z)+0.1)*math.pi*math.pi))) end,
+  taffy = function(x, z, pos, b) return math.sin(x*math.pi*2)*math.cos(x*math.pi)*math.cos(z*math.pi*(math.abs((x*2)^3)-1)*math.pi) end,
+  random = function(x, z, pos, b) return ((gem.getRandom() * 2) - 1) * z end,
+  harmonicSync = function(x, z, pos, b) return math.sin(x*math.pi*(2+(62*z*z*z)))*math.sin(x*math.pi) end,
+  softSine = function(x, z, pos, b) return 0.5*(math.cos(x*math.pi/2)*((math.sin((x)*math.pi)+(1-z)*(math.sin(z*((x*x)^z)*math.pi*32))))) end,
+  tripleSin = function(x, z, pos, b) return math.cos(x*math.pi/2)*1.6*(.60*math.sin( ((z*16)+1)*3*x ) + .20*math.sin( ((z*16)+1)*9*x ) + .15*math.sin( ((z*16)+1)*15*x)) end,
+  pwm50to100 = function(x, z, pos, b) if x > z then return 1 end return -1 end,
+  chaosToSine = function(x, z, pos, b) return math.sin(math.pi*z*z*32*math.log(x+1)) end,
+  sawSinReveal = function(x, z, pos, b) if x + 1 > z * 2 then return x end return math.sin(x * math.pi) end,
+  domeSmall = function(x, z, pos, b) return (-1-1.275*math.sin(getUnipolar(x)*math.pi)) * z end,
+  zero = function(x, z, pos, b) if b.unipolar then return -1 end return 0 end,
+  minMax = function(x, z, pos, b) return z end,
+  oddAndEven = function(x, z, pos, b) x = -1 if pos % 2 == 0 then x = 1 end return x * z end,
+  lofiTriangle = function(x, z, pos, b) return ((gem.round(16*math.abs(x))/8.0)-1) * z end,
+  hpfSaw = function(x, z, pos, b) return (x-(0.635*math.sin(x*math.pi))) * z end,
+  squareTri = function(x, z, pos, b) return (-1*(gem.sign(x)*0.5)+(math.abs(x)-0.5)) * z end,
+  sineStrech = function(x, z, pos, b) return math.sin(x^(1+(gem.round(z*32)*2))*math.pi) end,
+  squareSawBit = function(x, z, pos, b) return math.sin((2-(z/4))*x*x*math.pi)/gem.round(x*32*((z/4)*(z/4)-0.125)) end,
+  loFiTriangles = function(x, z, pos, b) return (gem.round((2+(z*14))*math.abs(x))/(1+(z*7.0)))-1 end,
+  talkative1 = function(x, z, pos, b) return 1.4*math.cos(x*math.pi/2)*(.5*math.sin(((z*5)+1)*3*x)+.10*math.sin(((z*6)+1)*2*x)+.08*math.sin((((1-z)*3)+1)*12*x)) end,
+  sinClipper = function(x, z, pos, b) return math.sin(x*math.pi)*(((z*z)+0.125)*8) end,
+  pitfall = function(x, z, pos, b) return (x*128)%(z*16)*0.25 end,
+  nascaLines = function(x, z, pos, b) return math.sqrt(1/pos)*(((pos/2)*(z+0.1)*b.max)%3)*0.5 end,
+  kick = function(x, z, pos, b) return math.sin(math.pi*z*z*32*math.log(x+1)) end,
+  sinToSaw = function(x, z, pos, b) return math.sin(-x*math.pi)*(1-z)+(-x*z) end,
+  zeroCrossing = function(x, z, pos, b) return math.sin((x+1)*math.pi*(z+1))*(-math.abs(x)^32+1) end,
+  vosim = function(x, z, pos, b) return -(getUnipolar(x)-1)*math.sin(getUnipolar(x)*math.pi*8*(math.sin(z)+1.5))^2 end,
+  vosimNormalized = function(x, z, pos, b) return (-(getUnipolar(x)-1)*math.sin(getUnipolar(x)*math.pi*9*(math.sin(getUnipolar(z))+1.3))^2-.5)*2 end,
+  acos = function(x, z, pos, b) return math.acos(x) * z end,
+  wings = function(x, z, pos, b) return math.acos((math.abs(-math.abs(x)+1) + -math.abs(x)+1)/2) * z end,
+  crosser = function(x, z, pos, b) return gem.avg({x, getUnipolar(x)}) * z end,
+  diracDelta = function(x, z, pos, b) return (math.exp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*16) end,
+  diracDeltaFrexp = function(x, z, pos, b) return (math.frexp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*16) end,
+  diracDeltaRand = function(x, z, pos, b) return (math.exp(-1*(x/((0.0001+z)*2))^2))/(((0.0001+z)*2)*math.sqrt(math.pi)*math.min(8, b.rand*32)) end,
+  swipe1 = function(x, z, pos, b) return math.exp(math.abs(x)/getUnipolar(z)) * z end,
+  swipe2 = function(x, z, pos, b) return math.exp(math.tan(x)/math.pi) * z end,
+  swipe3 = function(x, z, pos, b) return math.exp(x-getUnipolar(z)) * z end,
+  swipe4 = function(x, z, pos, b) return (math.exp(x)) * gem.avg({z, x}) end,
+  mayhemInTheMiddle = function(x, z, pos, b) return math.sin((x * math.pi) + (z * math.tan(getUnipolar(x) * math.pi))) end,
+  zeroDancer = function(x, z, pos, b) return math.sin(x / z + z) * z end,
+  exponential = function(x, z, pos, b, percentPos, stepValue, o) return (stepValue + (2-stepValue)*percentPos^o.factor) * z + o.phase end,
+  bridge = function(x, z, pos, b, percentPos, stepValue, o) return math.abs(x^2) * z end,
+  gauss = function(x, z, pos, b, percentPos, stepValue, o) return (1 / (z+1) * math.sqrt(2*math.pi)) * gem.e^(-(x^2) / (2*z^2)) - 1 end,
+  shakySine = function(x, z, pos, b, percentPos, stepValue)
+    local f = 0
+    local g = b.rand * percentPos
+    if z < 0 then
+      f = z - g
+    elseif z > 0 then
+      f = z + g
     end
-    return noteNumberToNoteName
+    return math.sin(x * math.pi) * f
   end,
-
-  transpose = function(note, min, max)
-    --print("Check transpose", note)
-    if note < min then
-      print("note < min", note, min)
-      while note < min do
-        note = note + 12
-        print("transpose note up", note)
-      end
-    elseif note > max then
-      print("note > max", note, max)
-      while note > max do
-        note = note - 12
-        print("transpose note down", note)
-      end
-    end
-    -- Ensure note is inside given min/max values
-    note = math.max(min, math.min(max, note))
-    -- Ensure note is inside valid values
-    return math.max(0, math.min(127, note))
-  end,
-
-  getSemitonesBetweenNotes = function(note1, note2)
-    return math.max(note1, note2) - math.min(note1, note1)
-  end,
-
-  getNoteAccordingToScale = function(scale, noteToPlay)
-    for _,note in ipairs(scale) do
-      if note == noteToPlay then
-        return noteToPlay
-      elseif note > noteToPlay then
-        print("Change from noteToPlay to note", noteToPlay, note)
-        return note
-      end
-    end
-    return noteToPlay
+  testShape = function(x, z, pos, b, percentPos, stepValue, o)
+    -- This is the formula for the standard normal distribution, which is a Gaussian curve with a mean of 0 and a standard deviation of 1. 
+    -- Gaussian curve with a mean of 0 and a standard deviation of 1:
+    -- (1 / σ√(2π)) * e^(-((x-μ)^2) / (2σ^2))
+    -- Simplified: (1 / √(2π)) * e^(-(x^2) / 2)
+    local mu = 0
+    return (1 / (z+1) * math.sqrt(2*math.pi)) * gem.e^(-((x-mu)^2) / (2*z^2)) - 1
   end,
 }
 
------------------------------------------------------------------------------------
--- Generative Chorder - Listens for incoming note events (rythm) on note number 0
------------------------------------------------------------------------------------
-
-local backgroundColour = "404040" -- Light or Dark
-local panelBackgroundColour = "505050" -- Light or Dark
-local menuBackgroundColour = "01011F"
-local widgetBackgroundColour = menuBackgroundColour -- Dark
-local widgetTextColour = "9f02ACFE" -- Light
-local labelTextColour = "black"
-local menuArrowColour = "66" .. labelTextColour
-
-widgets.setColours({
-  widgetBackgroundColour = widgetBackgroundColour,
-  widgetTextColour = widgetTextColour,
-  labelTextColour = labelTextColour,
-  menuBackgroundColour = menuBackgroundColour,
-  menuArrowColour = menuArrowColour,
-  backgroundColour = backgroundColour,
-  panelBackgroundColour = panelBackgroundColour,
-})
-
-local paramsPerPart = {}
-
--- *** NOTE *** The chord definitions use steps in the selected scale, not semitones.
--- 2 means two steps up the scale: C-E for a C major scale. A-C for an A minor scale.
-local chordDefinitions = {
-  {2,2,3}, -- Builds triads
-  {2,2,2,1}, -- Builds 7th chords
-  {3,1,3}, -- Builds supended chords
-  {2,2,1,2}, -- Builds 6th chords
-  {2,2,2,2,-1}, -- Builds 7th and 9th chords depending on polyphony
-  {1,1,2,2,1}, -- Builds (close) 7th and 9th chords
-  {4,3}, -- Builds open chords (no3)
-  {1,2,1,2,1}, -- Builds supended chords including 7th and 9ths
+local shapeDefinitions = {
+  {name = "Ramp Up", f = shapes.ramp, o = {z = 1}},
+  {name = "Ramp Down", f = shapes.ramp, o = {z = -1}},
+  {name = "Sine", f = shapes.sine},
+  {name = "Triangle", f = shapes.triangleShaper},
+  {name = "Triangle (Off Phs)", f = shapes.triangleShaper, o = {phase = -.5}},
+  {name = "LoFi Triangle", f = shapes.lofiTriangle},
+  {name = "Sqr/Tri", f = shapes.squareTri},
+  {name = "Dome", f = shapes.dome, o = {phase = 0}},
+  {name = "Dome Small", f = shapes.domeSmall, o = {phase = 1}},
+  {name = "Saw", f = shapes.sawInPhase},
+  {name = "HPF Saw", f = shapes.hpfSaw},
+  {name = "Analog Saw", f = shapes.sawAnalog, o = {phase = 0}},
+  {name = "Fltr Sqr",  f = shapes.filteredSquare},
+  {name = "Organ-Ish", f = shapes.organIsh},
+  {name = "Tangent", f = shapes.tangent},
+  {name = "Acos", f = shapes.acos},
+  {name = "Triple Sine", f = shapes.tripleSin},
+  {name = "Harmonic Sync", f = shapes.harmonicSync},
+  {name = "Soft Sine", f = shapes.softSine},
+  {name = "Even", f = shapes.oddAndEven, o = {z = -1}},
+  {name = "Odd", f = shapes.oddAndEven},
+  {name = "Zero", f = shapes.zero},
+  {name = "Min", f = shapes.minMax, o = {z = -1}},
+  {name = "Max", f = shapes.minMax},
+  {name = "Chaos To Sine", f = shapes.chaosToSine},
+  {name = "Saw/Sin Reveal", f = shapes.sawSinReveal, o = {phase = -1}},
+  {name = "PWM 50 to 100", f = shapes.pwm50to100},
+  {name = "Triple-Sin Window", f = shapes.tripleSin, o = {z = 0}},
+  {name = "Taffy", f = shapes.taffy, o = {z = 0}},
+  {name = "Brassy", f = shapes.brassy, o = {z = 0}},
+  {name = "HPF-Sqr To Sqr", f = shapes.hpfSqrToSqr, o = {z = .01}},
+  {name = "Wacky", f = shapes.wacky, o = {z = .84}},
+  {name = "Sine To Noise", f = shapes.sinToNoise},
+  {name = "Sine Stretch", f = shapes.sineStrech, o = {z = .03}},
+  {name = "SquareSaw Bit", f = shapes.squareSawBit},
+  {name = "LoFi Triangles", f = shapes.loFiTriangles, o = {z = 0}},
+  {name = "Talkative 1", f = shapes.talkative1},
+  {name = "Sin Clipper", f = shapes.sinClipper, o = {z = 0}},
+  {name = "Pitfall", f = shapes.pitfall, o = {z = .15}},
+  {name = "Nasca Lines", f = shapes.nascaLines, o = {z = -.31}},
+  {name = "Window-y SQR Sync", f = shapes.windowYSqr, o = {z = 0}},
+  {name = "Kick", f = shapes.kick, o = {phase = 0, z = -.505}},
+  {name = "Sin To Saw", f = shapes.sinToSaw, o = {z = 0}},
+  {name = "Zero Crossing", f = shapes.zeroCrossing},
+  {name = "VOSIM", f = shapes.vosim},
+  {name = "VOSIM (Norm)", f = shapes.vosimNormalized},
+  {name = "Crosser", f = shapes.crosser, o = {z = 0, factor = 4}},
+  {name = "Mayhem Middle", f = shapes.mayhemInTheMiddle},
+  {name = "Zero Dancer", f = shapes.zeroDancer},
+  {name = "Wings", f = shapes.wings, o = {factor = .5}},
+  {name = "Dirac Delta", f = shapes.diracDelta, o = {factor = .2, z = .02}},
+  {name = "Dirac Delta (frexp)", f = shapes.diracDeltaFrexp, o = {z = .03}},
+  {name = "Dirac Delta Rand", f = shapes.diracDeltaRand, o = {z = .06}},
+  {name = "Swipe 1", f = shapes.swipe1},
+  {name = "Swipe 2", f = shapes.swipe2},
+  {name = "Swipe 3", f = shapes.swipe3},
+  {name = "Swipe 4", f = shapes.swipe4, o = {z = -.25}},
+  {name = "Shaky Sine", f = shapes.shakySine},
+  {name = "Exponential", f = shapes.exponential, o = {factor = 4.5}},
+  {name = "Bridge", f = shapes.bridge},
+  {name = "Gauss", f = shapes.gauss, o = {z = .25}},
+  {name = "Random", f = shapes.random},
+  {name = "Test Shape", f = shapes.testShape},
 }
 
-local noteDisplay = {} -- Holds the widgets that displays the notes being played
-local maxVoices = 16 -- Max number of oplyphonic voices
-local noteNumberToNoteName = notes.getNoteMapping()
-local scale = {}
-local key = 1
-local noteMin = 24
-local noteMax = noteMin + (5 * 12)
-local scaleDefinitions = scales.getScaleDefinitions()
-local scaleDefinition = scaleDefinitions[#scaleDefinitions]
+local function getShapeIndexFromName(shapeName)
+  for i,v in ipairs(shapeDefinitions) do
+    if v.name == shapeName then
+      return i
+    end
+  end
+  return 1
+end
 
+local function getDefaultShapeOptions()
+  return {
+    z = 1,
+    phase = -1,
+    factor = 1,
+    amount = 100,
+  }
+end
+
+local function getShapeOptions(overrides)
+  local defaultShapeOptions = getDefaultShapeOptions()
+  if type(overrides) == "nil" then
+    return defaultShapeOptions
+  end
+  return {
+    z = gem.getValueOrDefault(overrides.z, defaultShapeOptions.z),
+    phase = gem.getValueOrDefault(overrides.phase, defaultShapeOptions.phase),
+    factor = gem.getValueOrDefault(overrides.factor, defaultShapeOptions.factor),
+    amount = gem.getValueOrDefault(overrides.amount, defaultShapeOptions.amount),
+  }
+end
+
+local function getShapeTemplate(options, shapeTemplate)
+  if type(options) == "nil" and type(shapeTemplate) == "table" then
+    options = shapeTemplate
+  end
+  return getShapeOptions(options)
+end
+
+local function getShapeNames(options, max)
+  if type(max) ~= "number" then
+    max = #shapeDefinitions
+  end
+
+  local items = {}
+
+  for i,s in ipairs(shapeDefinitions) do
+    table.insert(items, s.name)
+    if i == max then
+      break
+    end
+  end
+
+  -- Add any options
+  if type(options) == "table" then
+    for _,o in ipairs(options) do
+      table.insert(items, o)
+    end
+  end
+
+  return items
+end
+
+local function getShapeBounds(shapeBounds)
+  local bounds = {}
+  if type(shapeBounds) == "nil" then
+    shapeBounds = {}
+  end
+  bounds.min = gem.getValueOrDefault(shapeBounds.min, -1) -- x-azis max value
+  bounds.max = gem.getValueOrDefault(shapeBounds.max, 1) -- x-azis min value
+  bounds.length = gem.getValueOrDefault(shapeBounds.length, 128) -- y-axis steps
+  bounds.unipolar = bounds.min >= 0 --  Whether the shape is unipolar
+  bounds.rand = gem.getRandom() -- A random number that will be equal across all steps
+  return bounds
+end
+
+local function createShape(shapeIndexOrName, shapeBounds, shapeOptions)
+  if type(shapeIndexOrName) == "string" then
+    shapeIndexOrName = getShapeIndexFromName(shapeIndexOrName)
+  end
+  local shape = {} -- Holds the values for each step
+  local shapeDefinition = shapeDefinitions[shapeIndexOrName]
+  local bounds = getShapeBounds(shapeBounds)
+  local options = getShapeTemplate(shapeOptions, shapeDefinition.o)
+  local stepValue = gem.getChangePerStep(2, bounds.length)
+  for i=1,bounds.length do
+    local pos = i - 1
+    local value =  options.factor * stepValue * pos + options.phase
+    local percentPos = pos / bounds.length
+    local x = shapeDefinition.f(value, options.z, pos, bounds, percentPos, stepValue, options)
+    if bounds.unipolar then
+      x = getUnipolar(x)
+    end
+    x = (bounds.max * x) * (options.amount / 100)
+    table.insert(shape, math.max(bounds.min, math.min(bounds.max, x)))
+  end
+  return shape, options
+end
+
+local function getAmountWidget(options, i)
+  -- Widget for controlling shape amount
+  if type(options) == "nil" then
+    options = {}
+  end
+  if type(i) == "nil" then
+    i = ""
+  end
+  options.name = gem.getValueOrDefault(options.name, "ShapeAmount" .. i)
+  options.tooltip = gem.getValueOrDefault(options.tooltip, "Set the shape amount.")
+  options.showLabel = gem.getValueOrDefault(options.showLabel, true)
+  options.unit = gem.getValueOrDefault(options.unit, Unit.Percent)
+  options.integer = gem.getValueOrDefault(options.integer, true)
+  if type(options.width) ~= "nil" then
+    options.width = options.width
+  end
+  return widgets.numBox("Shape Amount", getShapeOptions().amount, options)
+end
+
+local function getShapeWidgets(overrides, i)
+  -- Widgets for controlling shape
+  if type(i) == "nil" then
+    i = ""
+  end
+  if type(overrides) == "nil" then
+    overrides = {}
+  end
+  local shapeOptions = getShapeOptions()
+  local factorOptions = {
+    name = "ShapeFactor" .. i,
+    tooltip = "Set the factor (multiplier) applied to the value of each step.",
+    min = -8,
+    max = 8,
+  }
+  local phaseOptions = {
+    name = "ShapePhase" .. i,
+    tooltip = "Set the phase applied to the shape (move left/right).",
+  }
+  local zOptions = {
+    name = "ShapeMorph" .. i,
+    tooltip = "Set the morph value. This value is mostly assigned to amplitude, but it depends on the shape.",
+  }
+  local options = {factor = factorOptions, phase = phaseOptions, z = zOptions}
+  for _,v in pairs(options) do
+    v.showLabel = gem.getValueOrDefault(overrides.showLabel, true)
+    if type(overrides.width) ~= "nil" then
+      v.width = overrides.width
+    end
+    if type(v.min) == "nil" then
+      v.min = -1
+    end
+    if type(v.max) == "nil" then
+      v.max = 1
+    end
+  end
+  return {
+    z = widgets.numBox("Shape Morph", shapeOptions.z, options.z),
+    phase = widgets.numBox("Shape Phase", shapeOptions.phase, options.phase),
+    factor = widgets.numBox("Shape Factor", shapeOptions.factor, options.factor),
+  }
+end
+
+local shapes = {
+  getWidgets = getShapeWidgets,
+  getAmountWidget = getAmountWidget,
+  getShapeNames = getShapeNames,
+  getShapeOptions = getShapeOptions,
+  get = createShape,
+}
+
+-----------------------------------------------------------------------------------
+-- Game of Life Input - Listens for incoming note events (rythm) on note number 0
+-----------------------------------------------------------------------------------
+
+local backgroundColour = "404040"
 setBackgroundColour(backgroundColour)
 
 --------------------------------------------------------------------------------
--- Scale and note functions
+-- Variables
 --------------------------------------------------------------------------------
 
--- Returns the notes filtered by scale and range
-local function setScale()
-  scale = {} -- Reset scale
-  for _,note in ipairs(scales.createScale(scaleDefinition, (key - 1), noteMax)) do
-    if note >= noteMin and note <= noteMax then
-      table.insert(scale, note)
+local title = "Game of Life Input"
+local description = "A sequencer that use the rules from game of life to select notes"
+local isPlaying = false
+local seqIndex = 0 -- Holds the unique id for the sequencer
+local startNote = 36
+local octaveRange = 2
+local evolutionSpeed = 1000 -- Milliseconds
+local rows = 8 -- Number of rows in the board
+local cols = 12 -- Number of columns in the board
+local equalRounds = 6 -- Number of stale rounds before shape is regenerated
+local cells = {} -- Holds the cell widgets
+local generationCounter = 0
+local maxGenerations = 1000 -- Max generations before reset is forced
+local shapeIndex
+local fillProbability = 50
+local generationLabel
+local scaleDefinitions = scales.getScaleDefinitions()
+local scaleDefinition = scaleDefinitions[#scaleDefinitions]
+local shapeMenu
+local activeCells = {} -- Holds the currently active cells
+local shapeNames = shapes.getShapeNames()
+local shapeWidgets = {}
+local shapeOptions = shapes.getShapeOptions()
+local shapeMenuItems = {"Random Shape"}
+for _,v in ipairs(shapeNames) do
+  table.insert(shapeMenuItems, v)
+end
+
+--------------------------------------------------------------------------------
+-- Sequencer Functions
+--------------------------------------------------------------------------------
+
+local function clearCells()
+  local scale = scales.createScale(scaleDefinition, startNote, (startNote+(octaveRange*12)-1))
+  local scalePos = 1
+  for i = 1, rows do
+    for j = 1, cols do
+      cells[i][j].enabled = false
+      cells[i][j].value = scale[scalePos]
+      cells[i][j].textColour = widgets.getColours().widgetTextColour
+      scalePos = gem.inc(scalePos, 1, #scale)
     end
   end
 end
 
--- Use the selected chord definition to find the index for the next note in the chord
-local function getNextScaleIndex(note, scale, chordDefinition, inversionIndex)
-  local index = gem.getIndexFromValue(note, scale)
-  --print("getNextScaleIndex #chordDefinition/inversionIndex", #chordDefinition, inversionIndex)
-  local increment = chordDefinition[inversionIndex]
-  if type(index) == "nil" then
-    index = 0
-    --print("!!!Note not found in scale!!!")
-  end
-  return index + increment
+local function updateShapeWidgets()
+  -- Update widgets with values from the shape
+  local callChanged = false
+  for k,v in pairs(shapeWidgets) do
+    v:setValue(shapeOptions[k], callChanged)
+  end  
 end
 
-local function notesInclude(notesTable, note)
-  for _,v in pairs(notesTable) do
-    if v.note == note then
-      --print("Note already included", note)
-      return true
+local function isFilled(row, value)
+  return row == value or (row < value and gem.getRandomBoolean(fillProbability))
+end
+
+local function loadShape(options)
+  local shape = shapeIndex
+  local values
+  if type(shape) == "nil" then
+    shape = gem.getRandom(#shapeNames)
+  end
+  clearCells() -- Deactivate all cells
+  print("--- NEW SHAPE ---", shape)
+  local bounds = {
+    min = 1,
+    max = rows,
+    length = cols,
+  }
+  values, shapeOptions = shapes.get(shape, bounds, options)
+  updateShapeWidgets()
+  for col = 1, cols do
+    local value = math.ceil(values[col])
+    for row = 1, rows do
+      cells[row][col].enabled = isFilled(row, value)
     end
   end
-  return false
 end
 
-local function hasNoteWithinMonoLimit(notesTable, partPos)
-  local monoLimit = paramsPerPart[partPos].monoLimit.value
-  for _,v in pairs(notesTable) do
-    if v.note <= monoLimit then
-      return true
+local changeCount = 0
+local previousChangeCount = 0
+local equalCount = 0
+local function updateBoard()
+  -- Create a new board to hold the next generation
+  local newGeneration = {}
+
+  generationCounter = gem.inc(generationCounter)
+  generationLabel.text = "Gen " .. generationCounter
+  print("--- NEXT GENERATION! ---", generationCounter)
+
+  -- Iterate through each cell on the board
+  for i = 1, rows do
+    newGeneration[i] = {}
+    for j = 1, cols do
+      local count = 0
+
+      -- Count the number of live neighbors
+      for x = -1, 1 do
+        for y = -1, 1 do
+          if x ~= 0 or y ~= 0 then
+            local row = i + x
+            local col = j + y
+
+            -- Check if the cell is on the board
+            if row >= 1 and row <= rows and col >= 1 and col <= cols then
+              local val = 0
+              if cells[row][col].enabled == true then
+                val = 1
+              end
+              count = count + val
+            end
+          end
+        end
+      end
+
+      -- Apply the rules of the game
+      if cells[i][j].enabled == false and count == 3 then
+        -- Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
+        newGeneration[i][j] = 1
+      elseif cells[i][j].enabled == true and count == 2 then
+        -- Any live cell with two live neighbours lives on to the next generation.
+        newGeneration[i][j] = 2
+      elseif cells[i][j].enabled == true and count == 3 then
+        -- Any live cell with three live neighbours lives on to the next generation.
+        newGeneration[i][j] = 3
+      elseif cells[i][j].enabled == true then
+        -- All other live cells die in the next generation.
+        newGeneration[i][j] = 4
+      else
+        -- All other dead cells stay dead.
+        newGeneration[i][j] = 5
+      end
     end
   end
-  return false
-end
 
-local function isRootNote(note, partPos)
-  -- Note index is 1 higher than note number
-  local noteIndex = note + 1
-  return noteNumberToNoteName[key] == noteNumberToNoteName[noteIndex]
-end
-
-local function createChordDefinition(part)
-  local maxSteps = 4 -- Max steps
-  local maxLength = paramsPerPart[part].polyphony.value -- Max length depends on polyphony
-  local definition = {} -- Table to hold definition
-  local ln = gem.getRandom(maxLength) -- Set a random length for the definition
-  for i=1, ln do
-    local steps = gem.getRandom(maxSteps)
-    table.insert(definition, steps)
-    --print("Add steps to definition", steps)
+  -- Update the cells for the next generation
+  changeCount = 0
+  activeCells = {} -- Reset active cells
+  for i,v in ipairs(newGeneration) do
+    for j,rule in ipairs(v) do
+      local alive = rule < 4
+      if cells[i][j].enabled ~= alive then
+        changeCount = gem.inc(changeCount)
+      end
+      cells[i][j].enabled = alive
+      if alive then
+        table.insert(activeCells, cells[i][j])
+      end
+    end
   end
-  return definition
+
+  if changeCount == previousChangeCount then
+    equalCount = gem.inc(equalCount)
+  end
+  previousChangeCount = changeCount
+
+  -- Reset if stale board
+  if changeCount == 0 or #activeCells == 0 or equalCount > equalRounds or generationCounter > maxGenerations then
+    print("Stale board...")
+     -- Reset counters
+    equalCount = 0
+    generationCounter = 0
+    loadShape()
+  end
 end
 
-local function getChordInputText(definition)
-  if #definition == 0 then
-    return "Randomize"
+local function evolution(uniqueId)
+  loadShape()
+  while isPlaying and seqIndex == uniqueId do
+    updateBoard()
+    wait(evolutionSpeed)
   end
-  return table.concat(definition, ",")
+end
+
+local function startPlaying()
+  if isPlaying then
+    return
+  end
+  isPlaying = true
+  seqIndex = gem.inc(seqIndex)
+  run(evolution, seqIndex)
+end
+
+local function stopPlaying()
+  if isPlaying == false then
+    return
+  end
+  isPlaying = false
+  clearCells()
+end
+
+local function getNote()
+  for i = 1, rows do
+    for j = 1, cols do
+      cells[i][j].textColour = widgets.getColours().widgetTextColour
+    end
+  end
+  if #activeCells == 0 then
+    return
+  end
+  local cell = gem.getRandomFromTable(activeCells)
+  cell.textColour = "yellow"
+  return cell.value
 end
 
 --------------------------------------------------------------------------------
--- Sequencer Panel
+-- Header Panel
 --------------------------------------------------------------------------------
 
-local tableWidth = 720
-
-local sequencerPanel = widgets.panel({
-  width = tableWidth,
+widgets.panel({
+  width = 720,
   height = 30,
-  x = 0,
-  y = 0,
-})
-
-local chorderLabel = widgets.label("Chorder Input", {
-  width = tableWidth,
-  height = 30,
-  alpha = 0.5,
-  fontSize = 22
 })
 
 widgets.setSection({
-  x = 470,
+  xSpacing = 5,
+  ySpacing = 5,
+})
+
+widgets.label(title, {
+  tooltip = description,
+  width = widgets.getPanel().width,
+  height = 30,
+  alpha = 0.5,
+  fontSize = 22,
+})
+
+widgets.setSection({
+  x = 390,
   y = 5,
   xSpacing = 5,
   ySpacing = 5,
 })
 
+generationLabel = widgets.label("Gen " .. generationCounter, {
+  tooltip = "Shows the current generation",
+  backgroundColour = "transparent",
+  textColour = "606060",
+  width = 75,
+})
+
 modular.getForwardWidget()
 modular.getChannelWidget()
 
--- Add params that are to be editable per part
-for i=1,1 do
-  local numSlots = 8
-  local chords = {}
-  local spreads = {}
-  local inversions = {}
-  local chordDefinitionSlots = {}
+--------------------------------------------------------------------------------
+-- Board
+--------------------------------------------------------------------------------
 
-  --------------------------------------------------------------------------------
-  -- Chord Definition Panel
-  --------------------------------------------------------------------------------
-  
-  local chordDefinitionPanel = widgets.panel({
-    width = 356,
-    height = 108,
-    y = widgets.posUnder(sequencerPanel),
-    x = 5,
-  })
+widgets.setSection({
+  xSpacing = 0,
+  ySpacing = 0,
+})
 
-  widgets.section({
-    width = 90,
-    x = 5,
-    y = 5,
-    xSpacing = 5,
-    ySpacing = 5,
-    cols = 6,
-  })
+widgets.panel({
+  backgroundColour = backgroundColour,
+  x = widgets.getPanel().x + 5,
+  y = widgets.posUnder(widgets.getPanel()) + 5,
+  width = 380,
+  height = 190,
+})
 
-  local chordDefinitionLabel = widgets.label("Chord Definition", {
-    backgroundColour = "transparent",
-    textColour = "white",
-    width = 155
-  })
+local spacing = 2
+widgets.setSection({
+  width = (widgets.getPanel().width - ((cols+1) * spacing)) / cols,
+  height = (widgets.getPanel().height - ((rows+1) * spacing)) / rows,
+  x = 2,
+  y = 0,
+  xSpacing = spacing,
+  ySpacing = spacing,
+  rowDirection = -1,
+  row = rows - 1,
+  cols = cols,
+})
 
-  local createChordDefinitionButton = widgets.button("Create", {
-    tooltip = "Create a random chord definition.",
-  })
-
-  local chordSelectionMenu = widgets.menu("Chord Selection", {"Active Input", "Auto", "Random", "Slots"}, {
-    tooltip = "Auto: Default chord definitions are alternated, Random: Chord definitions are created by random, Slots: Chord definitions are selected from the slots",
-  })
-
-  widgets.section({
-    width = 90,
-    x = 5,
-    y = widgets.posUnder(chordDefinitionLabel),
-    xSpacing = 5,
-    ySpacing = 5,
-    cols = 9,
-  })
-
-  local chordDefinitionInput = widgets.label(getChordInputText(chordDefinitions[1]), {
-    tooltip = "The current chord definition. Numbers represent steps up or down the scale that is currently selected. Feel free to type your own chord definitions here, or select from the menu.",
-    editable = true,
-    width = 251,
-    height = 45,
-    fontSize = 22,
-    backgroundColour = "black",
-    textColour = "white",
-    backgroundColourWhenEditing = "white",
-    textColourWhenEditing = "black",
-  })
-
-  createChordDefinitionButton.changed = function()
-    chordDefinitionInput.text = getChordInputText(createChordDefinition(i))
-  end
-
-  widgets.row()
-  widgets.col(1, chordDefinitionInput.width)
-
-  local loadActions = {"Load..."}
-  for _,v in ipairs(chordDefinitions) do
-    table.insert(loadActions, getChordInputText(v))
-  end
-
-  local loadChordDefinition = widgets.menu("Load Menu", loadActions, {
-    tooltip = "Load a chord definition",
-    showLabel = false,
-    changed = function(self)
-      -- 1 is the menu label...
-      if self.value == 1 then
-        return
-      end
-    
-      local actionIndex = self.value - 1
-      chordDefinitionInput.text = self.selectedText
-    
-      -- Must be last
-      self.selected = 1
-    end    
-  })
-
-  widgets.row()
-
-  for j=1,numSlots do
-    local definitionSlot = widgets.button("" .. j, false, {
-      enabled = false,
-      tooltip = "Unused",
-      height = 20,
-      width = 27,
-      changed = function(self)
-        chordDefinitionInput.text = self.tooltip
-        self.value = false
-      end
+-- Create the cells
+for i = 1, rows do
+  cells[i] = {}
+  for j = 1, cols do
+    cells[i][j] = widgets.numBox("", startNote, {
+      name = "r" .. i .. "c" .. j,
+      showLabel = false,
+      min = 0,
+      max = 127,
+      integer = true,
+      unit = Unit.MidiKey,
     })
-    table.insert(chordDefinitionSlots, definitionSlot)
   end
-
-  local saveActions = {"Save to..."}
-  for j=1,numSlots do
-    table.insert(saveActions, "Slot " .. j)
-  end
-  local saveChordDefinition = widgets.menu("Save", saveActions, {
-    tooltip = "Save the current chord definition to the selected slot",
-    showLabel = false,
-    changed = function(self)
-      -- 1 is the menu label...
-      if self.value == 1 then
-        return
-      end
-    
-      local actionIndex = self.value - 1
-    
-      -- Save chord definition
-      if string.len(chordDefinitionInput.text) > 0 then
-        chordDefinitionSlots[actionIndex].tooltip = chordDefinitionInput.text
-        chordDefinitionSlots[actionIndex].enabled = true
-      else
-        chordDefinitionSlots[actionIndex].tooltip = "Unused"
-        chordDefinitionSlots[actionIndex].enabled = false
-      end
-      --print("Chord definition saved to slot", chordDefinitionInput.text, actionIndex)
-    
-      -- Must be last
-      self.selected = 1
-    end  
-  })
-
-  --------------------------------------------------------------------------------
-  -- Polyphony and note limits
-  --------------------------------------------------------------------------------
-  
-  local polyhonyPanel = widgets.panel({
-    x = widgets.posSide(chordDefinitionPanel),
-    y = chordDefinitionPanel.y,
-    width = 348,
-    height = 60,
-  })
-  
-  widgets.section({
-    width = 109,
-    x = 5,
-    y = 8,
-    cols = 3,
-  })
-
-  local generatePolyphonyPart = widgets.numBox("Polyphony", 4, {
-    tooltip = "How many notes are played at once",
-    min = 1,
-    max = maxVoices,
-    integer = true,
-  })
-  generatePolyphonyPart.changed = function(self)
-    for i,v in ipairs(noteDisplay) do
-      v.enabled = maxVoices - self.value <= maxVoices - i
-    end
-  end
-
-  local baseNoteRandomization = widgets.numBox("Base Chord", 25, {
-    tooltip = "Probability that the root chord will be selected",
-    unit = Unit.Percent,
-  })
-
-  local harmonizationPropbability = widgets.numBox("Harmonize", 100, {
-    tooltip = "When harmonizing, we get notes from the currently playing chord. Otherwise notes are selected from the current scale.",
-    unit = Unit.Percent,
-  })
-
-  local noteMinInput = widgets.numBox("Note Min", noteMin, {
-    max = noteMax,
-    tooltip = "Lowest note",
-    unit = Unit.MidiKey,
-  })
-
-  local monoLimit = widgets.numBox("Mono Limit", noteMin + 24, {
-    tooltip = "Below this note there will only be played one note (polyphony=1)",
-    unit = Unit.MidiKey,
-  })
-
-  local noteMaxInput = widgets.numBox("Note Max", noteMax, {
-    min = noteMin,
-    tooltip = "Highest note",
-    unit = Unit.MidiKey,
-  })
-
-  noteMinInput.changed = function(self)
-    noteMaxInput:setRange(self.value, 127)
-    noteMin = self.value
-    setScale()
-  end
-
-  noteMaxInput.changed = function(self)
-    noteMinInput:setRange(0, self.value)
-    noteMax = self.value
-    setScale()
-  end  
-
-  -- Key and scale
-  local scalePanel = widgets.panel({
-    x = chordDefinitionPanel.x,
-    y = widgets.posUnder(chordDefinitionPanel),
-    width = chordDefinitionPanel.width,
-    height = 60,
-  })
-
-  widgets.section({
-    width = 120,
-    x = 5,
-    y = 5,
-    cols = 4,
-  })
-
-  local keyMenu = widgets.menu("Key", key, notes.getNoteNames(), {
-    width = 60,
-    changed = function(self)
-      key = self.value
-      setScale()
-    end
-  })
-
-  local scaleMenu = scales.widget()
-  scaleMenu.persistent = false -- Avoid running changed function on load, overwriting scaleInput
-
-  widgets.label("Scale Definition", {
-    textColour = "#d0d0d0",
-    backgroundColour = "transparent",
-  })
-
-  widgets.row()
-  widgets.col()
-  widgets.col(1, keyMenu.width)
-
-  local scaleInput = scales.inputWidget(scaleDefinition, 153)
-
-  scaleMenu.changed = function(self)
-    print("scaleMenu.changed", self.selectedText)
-    scaleInput.text = scales.getTextFromScaleDefinition(scaleDefinitions[self.value])
-  end
-
-  scaleInput.changed = function(self)
-    print("scaleInput.changed", self.text)
-    scaleDefinition = scales.getScaleDefinitionFromText(self.text)
-    self.tooltip = scales.getScaleInputTooltip(scaleDefinition)
-    setScale()
-  end
-
-  -- Note Spread
-  local noteSpreadPanel = widgets.panel({
-    x = widgets.posSide(scalePanel),
-    y = widgets.posUnder(polyhonyPanel),
-    width = 171,
-    height = 108,
-  })
-
-  widgets.section({
-    width = 159,
-    x = 5,
-    y = 5,
-    cols = 1,
-  })
-
-  widgets.label("Note Spread (Voicing)", {
-    textColour = "white",
-    backgroundColour = "transparent",
-  })
-
-  table.insert(spreads, widgets.numBox("Close", 100, {
-    tooltip = "Set the probability that close chords will be included",
-    unit = Unit.Percent,
-  }))
-
-  table.insert(spreads, widgets.numBox("Medium", 100, {
-    tooltip = "Set the probability that medium chords will be included",
-    unit = Unit.Percent,
-  }))
-
-  table.insert(spreads, widgets.numBox("Wide", 100, {
-    tooltip = "Set the probability that wide chords will be included",
-    unit = Unit.Percent,
-  }))
-
-  -- Inversions
-  local inversionPanel = widgets.panel({
-    x = widgets.posSide(noteSpreadPanel),
-    y = noteSpreadPanel.y,
-    width = noteSpreadPanel.width,
-    height = noteSpreadPanel.height,
-  })
-
-  widgets.section({
-    width = 159,
-    cols = 1,
-  })
-
-  widgets.label("Chord Inversions", {
-    textColour = "white",
-    backgroundColour = "transparent",
-  })
-
-  for inversion=1,3 do
-    local p = 100
-    if inversion == 3 then
-      p = 0
-    end
-    table.insert(inversions, widgets.numBox("Inv " .. inversion, p, {
-      name = "Inversion" .. inversion,
-      tooltip = "Probability that inversion " .. inversion .. " will be included",
-      unit = Unit.Percent,
-    }))
-  end
-
-  table.insert(paramsPerPart, {scaleInput=scaleInput,scaleMenu=scaleMenu,keyMenu=keyMenu,chordDefinitionSlots=chordDefinitionSlots,chordDefinitionInput=chordDefinitionInput,chordSelectionMenu=chordSelectionMenu,inversions=inversions,spreads=spreads,chords=chords,baseNoteRandomization=baseNoteRandomization,polyphony=generatePolyphonyPart,harmonizationPropbability=harmonizationPropbability,monoLimit=monoLimit})
 end
-
-local voiceLabelWidth = 693 / maxVoices
-
-local voicesPanel = widgets.panel({
-  width = 710,
-  height = 45,
-  x = 5,
-  y = 212,
-  backgroundColour = "transparent"
-})
-
-widgets.section({
-  width = voiceLabelWidth,
-  cols = 16,
-  x = 1,
-  y = 2,
-  xSpacing = 1,
-  ySpacing = 1,
-})
-
-for j=1,maxVoices do
-  local voiceLabel = widgets.label("Voice " .. j, {
-    persistent = false,
-  })
-end
-
-for j=1,maxVoices do
-  table.insert(noteDisplay, widgets.label("-", {
-    tooltip = "Displays the note played by voice " .. j,
-    enabled = false,
-    persistent = false,
-    backgroundColour = "black",
-    textColour = "white",
-  }))
-end
-
-paramsPerPart[1].polyphony:changed()
 
 --------------------------------------------------------------------------------
--- Sequencer
+-- Shape Panel
 --------------------------------------------------------------------------------
 
-local function getNotes()
-  local currentPartPosition = 1 -- Holds the currently playing part
-  local heldNoteIndex = 0
-  local inversionIndex = 0
-  local notesToPlay = {} -- Ensure notes are reset when seqencer starts
+widgets.panel({
+  backgroundColour = "303030",
+  x = widgets.posSide(widgets.getPanel()),
+  y = widgets.getPanel().y + 3,
+  width = 174,
+  height = widgets.getPanel().height - 5,
+})
 
-  -- Number of simultainious notes are set by polyphony
-  local polyphony = paramsPerPart[currentPartPosition].polyphony.value
-  local minNote = scale[1]
-  local maxNote = scale[#scale]
+widgets.setSection({
+  x = 7,
+  y = 6,
+  width = 160,
+  height = 20,
+  xSpacing = 5,
+  ySpacing = 5,
+  cols = 1,
+})
 
-  inversionIndex = 0 -- Reset counter for inversion progress
-  -- Chord Selection: {"Active Input", "Auto", "Random", "Slots"}
-  local chordSelection = paramsPerPart[currentPartPosition].chordSelectionMenu.selectedText
-  if chordSelection == "Auto" then
-    local index = gem.getRandom(#chordDefinitions)
-    paramsPerPart[currentPartPosition].chordDefinitionInput.text = getChordInputText(chordDefinitions[index])
-  elseif chordSelection == "Random" then
-    paramsPerPart[currentPartPosition].chordDefinitionInput.text = getChordInputText(createChordDefinition(currentPartPosition))
-  elseif chordSelection == "Slots" then
-    local chordDefinitionSlots = {}
-    for _,v in ipairs(paramsPerPart[currentPartPosition].chordDefinitionSlots) do
-      if v.enabled == true then
-        table.insert(chordDefinitionSlots, v)
-      end
-    end
-    if #chordDefinitionSlots > 0 then
-      chordDefinitionSlots[math.ceil(gem.getRandom(#chordDefinitionSlots))]:setValue(true)
-    end
-  end
-
-  -- Find inversions to include
-  local inversions = paramsPerPart[currentPartPosition].inversions
-  local activeInversions = {0} -- Always add root
-  for i,v in ipairs(inversions) do
-    if gem.getRandomBoolean(v.value) == true then
-      table.insert(activeInversions, i)
-    end
-  end
-
-  if #activeInversions > 0 then
-    -- Get a chord def index from the active definitions
-    inversionIndex = gem.getRandomFromTable(activeInversions)
-    --print("Chord inversion selected by random/#activeInversions", inversionIndex, #activeInversions)
-  end
-
-  -- Find spreads to include
-  local selectedSpread = 2 -- Reset to default
-  local spreads = paramsPerPart[currentPartPosition].spreads
-  local activeSpreads = {}
-  for i,v in ipairs(spreads) do
-    if gem.getRandomBoolean(v.value) == true then
-      table.insert(activeSpreads, i)
-    end
-  end
-
-  if #activeSpreads > 0 then
-    -- Get a chord def index from the active definitions
-    if #activeSpreads > 1 then
-      selectedSpread = activeSpreads[gem.getRandom(#activeSpreads)]
+shapeMenu = widgets.menu("Start Shape", shapeMenuItems, {
+  tooltip = "If the board is empty or stale, the selected shape will be used for starting a new board",
+  changed = function(self)
+    clearCells()
+    shapeIndex = self.value - 1
+    if shapeIndex == 0 then
+      shapeIndex = nil
     else
-      selectedSpread = activeSpreads[1]
+      loadShape()
     end
-    --print("Chord spread selected by random: selectedSpread/#activeSpreads", selectedSpread, #activeSpreads)
   end
+})
 
-  --------------------------------------------------------------------------------
-  -- Note functions
-  --------------------------------------------------------------------------------
-
-  -- Main function for getting note to play
-  local function getNoteToPlay(voice, chordDefinition)
-    -- Note generator function
-    local function generateNote()
-      local note = nil
-      local baseNoteRandomization = paramsPerPart[currentPartPosition].baseNoteRandomization.value
-      local monoLimit = paramsPerPart[currentPartPosition].monoLimit.value
-      local baseMin = minNote
-      local baseMax = maxNote
-
-      if #scale == 0 then
-        return note
-      end
-
-      if #scale == 1 then
-        return scale[1]
-      end
-
-      if hasNoteWithinMonoLimit(notesToPlay, currentPartPosition) == true then
-        -- Ensure we only have one note below the mono limit
-        baseMin = monoLimit
-        --print("Adjust baseMin to mono limit", baseMin)
-      elseif monoLimit > baseMin then
-        -- Ensure we have a note within the mono limit
-        baseMax = monoLimit
-        --print("Adjust baseMax to mono limit", baseMax)
-      end
-
-      local function getBaseNote()
-        local baseNote = minNote -- Start from the lowest note
-        if gem.getRandomBoolean(baseNoteRandomization) then
-          while isRootNote(baseNote, currentPartPosition) == false and baseNote <= baseMax do
-            baseNote = baseNote + 1 -- increment note until we hit the base note
-          end
-          --print("Get root note: note/baseMin/baseMax", baseNote, baseMin, baseMax)
-        else
-          local noteRange = baseMax - baseMin
-          if monoLimit <= baseMin then
-            -- If there is no mono limit, we ajust the note range by polyphony to get a base note range
-            noteRange = math.max(12, math.ceil(noteRange / polyphony))
-            --print("Calculate range for base note baseMin/baseMax/noteRange", baseMin, baseMax, noteRange)
-          end
-          baseNote = baseNote + gem.getRandom(noteRange) - 1
-        end
-
-        return notes.getNoteAccordingToScale(scale, baseNote)
-      end
-
-      -- The note on the first voice is the base note
-      if voice == 1 then
-        note = getBaseNote()
-      end
-
-      local harmonizationPropbability = paramsPerPart[currentPartPosition].harmonizationPropbability.value
-      if type(note) == "nil" and gem.getRandomBoolean(harmonizationPropbability) == true then
-        local startingNotes = {}
-        for _,v in ipairs(notesToPlay) do
-          table.insert(startingNotes, v.note)
-          --print("Insert into startingNotes", v.note)
-        end
-        if #startingNotes > 0 then
-          -- If we have notes added, use them as the basis for the next note
-          --print("startingNotes", #startingNotes)
-          local prevNote = startingNotes[#startingNotes]
-          --print("Found prevNote", prevNote)
-          -- Increment inversion index
-          inversionIndex = inversionIndex + 1
-          if inversionIndex > #chordDefinition then
-            inversionIndex = 1
-          end
-          local scaleIndex = getNextScaleIndex(prevNote, scale, chordDefinition, inversionIndex)
-          note = scale[scaleIndex]
-          if type(note) == "number" then
-            note = notes.transpose(note, baseMin, baseMax)
-            local noteRange = baseMax - prevNote
-            local octaveFactor = 12-- / (selectedSpread / 2)
-            local octaveRange = math.floor(noteRange / octaveFactor)
-            local notesLeft = polyphony - #notesToPlay
-            local octave = 0
-            local octaveProbability = 50
-            local negOctProbability = 50
-            if selectedSpread == 1 then
-              octaveProbability = 15
-              negOctProbability = 75
-            elseif selectedSpread == 3 then
-              octaveProbability = 75
-              negOctProbability = 15
-            end
-            if gem.getRandomBoolean(octaveProbability) then
-              octave = math.floor(octaveRange / notesLeft)
-            end
-            --print("Check octave/note/baseMax/negOctProbability", octave, note, baseMax, negOctProbability)
-            if octave > 0 and octave < 3 and note > baseMax / 2 and gem.getRandomBoolean(negOctProbability) then
-              octave = -octave
-              --print("Negative octave", octave)
-            end
-            local octaveOffset = octave * 12
-            --print("Calculate octave adjustment - noteRange/octaveRange/notesLeft/octave", noteRange, octaveRange, notesLeft, octave)
-            if octaveOffset > 0 and note + octaveOffset <= baseMax then
-              note = note + octaveOffset
-              --print("Octave adjusted octave/octaveOffset/note", octave, octaveOffset, note)
-            end
-            --print("Found note from prev note - note, prevNote", note, prevNote)
-          end
-        end
-      end
-
-      -- Get random note from scale
-      if type(note) == "nil" then
-        note = notes.getNoteAccordingToScale(scale, gem.getRandom(baseMin, baseMax))
-      end
-
-      return note
-    end
-
-    -- Get notes for each node in the tree
-    local note = generateNote()
-    local noteToPlay = {
-      note = note,
-      voice = voice,
-    }
-
-    return noteToPlay
+widgets.numBox('Fill', fillProbability, {
+  tooltip = "Set a fill probability for the selected shape. If fill is 0, the shape is drawn as a line, if fill is 100 it will be drawn solid.",
+  unit = Unit.Percent,
+  changed = function(self)
+    fillProbability = self.value
+    shapeMenu:changed()
   end
+})
 
-  -- Get chord definition from input
-  local chordDefinition = {}
-  local input = paramsPerPart[currentPartPosition].chordDefinitionInput
-  if string.len(input.text) > 0 then
-    for w in string.gmatch(input.text, "-?%d+") do
-      table.insert(chordDefinition, w)
-      --print("Add to chordDefinition", w)
-    end
-    --print("Get chordDefinition from input", #chordDefinition)
-  end
+shapeWidgets = shapes.getWidgets()
 
-  -- Create a random chord definition if empty
-  if #chordDefinition == 0 then
-    chordDefinition = createChordDefinition(currentPartPosition)
-  end
-  
-  -- Add notes to play
-  local voice = 1
-  local roundCounter = 0
-  local maxRounds = polyphony * 2
-  local monoLimit = paramsPerPart[currentPartPosition].monoLimit.value
-  while voice <= polyphony and roundCounter < maxRounds do
-    local noteToPlay = getNoteToPlay(voice, chordDefinition)
-    if type(noteToPlay.note) == "number" and notesInclude(notesToPlay, noteToPlay.note) == false then
-      table.insert(notesToPlay, noteToPlay)
-      --print("Insert note", noteToPlay.note)
-      noteDisplay[voice].text = noteNumberToNoteName[noteToPlay.note + 1] .. " (" .. noteToPlay.note .. ")"
-      voice = voice + 1
-    end
-    roundCounter = gem.inc(roundCounter)
-    --print("Searching for notes roundCounter", roundCounter)
-  end
-  print("Notes ready to play ", #notesToPlay)
-
-  return notesToPlay
-end
-
---------------------------------------------------------------------------------
--- Handle note events
---------------------------------------------------------------------------------
-
-local function handleTrigger(e)
-  local notesForPlaying = getNotes()
-  if #notesForPlaying > 0 then
-    for _,v in ipairs(notesForPlaying) do
-      modular.handleTrigger(e, v.note)
+for k,v in pairs(shapeWidgets) do
+  v.changed = function(self)
+    shapeOptions[k] = self.value
+    if type(shapeIndex) == "number" then
+      loadShape(shapeOptions)
     end
   end
 end
+
+widgets.numBox('Regeneration Time', evolutionSpeed, {
+  tooltip = "Set the time inteval between generations",
+  unit = Unit.MilliSeconds,
+  mapper = Mapper.Quartic,
+  min = evolutionSpeed / 10,
+  max = evolutionSpeed * 10,
+  integer = true,
+  changed = function(self)
+    evolutionSpeed = self.value
+  end
+})
+
+--------------------------------------------------------------------------------
+-- Speed Panel
+--------------------------------------------------------------------------------
+
+widgets.panel({
+  backgroundColour = "505050",
+  x = widgets.posSide(widgets.getPanel()),
+  y = widgets.getPanel().y,
+  width = 147,
+  height = widgets.getPanel().height,
+})
+
+widgets.setSection({
+  x = 5,
+  y = 6,
+  width = 135,
+  height = 20,
+  xSpacing = 5,
+  ySpacing = 5,
+  cols = 1,
+})
+
+local scaleMenu = scales.widget()
+scaleMenu.persistent = false -- Avoid running changed function on load, overwriting scaleInput
+
+widgets.label("Scale Definition", {
+  textColour = "#d0d0d0",
+  backgroundColour = "transparent",
+})
+
+local scaleInput = scales.inputWidget(scaleDefinition)
+
+scaleMenu.changed = function(self)
+  print("scaleMenu.changed", self.selectedText)
+  scaleInput.text = scales.getTextFromScaleDefinition(scaleDefinitions[self.value])
+end
+
+scaleInput.changed = function(self)
+  print("scaleInput.changed", self.text)
+  scaleDefinition = scales.getScaleDefinitionFromText(self.text)
+  if #scaleDefinition == 0 then
+    -- Ensure we have a scale...
+    scaleMenu.value = #scaleDefinitions
+    return
+  end
+  self.tooltip = scales.getScaleInputTooltip(scaleDefinition)
+  clearCells()
+end
+
+widgets.numBox("Base Note", startNote, {
+  min = 0,
+  max = 127,
+  integer = true,
+  unit = Unit.MidiKey,
+  changed = function(self)
+    startNote = self.value
+    clearCells()
+  end
+})
+
+widgets.numBox("Octave Range", octaveRange, {
+  min = 1,
+  max = 9,
+  integer = true,
+  changed = function(self)
+    octaveRange = self.value
+    clearCells()
+  end
+})
+
+--------------------------------------------------------------------------------
+-- Handle events
+--------------------------------------------------------------------------------
 
 function onInit()
-  print("Init Chorder")
-  setScale()
+  seqIndex = 0
+  clearCells()
 end
 
 function onNote(e)
   if modular.isTrigger(e) then
-    handleTrigger(e)
+    print("modular.handleTrigger", e.channel)
+    if modular.handleTrigger(e, getNote()) then
+      startPlaying()
+    end
   else
     postEvent(e)
   end
@@ -1707,8 +1648,10 @@ function onRelease(e)
 end
 
 function onTransport(start)
-  if start == false then
-    modular.releaseVoices()
+  if start then
+    startPlaying()
+  else
+    stopPlaying()
   end
 end
 
@@ -1717,46 +1660,17 @@ end
 --------------------------------------------------------------------------------
 
 function onSave()
-  local chordDefinitionInputData = {}
-  local chordDefinitionSlotsData = {}
-  local scaleInputData = {}
-  local i = 1
-
-  for _,v in ipairs(paramsPerPart) do
-    table.insert(chordDefinitionInputData, v.chordDefinitionInput.text)
-    table.insert(scaleInputData, v.scaleInput.text)
-    for _,s in ipairs(v.chordDefinitionSlots) do
-      table.insert(chordDefinitionSlotsData, s.tooltip)
-    end
-  end
-
-  return {chordDefinitionInputData, chordDefinitionSlotsData, scaleInputData}
+  return {scaleInput.text}
 end
 
 function onLoad(data)
-  local chordDefinitionInputData = data[1]
-  local chordDefinitionSlotsData = data[2]
-  local scaleInputData = data[3]
-
-  local dataCounter = 1
-  for i,v in ipairs(chordDefinitionInputData) do
-    paramsPerPart[i].chordDefinitionInput.text = chordDefinitionInputData[i]
-
-    -- Check if we find a scale definition that matches the stored definition
-    local scaleIndex = scales.getScaleDefinitionIndex(scaleInputData[i])
-    if type(scaleIndex) == "number" then
-      print("onLoad, found scale", scaleIndex)
-      paramsPerPart[i].scaleMenu.value = scaleIndex
-    else
-      print("onLoad, scaleInput.text", scaleInputData[i])
-      paramsPerPart[i].scaleInput.text = scaleInputData[i]
-      paramsPerPart[i].scaleInput:changed()
-    end
-
-    for _,v in ipairs(paramsPerPart[i].chordDefinitionSlots) do
-      v.tooltip = chordDefinitionSlotsData[dataCounter]
-      v.enabled = v.tooltip ~= "Unused"
-      dataCounter = dataCounter + 1
-    end
+  -- Check if we find a scale definition that matches the stored definition
+  local scaleIndex = scales.getScaleDefinitionIndex(data[1])
+  if type(scaleIndex) == "number" then
+    print("onLoad, found scale", scaleIndex)
+    scaleMenu.value = scaleIndex
+  else
+    scaleInput.text = data[1]
+    scaleInput:changed()
   end
 end

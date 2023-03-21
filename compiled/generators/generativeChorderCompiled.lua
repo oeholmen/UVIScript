@@ -56,12 +56,16 @@ local function sign(x)
   return 1
 end
 
-local function avg(t)
+local function sum(t)
   local sum = 0
   for _,v in pairs(t) do -- Get the sum of all numbers in t
     sum = sum + v
   end
-  return sum / #t
+  return sum
+end
+
+local function avg(t)
+  return sum(t) / #t
 end
 
 local function round(value)
@@ -151,8 +155,10 @@ local function getValueOrDefault(value, default)
 end
 
 local gem = {
+  e = 2.71828,
   inc = inc,
   avg = avg,
+  sum = sum,
   sign = sign,
   round = round,
   getRandom = getRandom,
@@ -250,46 +256,56 @@ local function getScaleDefinitionIndex(scaleDefinition)
   end
 end
 
-local function getScaleWidget(width, showLabel, i)
+local function getScaleInputTooltip(scaleDefinition)
+  local sum = gem.sum(scaleDefinition)
+  local tooltip = "Scales are defined by setting semitones up from the previous note. The current scale definition sum is " .. sum
+  if 12 % sum == 0 then
+    tooltip = tooltip .. ", whitch resolves every octave."
+  else
+    tooltip = tooltip .. ", whitch does not resolve every octave."
+  end
+  return tooltip
+end
+
+local function getScaleWidget(options, i)
   -- Scale widget
-  if type(width) == "nil" then
-    width = 120
+  if type(options) == "nil" then
+    options = {}
   end
   if type(i) == "nil" then
     i = ""
   end
-  return widgets.menu("Scale", #scaleDefinitions, getScaleNames(), {
-    name = "Scale" .. i,
-    tooltip = "Select a scale",
-    hierarchical = true,
-    width = width,
-    showLabel = showLabel ~= false,
-  })
+  options.name = gem.getValueOrDefault(options.name, "Scale" .. i)
+  options.tooltip = gem.getValueOrDefault(options.tooltip, "Select a scale")
+  options.hierarchical = true
+  options.showLabel = gem.getValueOrDefault(options.showLabel, true)
+  return widgets.menu("Scale", #scaleDefinitions, getScaleNames(), options)
 end
 
 local function getScaleInputWidget(scaleDefinition, width, i)
   -- Scale input widget
-  if type(width) == "nil" then
-    width = 120
-  end
   if type(i) == "nil" then
     i = ""
   end
-  return widgets.label(getTextFromScaleDefinition(scaleDefinition), {
+  local options = {
     name = "ScaleInput" .. i,
-    tooltip = "Scales are defined by setting semitones up from the previous note, separated by comma. If 12 is divisible by the definition sum, it will resolve every octave.",
+    tooltip = getScaleInputTooltip(scaleDefinition),
     editable = true,
     backgroundColour = "black",
     backgroundColourWhenEditing = "white",
     textColourWhenEditing = "black",
     textColour = "white",
-    width = width
-  })
+  }
+  if type(width) == "number" then
+    options.width = width
+  end
+  return widgets.label(getTextFromScaleDefinition(scaleDefinition), options)
 end
 
 local scales = {
   widget = getScaleWidget,
   inputWidget = getScaleInputWidget,
+  getScaleInputTooltip = getScaleInputTooltip,
   getScaleDefinitionIndex = getScaleDefinitionIndex,
   getTextFromScaleDefinition = getTextFromScaleDefinition,
   getScaleDefinitionFromText = getScaleDefinitionFromText,

@@ -56,12 +56,16 @@ local function sign(x)
   return 1
 end
 
-local function avg(t)
+local function sum(t)
   local sum = 0
   for _,v in pairs(t) do -- Get the sum of all numbers in t
     sum = sum + v
   end
-  return sum / #t
+  return sum
+end
+
+local function avg(t)
+  return sum(t) / #t
 end
 
 local function round(value)
@@ -151,8 +155,10 @@ local function getValueOrDefault(value, default)
 end
 
 local gem = {
+  e = 2.71828,
   inc = inc,
   avg = avg,
+  sum = sum,
   sign = sign,
   round = round,
   getRandom = getRandom,
@@ -658,6 +664,7 @@ local shapes = {
   zeroDancer = function(x, z, pos, b) return math.sin(x / z + z) * z end,
   exponential = function(x, z, pos, b, percentPos, stepValue, o) return (stepValue + (2-stepValue)*percentPos^o.factor) * z + o.phase end,
   bridge = function(x, z, pos, b, percentPos, stepValue, o) return math.abs(x^2) * z end,
+  gauss = function(x, z, pos, b, percentPos, stepValue, o) return (1 / (z+1) * math.sqrt(2*math.pi)) * gem.e^(-(x^2) / (2*z^2)) - 1 end,
   shakySine = function(x, z, pos, b, percentPos, stepValue)
     local f = 0
     local g = b.rand * percentPos
@@ -669,7 +676,12 @@ local shapes = {
     return math.sin(x * math.pi) * f
   end,
   testShape = function(x, z, pos, b, percentPos, stepValue, o)
-    return x * z
+    -- This is the formula for the standard normal distribution, which is a Gaussian curve with a mean of 0 and a standard deviation of 1. 
+    -- Gaussian curve with a mean of 0 and a standard deviation of 1:
+    -- (1 / σ√(2π)) * e^(-((x-μ)^2) / (2σ^2))
+    -- Simplified: (1 / √(2π)) * e^(-(x^2) / 2)
+    local mu = 0
+    return (1 / (z+1) * math.sqrt(2*math.pi)) * gem.e^(-((x-mu)^2) / (2*z^2)) - 1
   end,
 }
 
@@ -734,6 +746,7 @@ local shapeDefinitions = {
   {name = "Shaky Sine", f = shapes.shakySine},
   {name = "Exponential", f = shapes.exponential, o = {factor = 4.5}},
   {name = "Bridge", f = shapes.bridge},
+  {name = "Gauss", f = shapes.gauss, o = {z = .25}},
   {name = "Random", f = shapes.random},
   {name = "Test Shape", f = shapes.testShape},
 }
@@ -855,10 +868,13 @@ local function getAmountWidget(options, i)
   return widgets.numBox("Shape Amount", getShapeOptions().amount, options)
 end
 
-local function getShapeWidgets(options, i)
+local function getShapeWidgets(overrides, i)
   -- Widgets for controlling shape
   if type(i) == "nil" then
     i = ""
+  end
+  if type(overrides) == "nil" then
+    overrides = {}
   end
   local shapeOptions = getShapeOptions()
   local factorOptions = {
@@ -877,9 +893,9 @@ local function getShapeWidgets(options, i)
   }
   local options = {factor = factorOptions, phase = phaseOptions, z = zOptions}
   for _,v in pairs(options) do
-    v.showLabel = gem.getValueOrDefault(options.showLabel, true)
-    if type(options.width) ~= "nil" then
-      v.width = options.width
+    v.showLabel = gem.getValueOrDefault(overrides.showLabel, true)
+    if type(overrides.width) ~= "nil" then
+      v.width = overrides.width
     end
     if type(v.min) == "nil" then
       v.min = -1
@@ -1378,12 +1394,10 @@ end
 
 local function updateShapeWidgets()
   -- Update widgets with values from the shape
-  --print("updateShapeWidgets")
   local callChanged = false
-  shapeWidgets.z:setValue(shapeOptions.z, callChanged)
-  shapeWidgets.phase:setValue(shapeOptions.phase, callChanged)
-  shapeWidgets.factor:setValue(shapeOptions.factor, callChanged)
-  shapeWidgets.amount:setValue(shapeOptions.amount, callChanged)
+  for k,v in pairs(shapeWidgets) do
+    v:setValue(shapeOptions[k], callChanged)
+  end
 end
 
 local function setShape(loadNew)

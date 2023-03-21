@@ -55,12 +55,16 @@ local function sign(x)
   return 1
 end
 
-local function avg(t)
+local function sum(t)
   local sum = 0
   for _,v in pairs(t) do -- Get the sum of all numbers in t
     sum = sum + v
   end
-  return sum / #t
+  return sum
+end
+
+local function avg(t)
+  return sum(t) / #t
 end
 
 local function round(value)
@@ -150,8 +154,10 @@ local function getValueOrDefault(value, default)
 end
 
 return {--gem--
+  e = 2.71828,
   inc = inc,
   avg = avg,
+  sum = sum,
   sign = sign,
   round = round,
   getRandom = getRandom,

@@ -47,8 +47,8 @@ widgets.menu("Key", key, notes.getNoteNames(), {
   end
 })
 
-local scaleMenu = scales.widget(110)
-scaleMenu.persistent = false
+local scaleMenu = scales.widget()
+scaleMenu.persistent = false -- Avoid running changed function on load, overwriting scaleInput
 
 widgets.label("Scale Definition", {
   textColour = "#d0d0d0"
@@ -71,6 +71,7 @@ end
 
 scaleInput.changed = function(self)
   scaleDefinition = scales.getScaleDefinitionFromText(self.text)
+  self.tooltip = scales.getScaleInputTooltip(scaleDefinition)
   setScale()
 end
 

@@ -382,7 +382,7 @@ widgets.numBox("Base Note", baseNote, {
   end
 })
 
-scales.widget(137, false).changed = function(self)
+scales.widget({width=137, showLabel=false}).changed = function(self)
   scaleDefinitionIndex = self.value
   setScaleTable()
 end
