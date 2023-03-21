@@ -615,7 +615,7 @@ end
 local function isTrigger(e)
   local isListeningForEvent = listenOnChannel == 0 or listenOnChannel == e.channel
   local isTrigger = e.note == 0 -- Note 0 is used as trigger
-  print("isTrigger and isListeningForEvent, channel, e.channel", isTrigger, isListeningForEvent, listenOnChannel, e.channel)
+  --print("isTrigger and isListeningForEvent, channel, e.channel", isTrigger, isListeningForEvent, listenOnChannel, e.channel)
   if isTrigger and isListeningForEvent and forwardModularEvents then
     postEvent(e)
   end
@@ -623,7 +623,7 @@ local function isTrigger(e)
 end
 
 local function handleTrigger(e, note, data)
-  print("handleTrigger, note, isNoteInActiveVoices(note)", note, isNoteInActiveVoices(note))
+  --print("handleTrigger, note, isNoteInActiveVoices(note)", note, isNoteInActiveVoices(note))
   if type(note) == "number" and isNoteInActiveVoices(note) == false then
     local id = playNote(note, e.velocity, -1, nil, e.channel)
     table.insert(activeVoices, {id=id,note=note,channel=e.channel,data=data})
@@ -751,6 +751,31 @@ local function getTextFromScaleDefinition(scaleDefinition)
   return table.concat(scaleDefinition, ",")
 end
 
+local function createRandomScale(resolve, probability)
+  if type(resolve) == "nil" then
+    resolve = 12 -- The sum of the definition should resolve to this
+  end
+  if type(probability) == "nil" then
+    probability = 50 -- Probability that interval is 1 or 2
+  end
+  local sum = 0 -- Current scale definion sum
+  local maxSum = 24
+  local intervals1 = {1,2}
+  local intervals2 = {1,2,3,4}
+  local scaleDefinition = {}
+  repeat
+    local interval = 1
+    if gem.getRandomBoolean(probability) then
+      interval = gem.getRandomFromTable(intervals1)
+    else
+      interval = gem.getRandomFromTable(intervals2)
+    end
+    table.insert(scaleDefinition, interval)
+    sum = gem.inc(sum, interval)
+  until (resolve % sum == 0 and #scaleDefinition > 3) or sum > maxSum
+  return scaleDefinition
+end
+
 local function getScaleDefinitionFromText(scaleText)
   local scale = {}
   if string.len(scaleText) > 0 then
@@ -830,6 +855,7 @@ local scales = {
   getScaleDefinitionFromText = getScaleDefinitionFromText,
   getScaleDefinitions = getScaleDefinitions,
   getScaleNames = getScaleNames,
+  createRandomScale = createRandomScale,
   createScale = function(scaleDefinition, rootNote, maxNote)
     if type(maxNote) ~= "number" then
       maxNote = 127
@@ -1207,10 +1233,16 @@ local generationCounter = 0
 local maxGenerations = 1000 -- Max generations before reset is forced
 local shapeIndex
 local fillProbability = 50
-local generationLabel
+local generationButton
 local scaleDefinitions = scales.getScaleDefinitions()
 local scaleDefinition = scaleDefinitions[#scaleDefinitions]
+local playPos = 0 -- Holds the play position in the active cells
+local changeCount = 0 -- Holds the number of changed cells in the current generation
+local previousChangeCount = 0 -- Holds the number of changed cells in the previous generation
+local equalCount = 0 -- Holds the count for equal cells between generations
 local shapeMenu
+local playModes = {"Right", "Left", "Drunk", "Random"}
+local playMode = playModes[1]
 local activeCells = {} -- Holds the currently active cells
 local shapeNames = shapes.getShapeNames()
 local shapeWidgets = {}
@@ -1225,14 +1257,18 @@ end
 --------------------------------------------------------------------------------
 
 local function clearCells()
+  generationCounter = 0
+  generationButton.displayName = "Gen " .. generationCounter
+  playPos = 0
+  activeCells = {}
   local scale = scales.createScale(scaleDefinition, startNote, (startNote+(octaveRange*12)-1))
-  local scalePos = 1
+  local scaleIndex = 1
   for i = 1, rows do
     for j = 1, cols do
       cells[i][j].enabled = false
-      cells[i][j].value = scale[scalePos]
+      cells[i][j].value = scale[scaleIndex]
       cells[i][j].textColour = widgets.getColours().widgetTextColour
-      scalePos = gem.inc(scalePos, 1, #scale)
+      scaleIndex = gem.inc(scaleIndex, 1, #scale)
     end
   end
 end
@@ -1249,14 +1285,19 @@ local function isFilled(row, value)
   return row == value or (row < value and gem.getRandomBoolean(fillProbability))
 end
 
-local function loadShape(options)
+local function loadShape(forceNew)
   local shape = shapeIndex
+  local options
   local values
+  forceNew = forceNew == true or type(shape) == "nil"
+  if forceNew == false then
+    options = shapeOptions
+  end
   if type(shape) == "nil" then
     shape = gem.getRandom(#shapeNames)
   end
   clearCells() -- Deactivate all cells
-  print("--- NEW SHAPE ---", shape)
+  print("--- LOAD SHAPE ---", shape)
   local bounds = {
     min = 1,
     max = rows,
@@ -1272,15 +1313,12 @@ local function loadShape(options)
   end
 end
 
-local changeCount = 0
-local previousChangeCount = 0
-local equalCount = 0
 local function updateBoard()
   -- Create a new board to hold the next generation
   local newGeneration = {}
 
   generationCounter = gem.inc(generationCounter)
-  generationLabel.text = "Gen " .. generationCounter
+  generationButton.displayName = "Gen " .. generationCounter
   print("--- NEXT GENERATION! ---", generationCounter)
 
   -- Iterate through each cell on the board
@@ -1329,8 +1367,8 @@ local function updateBoard()
   end
 
   -- Update the cells for the next generation
-  changeCount = 0
   activeCells = {} -- Reset active cells
+  changeCount = 0
   for i,v in ipairs(newGeneration) do
     for j,rule in ipairs(v) do
       local alive = rule < 4
@@ -1352,17 +1390,21 @@ local function updateBoard()
   -- Reset if stale board
   if changeCount == 0 or #activeCells == 0 or equalCount > equalRounds or generationCounter > maxGenerations then
     print("Stale board...")
+    generationButton.displayName = "Stale board"
      -- Reset counters
     equalCount = 0
-    generationCounter = 0
     loadShape()
   end
 end
 
 local function evolution(uniqueId)
-  loadShape()
   while isPlaying and seqIndex == uniqueId do
-    updateBoard()
+    if #activeCells == 0 then
+      loadShape()
+    end
+    if generationButton.value then
+      updateBoard()
+    end
     wait(evolutionSpeed)
   end
 end
@@ -1381,19 +1423,43 @@ local function stopPlaying()
     return
   end
   isPlaying = false
-  clearCells()
 end
 
 local function getNote()
+  local populateActiveCells = #activeCells == 0
   for i = 1, rows do
     for j = 1, cols do
       cells[i][j].textColour = widgets.getColours().widgetTextColour
+      if populateActiveCells and cells[i][j].enabled then
+        table.insert(activeCells, cells[i][j])
+      end
     end
   end
   if #activeCells == 0 then
     return
   end
-  local cell = gem.getRandomFromTable(activeCells)
+  if playMode == "Random" then
+    playPos = gem.getRandom(#activeCells)
+  else
+    -- Walk up or down the scale
+    if #activeCells > 1 then
+      local increment = 1
+      local resetAt = #activeCells
+      local resetTo = 1
+      if playMode == "Left" or (playMode == "Drunk" and gem.getRandomBoolean()) then
+        increment = -1
+        resetAt = 1
+        resetTo = #activeCells
+      end
+      playPos = gem.inc(playPos, increment, resetAt, resetTo)
+    else
+      playPos = 1
+    end
+  end
+  local cell = activeCells[playPos]
+  if type(cell) == "nil" then
+    return
+  end
   cell.textColour = "yellow"
   return cell.value
 end
@@ -1421,17 +1487,31 @@ widgets.label(title, {
 })
 
 widgets.setSection({
-  x = 390,
+  x = 240,
   y = 5,
   xSpacing = 5,
   ySpacing = 5,
+  width = 75,
 })
 
-generationLabel = widgets.label("Gen " .. generationCounter, {
-  tooltip = "Shows the current generation",
+widgets.label("Play Direction", {
+  textColour = "404040",
   backgroundColour = "transparent",
-  textColour = "606060",
-  width = 75,
+})
+
+widgets.menu("Play Mode", playModes, {
+  tooltip = "Set the play direction for the sequencer",
+  showLabel = false,
+  changed = function(self) playMode = self.selectedText end
+})
+
+generationButton = widgets.button("Gen " .. generationCounter, true, {
+  tooltip = "Turn off to pause automatic generation",
+})
+
+widgets.button("Advance", {
+  tooltip = "Advance the board to the next generation",
+  changed = function() updateBoard() end
 })
 
 modular.getForwardWidget()
@@ -1504,7 +1584,7 @@ widgets.setSection({
   cols = 1,
 })
 
-shapeMenu = widgets.menu("Start Shape", shapeMenuItems, {
+shapeMenu = widgets.menu("Shape", shapeMenuItems, {
   tooltip = "If the board is empty or stale, the selected shape will be used for starting a new board",
   changed = function(self)
     clearCells()
@@ -1512,17 +1592,19 @@ shapeMenu = widgets.menu("Start Shape", shapeMenuItems, {
     if shapeIndex == 0 then
       shapeIndex = nil
     else
-      loadShape()
+      loadShape(true)
     end
   end
 })
 
-widgets.numBox('Fill', fillProbability, {
+widgets.numBox('Shape Fill', fillProbability, {
   tooltip = "Set a fill probability for the selected shape. If fill is 0, the shape is drawn as a line, if fill is 100 it will be drawn solid.",
   unit = Unit.Percent,
   changed = function(self)
     fillProbability = self.value
-    shapeMenu:changed()
+    if type(shapeIndex) == "number" then
+      loadShape()
+    end
   end
 })
 
@@ -1532,7 +1614,7 @@ for k,v in pairs(shapeWidgets) do
   v.changed = function(self)
     shapeOptions[k] = self.value
     if type(shapeIndex) == "number" then
-      loadShape(shapeOptions)
+      loadShape()
     end
   end
 end
@@ -1550,7 +1632,7 @@ widgets.numBox('Regeneration Time', evolutionSpeed, {
 })
 
 --------------------------------------------------------------------------------
--- Speed Panel
+-- Scale Panel
 --------------------------------------------------------------------------------
 
 widgets.panel({
@@ -1598,6 +1680,13 @@ scaleInput.changed = function(self)
   clearCells()
 end
 
+widgets.button("Random Scale", {
+  tooltip = "Create a random scale",
+  changed = function()
+    scaleInput.text = scales.getTextFromScaleDefinition(scales.createRandomScale())
+  end
+})
+
 widgets.numBox("Base Note", startNote, {
   min = 0,
   max = 127,
@@ -1630,7 +1719,6 @@ end
 
 function onNote(e)
   if modular.isTrigger(e) then
-    print("modular.handleTrigger", e.channel)
     if modular.handleTrigger(e, getNote()) then
       startPlaying()
     end

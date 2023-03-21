@@ -615,7 +615,7 @@ end
 local function isTrigger(e)
   local isListeningForEvent = listenOnChannel == 0 or listenOnChannel == e.channel
   local isTrigger = e.note == 0 -- Note 0 is used as trigger
-  print("isTrigger and isListeningForEvent, channel, e.channel", isTrigger, isListeningForEvent, listenOnChannel, e.channel)
+  --print("isTrigger and isListeningForEvent, channel, e.channel", isTrigger, isListeningForEvent, listenOnChannel, e.channel)
   if isTrigger and isListeningForEvent and forwardModularEvents then
     postEvent(e)
   end
@@ -623,7 +623,7 @@ local function isTrigger(e)
 end
 
 local function handleTrigger(e, note, data)
-  print("handleTrigger, note, isNoteInActiveVoices(note)", note, isNoteInActiveVoices(note))
+  --print("handleTrigger, note, isNoteInActiveVoices(note)", note, isNoteInActiveVoices(note))
   if type(note) == "number" and isNoteInActiveVoices(note) == false then
     local id = playNote(note, e.velocity, -1, nil, e.channel)
     table.insert(activeVoices, {id=id,note=note,channel=e.channel,data=data})
@@ -751,6 +751,31 @@ local function getTextFromScaleDefinition(scaleDefinition)
   return table.concat(scaleDefinition, ",")
 end
 
+local function createRandomScale(resolve, probability)
+  if type(resolve) == "nil" then
+    resolve = 12 -- The sum of the definition should resolve to this
+  end
+  if type(probability) == "nil" then
+    probability = 50 -- Probability that interval is 1 or 2
+  end
+  local sum = 0 -- Current scale definion sum
+  local maxSum = 24
+  local intervals1 = {1,2}
+  local intervals2 = {1,2,3,4}
+  local scaleDefinition = {}
+  repeat
+    local interval = 1
+    if gem.getRandomBoolean(probability) then
+      interval = gem.getRandomFromTable(intervals1)
+    else
+      interval = gem.getRandomFromTable(intervals2)
+    end
+    table.insert(scaleDefinition, interval)
+    sum = gem.inc(sum, interval)
+  until (resolve % sum == 0 and #scaleDefinition > 3) or sum > maxSum
+  return scaleDefinition
+end
+
 local function getScaleDefinitionFromText(scaleText)
   local scale = {}
   if string.len(scaleText) > 0 then
@@ -830,6 +855,7 @@ local scales = {
   getScaleDefinitionFromText = getScaleDefinitionFromText,
   getScaleDefinitions = getScaleDefinitions,
   getScaleNames = getScaleNames,
+  createRandomScale = createRandomScale,
   createScale = function(scaleDefinition, rootNote, maxNote)
     if type(maxNote) ~= "number" then
       maxNote = 127

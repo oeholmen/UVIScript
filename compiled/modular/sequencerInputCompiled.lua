@@ -615,7 +615,7 @@ end
 local function isTrigger(e)
   local isListeningForEvent = listenOnChannel == 0 or listenOnChannel == e.channel
   local isTrigger = e.note == 0 -- Note 0 is used as trigger
-  print("isTrigger and isListeningForEvent, channel, e.channel", isTrigger, isListeningForEvent, listenOnChannel, e.channel)
+  --print("isTrigger and isListeningForEvent, channel, e.channel", isTrigger, isListeningForEvent, listenOnChannel, e.channel)
   if isTrigger and isListeningForEvent and forwardModularEvents then
     postEvent(e)
   end
@@ -623,7 +623,7 @@ local function isTrigger(e)
 end
 
 local function handleTrigger(e, note, data)
-  print("handleTrigger, note, isNoteInActiveVoices(note)", note, isNoteInActiveVoices(note))
+  --print("handleTrigger, note, isNoteInActiveVoices(note)", note, isNoteInActiveVoices(note))
   if type(note) == "number" and isNoteInActiveVoices(note) == false then
     local id = playNote(note, e.velocity, -1, nil, e.channel)
     table.insert(activeVoices, {id=id,note=note,channel=e.channel,data=data})
