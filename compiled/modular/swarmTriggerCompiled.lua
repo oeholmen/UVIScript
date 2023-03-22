@@ -1330,7 +1330,7 @@ local voiceId = nil -- Holds the id of the created note event
 local velocity = 64
 local duration = 1000 -- Space between swarms
 local durationMin = 0
-local durationMax = 30000
+local durationMax = 60000
 local shapeWidgets = {}
 local shapeOptions = shapes.getShapeOptions()
 local swarmLengthInput

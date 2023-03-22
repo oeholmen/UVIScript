@@ -658,7 +658,7 @@ local function createRandomScale(resolve, probability)
     resolve = 12 -- The sum of the definition should resolve to this
   end
   if type(probability) == "nil" then
-    probability = 50 -- Probability that interval is 1 or 2
+    probability = 50 -- Probability that the selected interval is 1 or 2
   end
   local sum = 0 -- Current scale definion sum
   local maxSum = 24
@@ -674,7 +674,7 @@ local function createRandomScale(resolve, probability)
     end
     table.insert(scaleDefinition, interval)
     sum = gem.inc(sum, interval)
-  until (resolve % sum == 0 and #scaleDefinition > 3) or sum > maxSum
+  until #scaleDefinition > 3 and (resolve % sum == 0 or maxSum % sum == 0 or sum >= maxSum)
   return scaleDefinition
 end
 
@@ -704,7 +704,7 @@ end
 
 local function getScaleInputTooltip(scaleDefinition)
   local sum = gem.sum(scaleDefinition)
-  local tooltip = "Scales are defined by setting semitones up from the previous note. The current scale definition sum is " .. sum
+  local tooltip = "Scales are defined by setting semitones up from the previous note. The current scale has " .. #scaleDefinition .. " notes and the definition sum is " .. sum
   if 12 % sum == 0 then
     tooltip = tooltip .. ", whitch resolves every octave."
   else

@@ -8,8 +8,7 @@ local scales = require "includes.scales"
 local shapes = require "includes.shapes"
 local modular = require "includes.modular"
 
-local backgroundColour = "404040"
-setBackgroundColour(backgroundColour)
+setBackgroundColour("404040")
 
 --------------------------------------------------------------------------------
 -- Variables
@@ -19,10 +18,11 @@ local title = "Game of Life Input"
 local description = "A sequencer that use the rules from game of life to select notes"
 local isPlaying = false
 local seqIndex = 0 -- Holds the unique id for the sequencer
+local checkId = 0 -- Holds the unique id for checking if there are any notes playing
 local startNote = 36
 local octaveRange = 2
 local evolutionSpeed = 1000 -- Milliseconds
-local rows = 8 -- Number of rows in the board
+local rows = 12 -- Number of rows in the board
 local cols = 12 -- Number of columns in the board
 local equalRounds = 6 -- Number of stale rounds before shape is regenerated
 local cells = {} -- Holds the cell widgets
@@ -33,7 +33,7 @@ local fillProbability = 50
 local generationButton
 local scaleDefinitions = scales.getScaleDefinitions()
 local scaleDefinition = scaleDefinitions[#scaleDefinitions]
-local playPos = 0 -- Holds the play position in the active cells
+local playPos = {}--0 -- Holds the play position per channel (voice) in the active cells
 local changeCount = 0 -- Holds the number of changed cells in the current generation
 local previousChangeCount = 0 -- Holds the number of changed cells in the previous generation
 local equalCount = 0 -- Holds the count for equal cells between generations
@@ -50,22 +50,54 @@ for _,v in ipairs(shapeNames) do
 end
 
 --------------------------------------------------------------------------------
+-- Cell Colours
+--------------------------------------------------------------------------------
+
+local textColourInactive = widgets.getColours().widgetTextColour
+local backgroundColourInactive = widgets.getColours().widgetBackgroundColour
+local textColourActive = "efefef"
+local backgroundColourActive = "009933"
+local textColourPlaying = "404040"
+local backgroundColourPlaying = "yellow"
+
+--------------------------------------------------------------------------------
 -- Sequencer Functions
 --------------------------------------------------------------------------------
 
-local function clearCells()
-  generationCounter = 0
-  generationButton.displayName = "Gen " .. generationCounter
-  playPos = 0
-  activeCells = {}
+local function setScale()
   local scale = scales.createScale(scaleDefinition, startNote, (startNote+(octaveRange*12)-1))
   local scaleIndex = 1
   for i = 1, rows do
     for j = 1, cols do
-      cells[i][j].enabled = false
       cells[i][j].value = scale[scaleIndex]
-      cells[i][j].textColour = widgets.getColours().widgetTextColour
       scaleIndex = gem.inc(scaleIndex, 1, #scale)
+    end
+  end
+end
+
+local function setInactive(row, col)
+  cells[row][col].displayName = "0"
+  cells[row][col].textColour = textColourInactive
+  cells[row][col].backgroundColour = backgroundColourInactive
+end
+
+local function setActive(row, col, populateActiveCells)
+  cells[row][col].displayName = "1"
+  cells[row][col].textColour = textColourActive
+  cells[row][col].backgroundColour = backgroundColourActive
+  if populateActiveCells == true then
+    table.insert(activeCells, cells[row][col])
+  end
+end
+
+local function clearCells()
+  generationCounter = 0
+  generationButton.displayName = "Gen " .. generationCounter
+  playPos = {}--0
+  activeCells = {}
+  for i = 1, rows do
+    for j = 1, cols do
+      setInactive(i, j)
     end
   end
 end
@@ -105,7 +137,9 @@ local function loadShape(forceNew)
   for col = 1, cols do
     local value = math.ceil(values[col])
     for row = 1, rows do
-      cells[row][col].enabled = isFilled(row, value)
+      if isFilled(row, value) then
+        setActive(row, col, true)
+      end
     end
   end
 end
@@ -133,27 +167,23 @@ local function updateBoard()
 
             -- Check if the cell is on the board
             if row >= 1 and row <= rows and col >= 1 and col <= cols then
-              local val = 0
-              if cells[row][col].enabled == true then
-                val = 1
-              end
-              count = count + val
+              count = count + tonumber(cells[row][col].displayName)
             end
           end
         end
       end
 
       -- Apply the rules of the game
-      if cells[i][j].enabled == false and count == 3 then
+      if cells[i][j].displayName == "0" and count == 3 then
         -- Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
         newGeneration[i][j] = 1
-      elseif cells[i][j].enabled == true and count == 2 then
+      elseif cells[i][j].displayName == "1" and count == 2 then
         -- Any live cell with two live neighbours lives on to the next generation.
         newGeneration[i][j] = 2
-      elseif cells[i][j].enabled == true and count == 3 then
+      elseif cells[i][j].displayName == "1" and count == 3 then
         -- Any live cell with three live neighbours lives on to the next generation.
         newGeneration[i][j] = 3
-      elseif cells[i][j].enabled == true then
+      elseif cells[i][j].displayName == "1" then
         -- All other live cells die in the next generation.
         newGeneration[i][j] = 4
       else
@@ -169,12 +199,14 @@ local function updateBoard()
   for i,v in ipairs(newGeneration) do
     for j,rule in ipairs(v) do
       local alive = rule < 4
-      if cells[i][j].enabled ~= alive then
+      local hasChanged = (cells[i][j].displayName == "1" and alive == false) or (cells[i][j].displayName == "0" and alive == true)
+      if hasChanged then
         changeCount = gem.inc(changeCount)
       end
-      cells[i][j].enabled = alive
       if alive then
-        table.insert(activeCells, cells[i][j])
+        setActive(i, j, true)
+      else
+        setInactive(i, j)
       end
     end
   end
@@ -196,13 +228,22 @@ end
 
 local function evolution(uniqueId)
   while isPlaying and seqIndex == uniqueId do
-    if #activeCells == 0 then
-      loadShape()
-    end
     if generationButton.value then
       updateBoard()
     end
     wait(evolutionSpeed)
+  end
+end
+
+local function resetCellColours()
+  for i = 1, rows do
+    for j = 1, cols do
+      if cells[i][j].displayName == "1" then
+        setActive(i, j)
+      else
+        setInactive(i, j)
+      end
+    end
   end
 end
 
@@ -220,44 +261,55 @@ local function stopPlaying()
     return
   end
   isPlaying = false
+  resetCellColours()
 end
 
-local function getNote()
-  local populateActiveCells = #activeCells == 0
-  for i = 1, rows do
-    for j = 1, cols do
-      cells[i][j].textColour = widgets.getColours().widgetTextColour
-      if populateActiveCells and cells[i][j].enabled then
-        table.insert(activeCells, cells[i][j])
-      end
-    end
+local function checkPlaying(uniqueId)
+  wait(50)
+  if checkId == uniqueId and modular.getNumVoices() == 0 then
+    stopPlaying()
   end
+end
+
+local function getPlayPos(channel)
+  -- Only one cell...
+  if #activeCells == 1 then
+    return 1
+  end
+
+  -- Select a random play position
+  if playMode == "Random" then
+    return gem.getRandom(#activeCells)
+  end
+
+  -- Walk up or down the scale
+  local increment = 1
+  local resetAt = #activeCells
+  local resetTo = 1
+  if playMode == "Left" or (playMode == "Drunk" and gem.getRandomBoolean()) then
+    increment = -1
+    resetAt = 1
+    resetTo = #activeCells
+  end
+  if type(playPos[channel]) == "nil" then
+    playPos[channel] = 0
+  end
+  return gem.inc(playPos[channel], increment, resetAt, resetTo)
+end
+
+local function getNote(channel)
   if #activeCells == 0 then
+    print("getNote: no active cells")
     return
   end
-  if playMode == "Random" then
-    playPos = gem.getRandom(#activeCells)
-  else
-    -- Walk up or down the scale
-    if #activeCells > 1 then
-      local increment = 1
-      local resetAt = #activeCells
-      local resetTo = 1
-      if playMode == "Left" or (playMode == "Drunk" and gem.getRandomBoolean()) then
-        increment = -1
-        resetAt = 1
-        resetTo = #activeCells
-      end
-      playPos = gem.inc(playPos, increment, resetAt, resetTo)
-    else
-      playPos = 1
-    end
-  end
-  local cell = activeCells[playPos]
+  resetCellColours()
+  playPos[channel] = getPlayPos(channel)
+  local cell = activeCells[playPos[channel]]
   if type(cell) == "nil" then
     return
   end
-  cell.textColour = "yellow"
+  cell.textColour = textColourPlaying
+  cell.backgroundColour = backgroundColourPlaying
   return cell.value
 end
 
@@ -324,19 +376,19 @@ widgets.setSection({
 })
 
 widgets.panel({
-  backgroundColour = backgroundColour,
+  backgroundColour = "404040",
   x = widgets.getPanel().x + 5,
   y = widgets.posUnder(widgets.getPanel()) + 5,
-  width = 380,
-  height = 190,
+  width = 360,
+  height = 200,
 })
 
-local spacing = 2
+local spacing = 1
 widgets.setSection({
   width = (widgets.getPanel().width - ((cols+1) * spacing)) / cols,
   height = (widgets.getPanel().height - ((rows+1) * spacing)) / rows,
-  x = 2,
-  y = 0,
+  x = 1,
+  y = 1,
   xSpacing = spacing,
   ySpacing = spacing,
   rowDirection = -1,
@@ -348,12 +400,9 @@ widgets.setSection({
 for i = 1, rows do
   cells[i] = {}
   for j = 1, cols do
-    cells[i][j] = widgets.numBox("", startNote, {
+    cells[i][j] = widgets.numBox("0", startNote, {
       name = "r" .. i .. "c" .. j,
       showLabel = false,
-      min = 0,
-      max = 127,
-      integer = true,
       unit = Unit.MidiKey,
     })
   end
@@ -365,28 +414,28 @@ end
 
 widgets.panel({
   backgroundColour = "303030",
-  x = widgets.posSide(widgets.getPanel()),
-  y = widgets.getPanel().y + 3,
-  width = 174,
-  height = widgets.getPanel().height - 5,
+  x = widgets.posSide(widgets.getPanel()) + 5,
+  y = widgets.getPanel().y,
+  width = 180,
+  height = widgets.getPanel().height,
 })
 
 widgets.setSection({
   x = 7,
   y = 6,
-  width = 160,
+  width = 165,
   height = 20,
   xSpacing = 5,
-  ySpacing = 5,
+  ySpacing = 8,
   cols = 1,
 })
 
 shapeMenu = widgets.menu("Shape", shapeMenuItems, {
   tooltip = "If the board is empty or stale, the selected shape will be used for starting a new board",
   changed = function(self)
-    clearCells()
     shapeIndex = self.value - 1
     if shapeIndex == 0 then
+      clearCells()
       shapeIndex = nil
     else
       loadShape(true)
@@ -436,17 +485,15 @@ widgets.panel({
   backgroundColour = "505050",
   x = widgets.posSide(widgets.getPanel()),
   y = widgets.getPanel().y,
-  width = 147,
+  width = 159,
   height = widgets.getPanel().height,
 })
 
 widgets.setSection({
   x = 5,
   y = 6,
-  width = 135,
+  width = 147,
   height = 20,
-  xSpacing = 5,
-  ySpacing = 5,
   cols = 1,
 })
 
@@ -474,7 +521,7 @@ scaleInput.changed = function(self)
     return
   end
   self.tooltip = scales.getScaleInputTooltip(scaleDefinition)
-  clearCells()
+  setScale()
 end
 
 widgets.button("Random Scale", {
@@ -491,7 +538,7 @@ widgets.numBox("Base Note", startNote, {
   unit = Unit.MidiKey,
   changed = function(self)
     startNote = self.value
-    clearCells()
+    setScale()
   end
 })
 
@@ -501,7 +548,7 @@ widgets.numBox("Octave Range", octaveRange, {
   integer = true,
   changed = function(self)
     octaveRange = self.value
-    clearCells()
+    setScale()
   end
 })
 
@@ -511,12 +558,12 @@ widgets.numBox("Octave Range", octaveRange, {
 
 function onInit()
   seqIndex = 0
-  clearCells()
+  setScale() -- TODO This might overwrite manually set notes on load - TEST
 end
 
 function onNote(e)
   if modular.isTrigger(e) then
-    if modular.handleTrigger(e, getNote()) then
+    if modular.handleTrigger(e, getNote(e.channel)) then
       startPlaying()
     end
   else
@@ -526,7 +573,10 @@ end
 
 function onRelease(e)
   if modular.isTrigger(e) then
-    modular.handleReleaseTrigger(e)
+    if modular.handleReleaseTrigger(e) then
+      checkId = gem.inc(checkId)
+      spawn(checkPlaying, checkId)
+    end
   else
     postEvent(e)
   end
