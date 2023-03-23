@@ -1505,6 +1505,9 @@ local function getNote(channel)
     print("getNote: no active cells")
     return
   end
+  if type(channel) == "nil" then
+    channel = 1
+  end
   resetCellColours()
   playPos[channel] = getPlayPos(channel)
   local cell = activeCells[playPos[channel]]
