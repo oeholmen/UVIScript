@@ -1757,6 +1757,7 @@ local shapeMenuItems = {"Select shape..."}
 for _,v in ipairs(shapeNames) do
   table.insert(shapeMenuItems, v)
 end
+local preInit = true -- Used to avoid sending midi cc on startup
 
 modseq.setTitle("Multi Midi CC Sequencer")
 
@@ -1775,6 +1776,8 @@ for page=1,modseq.getMaxPages() do
   local buttonRowHeight = 60
   local buttonSpacing = 10
   local defaultSteps = 16
+  local midiControlNumber
+  local channelBox
 
   if modseq.getNumParts() == 1 then
     tableHeight = tableHeight * 1.5
@@ -1807,7 +1810,7 @@ for page=1,modseq.getMaxPages() do
     positionTable.x = tableX
     positionTable.y = tableY
 
-    local seqValueTable = sequencerPanel:Table("ControlValue" .. i, defaultSteps, 0, 0, 127)
+    local seqValueTable = sequencerPanel:Table("ControlValue" .. i, defaultSteps, 0, 0, 127, true)
     seqValueTable.visible = isVisible
     seqValueTable.displayName = "Velocity"
     seqValueTable.tooltip = "Velocity for this step"
@@ -1824,7 +1827,14 @@ for page=1,modseq.getMaxPages() do
     seqValueTable.height = tableHeight
     seqValueTable.x = tableX
     seqValueTable.y = positionTable.y + positionTable.height + 2
-    
+    seqValueTable.changed = function(self, index)
+      if preInit == false then
+        local controlChangeNumber = midiControlNumber.value
+        local channel = channelBox.value
+        controlChange(controlChangeNumber, self:getValue(index), channel)
+      end
+    end
+
     local inputWidgetY = seqValueTable.y + seqValueTable.height + 5
 
     -- Inputs
@@ -1902,7 +1912,7 @@ for page=1,modseq.getMaxPages() do
     valueRandomization.x = numStepsBox.x + numStepsBox.width + buttonSpacing
     valueRandomization.y = inputWidgetY
 
-    local midiControlNumber = sequencerPanel:NumBox("MidiControlNumber" .. i, (part+101), 0, 127, true)
+    midiControlNumber = sequencerPanel:NumBox("MidiControlNumber" .. i, (part+101), 0, 127, true)
     midiControlNumber.displayName = "CC"
     midiControlNumber.tooltip = "The midi control number to send the value to"
     midiControlNumber.visible = isVisible
@@ -1912,7 +1922,7 @@ for page=1,modseq.getMaxPages() do
     midiControlNumber.x = valueRandomization.x + valueRandomization.width + buttonSpacing
     midiControlNumber.y = inputWidgetY
 
-    local channelBox = sequencerPanel:NumBox("Channel" .. i, 0, 0, 16, true)
+    channelBox = sequencerPanel:NumBox("Channel" .. i, 0, 0, 16, true)
     channelBox.displayName = "Channel"
     channelBox.tooltip = "Midi channel that receives CC from this part. 0 = omni"
     channelBox.visible = isVisible
@@ -2103,6 +2113,10 @@ end
 --------------------------------------------------------------------------------
 -- Save / Load
 --------------------------------------------------------------------------------
+
+function onInit()
+  preInit = false
+end
 
 function onSave()
   local numStepsData = {}

@@ -1410,9 +1410,9 @@ local function setNotes()
 end
 
 local function createStrategy()
-  local maxLength = 16 -- TODO Param?
+  local maxLength = 16 -- The maximum number of steps in the created strategy
   local strategy = {} -- Table to hold strategy
-  local ln = gem.getRandom(maxLength) -- Length
+  local ln = gem.getRandom(maxLength) -- Number of steps to add
   for i=1, ln do
     local value = gem.getRandom(-7,7)
     table.insert(strategy, value)
@@ -1428,28 +1428,25 @@ local function getStrategyInputText(strategy)
   return table.concat(strategy, ",")
 end
 
-local function getStrategyFromSlot(voice)
-  if randomSlotStrategy then
-    local slots = {}
-    for _,v in ipairs(strategySlots) do
-      if v.enabled == true then
-        table.insert(slots, v)
-      end
-    end
-    if #slots > 0 then
-      local slot = gem.getRandomFromTable(slots)
-      --slot:setValue(true)
-      return slot.tooltip
+local function setRandomSlot()
+  local slots = {}
+  for _,v in ipairs(strategySlots) do
+    if v.enabled == true then
+      table.insert(slots, v)
     end
   end
-  if voiceSlotStrategy then
-    if voice > numSlots then
-      voice = voice - numSlots
-    end
-    local slot = strategySlots[voice]
-    if slot.enabled then
-      return slot.tooltip
-    end
+  if #slots > 0 then
+    gem.getRandomFromTable(slots):setValue(true)
+  end
+end
+
+local function getStrategyFromSlot(voice)
+  if voice > numSlots then
+    voice = voice - numSlots
+  end
+  local slot = strategySlots[voice]
+  if slot.enabled then
+    return slot.tooltip
   end
 end
 
@@ -1480,7 +1477,11 @@ end
 
 local function getNoteFromStrategy(filteredNotes, voice)
   local strategy = {}
-  local strategyText = getStrategyFromSlot(voice)
+  local strategyText
+  -- Try to get strategy from the slot corresponding to the current voice
+  if voiceSlotStrategy then
+    strategyText = getStrategyFromSlot(voice)
+  end
   -- Get strategy from input field if not found in a slot
   if type(strategyText) ~= "string" or string.len(strategyText) == 0 then
     strategyText = strategyInput
@@ -1868,6 +1869,9 @@ local function sequenceRunner()
       if strategyRestart == 4 then
         strategyPos = {} -- Reset strategy position
       end
+    end
+    if randomSlotStrategy then
+      setRandomSlot()
     end
     print("Round", round)
     waitBeat(resolutions.getResolution(resolution))

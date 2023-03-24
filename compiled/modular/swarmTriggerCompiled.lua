@@ -1369,7 +1369,7 @@ local function getRandomBipolar()
   return value
 end
 
-local function randomizeShapeSettings()
+local function randomizeShapeSettings(randomizeLength)
   shapeWidgets.z:setValue(getRandomBipolar())
   shapeWidgets.phase:setValue(getRandomBipolar())
   local factor = getRandomBipolar()
@@ -1387,7 +1387,7 @@ local function randomizeShapeSettings()
   else
     shapeWidgets.amount:setValue(gem.getRandom(shapeWidgets.amount.max))
   end
-  if lengthRandomizationInput.enabled then
+  if lengthRandomizationInput.enabled and randomizeLength == true then
     swarmLengthInput:setValue(gem.randomizeValue(swarmLength, swarmLengthInput.min, swarmLengthInput.max, lengthRandomizationAmount))
   end
 end
@@ -1410,7 +1410,9 @@ local function setShape(loadNew)
   local minRes = beat2ms(resolutionValues[resolutionMin]) -- Fastest
   local maxRes = beat2ms(resolutionValues[resolution]) -- Slowest
 
-  --print("minRes, maxRes", minRes, maxRes)
+  if lengthRandomizationInput.enabled then
+    length = gem.randomizeValue(length, swarmLengthInput.min, swarmLengthInput.max, lengthRandomizationAmount)
+  end
 
   -- Update tables
   positionTable.length = length
@@ -1613,7 +1615,7 @@ table.insert(actionButtons, widgets.button("Select Random Shape", {
 
 table.insert(actionButtons, widgets.button("Randomize Settings", {
   changed = function()
-    randomizeShapeSettings()
+    randomizeShapeSettings(true)
   end
 }))
 
