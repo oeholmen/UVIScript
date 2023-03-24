@@ -101,7 +101,7 @@ local function setShape(loadNew)
   local minRes = beat2ms(resolutionValues[resolutionMin]) -- Fastest
   local maxRes = beat2ms(resolutionValues[resolution]) -- Slowest
 
-  if lengthRandomizationInput.enabled then
+  if lengthRandomizationInput.enabled and isPlaying then
     length = gem.randomizeValue(length, swarmLengthInput.min, swarmLengthInput.max, lengthRandomizationAmount)
   end
 
