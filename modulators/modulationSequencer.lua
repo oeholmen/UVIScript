@@ -74,7 +74,7 @@ for page=1,modseq.getMaxPages() do
     positionTable.x = tableX
     positionTable.y = tableY
 
-    local seqValueTable = sequencerPanel:Table("ModulationValue" .. i, defaultSteps, 0, 0, 100)
+    local seqValueTable = sequencerPanel:Table("ModulationValue" .. i, defaultSteps, 0, -100, 100)
     seqValueTable.visible = isVisible
     seqValueTable.displayName = "Velocity"
     seqValueTable.tooltip = "Velocity for this step"
@@ -209,16 +209,11 @@ for page=1,modseq.getMaxPages() do
       name = "shape" .. i,
       showLabel = false,
       width = 140,
-      changed = function(self) modseq.loadShape(i, true) end
     })
 
     local widgetOptions = {width=114, showLabel=true}
     local shapeWidgets = shapes.getWidgets(widgetOptions, i)
     shapeWidgets.amount = shapes.getAmountWidget(widgetOptions, i)
-    shapeWidgets.phase.changed = function(self) modseq.loadShape(i) end
-    shapeWidgets.factor.changed = function(self) modseq.loadShape(i) end
-    shapeWidgets.z.changed = function(self) modseq.loadShape(i) end
-    shapeWidgets.amount.changed = function(self) modseq.loadShape(i) end
 
     local bipolarButton = widgets.button("Bipolar", true, {
       name = "Bipolar" .. i,
@@ -230,8 +225,8 @@ for page=1,modseq.getMaxPages() do
       else
         seqValueTable:setRange(0,100)
       end
+      modseq.loadShape(i)
     end
-    bipolarButton:changed()
 
     local xyShapeMorph = widgets.getPanel():XY('ShapePhase' .. i, 'ShapeMorph' .. i)
     xyShapeMorph.x = widgets.posSide(seqValueTable)
@@ -329,6 +324,16 @@ local function remove(voiceId)
   end
 end
 
+function onInit()
+  -- Changed functions must be added here to avoid sequence table being overwritten on load
+  for i,v in ipairs(modseq.getPartParams()) do
+    v.shapeMenu.changed = function(self) modseq.loadShape(i, true) end
+    for _,w in pairs(v.shapeWidgets) do
+      w.changed = function(self) modseq.loadShape(i) end
+    end
+  end
+end
+
 function onNote(e)
   local voiceId = postEvent(e)
   table.insert(heldNotes, voiceId)
@@ -359,11 +364,13 @@ end
 
 function onSave()
   local numStepsData = {}
+  local bipolarData = {}
   local seqValueTableData = {}
   local smoothStepTableData = {}
 
   for _,v in ipairs(modseq.getPartParams()) do
     table.insert(numStepsData, v.numStepsBox.value)
+    table.insert(bipolarData, v.bipolarButton.value)
     for j=1, v.numStepsBox.value do
       table.insert(seqValueTableData, v.seqValueTable:getValue(j))
       table.insert(smoothStepTableData, v.smoothStepTable:getValue(j))
@@ -372,6 +379,7 @@ function onSave()
 
   local data = {}
   table.insert(data, numStepsData)
+  table.insert(data, bipolarData)
   table.insert(data, seqValueTableData)
   table.insert(data, smoothStepTableData)
   table.insert(data, modseq.labelInput.text)
@@ -379,13 +387,16 @@ function onSave()
 end
 
 function onLoad(data)
+  print("onLoad")
   local numStepsData = data[1]
-  local seqValueTableData = data[2]
-  local smoothStepTableData = data[3]
-  modseq.labelInput.text = data[4]
+  local bipolarData = data[2]
+  local seqValueTableData = data[3]
+  local smoothStepTableData = data[4]
+  modseq.labelInput.text = data[5]
 
   local dataCounter = 1
   for i,v in ipairs(numStepsData) do
+    modseq.getPartParams(i).bipolarButton:setValue(bipolarData[i])
     modseq.getPartParams(i).numStepsBox:setValue(v)
     modseq.getPartParams(i).seqValueTable.length = v
     modseq.getPartParams(i).smoothStepTable.length = v

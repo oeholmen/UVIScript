@@ -1432,10 +1432,13 @@ local function getShapeLoadOptions(partIndex, loadNew)
 end
 
 local function loadShape(partIndex, loadNew)
+  if type(paramsPerPart[partIndex]) == "nil" then
+    return
+  end
   local options = getShapeLoadOptions(partIndex, loadNew)
   local values = {}
   if paramsPerPart[partIndex].shapeMenu.value == 1 then
-    -- If not shape was selected, just return
+    -- If no shape was selected, just return
     return
   end
   local shapeIndex = paramsPerPart[partIndex].shapeMenu.value - 1
