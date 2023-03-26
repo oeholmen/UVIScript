@@ -200,9 +200,7 @@ for page=1,modseq.getMaxPages() do
       name = "shape" .. i,
       showLabel = false,
       width = 131,
-      changed = function(self)
-        modseq.loadShape(i, true)
-      end
+      --changed = function(self) modseq.loadShape(i, true) end
     })
 
     local widgetOptions = {width=115, showLabel=true}
@@ -214,11 +212,6 @@ for page=1,modseq.getMaxPages() do
       tooltip = "Use smoothing (non destructive) to even out the transition between value changes",
       width = 58,
     })
-
-    shapeWidgets.phase.changed = function(self) modseq.loadShape(i) end
-    shapeWidgets.factor.changed = function(self) modseq.loadShape(i) end
-    shapeWidgets.z.changed = function(self) modseq.loadShape(i) end
-    shapeWidgets.amount.changed = function(self) modseq.loadShape(i) end
 
     local xyShapeMorph = widgets.getPanel():XY('ShapePhase' .. i, 'ShapeMorph' .. i)
     xyShapeMorph.x = widgets.posSide(seqValueTable) - 8
@@ -344,6 +337,17 @@ end)
 -- Events
 --------------------------------------------------------------------------------
 
+function onInit()
+  -- Changed functions must be added here to avoid sequence table being overwritten on load
+  preInit = false
+  for i,v in ipairs(modseq.getPartParams()) do
+    v.shapeMenu.changed = function(self) modseq.loadShape(i, true) end
+    for _,w in pairs(v.shapeWidgets) do
+      w.changed = function(self) modseq.loadShape(i) end
+    end
+  end
+end
+
 function onNote(e)
   if modseq.autoplayButton.value == true then
     postEvent(e)
@@ -369,10 +373,6 @@ end
 --------------------------------------------------------------------------------
 -- Save / Load
 --------------------------------------------------------------------------------
-
-function onInit()
-  preInit = false
-end
 
 function onSave()
   local numStepsData = {}
