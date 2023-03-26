@@ -28,6 +28,7 @@ local currentValue = {} -- Holds the current table value to check for changes
 local noteEventId = 0 -- Holds the index if the cell in the table that last triggered an event
 local resolutionNames = resolutions.getResolutionNames()
 local resolution = #resolutionNames
+local legato = true
 local voiceId = nil -- Holds the id of the created note event
 
 --------------------------------------------------------------------------------
@@ -87,15 +88,18 @@ local function setRange()
   print("Done calling resetTableValues")
 end
 
+local function release()
+  if type(voiceId) == "userdata" then
+    releaseVoice(voiceId)
+    voiceId = nil
+  end
+end
+
 local function playTrigger()
   print("Play Trigger")
   if noteEventId > 0 then
     -- Release the voice if active
-    if type(voiceId) == "userdata" then
-      releaseVoice(voiceId)
-      voiceId = nil
-      print("Releasing trigger")
-    end
+    release()
     local velocity = 64
     voiceId = playNote(0, velocity, -1, nil, channel)
     print("Creating trigger")
@@ -121,6 +125,10 @@ local function sequenceRunner()
   while tableMotion.isMoving() do
     playTrigger()
     waitBeat(resolutions.getResolution(resolution))
+    if legato == false then
+      -- Release if legato is off
+      release()
+    end
   end
 end
 
@@ -138,11 +146,7 @@ local function stopPlaying()
   end
   tableMotion.setMoving(false)
   resetTableValues()
-  if type(voiceId) == "userdata" then
-    releaseVoice(voiceId)
-    voiceId = nil
-    --print("Releasing trigger")
-  end
+  release()
 end
 
 --------------------------------------------------------------------------------
@@ -316,7 +320,12 @@ tableMotion.getSpeedFactorWidget(130)
 
 widgets.row()
 
-tableMotion.setShapeWidgets(shapes.getWidgets({width=149.5}))
+tableMotion.setShapeWidgets(shapes.getWidgets())
+
+widgets.button("Legato", legato, {
+  tooltip = "In legato mode notes are held until the next note is played",
+  changed = function(self) legato = self.value end
+})
 
 widgets.col(1, 75)
 
