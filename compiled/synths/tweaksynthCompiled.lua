@@ -1343,9 +1343,8 @@ function tweakWidget(options, duration, useDuration)
   print("Duration of change (beat):", duration)
   print("Duration of change (ms):", durationInMilliseconds)
   print("Change from/to:", startValue, endValue)
-  -- diff / durationInMilliseconds
   local diff = math.max(endValue, startValue) - math.min(endValue, startValue)
-  local numberOfSteps = durationInMilliseconds / millisecondsPerStep
+  local numberOfSteps = math.ceil(durationInMilliseconds / millisecondsPerStep)
   local changePerStep = diff / numberOfSteps
   print("Number of steps:", numberOfSteps)
   if durationInMilliseconds <= millisecondsPerStep then
@@ -1354,26 +1353,18 @@ function tweakWidget(options, duration, useDuration)
     return
   end
   local actualDuration = 0
-  if startValue < endValue then
-    print("Increment per step:", changePerStep)
-    for i = 1, numberOfSteps-1 do
-      if startValue > endValue then
-        break
-      end
-      options.widget.value = options.widget.value + changePerStep
-      wait(millisecondsPerStep)
-      actualDuration = actualDuration + millisecondsPerStep
+  local isRising = startValue < endValue
+  if isRising == false then
+    changePerStep = -changePerStep
+  end
+  print("Change per step:", changePerStep)
+  for i=1,numberOfSteps-1 do
+    if (isRising and startValue > endValue) or (isRising == false and startValue < endValue) then
+      break
     end
-  else
-    print("Decrement per step:", changePerStep)
-    for i = 1, numberOfSteps-1 do
-      if startValue < endValue then
-        break
-      end
-      options.widget.value = options.widget.value - changePerStep
-      wait(millisecondsPerStep)
-      actualDuration = actualDuration + millisecondsPerStep
-    end
+    options.widget.value = gem.inc(options.widget.value, changePerStep)
+    wait(millisecondsPerStep)
+    actualDuration = actualDuration + millisecondsPerStep
   end
   print("******************** Duration complete:", options.widget.name, "********************")
   print("Value after duration actual/endValue", options.widget.value, endValue)
@@ -5359,6 +5350,7 @@ end
 
 function createTwequencerPanel()
   local isPlaying = false
+  local seqIndex = 0 -- Holds the unique id for the sequencer
   local heldNotes = {}
   local maxSnapshots = 500
   local numSteps = 16
@@ -5693,10 +5685,11 @@ function createTwequencerPanel()
     if isPlaying == self.value then
       return
     end
-    if self.value == true then
-      spawn(arpeg)
+    isPlaying = self.value
+    if isPlaying then
+      seqIndex = gem.inc(seqIndex)
+      run(arpeg, seqIndex)
     else
-      isPlaying = false
       clearPosition()
     end
   end
@@ -5786,11 +5779,10 @@ function createTwequencerPanel()
   mixerButton.x = effectsButton.x + effectsButton.width + marginX
   mixerButton.y = synthesisButton.y
 
-  function arpeg()
+  function arpeg(uniqueId)
     local index = 0
     -- START ARP LOOP
-    isPlaying = true
-    while isPlaying == true do
+    while isPlaying and seqIndex == uniqueId do
       -- SET VALUES
       local roundDuration = resolutions.getResolution(roundResolution.value)
       local stepDuration = roundDuration / numSteps
@@ -5859,18 +5851,6 @@ function createTwequencerPanel()
             end
           end
         end
-        --[[ elseif tweakModeMenu.value == 4 and #storedPatches > 1 then
-          -- Morph between snapshots
-          local storedPatchIndex = gem.getRandom(#storedPatches)
-          print("Morphing to snapshot at index", storedPatchIndex)
-          tweaks = storedPatches[storedPatchIndex]
-          for _,v in ipairs(tweaks) do
-            setWidgetTargetValue(v.index, v.widget, v.value)
-          end
-          for _,v in ipairs(tweakables) do
-            spawn(tweakWidget, v, tweakDuration, (type(v.useDuration) == "boolean" and v.useDuration == true))
-          end
-        end ]]
       elseif tweakLevelKnob.value > 0 and tweakOnOffButton.value and useDuration and #heldNotes > 0 then
         storeRoundTweaks(true) -- Store live tweaks at each step when using duration
       end
@@ -5887,153 +5867,6 @@ function createTwequencerPanel()
       waitBeat(stepDuration)
     end
   end
-
-  --[[ function getArpOctave()
-    if gem.getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 40)) then
-      return gem.getRandom(-1,1)
-    end
-    return 0 -- default
-  end
-
-  function getArpNumStrike()
-    if gem.getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 25)) then
-      return gem.getRandom(4)
-    end
-    return 1 -- default
-  end
-
-  function getArpMode()
-    if gem.getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 20)) then
-      return gem.getRandom(0,26)
-    end
-    return 0 -- default
-  end
-
-  function getArpNumSteps()
-    if gem.getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 10)) then
-      return gem.getRandom(128)
-    end
-    if gem.getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 20)) then
-      return gem.getRandom(32)
-    end
-    if gem.getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
-      return 16
-    end
-    if gem.getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
-      return 8
-    end
-    if gem.getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
-      return 4
-    end
-    return gem.getRandom(16) -- default 16
-  end ]]
-
-  -- TODO Resolution should depend on step length?
-  -- 0 = 32x
-  -- 1 = 16x
-  -- 2 = 8x
-  -- 3 = 7x
-  -- 4 = 6x
-  -- 5 = 5x
-  -- 6 = 4x
-  -- 7 = 3x
-  -- 8 = 2x
-  -- 9 = 1/1 dot
-  ----------------
-  -- 10 = 1/1
-  -- 11 = 1/2 dot
-  -- 12 = 1/1 tri
-  -- 13 = 1/2
-  -- 14 = 1/4 dot
-  -- 15 = 1/2 tri
-  -- 16 = 1/4
-  -- 17 = 1/8 dot
-  -- 18 = 1/4 tri
-  -- 19 = 1/8
-  -- 20 = 1/16 dot
-  -- 21 = 1/8 tri
-  -- 22 = 1/16 - default
-  -- 23 = 1/32 dot
-  -- 24 = 1/16 tri
-  -- 25 = 1/32
-  -- 26 = 1/64 dot
-  -- 27 = 1/32 tri
-  -- 28 = 1/64
-  ----------------
-  -- 29 = 1/64 tri
-  ----------------
-  -- default 22
-  --[[ function getArpResolution(resolutionOption)
-    if resolutionOption == 1 then
-      local activeResolutions = {}
-      for i,v in ipairs(selectedArpResolutions) do
-        if v == true then
-          table.insert(activeResolutions, i)
-        end
-      end
-      if #activeResolutions > 0 then
-        return activeResolutions[gem.getRandom(#activeResolutions)] - 1
-      else
-        return gem.getRandom(28)
-      end
-    end
-    local position = resolutionOption + 14 -- resolutionOption will be 2 = even, 3 = dot, 4 = tri, so default starts at 16 (1/4)
-    local resMax = 25 -- Max 1/32
-    local resOptions = {}
-    if gem.getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 25)) then
-      position = position - 6
-      resMax = 28
-    end
-    -- Create table of resolution options
-    while position <= resMax do
-      table.insert(resOptions, position) -- insert current position in resolution options table
-      print("Insert arp resolution", position)
-      position = position + 3 -- increment position
-    end
-    -- Pick a random index from resolution options table
-    local index = gem.getRandom(#resOptions)
-    print("Selected arp res options index", index)
-    return resOptions[index]
-  end
-
-  function doArpTweaks(resolutionOption)
-    if type(resolutionOption) ~= "number" then
-      resolutionOption = 1
-    end
-    local pos = 2 -- Start search for arpeggiator at this position (tweaksynth will be first)
-    local arp = Program.eventProcessors[pos] -- get the event processor at the current position
-    while arp.type ~= "Arpeggiator" do
-      pos = pos + 1 -- increment pos
-      arp = Program.eventProcessors[pos] -- get the event processor at the current position
-    end
-    local arpNumSteps = getArpNumSteps() -- get the number of steps to set for the arpeggiator
-    arp:setParameter("NumSteps", arpNumSteps)
-    if resolutionOption < 5 then -- 5 = lock - no change
-      arp:setParameter("Resolution", getArpResolution(resolutionOption))
-    end
-    arp:setParameter("Mode", getArpMode())
-    arp:setParameter("NumStrike", getArpNumStrike())
-    arp:setParameter("Octave", getArpOctave())
-    arp:setParameter("ArpVelocityBlend", gem.getRandom())
-    arp:setParameter("StepLength", 1)
-    for i=0,arpNumSteps do
-      if i > 0 and gem.getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 30)) then
-        arp:setParameter("Step"..i.."State", gem.getRandom(0,3)) -- 0-3 def 0
-      else
-        arp:setParameter("Step"..i.."State", 1) -- 0-3 def 0
-      end
-      if gem.getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 50)) then
-        arp:setParameter("Step"..i.."Size", gem.getRandom()) -- 0-1 def 1
-      else
-        arp:setParameter("Step"..i.."Size", 1) -- 0-1 def 1
-      end
-      if gem.getRandomBoolean(adjustProbabilityByTweakLevel(tweakLevelKnob.value, 30)) then
-        arp:setParameter("Step"..i.."Level", gem.getRandom()) -- 0-1 def 1
-      else
-        arp:setParameter("Step"..i.."Level", gem.getRandom(60,100) / 100) -- 0-1 def 1
-      end
-    end
-  end ]]
 
   function storeRoundTweaks(live)
     if type(live) == "nil" then
@@ -6062,6 +5895,10 @@ function createTwequencerPanel()
         snapshotPosition = 1
       end
     end
+  end
+
+  function onInit()
+    seqIndex = 0
   end
 
   function onNote(e)
