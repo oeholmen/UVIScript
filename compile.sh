@@ -98,6 +98,14 @@ echo "Copied $input_program to $output_program"
 
 ##########
 
+input_program="../Programs/Tweak Synth/Tweak Synth Drum.uvip"
+output_program="./compiled/synths/programs/Tweak Synth Drum.uvip"
+
+cp "$input_program" "$output_program"
+echo "Copied $input_program to $output_program"
+
+##########
+
 input_program="../Programs/Tweak Synth/Tweak Synth FM.uvip"
 output_program="./compiled/synths/programs/Tweak Synth FM.uvip"
 
