@@ -142,9 +142,6 @@ if synthTypes.isAdditive then
   synthOscillators[2]:setParameter("FilterType", 3)
   synthOscillators[1]:setParameter("SafeBass", true)
   synthOscillators[2]:setParameter("SafeBass", true)
-elseif synthTypes.isDrum then
-  synthOscillators[1]:setParameter("OscFreq", 523) -- C4
-  synthOscillators[2]:setParameter("OscFreq", 523) -- C4
 end
 
 print("Starting TweakSynth!")
@@ -335,6 +332,18 @@ local width = 714
 local topologies = {"D->C->B->A", "D+C->B->A", "C->B,B+D->A", "D->B+C->A", "D->C->A+B", "D->C->B,A", "B+C+D->A", "B->A,D->C", "D->A+B+C", "A,B,D->C", "A,B,C,D"}
 
 local helpers = {}
+
+helpers.getDrumOscFrequencyFilterValues = function()
+  -- Get multiples of the base value (32.6875 = C0)
+  local baseVal = 32.6875
+  local maxVal = baseVal * 500
+  local values = {}
+  while baseVal < maxVal do
+    table.insert(values, baseVal)
+    baseVal = baseVal * 2
+  end
+  return values
+end
 
 -- Set maxLevel based on topology:
 -- topology 0-3 > A
@@ -1640,7 +1649,6 @@ panelCreators.createOsc1Panel = function()
       end
       osc1RatioKnob:changed()
       table.insert(osc1RatioKnobs, osc1RatioKnob)
-      --table.insert(tweakables, {widget=osc1RatioKnob,default=50,factor=40,floor=1,ceiling=8,probability=probability,category="synthesis"})
       table.insert(tweakables, {widget=osc1RatioKnob,default=50,min=1,max=40,floor=1,ceiling=8,probability=probability,useDuration=true,category="synthesis"})
     end
 
@@ -1669,8 +1677,9 @@ panelCreators.createOsc1Panel = function()
 
     osc1TopologyKnob:changed()
     opMenu:changed()
-else
+  else
     osc1Panel:Label("Osc 1")
+
     if synthTypes.isAnalog or synthTypes.isDrum then
       local osc1ShapeKnob = osc1Panel:Knob("Osc1Wave", 1, 1, #waveforms, true)
       osc1ShapeKnob.displayName = "Waveform"
@@ -1725,7 +1734,7 @@ else
       osc1EvenOddKnob:changed()
       table.insert(tweakables, {widget=osc1EvenOddKnob,bipolar=50,default=10,floor=0.3,ceiling=0.9,probability=50,useDuration=true,category="synthesis"})
     end
-    
+
     if synthTypes.isAnalog or synthTypes.isWavetable then
       local osc1PhaseKnob = osc1Panel:Knob("Osc1StartPhase", 0, 0, 1)
       osc1PhaseKnob.unit = Unit.PercentNormalized
@@ -1738,16 +1747,19 @@ else
       osc1PhaseKnob:changed()
       table.insert(tweakables, {widget=osc1PhaseKnob,default=50,probability=50,floor=0,ceiling=0.5,useDuration=true,category="synthesis"})
     elseif synthTypes.isDrum then
-      local osc1Distortion = osc1Panel:Knob("Osc1Distortion", 0, 0, 1)
-      osc1Distortion.unit = Unit.PercentNormalized
-      osc1Distortion.displayName = "Distortion"
-      osc1Distortion.fillColour = knobColour
-      osc1Distortion.outlineColour = filterColour
-      osc1Distortion.changed = function(self)
-        synthOscillators[1]:setParameter("Distortion", self.value)
+      local osc1PitchModType = osc1Panel:Menu("Osc1PitchModType", {"Exponential", "Sine", "Noise"})
+      --osc1PitchModType.x = osc1PitchModType.width
+      --osc1PitchModType.y = osc1PitchModType.height + 5
+      osc1PitchModType.displayName = "Mod Type"
+      osc1PitchModType.backgroundColour = menuBackgroundColour
+      osc1PitchModType.textColour = menuTextColour
+      osc1PitchModType.arrowColour = menuArrowColour
+      osc1PitchModType.outlineColour = menuOutlineColour
+      osc1PitchModType.changed = function(self)
+        synthOscillators[1]:setParameter("PitchModType", (self.value - 1))
       end
-      osc1Distortion:changed()
-      table.insert(tweakables, {widget=osc1Distortion,floor=0.,ceiling=.5,probability=80,zero=25,default=25,useDuration=true,category="synthesis"})
+      osc1PitchModType:changed()
+      table.insert(tweakables, {widget=osc1PitchModType,min=#osc1PitchModType.items,default=30,useDuration=false,category="synthesis"})
 
       local osc1PitchModRateKnob = osc1Panel:Knob("Osc1PitchModRate", .5, 0, 1)
       osc1PitchModRateKnob.displayName = "Mod Rate"
@@ -1770,12 +1782,72 @@ else
       local osc1PitchModAmount = osc1Panel:Knob("Osc1PitchModAmount", 0, -96, 96)
       osc1PitchModAmount.displayName = "Mod Depth"
       osc1PitchModAmount.fillColour = knobColour
-      osc1PitchModAmount.outlineColour = filterColour
+      osc1PitchModAmount.outlineColour = osc1Colour
       osc1PitchModAmount.changed = function(self)
         synthOscillators[1]:setParameter("PitchModAmount", self.value)
       end
       osc1PitchModAmount:changed()
       table.insert(tweakables, {widget=osc1PitchModAmount,zero=30,default=75,useDuration=true,category="synthesis"})
+
+      local osc1ModVelSensKnob = osc1Panel:Knob("Osc1ModVelSens", 0, 0, 1)
+      osc1ModVelSensKnob.unit = Unit.PercentNormalized
+      osc1ModVelSensKnob.displayName = "Mod Vel Sens"
+      osc1ModVelSensKnob.fillColour = knobColour
+      osc1ModVelSensKnob.outlineColour = filterColour
+      osc1ModVelSensKnob.changed = function(self)
+        synthOscillators[1]:setParameter("ModVelSens", self.value)
+      end
+      osc1ModVelSensKnob:changed()
+      table.insert(tweakables, {widget=osc1ModVelSensKnob,floor=0.,ceiling=.5,probability=80,zero=50,default=50,useDuration=true,category="synthesis"})
+
+      local osc1NoiseMixKnob = osc1Panel:Knob("Osc1NoiseAmount", .5, 0, 1)
+      osc1NoiseMixKnob.displayName = "Noise Mix"
+      osc1NoiseMixKnob.y = osc1NoiseMixKnob.height + 10
+      osc1NoiseMixKnob.unit = Unit.PercentNormalized
+      osc1NoiseMixKnob.fillColour = knobColour
+      osc1NoiseMixKnob.outlineColour = osc1Colour
+      osc1NoiseMixKnob.changed = function(self)
+        synthOscillators[1]:setParameter("Mix", self.value)
+      end
+      osc1NoiseMixKnob:changed()
+      table.insert(tweakables, {widget=osc1NoiseMixKnob,floor=0,ceiling=.75,probability=80,default=50,zero=25,useDuration=true,category="synthesis"})    
+
+      local osc1CutoffKnob = osc1Panel:Knob("Osc1Cutoff", 1000., 20., 20000.)
+      osc1CutoffKnob.displayName = "Noise Cutoff"
+      osc1CutoffKnob.mapper = Mapper.Exponential
+      osc1CutoffKnob.unit = Unit.Hertz
+      osc1CutoffKnob.fillColour = knobColour
+      osc1CutoffKnob.outlineColour = osc1Colour
+      osc1CutoffKnob.changed = function(self)
+        synthOscillators[1]:setParameter("NoiseFilterFreq", self.value)
+      end
+      osc1CutoffKnob:changed()
+      table.insert(tweakables, {widget=osc1CutoffKnob,floor=500,probability=75,default=75,useDuration=true,category="synthesis"})
+
+      local osc1Distortion = osc1Panel:Knob("Osc1Distortion", 0, 0, 1)
+      osc1Distortion.unit = Unit.PercentNormalized
+      osc1Distortion.displayName = "Distortion"
+      osc1Distortion.fillColour = knobColour
+      osc1Distortion.outlineColour = filterColour
+      osc1Distortion.changed = function(self)
+        synthOscillators[1]:setParameter("Distortion", self.value)
+      end
+      osc1Distortion:changed()
+      table.insert(tweakables, {widget=osc1Distortion,floor=0.,ceiling=.5,probability=80,zero=25,default=25,useDuration=true,category="synthesis"})
+
+      local osc1FreqKnob = osc1Panel:Knob("Osc1Freq", 523, 20, 20000)
+      osc1FreqKnob.unit = Unit.Hertz
+      osc1FreqKnob.mapper = Mapper.Exponential
+      osc1FreqKnob.displayName = "Frequency"
+      osc1FreqKnob.fillColour = knobColour
+      osc1FreqKnob.outlineColour = osc1Colour
+      osc1FreqKnob.changed = function(self)
+        -- Base: 523 = C4
+        synthOscillators[1]:setParameter("OscFreq", self.value)
+      end
+      osc1FreqKnob:changed()
+      local valueFilter = helpers.getDrumOscFrequencyFilterValues()
+      table.insert(tweakables, {widget=osc1FreqKnob,ceiling=valueFilter[#valueFilter],probability=75,default=50,valueFilter=valueFilter,category="synthesis"})
     elseif synthTypes.isAdditive then
       local osc1CutoffKnob = osc1Panel:Knob("Osc1Cutoff", 1, 0, 1)
       osc1CutoffKnob.displayName = "Cutoff"
@@ -1793,7 +1865,7 @@ else
       osc1CutoffKnob:changed()
       table.insert(tweakables, {widget=osc1CutoffKnob,floor=0.6,ceiling=1.0,probability=80,default=50,useDuration=true,category="synthesis"})
     end
-    
+
     local osc1PitchKnob = osc1Panel:Knob("Osc1Pitch", 0, -2, 2, true)
     osc1PitchKnob.displayName = "Octave"
     osc1PitchKnob.fillColour = knobColour
@@ -2025,6 +2097,7 @@ panelCreators.createOsc2Panel = function()
     opMenu:changed()
   else
     osc2Panel:Label("Osc 2")
+
     if synthTypes.isAnalog or synthTypes.isDrum then
       local osc2ShapeKnob = osc2Panel:Knob("Osc2Wave", 1, 1, #waveforms, true)
       osc2ShapeKnob.displayName = "Waveform"
@@ -2092,16 +2165,19 @@ panelCreators.createOsc2Panel = function()
       osc2PhaseKnob:changed()
       table.insert(tweakables, {widget=osc2PhaseKnob,default=50,probability=50,floor=0.5,ceiling=1,useDuration=true,category="synthesis"})
     elseif synthTypes.isDrum then
-      local osc2Distortion = osc2Panel:Knob("Osc2Distortion", 0, 0, 1)
-      osc2Distortion.unit = Unit.PercentNormalized
-      osc2Distortion.displayName = "Distortion"
-      osc2Distortion.fillColour = knobColour
-      osc2Distortion.outlineColour = filterColour
-      osc2Distortion.changed = function(self)
-        synthOscillators[2]:setParameter("Distortion", self.value)
+      local osc2PitchModType = osc2Panel:Menu("Osc2PitchModType", {"Exponential", "Sine", "Noise"})
+      --osc2PitchModType.x = osc2PitchModType.width
+      --osc2PitchModType.y = osc2PitchModType.height + 5
+      osc2PitchModType.displayName = "Mod Type"
+      osc2PitchModType.backgroundColour = menuBackgroundColour
+      osc2PitchModType.textColour = menuTextColour
+      osc2PitchModType.arrowColour = menuArrowColour
+      osc2PitchModType.outlineColour = menuOutlineColour
+      osc2PitchModType.changed = function(self)
+        synthOscillators[2]:setParameter("PitchModType", (self.value - 1))
       end
-      osc2Distortion:changed()
-      table.insert(tweakables, {widget=osc2Distortion,floor=0.,ceiling=.5,probability=80,zero=25,default=25,useDuration=true,category="synthesis"})
+      osc2PitchModType:changed()
+      table.insert(tweakables, {widget=osc2PitchModType,min=#osc2PitchModType.items,default=30,useDuration=false,category="synthesis"})
 
       local osc2PitchModRateKnob = osc2Panel:Knob("Osc2PitchModRate", .5, 0, 1)
       osc2PitchModRateKnob.displayName = "Mod Rate"
@@ -2124,12 +2200,71 @@ panelCreators.createOsc2Panel = function()
       local osc2PitchModAmount = osc2Panel:Knob("Osc2PitchModAmount", 0, -96, 96)
       osc2PitchModAmount.displayName = "Mod Depth"
       osc2PitchModAmount.fillColour = knobColour
-      osc2PitchModAmount.outlineColour = filterColour
+      osc2PitchModAmount.outlineColour = osc2Colour
       osc2PitchModAmount.changed = function(self)
         synthOscillators[2]:setParameter("PitchModAmount", self.value)
       end
       osc2PitchModAmount:changed()
       table.insert(tweakables, {widget=osc2PitchModAmount,zero=30,default=75,useDuration=true,category="synthesis"})
+
+      local osc2ModVelSensKnob = osc2Panel:Knob("Osc2ModVelSens", 0, 0, 1)
+      osc2ModVelSensKnob.unit = Unit.PercentNormalized
+      osc2ModVelSensKnob.displayName = "Mod Vel Sens"
+      osc2ModVelSensKnob.fillColour = knobColour
+      osc2ModVelSensKnob.outlineColour = filterColour
+      osc2ModVelSensKnob.changed = function(self)
+        synthOscillators[2]:setParameter("ModVelSens", self.value)
+      end
+      osc2ModVelSensKnob:changed()
+      table.insert(tweakables, {widget=osc2ModVelSensKnob,floor=0.,ceiling=.5,probability=80,zero=50,default=50,useDuration=true,category="synthesis"})
+
+      local osc2NoiseMixKnob = osc2Panel:Knob("Osc2NoiseAmount", .5, 0, 1)
+      osc2NoiseMixKnob.displayName = "Noise Mix"
+      osc2NoiseMixKnob.y = osc2NoiseMixKnob.height + 10
+      osc2NoiseMixKnob.unit = Unit.PercentNormalized
+      osc2NoiseMixKnob.fillColour = knobColour
+      osc2NoiseMixKnob.outlineColour = osc1Colour
+      osc2NoiseMixKnob.changed = function(self)
+        synthOscillators[2]:setParameter("Mix", self.value)
+      end
+      osc2NoiseMixKnob:changed()
+      table.insert(tweakables, {widget=osc2NoiseMixKnob,floor=0,ceiling=.75,probability=80,default=50,zero=25,useDuration=true,category="synthesis"})
+
+      local osc2CutoffKnob = osc2Panel:Knob("Osc2Cutoff", 1000., 20., 20000.)
+      osc2CutoffKnob.displayName = "Cutoff"
+      osc2CutoffKnob.mapper = Mapper.Exponential
+      osc2CutoffKnob.unit = Unit.Hertz
+      osc2CutoffKnob.fillColour = knobColour
+      osc2CutoffKnob.outlineColour = osc2Colour
+      osc2CutoffKnob.changed = function(self)
+        synthOscillators[2]:setParameter("NoiseFilterFreq", self.value)
+      end
+      osc2CutoffKnob:changed()
+      table.insert(tweakables, {widget=osc2CutoffKnob,floor=500,probability=75,default=75,useDuration=true,category="synthesis"})
+
+      local osc2Distortion = osc2Panel:Knob("Osc2Distortion", 0, 0, 1)
+      osc2Distortion.unit = Unit.PercentNormalized
+      osc2Distortion.displayName = "Distortion"
+      osc2Distortion.fillColour = knobColour
+      osc2Distortion.outlineColour = filterColour
+      osc2Distortion.changed = function(self)
+        synthOscillators[2]:setParameter("Distortion", self.value)
+      end
+      osc2Distortion:changed()
+      table.insert(tweakables, {widget=osc2Distortion,floor=0.,ceiling=.5,probability=80,zero=25,default=25,useDuration=true,category="synthesis"})
+
+      local osc2FreqKnob = osc2Panel:Knob("Osc2Freq", 523, 20, 20000)
+      osc2FreqKnob.unit = Unit.Hertz
+      osc2FreqKnob.mapper = Mapper.Exponential
+      osc2FreqKnob.displayName = "Frequency"
+      osc2FreqKnob.fillColour = knobColour
+      osc2FreqKnob.outlineColour = osc2Colour
+      osc2FreqKnob.changed = function(self)
+        synthOscillators[2]:setParameter("OscFreq", self.value)
+      end
+      osc2FreqKnob:changed()
+      local valueFilter = helpers.getDrumOscFrequencyFilterValues()
+      table.insert(tweakables, {widget=osc2FreqKnob,ceiling=valueFilter[#valueFilter],probability=75,default=50,valueFilter=valueFilter,category="synthesis"})
     elseif synthTypes.isAdditive then
       local osc2CutoffKnob = osc2Panel:Knob("Osc2Cutoff", 1, 0, 1)
       osc2CutoffKnob.displayName = "Cutoff"
@@ -2148,19 +2283,21 @@ panelCreators.createOsc2Panel = function()
       table.insert(tweakables, {widget=osc2CutoffKnob,floor=0.6,ceiling=1.0,probability=80,default=50,useDuration=true,category="synthesis"})
     end
 
-    local osc2PitchKnob = osc2Panel:Knob("Osc2Pitch", 0, -24, 24, true)
-    osc2PitchKnob.displayName = "Pitch"
-    osc2PitchKnob.fillColour = knobColour
-    osc2PitchKnob.outlineColour = osc2Colour
-    osc2PitchKnob.changed = function(self)
-      local factor = 1 / 48
-      local value = (self.value * factor) + 0.5
-      commonMacros.osc2Pitch:setParameter("Value", value)
-    end
-    osc2PitchKnob:changed()
-    table.insert(tweakables, {widget=osc2PitchKnob,min=-24,max=24,integer=true,valueFilter={-24,-12,-5,0,7,12,19,24},floor=-12,ceiling=12,probability=75,default=50,zero=50,useDuration=true,category="synthesis"})
+    --if synthTypes.isDrum == false then
+      local osc2PitchKnob = osc2Panel:Knob("Osc2Pitch", 0, -24, 24, true)
+      osc2PitchKnob.displayName = "Pitch"
+      osc2PitchKnob.fillColour = knobColour
+      osc2PitchKnob.outlineColour = osc2Colour
+      osc2PitchKnob.changed = function(self)
+        local factor = 1 / 48
+        local value = (self.value * factor) + 0.5
+        commonMacros.osc2Pitch:setParameter("Value", value)
+      end
+      osc2PitchKnob:changed()
+      table.insert(tweakables, {widget=osc2PitchKnob,min=-24,max=24,integer=true,valueFilter={-24,-12,-5,0,7,12,19,24},floor=-12,ceiling=12,probability=75,default=50,zero=50,useDuration=true,category="synthesis"})
+    --end
 
-    if synthTypes.isAnalog or synthTypes.isWavetable or synthTypes.isAdditive then
+    if synthTypes.isAnalog or synthTypes.isDrum or synthTypes.isWavetable or synthTypes.isAdditive then
       local osc2DetuneKnob = osc2Panel:Knob("Osc2FinePitch", 0, 0, 1)
       osc2DetuneKnob.displayName = "Fine Pitch"
       osc2DetuneKnob.fillColour = knobColour
@@ -3864,56 +4001,55 @@ local lfoTargetPanel2 = panelCreators.createLfoTargetPanel2()
 
 panelCreators.createDrumPanel = function()
   local drumPanel = Panel("DrumPanel")
-  drumPanel:Label("Noise Osc 1")
+  drumPanel:Label("Osc 1 Amp")
 
-  local osc1NoiseMixKnob = drumPanel:Knob("Osc1NoiseAmount", .5, 0, 1)
-  osc1NoiseMixKnob.displayName = "Noise Mix"
-  osc1NoiseMixKnob.unit = Unit.PercentNormalized
-  osc1NoiseMixKnob.fillColour = knobColour
-  osc1NoiseMixKnob.outlineColour = osc1Colour
-  osc1NoiseMixKnob.changed = function(self)
-    synthOscillators[1]:setParameter("Mix", self.value)
+  local osc1AttackKnob = drumPanel:Knob("Osc1Attack", 0., 0., 10.)
+  osc1AttackKnob.displayName = "Tone Attack"
+  osc1AttackKnob.fillColour = knobColour
+  osc1AttackKnob.outlineColour = ampEnvColour
+  osc1AttackKnob.mapper = Mapper.Quartic
+  osc1AttackKnob.changed = function(self)
+    synthOscillators[1]:setParameter("OscAttack", self.value)
+    self.displayText = helpers.formatTimeInSeconds(self.value)
   end
-  osc1NoiseMixKnob:changed()
-  table.insert(tweakables, {widget=osc1NoiseMixKnob,floor=0,ceiling=.75,probability=80,default=50,zero=25,useDuration=true,category="synthesis"})
+  osc1AttackKnob:changed()
+  table.insert(tweakables, {widget=osc1AttackKnob,attack=true,floor=0.,ceiling=0.15,probability=75,default=25,zero=25,useDuration=false,category="mixer"})
 
-  local osc1CutoffKnob = drumPanel:Knob("Osc1Cutoff", 1000., 20., 20000.)
-  osc1CutoffKnob.displayName = "Cutoff"
-  osc1CutoffKnob.mapper = Mapper.Exponential
-  osc1CutoffKnob.unit = Unit.Hertz
-  osc1CutoffKnob.fillColour = knobColour
-  osc1CutoffKnob.outlineColour = osc1Colour
-  osc1CutoffKnob.changed = function(self)
-    synthOscillators[1]:setParameter("NoiseFilterFreq", self.value)
+  local osc1DecayKnob = drumPanel:Knob("Osc1Decay", 0.1, 0.01, 10.)
+  osc1DecayKnob.displayName = "Tone Decay"
+  osc1DecayKnob.fillColour = knobColour
+  osc1DecayKnob.outlineColour = ampEnvColour
+  osc1DecayKnob.mapper = Mapper.Quartic
+  osc1DecayKnob.changed = function(self)
+    synthOscillators[1]:setParameter("OscDecay", self.value)
+    self.displayText = helpers.formatTimeInSeconds(self.value)
   end
-  osc1CutoffKnob:changed()
-  table.insert(tweakables, {widget=osc1CutoffKnob,floor=500,probability=75,default=75,useDuration=true,category="synthesis"})
+  osc1DecayKnob:changed()
+  table.insert(tweakables, {widget=osc1DecayKnob,decay=true,floor=0.01,ceiling=0.5,probability=50,default=25,useDuration=false,category="mixer"})
 
-  drumPanel:Label("Noise Osc 2")
-
-  local osc2NoiseMixKnob = drumPanel:Knob("Osc2NoiseAmount", .5, 0, 1)
-  osc2NoiseMixKnob.displayName = "Noise Mix"
-  osc2NoiseMixKnob.unit = Unit.PercentNormalized
-  osc2NoiseMixKnob.fillColour = knobColour
-  osc2NoiseMixKnob.outlineColour = osc1Colour
-  osc2NoiseMixKnob.changed = function(self)
-    synthOscillators[2]:setParameter("Mix", self.value)
+  local noise1AttackKnob = drumPanel:Knob("Noise1Attack", 0., 0., 10.)
+  noise1AttackKnob.displayName = "Noise Attack"
+  noise1AttackKnob.fillColour = knobColour
+  noise1AttackKnob.outlineColour = ampEnvColour
+  noise1AttackKnob.mapper = Mapper.Quartic
+  noise1AttackKnob.changed = function(self)
+    synthOscillators[1]:setParameter("NoiseAttack", self.value)
+    self.displayText = helpers.formatTimeInSeconds(self.value)
   end
-  osc2NoiseMixKnob:changed()
-  table.insert(tweakables, {widget=osc2NoiseMixKnob,floor=0,ceiling=.75,probability=80,default=50,zero=25,useDuration=true,category="synthesis"})
+  noise1AttackKnob:changed()
+  table.insert(tweakables, {widget=noise1AttackKnob,attack=true,floor=0.,ceiling=0.15,probability=75,default=25,zero=25,useDuration=false,category="mixer"})
 
-  local osc2CutoffKnob = drumPanel:Knob("Osc2Cutoff", 1000., 20., 20000.)
-  osc2CutoffKnob.displayName = "Cutoff"
-  osc2CutoffKnob.mapper = Mapper.Exponential
-  osc2CutoffKnob.unit = Unit.Hertz
-  osc2CutoffKnob.fillColour = knobColour
-  osc2CutoffKnob.outlineColour = osc2Colour
-  osc2CutoffKnob.changed = function(self)
-    synthOscillators[2]:setParameter("NoiseFilterFreq", self.value)
+  local noise1DecayKnob = drumPanel:Knob("Noise1Decay", 0.1, 0.01, 10.)
+  noise1DecayKnob.displayName = "Noise Decay"
+  noise1DecayKnob.fillColour = knobColour
+  noise1DecayKnob.outlineColour = ampEnvColour
+  noise1DecayKnob.mapper = Mapper.Quartic
+  noise1DecayKnob.changed = function(self)
+    synthOscillators[1]:setParameter("NoiseDecay", self.value)
+    self.displayText = helpers.formatTimeInSeconds(self.value)
   end
-  osc2CutoffKnob:changed()
-  table.insert(tweakables, {widget=osc2CutoffKnob,floor=500,probability=75,default=75,useDuration=true,category="synthesis"})
-
+  noise1DecayKnob:changed()
+  table.insert(tweakables, {widget=noise1DecayKnob,decay=true,floor=0.01,ceiling=0.5,probability=50,default=25,useDuration=false,category="mixer"})
 
   return drumPanel
 end
@@ -3939,7 +4075,7 @@ panelCreators.createVibratoPanel = function(vibratoPanel)
     commonMacros.vibratoAmount:setParameter("Value", self.value)
   end
   vibratoKnob:changed()
-  table.insert(tweakables, {widget=vibratoKnob,ceiling=0.5,probability=70,zero=40,default=20,useDuration=true,category="synthesis"})
+  table.insert(tweakables, {widget=vibratoKnob,ceiling=0.5,probability=70,zero=40,default=20,useDuration=true,category="mixer"})
 
   local vibratoRateKnob = vibratoPanel:Knob("VibratoRate", 0.7, 0, 1)
   vibratoRateKnob.displayName="Rate"
@@ -3961,7 +4097,7 @@ panelCreators.createVibratoPanel = function(vibratoPanel)
     end
   end
   vibratoRateKnob:changed()
-  table.insert(tweakables, {widget=vibratoRateKnob,default=50,floor=0.5,ceiling=0.8,probability=50,useDuration=true,category="synthesis"})
+  table.insert(tweakables, {widget=vibratoRateKnob,default=50,floor=0.5,ceiling=0.8,probability=50,useDuration=true,category="mixer"})
 
   local vibratoRiseKnob = vibratoPanel:Knob("VibratoRiseTime", 0, 0, 10)
   vibratoRiseKnob.displayName="Rise Time"
@@ -3974,7 +4110,7 @@ panelCreators.createVibratoPanel = function(vibratoPanel)
     self.displayText = helpers.formatTimeInSeconds(self.value)
   end
   vibratoRiseKnob:changed()
-  table.insert(tweakables, {widget=vibratoRiseKnob,factor=5,floor=0.5,ceiling=3.5,probability=50,default=50,category="synthesis"})
+  table.insert(tweakables, {widget=vibratoRiseKnob,factor=5,floor=0.5,ceiling=3.5,probability=50,default=50,category="mixer"})
 
   if synthTypes.isDrum == false then
     local wheelToVibratoKnob = vibratoPanel:Knob("WheelToVibrato", 0, 0, 1)
@@ -3986,7 +4122,7 @@ panelCreators.createVibratoPanel = function(vibratoPanel)
       commonMacros.wheelToVibrato:setParameter("Value", self.value)
     end
     wheelToVibratoKnob:changed()
-    table.insert(tweakables, {widget=wheelToVibratoKnob,default=50,floor=0.6,ceiling=0.85,probability=60,excludeWhenTweaking=true,category="synthesis"})
+    table.insert(tweakables, {widget=wheelToVibratoKnob,default=50,floor=0.6,ceiling=0.85,probability=60,excludeWhenTweaking=true,category="mixer"})
 
     local atToVibratoKnob = vibratoPanel:Knob("AftertouchToVibrato", 0, 0, 1)
     atToVibratoKnob.unit = Unit.PercentNormalized
@@ -3997,7 +4133,7 @@ panelCreators.createVibratoPanel = function(vibratoPanel)
       commonMacros.atToVibrato:setParameter("Value", self.value)
     end
     atToVibratoKnob:changed()
-    table.insert(tweakables, {widget=atToVibratoKnob,default=50,floor=0.7,ceiling=0.9,probability=70,excludeWhenTweaking=true,category="synthesis"})
+    table.insert(tweakables, {widget=atToVibratoKnob,default=50,floor=0.7,ceiling=0.9,probability=70,excludeWhenTweaking=true,category="mixer"})
   end
 
   return vibratoPanel
@@ -4017,48 +4153,22 @@ end
 panelCreators.createDrumEnvPanel = function()
   local ampEnvPanel = Panel("ampEnv1")
 
-  ampEnvPanel:Label("Env Osc 1")
-
-  local osc1AttackKnob = ampEnvPanel:Knob("Osc1Attack", 0., 0., 10.)
-  osc1AttackKnob.displayName = "Attack"
-  osc1AttackKnob.fillColour = knobColour
-  osc1AttackKnob.outlineColour = ampEnvColour
-  osc1AttackKnob.mapper = Mapper.Quartic
-  osc1AttackKnob.changed = function(self)
-    synthOscillators[1]:setParameter("OscAttack", self.value)
-    self.displayText = helpers.formatTimeInSeconds(self.value)
-  end
-  osc1AttackKnob:changed()
-  table.insert(tweakables, {widget=osc1AttackKnob,attack=true,floor=0.,ceiling=0.15,probability=75,default=25,zero=25,useDuration=false,category="synthesis"})
-
-  local osc1DecayKnob = ampEnvPanel:Knob("Osc1Decay", 0.1, 0.01, 10.)
-  osc1DecayKnob.displayName = "Decay"
-  osc1DecayKnob.fillColour = knobColour
-  osc1DecayKnob.outlineColour = ampEnvColour
-  osc1DecayKnob.mapper = Mapper.Quartic
-  osc1DecayKnob.changed = function(self)
-    synthOscillators[1]:setParameter("OscDecay", self.value)
-    self.displayText = helpers.formatTimeInSeconds(self.value)
-  end
-  osc1DecayKnob:changed()
-  table.insert(tweakables, {widget=osc1DecayKnob,decay=true,floor=0.01,ceiling=0.5,probability=50,default=25,useDuration=false,category="synthesis"})
-
-  ampEnvPanel:Label("Env Osc 2")
+  ampEnvPanel:Label("Osc 2 Amp")
 
   local osc2AttackKnob = ampEnvPanel:Knob("Osc2Attack", 0., 0., 10.)
-  osc2AttackKnob.displayName = "Attack"
+  osc2AttackKnob.displayName = "Tone Attack"
   osc2AttackKnob.fillColour = knobColour
   osc2AttackKnob.outlineColour = ampEnvColour
   osc2AttackKnob.mapper = Mapper.Quartic
   osc2AttackKnob.changed = function(self)
-    synthOscillators[1]:setParameter("OscAttack", self.value)
+    synthOscillators[2]:setParameter("OscAttack", self.value)
     self.displayText = helpers.formatTimeInSeconds(self.value)
   end
   osc2AttackKnob:changed()
-  table.insert(tweakables, {widget=osc2AttackKnob,attack=true,floor=0.,ceiling=0.15,probability=75,default=25,zero=25,useDuration=false,category="synthesis"})
+  table.insert(tweakables, {widget=osc2AttackKnob,attack=true,floor=0.,ceiling=0.15,probability=75,default=25,zero=25,useDuration=false,category="mixer"})
 
   local osc2DecayKnob = ampEnvPanel:Knob("Osc2Decay", 0.1, 0.01, 10.)
-  osc2DecayKnob.displayName = "Decay"
+  osc2DecayKnob.displayName = "Tone Decay"
   osc2DecayKnob.fillColour = knobColour
   osc2DecayKnob.outlineColour = ampEnvColour
   osc2DecayKnob.mapper = Mapper.Quartic
@@ -4067,7 +4177,31 @@ panelCreators.createDrumEnvPanel = function()
     self.displayText = helpers.formatTimeInSeconds(self.value)
   end
   osc2DecayKnob:changed()
-  table.insert(tweakables, {widget=osc2DecayKnob,decay=true,floor=0.01,ceiling=0.5,probability=50,default=25,useDuration=false,category="synthesis"})
+  table.insert(tweakables, {widget=osc2DecayKnob,decay=true,floor=0.01,ceiling=0.5,probability=50,default=25,useDuration=false,category="mixer"})
+
+  local noise2AttackKnob = ampEnvPanel:Knob("Noise2Attack", 0., 0., 10.)
+  noise2AttackKnob.displayName = "Noise Attack"
+  noise2AttackKnob.fillColour = knobColour
+  noise2AttackKnob.outlineColour = ampEnvColour
+  noise2AttackKnob.mapper = Mapper.Quartic
+  noise2AttackKnob.changed = function(self)
+    synthOscillators[2]:setParameter("NoiseAttack", self.value)
+    self.displayText = helpers.formatTimeInSeconds(self.value)
+  end
+  noise2AttackKnob:changed()
+  table.insert(tweakables, {widget=noise2AttackKnob,attack=true,floor=0.,ceiling=0.15,probability=75,default=25,zero=25,useDuration=false,category="mixer"})
+
+  local noise2DecayKnob = ampEnvPanel:Knob("Noise2Decay", 0.1, 0.01, 10.)
+  noise2DecayKnob.displayName = "Noise Decay"
+  noise2DecayKnob.fillColour = knobColour
+  noise2DecayKnob.outlineColour = ampEnvColour
+  noise2DecayKnob.mapper = Mapper.Quartic
+  noise2DecayKnob.changed = function(self)
+    synthOscillators[2]:setParameter("NoiseDecay", self.value)
+    self.displayText = helpers.formatTimeInSeconds(self.value)
+  end
+  noise2DecayKnob:changed()
+  table.insert(tweakables, {widget=noise2DecayKnob,decay=true,floor=0.01,ceiling=0.5,probability=50,default=25,useDuration=false,category="mixer"})
 
   return ampEnvPanel
 end
@@ -6193,12 +6327,12 @@ createSettingsPanel()
 local pageSetupFn = {}
 
 pageSetupFn.setupSynthesisPage = function()
-  local synthesisHeight
+  local synthesisHeight = height * 1.25
 
   if osc3Panel then
     synthesisHeight = height
-  else
-    synthesisHeight = height * 1.25
+  elseif synthTypes.isDrum then
+    synthesisHeight = height * 1.5
   end
 
   osc1Panel.backgroundColour = bgColor
@@ -6219,6 +6353,10 @@ pageSetupFn.setupSynthesisPage = function()
     osc3Panel.y = osc2Panel.y + osc2Panel.height + marginY
     osc3Panel.width = width
     osc3Panel.height = synthesisHeight
+  end
+
+  if synthTypes.isDrum then
+    synthesisHeight = height
   end
 
   vibratoPanel.backgroundColour = bgColor
