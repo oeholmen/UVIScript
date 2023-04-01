@@ -242,7 +242,9 @@ local analogMacros = {
 
 -- Drum macros
 local drumMacros = {
+  lfoToOsc1Freq = macros[1],
   lfoToNoise1Mix = macros[7],
+  lfoToOsc2Freq = macros[9],
   lfoToNoise2Mix = macros[17],
   lfoToNoise1Cutoff = macros[27],
   lfoToNoise2Cutoff = macros[28],
@@ -2231,7 +2233,7 @@ panelCreators.createOsc2Panel = function()
       table.insert(tweakables, {widget=osc2NoiseMixKnob,floor=0,ceiling=.75,probability=80,default=50,zero=25,useDuration=true,category="synthesis"})
 
       local osc2CutoffKnob = osc2Panel:Knob("Osc2Cutoff", 1000., 20., 20000.)
-      osc2CutoffKnob.displayName = "Cutoff"
+      osc2CutoffKnob.displayName = "Noise Cutoff"
       osc2CutoffKnob.mapper = Mapper.Exponential
       osc2CutoffKnob.unit = Unit.Hertz
       osc2CutoffKnob.fillColour = knobColour
@@ -3655,6 +3657,18 @@ panelCreators.createLfoTargetPanel1 = function()
       lfoToNoise1CutoffKnob:changed()
       table.insert(tweakables, {widget=lfoToNoise1CutoffKnob,zero=50,default=70,floor=0.1,ceiling=0.6,probability=80,bipolar=15,useDuration=true,category="modulation"})
 
+      local lfoToOsc1FreqKnob = lfoTargetPanel1:Knob("LfoToOsc1Freq", 0, -1, 1)
+      lfoToOsc1FreqKnob.unit = Unit.PercentNormalized
+      lfoToOsc1FreqKnob.displayName = "Frequency"
+      lfoToOsc1FreqKnob.fillColour = knobColour
+      lfoToOsc1FreqKnob.outlineColour = lfoColour
+      lfoToOsc1FreqKnob.changed = function(self)
+        local value = (self.value + 1) * 0.5
+        drumMacros["lfoToOsc1Freq"]:setParameter("Value", value)
+      end
+      lfoToOsc1FreqKnob:changed()
+      table.insert(tweakables, {widget=lfoToOsc1FreqKnob,zero=50,default=70,floor=0.1,ceiling=0.6,probability=80,bipolar=15,useDuration=true,category="modulation"})
+
       local lfoToDistortion1Knob = lfoTargetPanel1:Knob("LfoToDistortion1", 0, 0, 1)
       lfoToDistortion1Knob.unit = Unit.PercentNormalized
       lfoToDistortion1Knob.displayName = "Distortion"
@@ -3735,7 +3749,7 @@ panelCreators.createLfoTargetPanel1 = function()
       table.insert(tweakables, {widget=lfoToOsc1FeedbackKnob,default=50,floor=0.1,ceiling=0.6,probability=20,category="modulation"})
     end
 
-    if synthTypes.isAnalog or synthTypes.isDrum or synthTypes.isAdditive or synthTypes.isWavetable or synthTypes.isFM then
+    if synthTypes.isAnalog or synthTypes.isAdditive or synthTypes.isWavetable or synthTypes.isFM then
       local lfoToPitchOsc1Knob = lfoTargetPanel1:Knob("LfoToPitchOsc1", 0, 0, 48)
       lfoToPitchOsc1Knob.displayName = "Pitch"
       lfoToPitchOsc1Knob.mapper = Mapper.Quadratic
@@ -3871,6 +3885,18 @@ panelCreators.createLfoTargetPanel2 = function()
       lfoToNoise2CutoffKnob:changed()
       table.insert(tweakables, {widget=lfoToNoise2CutoffKnob,zero=50,default=70,floor=0.1,ceiling=0.6,probability=80,bipolar=15,useDuration=true,category="modulation"})
 
+      local lfoToOsc2FreqKnob = lfoTargetPanel2:Knob("LfoToOsc2Freq", 0, -1, 1)
+      lfoToOsc2FreqKnob.unit = Unit.PercentNormalized
+      lfoToOsc2FreqKnob.displayName = "Frequency"
+      lfoToOsc2FreqKnob.fillColour = knobColour
+      lfoToOsc2FreqKnob.outlineColour = lfoColour
+      lfoToOsc2FreqKnob.changed = function(self)
+        local value = (self.value + 1) * 0.5
+        drumMacros["lfoToOsc2Freq"]:setParameter("Value", value)
+      end
+      lfoToOsc2FreqKnob:changed()
+      table.insert(tweakables, {widget=lfoToOsc2FreqKnob,zero=50,default=70,floor=0.1,ceiling=0.6,probability=80,bipolar=15,useDuration=true,category="modulation"})
+
       local lfoToDistortion2Knob = lfoTargetPanel2:Knob("LfoToDistortion2", 0, 0, 1)
       lfoToDistortion2Knob.unit = Unit.PercentNormalized
       lfoToDistortion2Knob.displayName = "Distortion"
@@ -3974,7 +4000,7 @@ panelCreators.createLfoTargetPanel2 = function()
       table.insert(tweakables, {widget=lfoToOsc2FeedbackKnob,default=50,floor=0.1,ceiling=0.3,probability=50,category="modulation"})
     end
 
-    if synthTypes.isAnalog or synthTypes.isDrum or synthTypes.isAdditive or synthTypes.isWavetable or synthTypes.isFM then
+    if synthTypes.isAnalog or synthTypes.isAdditive or synthTypes.isWavetable or synthTypes.isFM then
       local lfoToPitchOsc2Knob = lfoTargetPanel2:Knob("LfoToPitchOsc2", 0, 0, 48)
       lfoToPitchOsc2Knob.displayName = "Pitch"
       lfoToPitchOsc2Knob.mapper = Mapper.Quadratic
