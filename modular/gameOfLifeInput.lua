@@ -473,7 +473,7 @@ widgets.numBox('Regeneration Time', evolutionSpeed, {
   unit = Unit.MilliSeconds,
   mapper = Mapper.Quartic,
   min = evolutionSpeed / 10,
-  max = evolutionSpeed * 10,
+  max = evolutionSpeed * 100,
   integer = true,
   changed = function(self)
     evolutionSpeed = self.value
@@ -520,6 +520,7 @@ scaleInput.changed = function(self)
   scaleDefinition = scales.getScaleDefinitionFromText(self.text)
   if #scaleDefinition == 0 then
     -- Ensure we have a scale...
+    print("No scale def. Using default scale.")
     scaleMenu.value = #scaleDefinitions
     return
   end
@@ -606,9 +607,8 @@ function onLoad(data)
   local scaleIndex = scales.getScaleDefinitionIndex(data[1])
   if type(scaleIndex) == "number" then
     print("onLoad, found scale", scaleIndex)
-    scaleMenu.value = scaleIndex
-  else
-    scaleInput.text = data[1]
-    scaleInput:changed()
+    scaleMenu:setValue(scaleIndex)
   end
+  scaleInput.text = data[1]
+  scaleInput:changed()
 end

@@ -1294,7 +1294,7 @@ helpers.getTweakables = function(tweakLevel, synthesisButton, modulationButton, 
 end
 
 -- Perform tweak
-helpers.tweakWidget = function(options, duration, useDuration)
+helpers.tweakWidget = function(options, duration, useDuration, tweakLevel)
   if type(duration) ~= "number" then
     -- Set duration to 0, if not given as an argument
     duration = 0
@@ -1331,6 +1331,10 @@ helpers.tweakWidget = function(options, duration, useDuration)
   print("Change from/to:", startValue, endValue)
   local diff = math.max(endValue, startValue) - math.min(endValue, startValue)
   local numberOfSteps = math.floor(durationInMilliseconds / millisecondsPerStep)
+  if gem.getRandomBoolean(tweakLevel) then
+    -- Randomize tweak num steps
+    numberOfSteps = gem.getRandom(numberOfSteps)
+  end
   local changePerStep = diff / numberOfSteps
   print("Number of steps:", numberOfSteps)
   if durationInMilliseconds <= millisecondsPerStep then
@@ -1793,11 +1797,11 @@ helpers.getWidget = function(name)
 end
 
 helpers.getSyncedValue = function(value)
-  for key, res in pairs(resolutions.getResolutions()) do
-    print(key, " -- ", res)
-    if helpers.isEqual(res, value) then
-      print(res, "==", value)
-      return key - 1
+  for i,v in ipairs(resolutions.getResolutions()) do
+    print(i, " -- ", v)
+    if helpers.isEqual(v, value) then
+      print(v, "==", value)
+      return i
     end
   end
   return 11
@@ -3848,33 +3852,38 @@ panelCreators.createLfoPanel = function()
       widget.enabled = helpers.isEqual(params[1]:getParameter(param), params[2]:getParameter(param)) and helpers.isEqual(params[2]:getParameter(param), params[3]:getParameter(param))
       return
     end
+    local lfoIndex = activeLfoOsc - 1
     local value
-    if activeLfoOsc == 2 then
+    value = params[lfoIndex]:getParameter(param)
+    --[[ if activeLfoOsc == 2 then
       value = params[1]:getParameter(param)
     elseif activeLfoOsc == 3 then
       value = params[2]:getParameter(param)
     elseif activeLfoOsc == 4 then
       value = params[3]:getParameter(param)
-    end
+    end ]]
     if param == "WaveFormType" then
       value = value + 1
     elseif param == "Retrigger" then
       value = value == 1
     elseif param == "Freq" then
-      if activeLfoOsc == 2 and params[1]:getParameter("SyncToHost") == true then
+      if params[lfoIndex]:getParameter("SyncToHost") == true then
+        value = helpers.getSyncedValue(value)
+      end
+      --[[ if activeLfoOsc == 2 and params[1]:getParameter("SyncToHost") == true then
         value = helpers.getSyncedValue(value)
       elseif activeLfoOsc == 3 and params[2]:getParameter("SyncToHost") == true then
         value = helpers.getSyncedValue(value)
       elseif activeLfoOsc == 4 and params[3]:getParameter("SyncToHost") == true then
         value = helpers.getSyncedValue(value)
-      end
+      end ]]
     end
     widget:setValue(value)
     print("setLfoWidgetValue:setValue:", param, value)
     widget.enabled = true
   end
 
-  if lfoMenu then
+  if type(lfoMenu) ~= "nil" then
     lfoMenu.changed = function(self)
       -- STORE THE ACTIVE OSCILLATOR
       activeLfoOsc = self.value -- 1 = all oscillators
@@ -6291,7 +6300,7 @@ panelCreators.createTwequencerPanel = function()
             storeRoundTweaks()
             -- Do the tweaking
             for _,v in ipairs(tweakablesForTwequencer) do
-              spawn(helpers.tweakWidget, v, roundDuration, (useDuration == true and type(v.useDuration) == "boolean" and v.useDuration == true))
+              spawn(helpers.tweakWidget, v, roundDuration, (useDuration == true and type(v.useDuration) == "boolean" and v.useDuration == true), tweakLevelKnob.value)
             end
           end
         end
