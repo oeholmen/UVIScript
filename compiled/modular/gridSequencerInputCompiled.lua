@@ -2010,10 +2010,11 @@ end
 --------------------------------------------------------------------------------
 
 function onSave()
-  return {scaleIncrementInput.text, degreeInput.text, scaleInput.text}
+  return {scaleIncrementInput.text, degreeInput.text, scaleInput.text, manualInput}
 end
 
 function onLoad(data)
+  manualInput = data[4] == true
   scaleIncrementInput.text = data[1]
   degreeInput.text = data[2]
   scaleIncrementInput:changed()
