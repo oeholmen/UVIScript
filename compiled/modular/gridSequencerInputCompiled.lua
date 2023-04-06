@@ -1003,8 +1003,8 @@ local xAxis = 1 -- Hold the index for the x axis in the gridXY table
 local yAxis = 2 -- Hold the index for the y axis in the gridXY table
 local scalesNames = scales.getScaleNames()
 local scaleDefinitions = scales.getScaleDefinitions()
+local scaleDefinition = scaleDefinitions[#scaleDefinitions]
 local rootNote = 1 -- Holds the current root note (key)
-local scaleDefinitionIndex = #scalesNames -- Holds the scale definition index
 local startOctave = -1 -- Holds the start octave when creating the scale
 local octaves = 9 -- Holds the octave range
 local noteRandomizationProbability = 0
@@ -1340,7 +1340,7 @@ local function setScale()
   end
   local startNote = (rootNote - 1) + ((startOctave + 2) * 12)
   local maxNote = startNote + (octaves * 12)
-  local scale = scales.createScale(scaleDefinitions[scaleDefinitionIndex], startNote, maxNote)
+  local scale = scales.createScale(scaleDefinition, startNote, maxNote)
   local scalePos = 1
   local scaleIncrementDefinitionPos = 1
   local degreeDefinitionPos = 0
@@ -1570,8 +1570,9 @@ noteSelectionLabel.y = 0
 local keyMenu = settingsPanel:Menu("Key", notes.getNoteNames())
 keyMenu.displayName = "Key"
 keyMenu.tooltip = "The key to set for the notes in the grid"
-keyMenu.showLabel = true
-keyMenu.width = 90
+keyMenu.showLabel = false
+keyMenu.height = 20
+keyMenu.width = 110
 keyMenu.x = 5
 keyMenu.y = noteSelectionLabel.y + noteSelectionLabel.height + 10
 keyMenu.backgroundColour = menuBackgroundColour
@@ -1583,25 +1584,44 @@ local scaleMenu = settingsPanel:Menu("Scale", scalesNames)
 scaleMenu.selected = #scalesNames
 scaleMenu.displayName = "Scale"
 scaleMenu.tooltip = "The scale to set for the notes in the grid"
-scaleMenu.showLabel = true
+scaleMenu.showLabel = false
 scaleMenu.hierarchical = true
-scaleMenu.width = 120
-scaleMenu.x = keyMenu.x + keyMenu.width + xSpacing
-scaleMenu.y = keyMenu.y
+scaleMenu.persistent = false -- Avoid running changed function on load, overwriting scaleInput
+scaleMenu.height = keyMenu.height
+scaleMenu.width = keyMenu.width
+scaleMenu.x = keyMenu.x
+scaleMenu.y = keyMenu.y + keyMenu.height + 5
 scaleMenu.backgroundColour = menuBackgroundColour
 scaleMenu.textColour = menuTextColour
 scaleMenu.arrowColour = menuArrowColour
 scaleMenu.outlineColour = menuOutlineColour
+
+local scaleInputLabel = settingsPanel:Label("Scale Definition")
+scaleInputLabel.x = keyMenu.x + keyMenu.width + xSpacing
+scaleInputLabel.y = keyMenu.y
+scaleInputLabel.height = scaleMenu.height
+scaleInputLabel.width = scaleMenu.width
+
+local scaleInput = settingsPanel:Label(scales.getTextFromScaleDefinition(scaleDefinition))
+scaleInput.x = scaleInputLabel.x
+scaleInput.y = scaleInputLabel.y + scaleInputLabel.height + 5
+scaleInput.height = scaleInputLabel.height
+scaleInput.width = scaleInputLabel.width
+scaleInput.editable = true
+scaleInput.backgroundColour = labelTextColour
+scaleInput.backgroundColourWhenEditing = "white"
+scaleInput.textColour = "white"
+scaleInput.textColourWhenEditing = labelTextColour
 
 local startOctaveInput = settingsPanel:NumBox("StartOctave", startOctave, -2, 7, true)
 startOctaveInput.displayName = "Start octave"
 startOctaveInput.tooltip = "The octave to start from when creating the scale"
 startOctaveInput.backgroundColour = menuBackgroundColour
 startOctaveInput.textColour = menuTextColour
-startOctaveInput.height = 20
+startOctaveInput.height = scaleMenu.height
 startOctaveInput.width = 126
-startOctaveInput.x = scaleMenu.x + scaleMenu.width + xSpacing
-startOctaveInput.y = scaleMenu.y
+startOctaveInput.x = scaleInputLabel.x + scaleInputLabel.width + xSpacing
+startOctaveInput.y = scaleInputLabel.y
 
 local octavesInput = settingsPanel:NumBox("Octaves", octaves, 1, 10, true)
 octavesInput.displayName = "Octaves"
@@ -1684,7 +1704,12 @@ keyMenu.changed = function(self)
 end
 
 scaleMenu.changed = function(self)
-  scaleDefinitionIndex = self.value
+  print("scaleMenu.changed", self.selectedText)
+  scaleInput.text = scales.getTextFromScaleDefinition(scaleDefinitions[self.value])
+end
+
+scaleInput.changed = function(self)
+  scaleDefinition = scales.handleScaleInputChanged(self, scaleMenu)
   setScale()
 end
 
@@ -1985,7 +2010,7 @@ end
 --------------------------------------------------------------------------------
 
 function onSave()
-  return {scaleIncrementInput.text, degreeInput.text}
+  return {scaleIncrementInput.text, degreeInput.text, scaleInput.text}
 end
 
 function onLoad(data)
@@ -1993,4 +2018,17 @@ function onLoad(data)
   degreeInput.text = data[2]
   scaleIncrementInput:changed()
   degreeInput:changed()
+
+  -- Check if we find a scale definition that matches the stored definition
+  local scaleInputText = data[3]
+  if type(data[3]) == "nil" then
+    scaleInputText = "1"
+  end
+  local scaleIndex = scales.getScaleDefinitionIndex(scaleInputText)
+  if type(scaleIndex) == "number" then
+    print("onLoad, found scale", scaleIndex)
+    scaleMenu:setValue(scaleIndex)
+  end
+  scaleInput.text = scaleInputText
+  scaleInput:changed()
 end

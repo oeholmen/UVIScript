@@ -41,6 +41,8 @@ local resolutionMin = #resolutionNames
 local positionTable
 local sequencerTable
 local shapeIndex = 1
+local startWithSpace = false
+local tickBeat = .5
 local playOptions = {"Active Shape", "Active+Random Settings", "Random Shape", "Random Shape+Settings", "Custom"}
 local playMode = playOptions[1]
 local shapeMenu
@@ -56,7 +58,6 @@ local function getRandomBipolar()
   if gem.getRandomBoolean() then
     value = -value
   end
-  --print("value", value)
   return value
 end
 
@@ -169,8 +170,10 @@ end
 local function sequenceRunner(uniqueId)
   --print("Starting sequencer", uniqueId)
   space = ms2beat(duration)
-  local tickBeat = .5
-  local elapsedBeats = space -- To avoid pause
+  local elapsedBeats = space
+  if startWithSpace then
+    elapsedBeats = 0
+  end
   swarmActive = false
   while isPlaying and seqIndex == uniqueId do
     if elapsedBeats >= space then
@@ -231,8 +234,14 @@ widgets.setSection({
   ySpacing = 5,
   width = 100,
   height = 22,
-  x = (widgets.getPanel().width / 2) + 45,
+  x = (widgets.getPanel().width / 2) - 60,
   y = 5,
+})
+
+widgets.menu("Space Quantize", gem.getIndexFromValue(tickBeat, resolutionValues), resolutionNames, {
+  tooltip = "Set the quantization for space.",
+  showLabel = false,
+  changed = function(self) tickBeat = resolutions.getResolution(self.value) end
 })
 
 widgets.numBox("Channel", channel, {
@@ -404,7 +413,6 @@ shapeMenu = widgets.menu("Swarm Shape", shapeIndex, shapeNames, {
   tooltip = "Set the shape of the swarm. Short bars = fast, long bars = slow. You can edit the shape by selecting 'Custom' from 'Shape Play Mode'.",
   changed = function(self)
     shapeIndex = self.value
-    --print("shapeMenu:changed", shapeIndex)
     setShape(true)
   end
 })
@@ -455,19 +463,21 @@ lengthRandomizationInput = widgets.numBox("Rand", lengthRandomizationAmount, {
   name = "LengthRand",
   tooltip = "Swarm length randomization amount",
   unit = Unit.Percent,
+  integer = false,
   changed = function(self) lengthRandomizationAmount = self.value end
 })
 
-widgets.numBox("Swarm Probability", swarmProbability, {
+widgets.numBox("Swarm Prob", swarmProbability, {
   name = "Probability",
   unit = Unit.Percent,
-  integer = false,
-  width = 261,
   tooltip = "Set the probability that a swarm will be triggered",
   changed = function(self) swarmProbability = self.value end
 })
 
-widgets.col()
+widgets.button("Start With Space", startWithSpace, {
+  tooltip = "If this is active, the swarm will start with start playing after the first space duration is passed.",
+  changed = function(self) startWithSpace = self.value end
+})
 
 widgets.numBox("Space", duration, {
   tooltip = "Set the time between swarms",
@@ -480,7 +490,6 @@ widgets.numBox("Rand", spaceRandomizationAmount, {
   name = "SpaceRand",
   tooltip = "Set the space randomization amount",
   unit = Unit.Percent,
-  integer = false,
   changed = function(self) spaceRandomizationAmount = self.value end
 })
 
