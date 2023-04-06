@@ -70,8 +70,7 @@ scaleMenu.changed = function(self)
 end
 
 scaleInput.changed = function(self)
-  scaleDefinition = scales.getScaleDefinitionFromText(self.text)
-  self.tooltip = scales.getScaleInputTooltip(scaleDefinition)
+  scaleDefinition = scales.handleScaleInputChanged(self, scaleMenu)
   setScale()
 end
 
@@ -101,7 +100,7 @@ function onLoad(data)
   local scaleIndex = scales.getScaleDefinitionIndex(data[1])
   if type(scaleIndex) == "number" then
     print("onLoad, found scale", scaleIndex)
-    scaleMenu.value = scaleIndex
+    scaleMenu.setValue(scaleIndex)
   end
   scaleInput.text = data[1]
   scaleInput:changed()

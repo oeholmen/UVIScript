@@ -516,15 +516,7 @@ scaleMenu.changed = function(self)
 end
 
 scaleInput.changed = function(self)
-  print("scaleInput.changed", self.text)
-  scaleDefinition = scales.getScaleDefinitionFromText(self.text)
-  if #scaleDefinition == 0 then
-    -- Ensure we have a scale...
-    print("No scale def. Using default scale.")
-    scaleMenu.value = #scaleDefinitions
-    return
-  end
-  self.tooltip = scales.getScaleInputTooltip(scaleDefinition)
+  scaleDefinition = scales.handleScaleInputChanged(self, scaleMenu)
   setScale()
 end
 

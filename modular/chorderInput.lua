@@ -405,9 +405,7 @@ for i=1,1 do
   end
 
   scaleInput.changed = function(self)
-    print("scaleInput.changed", self.text)
-    scaleDefinition = scales.getScaleDefinitionFromText(self.text)
-    self.tooltip = scales.getScaleInputTooltip(scaleDefinition)
+    scaleDefinition = scales.handleScaleInputChanged(self, scaleMenu)
     setScale()
   end
 
@@ -826,7 +824,7 @@ function onLoad(data)
     local scaleIndex = scales.getScaleDefinitionIndex(scaleInputData[i])
     if type(scaleIndex) == "number" then
       print("onLoad, found scale", scaleIndex)
-      paramsPerPart[i].scaleMenu.value = scaleIndex
+      paramsPerPart[i].scaleMenu:setValue(scaleIndex)
     end
     print("onLoad, scaleInput.text", scaleInputData[i])
     paramsPerPart[i].scaleInput.text = scaleInputData[i]

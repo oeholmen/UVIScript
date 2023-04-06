@@ -154,11 +154,26 @@ local function getScaleInputWidget(scaleDefinition, width, i)
   return widgets.label(getTextFromScaleDefinition(scaleDefinition), options)
 end
 
+local function handleScaleInputChanged(self, scaleMenu)
+  print("scaleInput.changed", self.text)
+  local scaleDefinition = getScaleDefinitionFromText(self.text)
+  if #scaleDefinition == 0 then
+    -- Ensure we have a scale...
+    print("No scale def. Using default scale.")
+    scaleDefinition = scaleDefinitions[#scaleDefinitions]
+    scaleMenu:setValue(#scaleDefinitions)
+    return handleScaleInputChanged(self, scaleMenu)
+  end
+  self.tooltip = getScaleInputTooltip(scaleDefinition)
+  return scaleDefinition
+end
+
 return {--scales--
   widget = getScaleWidget,
   inputWidget = getScaleInputWidget,
   getScaleInputTooltip = getScaleInputTooltip,
   getScaleDefinitionIndex = getScaleDefinitionIndex,
+  handleScaleInputChanged = handleScaleInputChanged,
   getTextFromScaleDefinition = getTextFromScaleDefinition,
   getScaleDefinitionFromText = getScaleDefinitionFromText,
   getScaleDefinitions = getScaleDefinitions,
