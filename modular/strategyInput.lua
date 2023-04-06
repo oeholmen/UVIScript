@@ -624,10 +624,9 @@ function onLoad(data)
   if type(scaleIndex) == "number" then
     print("onLoad, found scale", scaleIndex)
     scaleMenu.value = scaleIndex
-  else
-    scaleInput.text = data[3]
-    scaleInput:changed()
   end
+  scaleInput.text = data[3]
+  scaleInput:changed()
 
   for i,v in ipairs(strategySlots) do
     v.tooltip = strategySlotsData[i]

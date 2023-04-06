@@ -1725,7 +1725,7 @@ widgets.menu("Shape Play Mode", playOptions, {
     local shapeEnabled = self.value == 1
     sequencerTable.enabled = self.value == #self.items
     lengthRandomizationInput.enabled = self.value < #self.items
-    shapeMenu.enabled = shapeEnabled
+    shapeMenu.enabled = shapeEnabled or self.value == 2
     xyShapeMorph.enabled = shapeEnabled
     xyShapeFactor.enabled = shapeEnabled
     for k,v in pairs(shapeWidgets) do

@@ -827,11 +827,10 @@ function onLoad(data)
     if type(scaleIndex) == "number" then
       print("onLoad, found scale", scaleIndex)
       paramsPerPart[i].scaleMenu.value = scaleIndex
-    else
-      print("onLoad, scaleInput.text", scaleInputData[i])
-      paramsPerPart[i].scaleInput.text = scaleInputData[i]
-      paramsPerPart[i].scaleInput:changed()
     end
+    print("onLoad, scaleInput.text", scaleInputData[i])
+    paramsPerPart[i].scaleInput.text = scaleInputData[i]
+    paramsPerPart[i].scaleInput:changed()
 
     for _,v in ipairs(paramsPerPart[i].chordDefinitionSlots) do
       v.tooltip = chordDefinitionSlotsData[dataCounter]

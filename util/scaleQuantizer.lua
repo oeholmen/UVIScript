@@ -102,8 +102,7 @@ function onLoad(data)
   if type(scaleIndex) == "number" then
     print("onLoad, found scale", scaleIndex)
     scaleMenu.value = scaleIndex
-  else
-    scaleInput.text = data[1]
-    scaleInput:changed()
   end
+  scaleInput.text = data[1]
+  scaleInput:changed()
 end

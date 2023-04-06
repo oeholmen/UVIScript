@@ -643,6 +643,7 @@ widgets.knob("Tempo Category", tempoCategory, {
 local tempoInput = widgets.numBox("Current tempo", Synth.parent:getParameter("Tempo"), {
   min = 10,
   max = 400,
+  persistent = false,
   integer = true,
   changed = function(self)
     Synth.parent:setParameter("Tempo", self.value)
@@ -651,6 +652,7 @@ local tempoInput = widgets.numBox("Current tempo", Synth.parent:getParameter("Te
 
 widgets.button("Set New Tempo", false, {
   tooltip = "Set a random tempo within the selected category range",
+  persistent = false,
   changed = function(self)
     local tempo = gem.getRandom(tempoRanges[tempoCategory][1], tempoRanges[tempoCategory][2])
     tempoInput:setValue(tempo)
