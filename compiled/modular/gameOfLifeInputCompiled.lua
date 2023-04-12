@@ -780,7 +780,10 @@ local function getScaleDefinitionFromText(scaleText)
   local scale = {}
   if string.len(scaleText) > 0 then
     for w in string.gmatch(scaleText, "%d+") do
-      table.insert(scale, tonumber(w))
+      local stepIncrement = tonumber(w)
+      if stepIncrement > 0 then
+        table.insert(scale, stepIncrement)
+      end
     end
     print("Get scale from input", #scale)
   end
