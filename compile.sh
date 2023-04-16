@@ -38,9 +38,11 @@ luaScripts=(
   sequencers/jumpingSequencer
   sequencers/midiControlSequencer
   sequencers/polyphonicSequencer
+  sequencers/rythmicMotionsSequencer
   sequencers/stochasticDrumSequencer
   sequencers/stochasticSequencer
   sequencers/strategySequencer
+  sequencers/swarmSequencer
   synths/tweaksynth
   util/arpRandomizer
   util/blockNotes

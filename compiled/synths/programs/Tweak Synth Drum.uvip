@@ -1327,7 +1327,7 @@ end
                             </SignalConnection>
                         </Connections>
                         <ControlSignalSources>
-                            <AnalogADSR Name="Amp. Env" DisplayName="Amp. Env" Bypass="0" AttackTime="0.001" DecayTime="0.050000001" KeyToDecay="0" KeyToAttack="0" VelToDecay="0" Punch="0" VelToAttack="0" DynamicRange="10" SustainLevel="1" ReleaseTime="0.0099999998" TriggerMode="0" InvertVelocity="0" AttackDecayMode="0"/>
+                            <AnalogADSR Name="Amp. Env" DisplayName="Amp. Env" Bypass="0" AttackTime="9.9999947e-05" DecayTime="0.050000008" KeyToDecay="0" KeyToAttack="0" VelToDecay="0" Punch="0" VelToAttack="0" DynamicRange="10" SustainLevel="1" ReleaseTime="0.0099999988" TriggerMode="0" InvertVelocity="0" AttackDecayMode="1"/>
                             <AnalogADSR Name="Analog ADSR 1" DisplayName="Filter Env" Bypass="0" AttackTime="0.001" DecayTime="0.050000001" KeyToDecay="0" KeyToAttack="0" VelToDecay="0" Punch="0" VelToAttack="0" DynamicRange="10" SustainLevel="1" ReleaseTime="0.0099999998" TriggerMode="0" InvertVelocity="0" AttackDecayMode="0">
                                 <Connections>
                                     <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Keygroup/LFO 1" Destination="DecayTime" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0">
@@ -1538,7 +1538,7 @@ end
                             </SignalConnection>
                         </Connections>
                         <ControlSignalSources>
-                            <AnalogADSR Name="Amp. Env" DisplayName="Amp. Env" Bypass="0" AttackTime="0.001" DecayTime="0.050000001" KeyToDecay="0" KeyToAttack="0" VelToDecay="0" Punch="0" VelToAttack="0" DynamicRange="10" SustainLevel="1" ReleaseTime="0.0099999998" TriggerMode="0" InvertVelocity="0" AttackDecayMode="0"/>
+                            <AnalogADSR Name="Amp. Env" DisplayName="Amp. Env" Bypass="0" AttackTime="9.9999947e-05" DecayTime="0.050000008" KeyToDecay="0" KeyToAttack="0" VelToDecay="0" Punch="0" VelToAttack="0" DynamicRange="10" SustainLevel="1" ReleaseTime="0.0099999988" TriggerMode="0" InvertVelocity="0" AttackDecayMode="1"/>
                             <AnalogADSR Name="Analog ADSR 1" DisplayName="Filter Env" Bypass="0" AttackTime="0.001" DecayTime="0.050000001" KeyToDecay="0" KeyToAttack="0" VelToDecay="0" Punch="0" VelToAttack="0" DynamicRange="10" SustainLevel="1" ReleaseTime="0.0099999998" TriggerMode="0" InvertVelocity="0" AttackDecayMode="0">
                                 <Connections>
                                     <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Keygroup/LFO 1" Destination="DecayTime" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0">
@@ -1745,7 +1745,7 @@ end
                             </SignalConnection>
                         </Connections>
                         <ControlSignalSources>
-                            <AnalogADSR Name="Amp. Env" DisplayName="Amp. Env" Bypass="0" AttackTime="0.001" DecayTime="0.050000001" KeyToDecay="0" KeyToAttack="0" VelToDecay="0" Punch="0" VelToAttack="0" DynamicRange="10" SustainLevel="1" ReleaseTime="0.0099999998" TriggerMode="0" InvertVelocity="0" AttackDecayMode="0"/>
+                            <AnalogADSR Name="Amp. Env" DisplayName="Amp. Env" Bypass="0" AttackTime="9.9999947e-05" DecayTime="0.050000008" KeyToDecay="0" KeyToAttack="0" VelToDecay="0" Punch="0" VelToAttack="0" DynamicRange="10" SustainLevel="1" ReleaseTime="0.0099999988" TriggerMode="0" InvertVelocity="0" AttackDecayMode="1"/>
                             <AnalogADSR Name="Analog ADSR 1" DisplayName="Filter Env" Bypass="0" AttackTime="0.001" DecayTime="0.050000001" KeyToDecay="0" KeyToAttack="0" VelToDecay="0" Punch="0" VelToAttack="0" DynamicRange="10" SustainLevel="1" ReleaseTime="0.0099999998" TriggerMode="0" InvertVelocity="0" AttackDecayMode="0">
                                 <Connections>
                                     <SignalConnection Name="SignalConnection 0" Ratio="1" Source="$Keygroup/LFO 1" Destination="DecayTime" Mapper="" ConnectionMode="0" Bypass="0" Inverted="0">
