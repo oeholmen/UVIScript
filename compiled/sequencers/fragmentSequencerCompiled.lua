@@ -1765,38 +1765,35 @@ function getNotes(heldNoteIndex)
 
   -- Add notes to play
   -- "As Played", "Up", "Down", "Random", "Mono", "Duo", "Chord"
-  local sortedNotes = {}
+  local availableNotes = {}
   for _,v in ipairs(heldNotes) do
-    table.insert(sortedNotes, v.note)
-  end
-  if playMode.selectedText == "Down" then
-    table.sort(sortedNotes, function(a,b) return a > b end)
-  else
-    table.sort(sortedNotes)
+    table.insert(availableNotes, v.note)
   end
 
-  if playMode.selectedText == "As Played" then
-    table.insert(notes, heldNotes[heldNoteIndex].note)
-  elseif playMode.selectedText == "Up" then
-    table.insert(notes, sortedNotes[heldNoteIndex])
+  if playMode.selectedText == "Up" then
+    table.sort(availableNotes)
+    table.insert(notes, availableNotes[heldNoteIndex])
   elseif playMode.selectedText == "Down" then
-    table.insert(notes, sortedNotes[heldNoteIndex])
+    table.sort(availableNotes, function(a,b) return a > b end)
+    table.insert(notes, availableNotes[heldNoteIndex])
   elseif playMode.selectedText == "Random" then
-    table.insert(notes, gem.getRandomFromTable(sortedNotes))
+    table.insert(notes, gem.getRandomFromTable(availableNotes))
   elseif playMode.selectedText == "Mono" then
     -- Last held
     table.insert(notes, heldNotes[#heldNotes].note)
   elseif playMode.selectedText == "Duo" then
     -- Lowest and highest held notes
-    table.insert(notes, sortedNotes[1])
+    table.insert(notes, availableNotes[1])
     if #heldNotes > 1 then
-      table.insert(notes, sortedNotes[#sortedNotes])
+      table.insert(notes, availableNotes[#availableNotes])
     end
   elseif playMode.selectedText == "Chord" then
     -- All held notes
-    for i=1,#sortedNotes do
-      table.insert(notes, sortedNotes[i])
+    for i=1,#availableNotes do
+      table.insert(notes, availableNotes[i])
     end
+  else
+    table.insert(notes, heldNotes[heldNoteIndex].note)
   end
   print("#notes", #notes)
   return notes, heldNoteIndex
