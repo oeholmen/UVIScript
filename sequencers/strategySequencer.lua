@@ -24,6 +24,7 @@ local textColourOff = "ff22FFFF"
 local textColourOn = "efFFFFFF"
 
 local isPlaying = false
+local seqIndex = 0 -- Holds the unique id for the sequencer
 local heldNotes = {}
 local notePosition = 0 -- Holds the current note position
 local partToStepMap = {1} -- Holds the starting step for each part
@@ -464,7 +465,8 @@ function startPlaying()
     return
   end
   isPlaying = true
-  spawn(arpeg)
+  seqIndex = gem.inc(seqIndex)
+  spawn(arpeg, seqIndex)
 end
 
 function stopPlaying()
@@ -1018,7 +1020,7 @@ function playSubdivision(structure, partPos)
   end
 end
 
-function arpeg()
+function arpeg(uniqueId)
   local index = 0
   local currentStep = 0 -- Holds the current step in the round that is being played
   local currentRound = 0 -- Counter for rounds
@@ -1030,7 +1032,7 @@ function arpeg()
   print("Start playing!")
 
   -- START ARP LOOP
-  while isPlaying do
+  while isPlaying and seqIndex == uniqueId do
 
     local offset = 0
     if #heldNotes == 0 then

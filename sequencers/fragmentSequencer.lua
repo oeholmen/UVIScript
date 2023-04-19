@@ -7,6 +7,7 @@ local resolutions = require "includes.resolutions"
 local rythmicFragments = require "includes.rythmicFragments"
 
 local isPlaying = false
+local seqIndex = 0 -- Holds the unique id for the sequencer
 local heldNotes = {}
 
 local backgroundColour = "595959" -- Light or Dark
@@ -307,7 +308,7 @@ function stopPlaying()
   end
 end
 
-function play()
+function play(uniqueId)
   local previous = nil
   local notes = {}
   local heldNoteIndex = 0
@@ -319,7 +320,7 @@ function play()
   local rest = false
   local reverseFragment = false
   local durationCounter = 0
-  while isPlaying do
+  while isPlaying and seqIndex == uniqueId do
     local offset = 0
     if #heldNotes == 0 then
       local buffer = 1 -- How long to wait for notes before stopping the sequencer
@@ -383,7 +384,8 @@ function onNote(e)
   table.insert(heldNotes, e)
   if #heldNotes == 1 and isPlaying == false then
     isPlaying = true
-    spawn(play)
+    seqIndex = gem.inc(seqIndex)
+    spawn(play, seqIndex)
   end
   if activeButton.value == false then
     postEvent(e)
