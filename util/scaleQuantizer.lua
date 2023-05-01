@@ -100,7 +100,7 @@ function onLoad(data)
   local scaleIndex = scales.getScaleDefinitionIndex(data[1])
   if type(scaleIndex) == "number" then
     print("onLoad, found scale", scaleIndex)
-    scaleMenu.setValue(scaleIndex)
+    scaleMenu:setValue(scaleIndex)
   end
   scaleInput.text = data[1]
   scaleInput:changed()
