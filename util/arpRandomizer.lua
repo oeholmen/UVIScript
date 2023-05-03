@@ -317,7 +317,7 @@ pitchOffsetProbability.width = tweakArpResMenu.width
 pitchOffsetProbability.x = pitchOffsetProbabilityLabel.x
 pitchOffsetProbability.y = pitchOffsetProbabilityLabel.y + pitchOffsetProbabilityLabel.height + 5
 
-local tweakArpeggiatorButton = panel:Button("TweakArp")
+local tweakArpeggiatorButton = panel:OnOffButton("TweakArp")
 tweakArpeggiatorButton.persistent = false
 tweakArpeggiatorButton.alpha = buttonAlpha
 tweakArpeggiatorButton.backgroundColourOff = buttonBackgroundColourOff
@@ -330,4 +330,5 @@ tweakArpeggiatorButton.size = {90,45}
 tweakArpeggiatorButton.x = pitchOffsetProbability.x + pitchOffsetProbability.width + spacing
 tweakArpeggiatorButton.changed = function(self)
   doArpTweaks(tweakArpResMenu.value, tweakArpLengthMenu.value, tweakArpOctaveMenu.value, tweakArpModeMenu.value, pitchOffsetProbability.value)
+  self.value = false
 end
