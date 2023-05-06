@@ -1702,7 +1702,7 @@ panelCreators.createOsc1Panel = function()
       osc1ShapeKnob:changed()
       table.insert(tweakables, {widget=osc1ShapeKnob,min=6,default=10,category="synthesis"})
     elseif synthTypes.isWavetable then
-      local osc1ShapeKnob = osc1Panel:Knob("Osc1Wave", 0, 0, 1)
+      local osc1ShapeKnob = osc1Panel:Knob("Osc1WaveIndex", 0, 0, 1)
       osc1ShapeKnob.unit = Unit.PercentNormalized
       osc1ShapeKnob.displayName = "Wave"
       osc1ShapeKnob.fillColour = knobColour
@@ -2120,7 +2120,7 @@ panelCreators.createOsc2Panel = function()
       osc2ShapeKnob:changed()
       table.insert(tweakables, {widget=osc2ShapeKnob,min=max,default=10,category="synthesis"})
     elseif synthTypes.isWavetable then
-      local osc2ShapeKnob = osc2Panel:Knob("Osc2Wave", 0, 0, 1)
+      local osc2ShapeKnob = osc2Panel:Knob("Osc2WaveIndex", 0, 0, 1)
       osc2ShapeKnob.unit = Unit.PercentNormalized
       osc2ShapeKnob.displayName = "Wave"
       osc2ShapeKnob.fillColour = knobColour
@@ -3543,7 +3543,7 @@ panelCreators.createLfoTargetPanel1 = function()
   if synthTypes.isAnalog3Osc then
     lfoTargetPanel1:Label("LFO -> Osc ->")
 
-    local osc1LfoToPWMKnob = lfoTargetPanel1:Knob("LfoToOsc1PWM", 0, 0, 0.5)
+    local osc1LfoToPWMKnob = lfoTargetPanel1:Knob("LfoToOscPWM1", 0, 0, 0.5)
     osc1LfoToPWMKnob.unit = Unit.PercentNormalized
     osc1LfoToPWMKnob.displayName = "PWM 1"
     osc1LfoToPWMKnob.mapper = Mapper.Quadratic
@@ -3555,7 +3555,7 @@ panelCreators.createLfoTargetPanel1 = function()
     osc1LfoToPWMKnob:changed()
     table.insert(tweakables, {widget=osc1LfoToPWMKnob,ceiling=0.25,probability=90,default=60,useDuration=true,category="modulation"})
 
-    local osc2LfoToPWMKnob = lfoTargetPanel1:Knob("LfoToOsc2PWM", 0, 0, 0.5)
+    local osc2LfoToPWMKnob = lfoTargetPanel1:Knob("LfoToOscPWM2", 0, 0, 0.5)
     osc2LfoToPWMKnob.unit = Unit.PercentNormalized
     osc2LfoToPWMKnob.displayName = "PWM 2"
     osc2LfoToPWMKnob.mapper = Mapper.Quadratic
@@ -3582,7 +3582,7 @@ panelCreators.createLfoTargetPanel1 = function()
     lfoTargetPanel1:Label("LFO -> Osc 1 ->")
 
     if synthTypes.isAnalog or synthTypes.isAdditive or synthTypes.isWavetable or synthTypes.isAnalogStack then
-      local osc1LfoToPWMKnob = lfoTargetPanel1:Knob("LfoToOsc1PWM", 0, 0, 0.5)
+      local osc1LfoToPWMKnob = lfoTargetPanel1:Knob("LfoToOscPWM1", 0, 0, 0.5)
       osc1LfoToPWMKnob.unit = Unit.PercentNormalized
       osc1LfoToPWMKnob.displayName = "PWM"
       osc1LfoToPWMKnob.mapper = Mapper.Quadratic
@@ -3642,7 +3642,7 @@ panelCreators.createLfoTargetPanel1 = function()
       lfoToOsc1ModDepthKnob:changed()
       table.insert(tweakables, {widget=lfoToOsc1ModDepthKnob,zero=50,default=70,floor=0.1,ceiling=0.6,probability=80,biploar=15,useDuration=true,category="modulation"})
 
-      local lfoToNoise1MixKnob = lfoTargetPanel1:Knob("LfoToNoise1Mix", 0, -1, 1)
+      local lfoToNoise1MixKnob = lfoTargetPanel1:Knob("LfoToNoiseMix1", 0, -1, 1)
       lfoToNoise1MixKnob.unit = Unit.PercentNormalized
       lfoToNoise1MixKnob.displayName = "Noise Mix"
       lfoToNoise1MixKnob.fillColour = knobColour
@@ -3666,7 +3666,7 @@ panelCreators.createLfoTargetPanel1 = function()
       lfoToNoise1CutoffKnob:changed()
       table.insert(tweakables, {widget=lfoToNoise1CutoffKnob,zero=50,default=70,floor=0.1,ceiling=0.6,probability=80,bipolar=15,useDuration=true,category="modulation"})
 
-      local lfoToOsc1FreqKnob = lfoTargetPanel1:Knob("LfoToOsc1Freq", 0, -1, 1)
+      local lfoToOsc1FreqKnob = lfoTargetPanel1:Knob("LfoToOscFreq1", 0, -1, 1)
       lfoToOsc1FreqKnob.unit = Unit.PercentNormalized
       lfoToOsc1FreqKnob.displayName = "Frequency"
       lfoToOsc1FreqKnob.fillColour = knobColour
@@ -3689,7 +3689,7 @@ panelCreators.createLfoTargetPanel1 = function()
       lfoToDistortion1Knob:changed()
       table.insert(tweakables, {widget=lfoToDistortion1Knob,zero=50,default=70,floor=0.1,ceiling=0.6,probability=80,useDuration=true,category="modulation"})
     elseif synthTypes.isWavetable then
-      local lfoToWT1Knob = lfoTargetPanel1:Knob("Osc1LfoToWaveIndex", 0, -1, 1)
+      local lfoToWT1Knob = lfoTargetPanel1:Knob("LfoToWaveIndex1", 0, -1, 1)
       lfoToWT1Knob.unit = Unit.PercentNormalized
       lfoToWT1Knob.displayName = "Waveindex"
       lfoToWT1Knob.fillColour = knobColour
@@ -3833,7 +3833,7 @@ panelCreators.createLfoTargetPanel2 = function()
     lfoTargetPanel2:Label("LFO -> Osc 2 ->")
 
     if synthTypes.isAnalog or synthTypes.isAdditive or synthTypes.isWavetable or synthTypes.isAnalogStack then
-      local osc2LfoToPWMKnob = lfoTargetPanel2:Knob("LfoToOsc2PWM", 0, 0, 0.5)
+      local osc2LfoToPWMKnob = lfoTargetPanel2:Knob("LfoToOscPWM2", 0, 0, 0.5)
       osc2LfoToPWMKnob.unit = Unit.PercentNormalized
       osc2LfoToPWMKnob.displayName = "PWM"
       osc2LfoToPWMKnob.mapper = Mapper.Quadratic
@@ -3870,7 +3870,7 @@ panelCreators.createLfoTargetPanel2 = function()
       lfoToOsc2ModDepthKnob:changed()
       table.insert(tweakables, {widget=lfoToOsc2ModDepthKnob,zero=50,default=70,floor=0.1,ceiling=0.6,probability=80,biploar=15,useDuration=true,category="modulation"})
 
-      local lfoToNoise2MixKnob = lfoTargetPanel2:Knob("LfoToNoise2Mix", 0, -1, 1)
+      local lfoToNoise2MixKnob = lfoTargetPanel2:Knob("LfoToNoiseMix2", 0, -1, 1)
       lfoToNoise2MixKnob.unit = Unit.PercentNormalized
       lfoToNoise2MixKnob.displayName = "Noise Mix"
       lfoToNoise2MixKnob.fillColour = knobColour
@@ -3894,7 +3894,7 @@ panelCreators.createLfoTargetPanel2 = function()
       lfoToNoise2CutoffKnob:changed()
       table.insert(tweakables, {widget=lfoToNoise2CutoffKnob,zero=50,default=70,floor=0.1,ceiling=0.6,probability=80,bipolar=15,useDuration=true,category="modulation"})
 
-      local lfoToOsc2FreqKnob = lfoTargetPanel2:Knob("LfoToOsc2Freq", 0, -1, 1)
+      local lfoToOsc2FreqKnob = lfoTargetPanel2:Knob("LfoToOscFreq2", 0, -1, 1)
       lfoToOsc2FreqKnob.unit = Unit.PercentNormalized
       lfoToOsc2FreqKnob.displayName = "Frequency"
       lfoToOsc2FreqKnob.fillColour = knobColour
@@ -3940,7 +3940,7 @@ panelCreators.createLfoTargetPanel2 = function()
       lfoToCutoffKnob:changed()
       table.insert(tweakables, {widget=lfoToCutoffKnob,bipolar=25,default=30,floor=0.1,ceiling=0.6,probability=20,useDuration=true,category="modulation"})
     elseif synthTypes.isWavetable then
-      local lfoToWT2Knob = lfoTargetPanel2:Knob("Osc2LfoToWaveIndex", 0, -1, 1)
+      local lfoToWT2Knob = lfoTargetPanel2:Knob("LfoToWaveIndex2", 0, -1, 1)
       lfoToWT2Knob.unit = Unit.PercentNormalized
       lfoToWT2Knob.displayName = "Waveindex"
       lfoToWT2Knob.fillColour = knobColour
@@ -6515,28 +6515,55 @@ local function mapMinilogueCC()
     end
     return widgetValue
   end
-  
+
   function setLfoTargetValue()
+    if synthTypes.isFM or synthTypes.isAnalog3Osc or synthTypes.isAnalogStack then
+      return
+    end
+
+    local bipolar = 1
+    local factor = 1
+
     if activeLfoTarget.cutoff == true then
-      helpers.getWidget("LfoToCutoff").value = controllerValueToWidgetValue(activeLfoTargetValue, 1)
+      helpers.getWidget("LfoToCutoff").value = controllerValueToWidgetValue(activeLfoTargetValue, bipolar, factor)
     else
       helpers.getWidget("LfoToCutoff").value = 0
     end
     
-    if activeLfoTarget.pwm == true then
-      helpers.getWidget("LfoToOsc1PWM").value = controllerValueToWidgetValue(activeLfoTargetValue, 0, 0.5)
-      helpers.getWidget("LfoToOsc2PWM").value = controllerValueToWidgetValue(activeLfoTargetValue, 0, 0.5)
+    local pwmKey = "OscPWM"
+    if synthTypes.isDrum then
+      pwmKey = "NoiseMix"
+      bipolar = 1
     else
-      helpers.getWidget("LfoToOsc1PWM").value = 0
-      helpers.getWidget("LfoToOsc2PWM").value = 0
+      bipolar = 0
+      factor = 0.5
+    end
+    if activeLfoTarget.pwm == true then
+      helpers.getWidget("LfoTo" .. pwmKey .. "1").value = controllerValueToWidgetValue(activeLfoTargetValue, bipolar, factor)
+      helpers.getWidget("LfoTo" .. pwmKey .. "2").value = controllerValueToWidgetValue(activeLfoTargetValue, bipolar, factor)
+    else
+      helpers.getWidget("LfoTo" .. pwmKey .. "1").value = 0
+      helpers.getWidget("LfoTo" .. pwmKey .. "2").value = 0
     end
 
+    local hardsyncKey = "Hardsync"
+    bipolar = 0
+    factor = 1
+    if synthTypes.isAdditive then
+      hardsyncKey = "EvenOdd"
+    elseif synthTypes.isWavetable then
+      hardsyncKey = "WaveIndex"
+      bipolar = 1
+    elseif synthTypes.isDrum then
+      hardsyncKey = "OscFreq"
+      bipolar = 1
+    end
     if activeLfoTarget.hardsync == true then
-      helpers.getWidget("LfoToHardsync1").value = controllerValueToWidgetValue(activeLfoTargetValue, 0)
-      helpers.getWidget("LfoToHardsync2").value = controllerValueToWidgetValue(activeLfoTargetValue, 0)
+      helpers.getWidget("LfoTo" .. hardsyncKey .. "1").value = controllerValueToWidgetValue(activeLfoTargetValue, bipolar, factor)
+      helpers.getWidget("LfoTo" .. hardsyncKey .. "2").value = controllerValueToWidgetValue(activeLfoTargetValue, bipolar, factor)
     else
-      helpers.getWidget("LfoToHardsync1").value = 0
-      helpers.getWidget("LfoToHardsync2").value = 0
+      helpers.getWidget("LfoTo" .. hardsyncKey .. "1").value = 0
+      helpers.getWidget("LfoTo" .. hardsyncKey .. "2").value = 0
     end
   end
 
@@ -6584,9 +6611,37 @@ local function mapMinilogueCC()
       CC88 = {name = "Tweak"} -- OUTPUT ROUTING > Tweak button
     }
 
+    if synthTypes.isWavetable then
+      controllerToWidgetMap.CC36 = {name = "Osc1WaveIndex", page = synthesisPageButton} -- VCO1 SHAPE -> Osc 1 Wave Index
+      controllerToWidgetMap.CC37 = {name = "Osc2WaveIndex", page = synthesisPageButton} -- VCO2 SHAPE -> Osc 2 Wave Index
+      controllerToWidgetMap.CC41 = {name = "Osc1FilterEnvToIndex", bipolar = 1, page = filterPageButton} -- CROSS MOD DEPTH > Osc 1 Hardsync FEnv Amt
+      controllerToWidgetMap.CC42 = {name = "Osc2FilterEnvToIndex", bipolar = 1, page = filterPageButton} -- PITCH EG INT > Osc 2 Hardsync FEnv Amt
+      controllerToWidgetMap.CC50 = {name = "Reverb", factor = 0.3, page = effectsPageButton} -- VCO 1 WAVE
+      controllerToWidgetMap.CC51 = {name = "Delay", factor = 0.3, page = effectsPageButton} -- VCO 2 WAVE
+    elseif synthTypes.isAdditive then
+      controllerToWidgetMap.CC34 = {name = "HarmShift1", factor=48, page = synthesisPageButton} -- VCO 1 PITCH > HarmShift1
+      controllerToWidgetMap.CC36 = {name = "Osc1Partials", factor=256, page = synthesisPageButton} -- VCO1 SHAPE -> Osc 1 Partials
+      controllerToWidgetMap.CC37 = {name = "Osc2Partials", factor=256, page = synthesisPageButton} -- VCO2 SHAPE -> Osc 2 Partials
+      controllerToWidgetMap.CC41 = {name = "Osc1Cutoff", bipolar=1, page = synthesisPageButton} -- CROSS MOD DEPTH > Osc 1 Even/Odd
+      controllerToWidgetMap.CC42 = {name = "Osc2Cutoff", bipolar=1, page = synthesisPageButton}-- PITCH EG INT > Osc 2 Even/Odd
+      controllerToWidgetMap.CC50 = {name = "Osc1EvenOdd", bipolar=1, page = synthesisPageButton} -- VCO 1 WAVE > Osc 1 Even/Odd
+      controllerToWidgetMap.CC51 = {name = "Osc2EvenOdd", bipolar=1, page = synthesisPageButton}-- VCO 2 WAVE > Osc 2 Even/Odd
+    elseif synthTypes.isDrum then
+      controllerToWidgetMap.CC16 = {name = "Osc1Attack", env=true, page = synthesisPageButton}
+      controllerToWidgetMap.CC17 = {name = "Osc1Decay", env=true, page = synthesisPageButton}
+      controllerToWidgetMap.CC18 = {name = "Osc2Attack", env=true, page = synthesisPageButton}
+      controllerToWidgetMap.CC19 = {name = "Osc2Decay", env=true, page = synthesisPageButton}
+      controllerToWidgetMap.CC34 = {name = "Osc1PitchModRate", page = synthesisPageButton} -- VCO 1 PITCH > Osc 1 Mod Rate
+      controllerToWidgetMap.CC35 = {name = "Osc2PitchModRate", page = synthesisPageButton} -- VCO 2 PITCH > Osc 2 Mod Rate
+      controllerToWidgetMap.CC36 = {name = "Osc1PitchModAmount", bipolar=1, factor=96, page = synthesisPageButton} -- VCO1 SHAPE -> Osc 1 Mod Amt
+      controllerToWidgetMap.CC37 = {name = "Osc2PitchModAmount", bipolar=1, factor=96, page = synthesisPageButton} -- VCO2 SHAPE -> Osc 2 Mod Amt
+      controllerToWidgetMap.CC41 = {name = "Osc1Distortion", page = synthesisPageButton} -- CROSS MOD DEPTH > Osc 1 Distortion
+      controllerToWidgetMap.CC42 = {name = "Osc2Distortion", page = synthesisPageButton}-- PITCH EG INT > Osc 2 Distortion
+    end
+
     local key = "CC" .. e.controller
-    local cc = controllerToWidgetMap[key];
-    
+    local cc = controllerToWidgetMap[key]
+
     if cc then
       if cc.page then
         cc.page:setValue(true)
@@ -6660,10 +6715,20 @@ local function mapMinilogueCC()
         value = 0.3
       end
       if cc.name == "Osc1Wave" or cc.name == "Osc2Wave" then
-        if value == 0 then
-          value = 2
-        elseif value < 1 then
-          value = 3
+        if synthTypes.isDrum then
+          if value == 0 then
+            value = 4
+          elseif value < 1 then
+            value = 2
+          else
+            value = 3
+          end
+        else
+          if value == 0 then
+            value = 2
+          elseif value < 1 then
+            value = 3
+          end
         end
       end
       if cc.name == "Osc1Pitch" then
@@ -6699,7 +6764,10 @@ local function mapMinilogueCC()
       end
       print("Setting value:", value)
       local widget = helpers.getWidget(cc.name)
-      widget.value = value
+      print("Widget type:", type(widget))
+      if type(widget) == "userdata" then
+        widget.value = value
+      end
       return
     end
 
@@ -6707,9 +6775,8 @@ local function mapMinilogueCC()
   end
 end
 
-if synthTypes.isMinilogue then
-  mapMinilogueCC()
-end
+-- TODO Add a button in settings for disabling mapping
+mapMinilogueCC()
 
 --------------------------------------------------------------------------------
 -- Set pages
