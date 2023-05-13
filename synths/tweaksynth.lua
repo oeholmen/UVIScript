@@ -148,10 +148,6 @@ print("Starting TweakSynth!")
 print("Oscillator 1:", synthOscillators[1].type)
 print("Oscillator 2:", synthOscillators[2].type)
 
-if synthTypes.isMinilogue then
-  print("Loading Korg Minilogue Midi CC mappings!")
-end
-
 --------------------------------------------------------------------------------
 -- Name common macros
 --------------------------------------------------------------------------------
@@ -4961,9 +4957,15 @@ local mixerPanel = panelCreators.createMixerPanel()
 -- Tweak Panel
 --------------------------------------------------------------------------------
 
-local tweakButton
-local tweakLevelKnob
-local envStyleMenu
+local twequencerParameters = {
+  liveTweakButton = nil,
+  tweakLevelKnob = nil,
+}
+
+local patchmakerParameters = {
+  tweakButton = nil,
+  tweakLevelKnob = nil,
+}
 
 local function storeNewSnapshot()
   print("Storing patch tweaks...")
@@ -5019,13 +5021,14 @@ panelCreators.createPatchMakerPanel = function()
   tweakPanel.width = width
   tweakPanel.height = 320
 
-  tweakLevelKnob = tweakPanel:Knob("TweakLevel", 50, 0, 100, true)
+  local tweakLevelKnob = tweakPanel:Knob("TweakLevel", 50, 0, 100, true)
   tweakLevelKnob.fillColour = knobColour
   tweakLevelKnob.outlineColour = outlineColour
   tweakLevelKnob.displayName = "Tweak Level"
   tweakLevelKnob.bounds = {70,10,300,150}
+  patchmakerParameters.tweakLevelKnob = tweakLevelKnob
 
-  tweakButton = tweakPanel:Button("Tweak")
+  local tweakButton = tweakPanel:Button("Tweak")
   tweakButton.persistent = false
   tweakButton.alpha = buttonAlpha
   tweakButton.backgroundColourOff = buttonBackgroundColourOff
@@ -5034,6 +5037,7 @@ panelCreators.createPatchMakerPanel = function()
   tweakButton.textColourOn = buttonTextColourOn
   tweakButton.displayName = "Tweak Patch"
   tweakButton.bounds = {width/2,10,345,tweakLevelKnob.height}
+  patchmakerParameters.tweakButton = tweakButton
 
   patchesMenu = tweakPanel:Menu("PatchesMenu")
   patchesMenu.persistent = false
@@ -5147,7 +5151,7 @@ panelCreators.createPatchMakerPanel = function()
   modStyleMenu.y = patchesMenu.y
   modStyleMenu.width = width/6-10
 
-  envStyleMenu = tweakPanel:Menu("EnvStyle", {"Automatic", "Very short", "Short", "Medium short", "Medium", "Medium long", "Long", "Very long"})
+  local envStyleMenu = tweakPanel:Menu("EnvStyle", {"Automatic", "Very short", "Short", "Medium short", "Medium", "Medium long", "Long", "Very long"})
   if synthTypes.isDrum then
     envStyleMenu.selected = 2
   end
@@ -5272,6 +5276,7 @@ panelCreators.createTwequencerPanel = function()
   tweakLevelKnob.width = 120
   tweakLevelKnob.x = 300
   tweakLevelKnob.y = 100
+  twequencerParameters.tweakLevelKnob = tweakLevelKnob
 
   local envStyleMenu = tweqPanel:Menu("SeqEnvStyle", {"Automatic", "Very short", "Short", "Medium short", "Medium", "Medium long", "Long", "Very long"})
   if synthTypes.isDrum then
@@ -5532,6 +5537,7 @@ panelCreators.createTwequencerPanel = function()
   tweakOnOffButton.size = {rightMenuWidth,30}
   tweakOnOffButton.x = 200
   tweakOnOffButton.y = 160
+  twequencerParameters.liveTweakButton = tweakOnOffButton
 
   local tweakDurationOnOffButton = tweqPanel:OnOffButton("TweakDurationOnOff", false)
   tweakDurationOnOffButton.backgroundColourOff = "#ff084486"
@@ -6568,6 +6574,7 @@ local function mapMinilogueCC()
   end
 
   function onController(e)
+    -- TODO Add option for using patchemaker or twequencer when setting tweak level/tweak on/off
     print(e)
     local controllerToWidgetMap = {
       CC16 = {name = "Attack", env=true, page = synthesisPageButton},
@@ -6583,7 +6590,7 @@ local function mapMinilogueCC()
       CC27 = {name = "Drive", page = effectsPageButton}, -- Voice Mode Depth > Drive
       CC29 = {name = "HpfCutoff", page = filterPageButton}, -- HI PASS CUTOFF
       CC30 = {name = "HpfEnvelopeAmt", bipolar = 1, page = filterPageButton}, -- TIME
-      CC31 = {name = "TweakLevel", page = patchmakerPageButton, factor = 100}, -- FEEDBACK > Tweak level
+      CC31 = {name = "TweakLevel", factor = 100}, -- FEEDBACK > Tweak level
       CC33 = {name = "NoiseMix"}, -- NOISE
       CC34 = {name = "Osc1StartPhase", page = synthesisPageButton}, -- VCO 1 PITCH > Start Phase 1
       CC35 = {name = "Osc2FinePitch", page = synthesisPageButton}, -- VCO 2 PITCH > Fine pitch
@@ -6610,6 +6617,14 @@ local function mapMinilogueCC()
       CC84 = {name = "FilterDb", page = filterPageButton}, -- 2/4-POLE
       CC88 = {name = "Tweak"} -- OUTPUT ROUTING > Tweak button
     }
+
+    if isPlaying then
+      controllerToWidgetMap.CC31.page = twequencerPageButton
+      controllerToWidgetMap.CC88.page = twequencerPageButton
+    else
+      controllerToWidgetMap.CC31.page = patchmakerPageButton
+      controllerToWidgetMap.CC88.page = patchmakerPageButton
+    end
 
     if synthTypes.isWavetable then
       controllerToWidgetMap.CC36 = {name = "Osc1WaveIndex", page = synthesisPageButton} -- VCO1 SHAPE -> Osc 1 Wave Index
@@ -6679,15 +6694,24 @@ local function mapMinilogueCC()
         return
       end
       if cc.name == "TweakLevel" then
-        tweakLevelKnob.value = value
+        if isPlaying then
+          twequencerParameters.tweakLevelKnob.value = value
+        else
+          storeNewSnapshot()
+          patchmakerParameters.tweakLevelKnob.value = value
+        end
         return
       end
       if cc.name == "Tweak" then
         if value == 1 then
           helpers.initPatch()
         else
-          storeNewSnapshot()
-          tweakButton:push(true)
+          if isPlaying then
+            twequencerParameters.liveTweakButton:setValue(value == .5)
+          else
+            storeNewSnapshot()
+            patchmakerParameters.tweakButton:push(true)
+          end
         end
         return
       end
