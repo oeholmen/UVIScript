@@ -102,10 +102,10 @@ local function getSourcesForVoice(voice)
   for source,v in ipairs(voiceToSourceMapping[voice]) do
     if gem.getRandomBoolean(v.value) then
       table.insert(sources, source)
-      print("Added source for voice", source, voice)
+      --print("Added source for voice", source, voice)
     end
   end
-  print("Voice #sources", voice, #sources)
+  --print("Voice #sources", voice, #sources)
   return sources
 end
 
@@ -153,7 +153,7 @@ local function play(voice, uniqueId, partDuration)
       local noteDuration = resolutions.getPlayDuration(duration, randomizeGate(gate))
       remainingDuration = duration - noteDuration
       local id = playNote(0, velocity, -1, nil, (voice + channel - 1))
-      print("Play duration/voice/channel", noteDuration, voice, (voice + channel - 1))
+      --print("Play duration/voice/channel", noteDuration, voice, (voice + channel - 1))
       waitBeat(noteDuration)
       releaseVoice(id)
       if type(activeFragment) == "table" then
@@ -166,7 +166,7 @@ local function play(voice, uniqueId, partDuration)
     end
 
     if type(partDuration) == "number" and playDuration == partDuration then
-      print("playDuration == partDuration", playDuration, "voice " .. voice)
+      --print("playDuration == partDuration", playDuration, "voice " .. voice)
       playingVoices[voice] = false -- Break loop
       break
     end
@@ -174,7 +174,7 @@ local function play(voice, uniqueId, partDuration)
     if activeFragment.i > 0 and paramsPerFragment[activeFragment.i].fragmentInputDirty then
       paramsPerFragment[activeFragment.i].fragmentInputDirty = false
       playingVoices[voice] = false -- Restart voice next bar to reload fragment input
-      print("fragmentInputDirty", "voice " .. voice)
+      --print("fragmentInputDirty", "voice " .. voice)
     end
 
     if remainingDuration > 0 then
@@ -195,7 +195,7 @@ local function playVoices(partDuration)
     if playingVoices[voice] == false then
       playingVoices[voice] = true--isNoteActive(voice)
       if playingVoices[voice] then
-        print("Play voice", voice)
+        --print("Play voice", voice)
         playIndex = gem.inc(playIndex)
         playingIndex[voice] = playIndex
         spawn(play, voice, playIndex, partDuration)
@@ -237,7 +237,7 @@ local function sequenceRunner(uniqueId)
   local beatCounter = 1 -- Holds the beat count
   initVoices()
   while isPlaying and seqIndex == uniqueId do
-    print("Playing beat", beatCounter)
+    --print("Playing beat", beatCounter)
     if beatCounter == 1 then
       if partOrderButton.value and #partOrder > 0 then
         if partOrderRepeatCounter == 0 then
@@ -251,7 +251,7 @@ local function sequenceRunner(uniqueId)
           remainingDuration = partDuration
           -- If slot is already selected, deactivate so we can select it again
           if slotIndex > 0 then
-            print("slotIndex", slotIndex, type(fragmentSlots))
+            --print("slotIndex", slotIndex, type(fragmentSlots))
             if fragmentSlots[slotIndex].value == true then
               fragmentSlots[slotIndex]:setValue(false)
             end

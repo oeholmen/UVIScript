@@ -773,22 +773,22 @@ local function quantizeToClosest(beat, quantizeType)
     local currentValue = v
     local nextValue = quantizeResolutions[i+1]
     if beat == currentValue or type(nextValue) == "nil" then
-      print("Found equal, or next is nil", beat, currentValue)
+      --print("Found equal, or next is nil", beat, currentValue)
       return currentValue
     end
     if beat < currentValue and beat > nextValue then
       local diffCurrent = currentValue - beat
       local diffNext = beat - nextValue
       if diffCurrent < diffNext then
-        print("Closest to current", beat, currentValue, nextValue)
+        --print("Closest to current", beat, currentValue, nextValue)
         return currentValue
       else
-        print("Closest to next", beat, nextValue, currentValue)
+        --print("Closest to next", beat, nextValue, currentValue)
         return nextValue
       end
     end
   end
-  print("No resolution found, returning the given beat value", beat)
+  --print("No resolution found, returning the given beat value", beat)
   return beat
 end
 

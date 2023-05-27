@@ -919,22 +919,22 @@ local function quantizeToClosest(beat, quantizeType)
     local currentValue = v
     local nextValue = quantizeResolutions[i+1]
     if beat == currentValue or type(nextValue) == "nil" then
-      print("Found equal, or next is nil", beat, currentValue)
+      --print("Found equal, or next is nil", beat, currentValue)
       return currentValue
     end
     if beat < currentValue and beat > nextValue then
       local diffCurrent = currentValue - beat
       local diffNext = beat - nextValue
       if diffCurrent < diffNext then
-        print("Closest to current", beat, currentValue, nextValue)
+        --print("Closest to current", beat, currentValue, nextValue)
         return currentValue
       else
-        print("Closest to next", beat, nextValue, currentValue)
+        --print("Closest to next", beat, nextValue, currentValue)
         return nextValue
       end
     end
   end
-  print("No resolution found, returning the given beat value", beat)
+  --print("No resolution found, returning the given beat value", beat)
   return beat
 end
 
@@ -1144,17 +1144,6 @@ local function getSelectedResolutions()
     maxTriResolutionIndex = 25, -- Fastest triplet
   }
   return resolutions.getSelectedResolutions(resolutionsByType, options)
-  --[[ local selectedResolutions = getSlowResolutions()
-  for i=1,3 do
-    for _,resolutionIndex in ipairs(resolutionsByType[i]) do
-      -- Limit dotted/tri resolutions above 1/8 dot and 1/16 tri
-      if resolutionIndex > maxResolutionIndex or (i == 2 and resolutionIndex > 18) or (i == 3 and resolutionIndex > 25) then
-        break
-      end
-      table.insert(selectedResolutions, resolutionIndex)
-    end
-  end
-  return selectedResolutions ]]
 end
 
 -- Auto generate fragment
@@ -1339,68 +1328,12 @@ local function getResolutionFromCurrentIndex(currentResolution, adjustBias, dotO
   --local selectedResolutions = getSelectedResolutions()
   local options = {
     adjustBias=adjustBias,
-    selectedResolutions=selectedResolutions,
+    selectedResolutions=getSelectedResolutions(),
     dotOrTriProbaility=dotOrTriProbaility,
     maxDotResolutionIndex = 18, -- Fastest dotted
     maxTriResolutionIndex = 25, -- Fastest triplet
   }
   return resolutions.getResolutionVariation(currentResolution, options)
-  --[[ local currentIndex = gem.getIndexFromValue(currentResolution, resolutions.getResolutions())
-  if type(currentIndex) == "nil" then
-    return
-  end
-
-  -- Include the resolutions that are available
-  local selectedResolutions = getSelectedResolutions()
-
-  --print("BEFORE currentIndex", currentIndex)
-  local resolutionIndex = currentIndex
-  if gem.tableIncludes(resolutionsByType[2], currentIndex) then
-    resolution = resolutions.getEvenFromDotted(resolutions.getResolution(currentIndex))
-    --print("getEvenFromDotted", resolution)
-  elseif gem.tableIncludes(resolutionsByType[3], currentIndex) then
-    resolution = resolutions.getEvenFromTriplet(resolutions.getResolution(currentIndex))
-    --print("getEvenFromTriplet", resolution)
-  elseif gem.tableIncludes(resolutionsByType[1], currentIndex) or gem.tableIncludes(resolutionsByType[4], currentIndex) then
-    resolution = resolutions.getResolution(currentIndex)
-    --print("getEvenOrSlow", resolution)
-  end
-  if type(resolution) == "number" then
-    local doubleOrHalf = gem.getRandomBoolean() -- 50/50 chance for double or half duration
-    -- Double or half duration
-    if doubleOrHalf then
-      if type(adjustBias) == "nil" then
-        adjustBias = 50
-      end
-      local doubleResIndex = gem.getIndexFromValue((resolution * 2), resolutions.getResolutions())
-      if gem.getRandomBoolean(adjustBias) == false and type(doubleResIndex) == "number" and gem.tableIncludes(selectedResolutions, doubleResIndex) then
-        resolution = resolutions.getResolution(doubleResIndex)
-        --print("Slower resolution", resolution)
-      else
-        resolution = resolution / 2
-        --print("Faster resolution", resolution)
-      end
-    end
-    -- Set dotted (or tri) on duration if no change was done to the lenght, or probability hits
-    if doubleOrHalf == false or gem.getRandomBoolean() then
-      if gem.tableIncludes(resolutionsByType[3], currentIndex) then
-        resolution = resolutions.getTriplet(resolution)
-        --print("getTriplet", resolution)
-      else
-        local dottedResIndex = gem.getIndexFromValue(resolutions.getDotted(resolution), resolutions.getResolutions())
-        if type(dottedResIndex) == "number" and gem.tableIncludes(selectedResolutions, dottedResIndex) then
-          resolution = resolutions.getResolution(dottedResIndex)
-          --print("getDotted", resolution)
-        end
-      end
-    end
-  end
-  currentIndex = gem.getIndexFromValue(resolution, resolutions.getResolutions())
-  --print("AFTER currentIndex", currentIndex)
-  if type(currentIndex) == "number" and gem.tableIncludes(selectedResolutions, currentIndex) then
-    --print("Got resolution from the current index")
-    return resolutions.getResolution(currentIndex)
-  end ]]
 end
 
 -- Remove first resolution and append a (new) resolution last in the fragments
@@ -2025,10 +1958,10 @@ local function getSourcesForVoice(voice)
   for source,v in ipairs(voiceToSourceMapping[voice]) do
     if gem.getRandomBoolean(v.value) then
       table.insert(sources, source)
-      print("Added source for voice", source, voice)
+      --print("Added source for voice", source, voice)
     end
   end
-  print("Voice #sources", voice, #sources)
+  --print("Voice #sources", voice, #sources)
   return sources
 end
 
@@ -2076,7 +2009,7 @@ local function play(voice, uniqueId, partDuration)
       local noteDuration = resolutions.getPlayDuration(duration, randomizeGate(gate))
       remainingDuration = duration - noteDuration
       local id = playNote(0, velocity, -1, nil, (voice + channel - 1))
-      print("Play duration/voice/channel", noteDuration, voice, (voice + channel - 1))
+      --print("Play duration/voice/channel", noteDuration, voice, (voice + channel - 1))
       waitBeat(noteDuration)
       releaseVoice(id)
       if type(activeFragment) == "table" then
@@ -2089,7 +2022,7 @@ local function play(voice, uniqueId, partDuration)
     end
 
     if type(partDuration) == "number" and playDuration == partDuration then
-      print("playDuration == partDuration", playDuration, "voice " .. voice)
+      --print("playDuration == partDuration", playDuration, "voice " .. voice)
       playingVoices[voice] = false -- Break loop
       break
     end
@@ -2097,7 +2030,7 @@ local function play(voice, uniqueId, partDuration)
     if activeFragment.i > 0 and paramsPerFragment[activeFragment.i].fragmentInputDirty then
       paramsPerFragment[activeFragment.i].fragmentInputDirty = false
       playingVoices[voice] = false -- Restart voice next bar to reload fragment input
-      print("fragmentInputDirty", "voice " .. voice)
+      --print("fragmentInputDirty", "voice " .. voice)
     end
 
     if remainingDuration > 0 then
@@ -2118,7 +2051,7 @@ local function playVoices(partDuration)
     if playingVoices[voice] == false then
       playingVoices[voice] = true--isNoteActive(voice)
       if playingVoices[voice] then
-        print("Play voice", voice)
+        --print("Play voice", voice)
         playIndex = gem.inc(playIndex)
         playingIndex[voice] = playIndex
         spawn(play, voice, playIndex, partDuration)
@@ -2160,7 +2093,7 @@ local function sequenceRunner(uniqueId)
   local beatCounter = 1 -- Holds the beat count
   initVoices()
   while isPlaying and seqIndex == uniqueId do
-    print("Playing beat", beatCounter)
+    --print("Playing beat", beatCounter)
     if beatCounter == 1 then
       if partOrderButton.value and #partOrder > 0 then
         if partOrderRepeatCounter == 0 then
@@ -2174,7 +2107,7 @@ local function sequenceRunner(uniqueId)
           remainingDuration = partDuration
           -- If slot is already selected, deactivate so we can select it again
           if slotIndex > 0 then
-            print("slotIndex", slotIndex, type(fragmentSlots))
+            --print("slotIndex", slotIndex, type(fragmentSlots))
             if fragmentSlots[slotIndex].value == true then
               fragmentSlots[slotIndex]:setValue(false)
             end
