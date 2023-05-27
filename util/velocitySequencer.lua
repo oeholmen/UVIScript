@@ -3,7 +3,6 @@
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"
---local shapes = require "includes.shapes"
 local widgets = require "includes.widgets"
 local resolutions = require "includes.resolutions"
 
@@ -34,23 +33,6 @@ local resolution = #resolutionNames
 local velocityRandomization = 0
 local sequencerPos = 1
 local channel = 0 -- 0 = Omni
-
---[[ local shapeAmount = 100
-local shapeMenuItems = {"Select preset..."}
-for _,v in ipairs(shapes.getShapeNames()) do
-  table.insert(shapeMenuItems, v)
-end
-
-local loadShape = function(shapeIndex)
-  shapeIndex = shapeIndex - 1
-  if shapeIndex == 0 then
-    return
-  end
-  local values = shapes.get(shapeIndex, sequencerTable, {amount=shapeAmount})
-  for i,v in ipairs(values) do
-    sequencerTable:setValue(i, v)
-  end
-end ]]
 
 setBackgroundColour(backgroundColour)
 
@@ -94,54 +76,28 @@ widgets.menu("Resolution", resolution, resolutionNames, {
   end
 })
 
---[[ local shape = widgets.menu("Start Shape", shapeMenuItems, {
-  tooltip = "Set how the table will look when starting.",
-  width = 120,
-  showLabel = false,
-  changed = function(self)
-    loadShape(self.value)
-  end
-}) ]]
-
---[[ widgets.numBox("Amount", shapeAmount, {
-  tooltip = "Set the shape amount",
-  width = 96,
-  unit = Unit.Percent,
-  changed = function(self)
-    shapeAmount = self.value
-    loadShape(shape.value)
-  end
-}) ]]
-
 widgets.numBox("Randomization", velocityRandomization, {
   tooltip = "Set the velocity randomization amount",
   width = 130,
   unit = Unit.Percent,
   changed = function(self)
     velocityRandomization = self.value
-    --shapeAmount = self.value
-    --loadShape(shape.value)
   end
 })
 
 widgets.numBox("Steps", 8, {
   tooltip = "Set the length of velocity pattern",
-  --width = 78,
   min = 1,
   max = 128,
   integer = true,
   changed = function(self)
     sequencerTable.length = self.value
     positionTable.length = self.value
-    --[[ if shape.value > 1 then
-      loadShape(shape.value)
-    end ]]
   end
 })
 
 widgets.menu("Channel", widgets.channels(), {
   tooltip = "Only adjust the velocity for events sent on this channel",
-  --width = 53,
   showLabel = false,
   changed = function(self) channel = self.value - 1 end
 })
@@ -260,9 +216,21 @@ end
 --------------------------------------------------------------------------------
 
 function onSave()
-  return {sequencerLabel.text}
+  local seqTableData = {}
+
+  for i=1,sequencerTable.length do
+    table.insert(seqTableData, sequencerTable:getValue(i))
+  end
+
+  return {sequencerLabel.text, seqTableData}
 end
 
 function onLoad(data)
   sequencerLabel.text = data[1]
+  local seqTableData = data[2]
+
+  sequencerTable.length = #seqTableData
+  for i,v in ipairs(seqTableData) do
+    sequencerTable:setValue(i, v)
+  end
 end
