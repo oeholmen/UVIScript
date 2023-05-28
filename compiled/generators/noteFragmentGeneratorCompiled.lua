@@ -1719,7 +1719,7 @@ local rythmicFragments = {
 
 local voices = 1
 local isPlaying = {}
-local notesPlaying = {} -- Keep track of playing notes to avoid dupicates
+local notesPlaying = {} -- Keep track of playing notes to avoid duplicates
 
 local backgroundColour = "595959" -- Light or Dark
 local widgetBackgroundColour = "01011F" -- Dark

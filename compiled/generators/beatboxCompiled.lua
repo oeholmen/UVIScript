@@ -1646,6 +1646,7 @@ local templates = {
   "BeatBox Anthology 2",
   "Drum Designer",
   "Drumulation",
+  "Percussion Factory",
   "Prime 8",
   "Program 24",
   "Soul Drums",
@@ -1730,6 +1731,11 @@ templateMenu.changed = function(self)
     elseif self.selectedText == "Drumulation" then
       noteMap = {36,38,42,39,43,46,37,41}
       noteLabels = {"Kick", "Snare", "Hihat", "Clap", "Low Tom", "Open HH", "Rimshot", "Cowbell"}
+      v.noteInput.value = noteMap[part]
+      v.noteInputLabel.text = noteLabels[part]
+    elseif self.selectedText == "Percussion Factory" then
+      noteMap = {24,26,28,29,31,33,35,36}
+      noteLabels = {"Perc 1", "Perc 2", "Perc 3", "Perc 4", "Perc 5", "Perc 6", "Perc 7", "Perc 8"}
       v.noteInput.value = noteMap[part]
       v.noteInputLabel.text = noteLabels[part]
     elseif self.selectedText == "Prime 8" then

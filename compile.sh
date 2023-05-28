@@ -20,6 +20,7 @@ luaScripts=(
   modular/horizontalMotionSequencerInput
   modular/lifeTrigger
   modular/motionSequencerInput
+  modular/noteSelectInput
   modular/probabilityTrigger
   modular/pulseTrigger
   modular/randomNoteInput
