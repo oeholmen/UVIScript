@@ -230,6 +230,13 @@ for i=1,numNotes do
     y = widgets.posUnder(noteProbability) + 5,
     x = noteProbability.x,
     width = (noteProbability.width / 2) - 2,
+    changed = function(self)
+      if self.value then
+        noteListen = i
+      else
+        noteListen = nil
+      end
+    end  
   })
 
   local mute = widgets.button("Mute", false, {
@@ -249,6 +256,10 @@ end
 --------------------------------------------------------------------------------
 
 function onNote(e)
+  if type(noteListen) == "number" then
+    paramsPerNote[noteListen].noteInput:setValue(e.note)
+    paramsPerNote[noteListen].listen:setValue(false)
+  end
   if modular.isTrigger(e) then
     local noteIndex, note = getNote()
     if modular.handleTrigger(e, note) then
