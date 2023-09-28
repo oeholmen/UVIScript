@@ -90,8 +90,15 @@ end
 -- Handle Events
 --------------------------------------------------------------------------------
 
+local function flashLabel(i)
+  local flashDuration = 250
+  routers[i].label.textColour = "yellow"
+  wait(flashDuration)
+  routers[i].label.textColour = "865DFF"
+end
+
 function onController(e)
-  for _,v in ipairs(routers) do
+  for i,v in ipairs(routers) do
     if e.controller == v.controllerIn.value then
       local channelIn = v.channelIn.value - 1
       local channelOut = v.channelOut.value - 1
@@ -102,6 +109,7 @@ function onController(e)
       print("Routing from controller to controller", e.controller, v.controllerOut.value)
       e.controller = v.controllerOut.value
       v.value:setValue(e.value, false)
+      spawn(flashLabel, i)
       break
     end
   end
