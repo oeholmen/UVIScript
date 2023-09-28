@@ -1448,7 +1448,7 @@ local function loadShape(shapeIndex)
     shapeIndex = gem.getRandom(#shapeNames)
     shapeMenu:setValue(shapeIndex + 1, false) 
   end
-  print("--- NEW SHAPE ---", shapeIndex)
+  --print("--- NEW SHAPE ---", shapeIndex)
   clearCells() -- Deactivate all cells
   local values = shapes.get(shapeIndex, {min=1,max=rows,length=cols})
   for col = 1, cols do
@@ -1475,7 +1475,7 @@ local function updateBoard()
   local newGeneration = {}
   liveCells = 0 -- Clear live cells
 
-  print("--- NEXT GENERATION! ---")
+  --print("--- NEXT GENERATION! ---")
 
   -- Iterate through each cell on the board
   for i = 1, rows do
@@ -1575,11 +1575,11 @@ local function getCell()
 
   if type(cell) == "nil" then
     locked = false
-    print("No cell")
+    --print("No cell")
     return
   end
 
-  print("Found cell.value @ currentRowIndex, currentColIndex", cell.value, currentRowIndex, currentColIndex)
+  --print("Found cell.value @ currentRowIndex, currentColIndex", cell.value, currentRowIndex, currentColIndex)
 
   currentColIndex = gem.inc(currentColIndex)
 
@@ -1632,10 +1632,10 @@ local function seq(uniqueId)
       local duration = tonumber(cell.tooltip)
       if cell.value then
         playNote(note, velocity, beat2ms(resolutions.getPlayDuration(duration, gate)), nil, channel)
-        print("playNote", duration)
+        --print("playNote", duration)
       end
       if cell.value or (cell.value == false and dead) then
-        print("waitBeat", duration)
+        --print("waitBeat", duration)
         waitBeat(duration)
       end
     end

@@ -74,7 +74,7 @@ local function getChannelWidget(options)
   if type(options) == "nil" then
     options = {}
   end
-  options.tooltip = gem.getValueOrDefault(options.tooltip, "Listen to triggers (note=0 events) on this channel - if a note event is not being listened to, it will be pass through")
+  options.tooltip = gem.getValueOrDefault(options.tooltip, "Listen to triggers (note=0 events) on this channel - if a note event is not being listened to, it will pass through")
   options.showLabel = gem.getValueOrDefault(options.showLabel, false)
   options.changed = gem.getValueOrDefault(options.changed, function(self)
     listenOnChannel = self.value - 1

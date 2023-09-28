@@ -1,4 +1,4 @@
--- modular/noteSelectInput -- 
+-- util/midiControlRouter -- 
 --------------------------------------------------------------------------------
 -- Common methods
 --------------------------------------------------------------------------------
@@ -595,655 +595,128 @@ local widgets = {
   end,
 }
 
---------------------------------------------------------------------------------
--- Common functions for working with event processor that act as modular inputs
---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+-- The midi control router, routes incoming midi cc to the selected midi channel
+---------------------------------------------------------------------------------
 
-local activeVoices = {}
-local listenOnChannel = 0 -- 0 = Omni
-local forwardModularEvents = false
+local numRouters = 1 -- Number of routers
+local panelHeight = 50 -- Height of each router panel
+local channels = widgets.channels()
 
-local function isNoteInActiveVoices(note)
-  for _,v in ipairs(activeVoices) do
-    if v.note == note then
-      return true
-    end
-  end
-  return false
-end
+widgets.panel({
+  width = 720,
+  height = panelHeight * numRouters
+})
 
-local function isTrigger(e)
-  local isListeningForEvent = listenOnChannel == 0 or listenOnChannel == e.channel
-  local isTrigger = e.note == 0 -- Note 0 is used as trigger
-  --print("isTrigger and isListeningForEvent, channel, e.channel", isTrigger, isListeningForEvent, listenOnChannel, e.channel)
-  if isTrigger and isListeningForEvent and forwardModularEvents then
-    postEvent(e)
-  end
-  return isTrigger and isListeningForEvent
-end
+local y = 18
+local routers = {}
+for i=1,numRouters do
+  widgets.setSection({
+    width = 96,
+    x = 15,
+    y = y,
+    xSpacing = 5,
+    ySpacing = 5,
+  })
 
-local function handleTrigger(e, note, data)
-  --print("handleTrigger, note, isNoteInActiveVoices(note)", note, isNoteInActiveVoices(note))
-  if type(note) == "number" and isNoteInActiveVoices(note) == false then
-    local id = playNote(note, e.velocity, -1, nil, e.channel)
-    table.insert(activeVoices, {id=id,note=note,channel=e.channel,data=data})
-    return true
-  end
-  return false
-end
+  y = y + 24 -- Increment y pos
 
-local function handleReleaseTrigger(e)
-  local keep = {} -- The notes to keep
-  for i,v in ipairs(activeVoices) do
-    if v.channel == e.channel then
-      -- Release all voices on this channel
-      releaseVoice(v.id)
-    else
-      -- Keep the voice
-      table.insert(keep, v)
-    end
-  end
-  local hasReleased = #activeVoices > #keep
-  activeVoices = keep -- Update active voices
-  return hasReleased
-end
-
-local function releaseActiveVoicesInModular()
-  for i,v in ipairs(activeVoices) do
-    releaseVoice(v.id)
-  end
-  activeVoices = {}
-end
-
-local function getForwardWidget(options)
-  if type(options) == "nil" then
-    options = {}
-  end
-  options.tooltip = gem.getValueOrDefault(options.tooltip, "Forward triggers (note=0 events) to the next processor")
-  options.changed = gem.getValueOrDefault(options.changed, function(self) forwardModularEvents = self.value end)
-  return widgets.button("Forward", forwardModularEvents, options)
-end
-
-local function getChannelWidget(options)
-  if type(options) == "nil" then
-    options = {}
-  end
-  options.tooltip = gem.getValueOrDefault(options.tooltip, "Listen to triggers (note=0 events) on this channel - if a note event is not being listened to, it will pass through")
-  options.showLabel = gem.getValueOrDefault(options.showLabel, false)
-  options.changed = gem.getValueOrDefault(options.changed, function(self)
-    listenOnChannel = self.value - 1
-    releaseActiveVoicesInModular()
-  end)
-
-  return widgets.menu("Channel", widgets.channels(), options)
-end
-
-local modular = {
-  isTrigger = isTrigger,
-  handleTrigger = handleTrigger,
-  handleReleaseTrigger = handleReleaseTrigger,
-  releaseVoices = releaseActiveVoicesInModular,
-  getChannelWidget = getChannelWidget,
-  getForwardWidget = getForwardWidget,
-  setChannel = function(c) listenOnChannel = c end,
-  getChannel = function() return listenOnChannel end,
-  setForward = function(f) forwardModularEvents = f end,
-  getForward = function() return forwardModularEvents end,
-  getNumVoices = function() return #activeVoices end,
-  getActiveVoices = function() return activeVoices end,
-}
-
---------------------------------------------------------------------------------
--- Common Scales
---------------------------------------------------------------------------------
-
--- Make sure these are in sync with the scale names
--- Scales are defined by distance to the next step
-local scaleDefinitions = {
-  {def={2,2,1,2,2,2,1},name="7 Notes/Major (Ionian)",},
-  {def={2,1,2,2,1,2,2},name="7 Notes/Minor (Aeolian)",},
-  {def={2,1,2,2,2,1,2},name="7 Notes/Dorian",},
-  {def={1,2,2,2,1,2,2},name="7 Notes/Phrygian",},
-  {def={2,2,2,1,2,2,1},name="7 Notes/Lydian",},
-  {def={2,2,1,2,2,1,2},name="7 Notes/Mixolydian",},
-  {def={1,2,2,1,2,2,2},name="7 Notes/Locrian",},
-  {def={2,2,2,1,2,1,2},name="7 Notes/Acoustic",},
-  {def={2,1,2,1,1,3,2},name="7 Notes/Blues",},
-  {def={1,2,1,3,1,2,2},name="7 Notes/Alterated",},
-  {def={2,1,3,1,1,3,1},name="7 Notes/Maqam Saba",},
-  {def={1,3,1,2,3,1,1},name="7 Notes/Persian",},
-  {def={1,3,1,2,1,3,1},name="7 Notes/Arabic",},
-  {def={2,1,3,1,1,2,2},name="7 Notes/Hungarian",},
-  {def={2,2,3,2,3},name="5 Notes/Major Pentatonic",},
-  {def={3,2,2,3,2},name="5 Notes/Minor Pentatonic",},
-  {def={1,4,1,4,2},name="5 Notes/Hirajoshi",},
-  {def={1,4,2,1,4},name="5 Notes/Miyako-Bushi",},
-  {def={1,4,3,2,2},name="5 Notes/Iwato",},
-  {def={2,2,1,2,2},name="5 Notes/Ritsu",},
-  {def={2,1,4,2,1},name="5 Notes/Kumoi",},
-  {def={1,3,1,2,3},name="5 Notes/Maqam Hijaz",},
-  {def={2,1,4,1,2},name="5 Notes/Maqam Bayati",},
-  {def={3},name="Diminished",},
-  {def={2},name="Whole tone",},
-  {def={1},name="Chomatic",},
-}
-
-local function getScaleNames()
-  local items = {}
-  for _,s in ipairs(scaleDefinitions) do
-    table.insert(items, s.name)
-  end
-  return items
-end
-
-local function getScaleDefinitions()
-  local items = {}
-  for _,s in ipairs(scaleDefinitions) do
-    table.insert(items, s.def)
-  end
-  return items
-end
-
-local function getTextFromScaleDefinition(scaleDefinition)
-  if type(scaleDefinition) == nil or #scaleDefinition == 0 then
-    return ""
-  end
-  return table.concat(scaleDefinition, ",")
-end
-
-local function createRandomScale(resolve, probability)
-  if type(resolve) == "nil" then
-    resolve = 12 -- The sum of the definition should resolve to this
-  end
-  if type(probability) == "nil" then
-    probability = 50 -- Probability that the selected interval is 1 or 2
-  end
-  local sum = 0 -- Current scale definion sum
-  local maxSum = 24
-  local intervals1 = {1,2}
-  local intervals2 = {1,2,3,4}
-  local scaleDefinition = {}
-  repeat
-    local interval = 1
-    if gem.getRandomBoolean(probability) then
-      interval = gem.getRandomFromTable(intervals1)
-    else
-      interval = gem.getRandomFromTable(intervals2)
-    end
-    table.insert(scaleDefinition, interval)
-    sum = gem.inc(sum, interval)
-  until #scaleDefinition > 3 and (resolve % sum == 0 or maxSum % sum == 0 or sum >= maxSum)
-  return scaleDefinition
-end
-
-local function getScaleDefinitionFromText(scaleText)
-  local scale = {}
-  if string.len(scaleText) > 0 then
-    for w in string.gmatch(scaleText, "%d+") do
-      local stepIncrement = tonumber(w)
-      if stepIncrement > 0 then
-        table.insert(scale, stepIncrement)
-      end
-    end
-    print("Get scale from input", #scale)
-  end
-  return scale
-end
-
-local function getScaleDefinitionIndex(scaleDefinition)
-  -- Check if we find a scale definition that matches the given definition
-  if type(scaleDefinition) == "table" then
-    scaleDefinition = getTextFromScaleDefinition(scaleDefinition)
-  end
-  for i,v in ipairs(scaleDefinitions) do
-    if scaleDefinition == getTextFromScaleDefinition(v.def) then
-      print("getScaleDefinitionIndex: found scale", v.name)
-      return i
-    end
-  end
-end
-
-local function getScaleInputTooltip(scaleDefinition)
-  local sum = gem.sum(scaleDefinition)
-  local tooltip = "Scales are defined by setting semitones up from the previous note. The current scale has " .. #scaleDefinition .. " notes and the definition sum is " .. sum
-  if 12 % sum == 0 then
-    tooltip = tooltip .. ", whitch resolves every octave."
-  else
-    tooltip = tooltip .. ", whitch does not resolve every octave."
-  end
-  return tooltip
-end
-
-local function getScaleWidget(options, i)
-  -- Scale widget
-  if type(options) == "nil" then
-    options = {}
-  end
-  if type(i) == "nil" then
-    i = ""
-  end
-  options.name = gem.getValueOrDefault(options.name, "Scale" .. i)
-  options.tooltip = gem.getValueOrDefault(options.tooltip, "Select a scale")
-  options.hierarchical = true
-  options.showLabel = gem.getValueOrDefault(options.showLabel, true)
-  return widgets.menu("Scale", #scaleDefinitions, getScaleNames(), options)
-end
-
-local function getScaleInputWidget(scaleDefinition, width, i)
-  -- Scale input widget
-  if type(i) == "nil" then
-    i = ""
-  end
-  local options = {
-    name = "ScaleInput" .. i,
-    tooltip = getScaleInputTooltip(scaleDefinition),
-    editable = true,
-    backgroundColour = "black",
+  local label = widgets.label("Router " .. i, {
+    name = "router" .. i,
+    tooltip = "Edit to set a label for this router.",
+    width = 180,
+    alpha = 0.75,
+    fontSize = 24,
+    backgroundColour = "transparent",
     backgroundColourWhenEditing = "white",
     textColourWhenEditing = "black",
-    textColour = "white",
-  }
-  if type(width) == "number" then
-    options.width = width
-  end
-  return widgets.label(getTextFromScaleDefinition(scaleDefinition), options)
-end
-
-local function handleScaleInputChanged(self, scaleMenu)
-  print("scaleInput.changed", self.text)
-  local scaleDefinition = getScaleDefinitionFromText(self.text)
-  if #scaleDefinition == 0 then
-    -- Ensure we have a scale...
-    print("No scale def. Using default scale.")
-    scaleDefinition = scaleDefinitions[#scaleDefinitions]
-    scaleMenu:setValue(#scaleDefinitions)
-    return handleScaleInputChanged(self, scaleMenu)
-  end
-  self.tooltip = getScaleInputTooltip(scaleDefinition)
-  return scaleDefinition
-end
-
-local scales = {
-  widget = getScaleWidget,
-  inputWidget = getScaleInputWidget,
-  getScaleInputTooltip = getScaleInputTooltip,
-  getScaleDefinitionIndex = getScaleDefinitionIndex,
-  handleScaleInputChanged = handleScaleInputChanged,
-  getTextFromScaleDefinition = getTextFromScaleDefinition,
-  getScaleDefinitionFromText = getScaleDefinitionFromText,
-  getScaleDefinitions = getScaleDefinitions,
-  getScaleNames = getScaleNames,
-  createRandomScale = createRandomScale,
-  createScale = function(scaleDefinition, rootNote, maxNote)
-    if type(maxNote) ~= "number" then
-      maxNote = 127
-    end
-    while rootNote < 0 do
-      rootNote = rootNote + 12
-      print("Transpose root note up to within range", rootNote)
-    end
-    while maxNote > 127 do
-      maxNote = maxNote - 12
-      print("Transpose max note down to within range", maxNote)
-    end
-    local scale = {}
-    -- Find notes for scale
-    local pos = 1
-    while rootNote <= maxNote do
-      table.insert(scale, rootNote)
-      rootNote = rootNote + scaleDefinition[pos]
-      pos = pos + 1
-      if pos > #scaleDefinition then
-        pos = 1
-      end
-    end
-    return scale
-  end
-}
-
---------------------------------------------------------------------------------
--- Common functions for notes
---------------------------------------------------------------------------------
-
-local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
-
-local notes = {
-  getNoteNames = function()
-    return notenames
-  end,
-
-  getOctave = function(noteNumber)
-    return math.floor(noteNumber / 12) - 2
-  end,
-
-  -- Used for mapping - does not include octave, only name of note (C, C#...)
-  getNoteMapping = function()
-    local noteNumberToNoteName = {}
-    local notenamePos = 1
-    for i=0,127 do
-      table.insert(noteNumberToNoteName, notenames[notenamePos])
-      notenamePos = notenamePos + 1
-      if notenamePos > #notenames then
-        notenamePos = 1
-      end
-    end
-    return noteNumberToNoteName
-  end,
-
-  transpose = function(note, min, max)
-    --print("Check transpose", note)
-    if note < min then
-      print("note < min", note, min)
-      while note < min do
-        note = note + 12
-        print("transpose note up", note)
-      end
-    elseif note > max then
-      print("note > max", note, max)
-      while note > max do
-        note = note - 12
-        print("transpose note down", note)
-      end
-    end
-    -- Ensure note is inside given min/max values
-    note = math.max(min, math.min(max, note))
-    -- Ensure note is inside valid values
-    return math.max(0, math.min(127, note))
-  end,
-
-  getSemitonesBetweenNotes = function(note1, note2)
-    return math.max(note1, note2) - math.min(note1, note1)
-  end,
-
-  getNoteAccordingToScale = function(scale, noteToPlay)
-    for _,note in ipairs(scale) do
-      if note == noteToPlay then
-        return noteToPlay
-      elseif note > noteToPlay then
-        print("Change from noteToPlay to note", noteToPlay, note)
-        return note
-      end
-    end
-    return noteToPlay
-  end,
-}
-
------------------------------------------------------------------------------------------------------------------
--- Note Select Input - Replaces note 0 in incoming note events with a random note from the selected notes
------------------------------------------------------------------------------------------------------------------
-
-local sequencerPanel = widgets.panel({
-  width = 720,
-  height = 30,
-})
-
-widgets.label("Note Select Input", {
-  tooltip = "This sequencer listens to incoming pulses from a rythmic sequencer (Sent as note 0) and generates notes in response",
-  width = sequencerPanel.width,
-  height = 30,
-  alpha = 0.5,
-  fontSize = 22,
-})
-
-widgets.setSection({
-  width = 90,
-  x = 530,
-  y = 5,
-  xSpacing = 5,
-  ySpacing = 5,
-})
-
-modular.getForwardWidget()
-modular.getChannelWidget()
-
---------------------------------------------------------------------------------
--- Notes
---------------------------------------------------------------------------------
-
-local octaveOffset
-local notesPlaying = {} -- Keep track of playing notes to avoid duplicates
-local noteNames = notes.getNoteNames()
-local scaleNames = scales.getScaleNames()
-local scaleDefinitions = scales.getScaleDefinitions()
-local noteListen = nil
-local paramsPerNote = {}
-local numNotes = 8
-
-local function getScale(scaleIndex, keyIndex)
-  local octave = octaveOffset.value + 2 -- Set the start octave for the scale
-  --print("getScale: octave", octave)
-  local scaleDefinition = scaleDefinitions[scaleIndex]
-  local rootNote = (keyIndex - 1) + (octave * 12) -- Root note
-  --print("getScale: rootNote", rootNote)
-  return scales.createScale(scaleDefinition, rootNote)
-end
-
-local function setScale(scaleIndex, keyIndex)
-  local scale = getScale(scaleIndex, keyIndex)
-  for i,v in ipairs(paramsPerNote) do
-    if type(scale[i]) ~= "number" then
-      break
-    end
-    v.noteInput:setValue(scale[i])
-  end
-end
-
-local function flashNoteLabel(voice)
-  local flashDuration = .125
-  local textColour = widgets.getColours().widgetTextColour
-  paramsPerNote[voice].noteInput.textColour = "efefef"
-  waitBeat(flashDuration)
-  paramsPerNote[voice].noteInput.textColour = textColour
-end
-
-local function doSelectNote(voice)
-  return paramsPerNote[voice].mute.value == false and gem.getRandomBoolean(paramsPerNote[voice].noteProbability.value)
-end
-
-local function getNote()
-  local selectedNotes = {}
-  for i=1,numNotes do
-    if doSelectNote(i) then
-      table.insert(selectedNotes, i)
-    end
-  end
-
-  if #selectedNotes == 0 then
-    return nil
-  end
-
-  local note = nil
-  local noteIndex = nil
-  local maxRounds = 100
-  repeat
-    noteIndex = gem.getRandomFromTable(selectedNotes)
-    note = paramsPerNote[noteIndex].noteInput.value
-    maxRounds = maxRounds - 1
-  until gem.tableIncludes(notesPlaying, selectedNotes[noteIndex]) == false or maxRounds < 1
-  return noteIndex, note
-end
-
-widgets.setSection({
-  x = 0,
-  y = 0,
-  xSpacing = 0,
-  ySpacing = 0,
-})
-
-local notePanel = widgets.panel({
-  x = sequencerPanel.x,
-  y = widgets.posUnder(sequencerPanel),
-  width = sequencerPanel.width,
-  height = 110,
-})
-
-local noteLabel = widgets.label("Notes", {
-  tooltip = "Set the probability that notes will be included when generating new notes",
-  alpha = 0.75,
-  width = sequencerPanel.width,
-  height = 22,
-})
-
-widgets.setSection({
-  x = 339,
-  y = 1,
-  xSpacing = 5,
-  ySpacing = 0,
-})
-
-local generateKey = widgets.menu("GenerateKey", noteNames, {
-  tooltip = "Set selected notes from key",
-  showLabel = false,
-})
-
-local generateScale = widgets.menu("GenerateScale", #scaleNames, scaleNames, {
-  tooltip = "Set selected notes from scale",
-  hierarchical = true,
-  showLabel = false,
-})
-
-octaveOffset = widgets.numBox("Octave", 2, {
-  tooltip = "Set the octave to start from",
-  min = -2,
-  max = 6,
-  integer = true,
-})
-
-local templates = {
-  "Tools...",
-  "Mute all",
-  "Unmute all",
-  "Toggle mute",
-  "Set all note probabilities to 100%",
-  "Set all note probabilities to 0%",
-  "Randomize note probabilities",
-  "Randomize notes",
-}
-
-local templateMenu = widgets.menu("Templates", templates, {
-  tooltip = "Select a tool - NOTE: Will change current settings!",
-  showLabel = false,
-  changed = function(self)
-    if self.value == 1 then
-      return
-    end
-    for part,v in ipairs(paramsPerNote) do
-      if self.selectedText == "Mute all" then
-        v.mute:setValue(true)
-      elseif self.selectedText == "Unmute all" then
-        v.mute:setValue(false)
-      elseif self.selectedText == "Toggle mute" then
-        v.mute:setValue(v.mute.value == false)
-      elseif self.selectedText == "Set all note probabilities to 100%" then
-        v.noteProbability:setValue(100)
-      elseif self.selectedText == "Set all note probabilities to 0%" then
-        v.noteProbability:setValue(0)
-      elseif self.selectedText == "Randomize note probabilities" then
-        v.noteProbability:setValue(gem.getRandom(100))
-      elseif self.selectedText == "Randomize notes" then
-        v.noteInput:setValue(gem.getRandom(21, 108))
-      end
-    end
-    -- Must be last
-    self:setValue(1, false)
-  end
-})
-
-generateKey.changed = function(self)
-  setScale(generateScale.value, self.value)
-end
-
-generateScale.changed = function(self)
-  setScale(self.value, generateKey.value)
-end
-
-octaveOffset.changed = function(self)
-  setScale(generateScale.value, generateKey.value)
-end
-
-local offsetX = 5
-for i=1,numNotes do
-  widgets.setSection({
-    width = 80,
-    x = offsetX + (90 * (i-1)),
-    y = 30,
-    xSpacing = 5,
-    ySpacing = 0,
-  })  
-  
-  local noteInput = widgets.numBox("Note", (47+i), {
-    name = "TriggerNote" .. i,
-    tooltip = "The note to trigger",
-    showLabel = false,
-    unit = Unit.MidiKey,
+    textColour = "865DFF",
+    editable = true
   })
 
-  local noteProbability = widgets.numBox("Probability", 100, {
-    name = "NoteProbability" .. i,
-    tooltip = "Probability that note will be played",
-    unit = Unit.Percent,
+  local channelIn = widgets.menu("Channel In", channels, {
+    name = "inchannel" .. i,
+    tooltip = "Midi in",
     showLabel = false,
-    y = widgets.posUnder(noteInput) + 5,
-    x = noteInput.x,
+    --changed = function(self) listenOnChannel = self.value - 1 end
   })
 
-  local listen = widgets.button("Learn", false, {
-    name = "Learn" .. i,
-    tooltip = "Note learn",
-    persistent = false,
-    y = widgets.posUnder(noteProbability) + 5,
-    x = noteProbability.x,
-    width = (noteProbability.width / 2) - 2,
+  local channelOut = widgets.menu("Channel Out", channels, {
+    name = "outchannel" .. i,
+    tooltip = "Midi out",
+    showLabel = false,
+    --changed = function(self) channel = self.value - 1 end
+  })
+
+  local controllerIn = widgets.numBox('CC In', 101 + i, {
+    name = "incc" .. i,
+    tooltip = "The midi control number to listen on",
+    min = 0,
+    max = 127,
+    integer = true,
+    --changed = function(self) listenOnCc = self.value end
+  })
+
+  local controllerOut = widgets.numBox('CC Out', 101 + i, {
+    name = "outcc" .. i,
+    tooltip = "The midi control number to route to",
+    min = 0,
+    max = 127,
+    integer = true,
+    --changed = function(self) cc = self.value end
+  })
+
+  local value = widgets.numBox('Value', 0, {
+    name = "value" .. i,
+    tooltip = "Shows the current value. You can send cc to the selected channel and control number by changing this value manually.",
+    min = 0,
+    max = 127,
+    integer = true,
     changed = function(self)
-      if self.value then
-        noteListen = i
-      else
-        noteListen = nil
-      end
-    end  
+      controlChange(controllerOut.value, self.value, (channelOut.value-1))
+    end
   })
 
-  local mute = widgets.button("Mute", false, {
-    name = "Mute" .. i,
-    tooltip = "Mute note",
-    persistent = false,
-    y = listen.y,
-    x = widgets.posSide(listen),
-    width = listen.width,
-  })
-
-  table.insert(paramsPerNote, {noteInput=noteInput, noteProbability=noteProbability, listen=listen, mute=mute})
+  table.insert(routers, {label=label,channelIn=channelIn,channelOut=channelOut,controllerIn=controllerIn,controllerOut=controllerOut,value=value})
 end
 
 --------------------------------------------------------------------------------
 -- Handle Events
 --------------------------------------------------------------------------------
 
-function onNote(e)
-  if type(noteListen) == "number" then
-    paramsPerNote[noteListen].noteInput:setValue(e.note)
-    paramsPerNote[noteListen].listen:setValue(false)
-  end
-  if modular.isTrigger(e) then
-    local noteIndex, note = getNote()
-    if modular.handleTrigger(e, note) then
-      spawn(flashNoteLabel, noteIndex)
+function onController(e)
+  for _,v in ipairs(routers) do
+    if e.controller == v.controllerIn.value then
+      local channelIn = v.channelIn.value - 1
+      local channelOut = v.channelOut.value - 1
+      if (channelIn == 0 or channelIn == e.channel) and e.channel ~= channelOut and channelIn ~= channelOut then
+        print("Routing from channel to channel", e.channel, channelOut)
+        e.channel = channel
+      end
+      print("Routing from controller to controller", e.controller, v.controllerOut.value)
+      e.controller = v.controllerOut.value
+      v.value:setValue(e.value, false)
+      break
     end
-  else
-    postEvent(e)
   end
+  postEvent(e)
 end
 
-function onRelease(e)
-  if modular.isTrigger(e) then
-    modular.handleReleaseTrigger(e)
-  else
-    postEvent(e)
+--------------------------------------------------------------------------------
+-- Save / Load
+--------------------------------------------------------------------------------
+
+function onSave()
+  local labelData = {}
+  for _,v in ipairs(routers) do
+    table.insert(labelData, v.label.text)
   end
+  return {labelData}
 end
 
-function onTransport(start)
-  if start == false then
-    modular.releaseVoices()
+function onLoad(data)
+  local labelData = data[1]
+  for i,v in ipairs(routers) do
+    v.label.text = labelData[i]
   end
 end
