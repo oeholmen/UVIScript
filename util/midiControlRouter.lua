@@ -18,7 +18,7 @@ local y = 18
 local routers = {}
 for i=1,numRouters do
   widgets.setSection({
-    width = 96,
+    width = 90,
     x = 15,
     y = y,
     xSpacing = 5,
@@ -30,7 +30,7 @@ for i=1,numRouters do
   local label = widgets.label("Router " .. i, {
     name = "router" .. i,
     tooltip = "Edit to set a label for this router.",
-    width = 180,
+    width = 240,
     alpha = 0.75,
     fontSize = 24,
     backgroundColour = "transparent",
@@ -44,14 +44,14 @@ for i=1,numRouters do
     name = "inchannel" .. i,
     tooltip = "Midi in",
     showLabel = false,
-    --changed = function(self) listenOnChannel = self.value - 1 end
+    width = 75,
   })
 
   local channelOut = widgets.menu("Channel Out", channels, {
     name = "outchannel" .. i,
     tooltip = "Midi out",
     showLabel = false,
-    --changed = function(self) channel = self.value - 1 end
+    width = 75,
   })
 
   local controllerIn = widgets.numBox('CC In', 101 + i, {
@@ -60,7 +60,6 @@ for i=1,numRouters do
     min = 0,
     max = 127,
     integer = true,
-    --changed = function(self) listenOnCc = self.value end
   })
 
   local controllerOut = widgets.numBox('CC Out', 101 + i, {
@@ -69,7 +68,6 @@ for i=1,numRouters do
     min = 0,
     max = 127,
     integer = true,
-    --changed = function(self) cc = self.value end
   })
 
   local value = widgets.numBox('Value', 0, {
@@ -99,10 +97,11 @@ end
 
 function onController(e)
   for i,v in ipairs(routers) do
-    if e.controller == v.controllerIn.value then
-      local channelIn = v.channelIn.value - 1
-      local channelOut = v.channelOut.value - 1
-      if (channelIn == 0 or channelIn == e.channel) and e.channel ~= channelOut and channelIn ~= channelOut then
+    local channelIn = v.channelIn.value - 1
+    local channelOut = v.channelOut.value - 1
+    local isListenChannel = channelIn == 0 or channelIn == e.channel
+    if e.controller == v.controllerIn.value and isListenChannel then
+      if isListenChannel and e.channel ~= channelOut and channelIn ~= channelOut then
         print("Routing from channel to channel", e.channel, channelOut)
         e.channel = channel
       end
