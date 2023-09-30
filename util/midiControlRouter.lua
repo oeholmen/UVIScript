@@ -19,6 +19,7 @@ local routers = {}
 for i=1,numRouters do
   widgets.setSection({
     width = 90,
+    cols = 8,
     x = 15,
     y = y,
     xSpacing = 5,
@@ -28,9 +29,9 @@ for i=1,numRouters do
   y = y + 24 -- Increment y pos
 
   local label = widgets.label("Router " .. i, {
-    name = "router" .. i,
+    --name = "router" .. i,
     tooltip = "Edit to set a label for this router.",
-    width = 240,
+    width = 220,
     alpha = 0.75,
     fontSize = 24,
     backgroundColour = "transparent",
@@ -41,7 +42,7 @@ for i=1,numRouters do
   })
 
   local channelIn = widgets.menu("Channel In", channels, {
-    name = "inchannel" .. i,
+    --name = "inchannel" .. i,
     tooltip = "Midi in",
     showLabel = false,
     width = 75,
@@ -55,7 +56,7 @@ for i=1,numRouters do
   })
 
   local controllerIn = widgets.numBox('CC In', 101 + i, {
-    name = "incc" .. i,
+    --name = "incc" .. i,
     tooltip = "The midi control number to listen on",
     min = 0,
     max = 127,
@@ -63,7 +64,7 @@ for i=1,numRouters do
   })
 
   local controllerOut = widgets.numBox('CC Out', 101 + i, {
-    name = "outcc" .. i,
+    --name = "outcc" .. i,
     tooltip = "The midi control number to route to",
     min = 0,
     max = 127,
@@ -71,7 +72,7 @@ for i=1,numRouters do
   })
 
   local value = widgets.numBox('Value', 0, {
-    name = "value" .. i,
+    --name = "value" .. i,
     tooltip = "Shows the current value. You can send cc to the selected channel and control number by changing this value manually.",
     min = 0,
     max = 127,
@@ -81,7 +82,12 @@ for i=1,numRouters do
     end
   })
 
-  table.insert(routers, {label=label,channelIn=channelIn,channelOut=channelOut,controllerIn=controllerIn,controllerOut=controllerOut,value=value})
+  local learn = widgets.button('L', false, {
+    tooltip = "Learn controller in",
+    width = 24
+  })
+
+  table.insert(routers, {label=label,channelIn=channelIn,channelOut=channelOut,controllerIn=controllerIn,controllerOut=controllerOut,value=value,learn=learn})
 end
 
 --------------------------------------------------------------------------------
@@ -98,6 +104,10 @@ end
 function onController(e)
   local ccWasSent = false
   for i,v in ipairs(routers) do
+    if v.learn.value then
+      v.learn:setValue(false)
+      v.controllerIn:setValue(e.controller)
+    end
     local channelIn = v.channelIn.value - 1
     local isListenChannel = channelIn == 0 or channelIn == e.channel
     if e.controller == v.controllerIn.value and isListenChannel then
