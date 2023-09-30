@@ -690,23 +690,20 @@ local function flashLabel(i)
 end
 
 function onController(e)
+  local ccWasSent = false
   for i,v in ipairs(routers) do
     local channelIn = v.channelIn.value - 1
-    local channelOut = v.channelOut.value - 1
     local isListenChannel = channelIn == 0 or channelIn == e.channel
     if e.controller == v.controllerIn.value and isListenChannel then
-      if isListenChannel and e.channel ~= channelOut and channelIn ~= channelOut then
-        print("Routing from channel to channel", e.channel, channelOut)
-        e.channel = channel
-      end
       print("Routing from controller to controller", e.controller, v.controllerOut.value)
-      e.controller = v.controllerOut.value
-      v.value:setValue(e.value, false)
+      v.value:setValue(e.value) -- This triggers changed event that sends the cc value
       spawn(flashLabel, i)
-      break
+      ccWasSent = true
     end
   end
-  postEvent(e)
+  if ccWasSent == false then
+    postEvent(e)
+  end
 end
 
 --------------------------------------------------------------------------------
