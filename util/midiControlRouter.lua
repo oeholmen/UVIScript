@@ -29,7 +29,7 @@ for i=1,numRouters do
   y = y + 24 -- Increment y pos
 
   local label = widgets.label("Router " .. i, {
-    --name = "router" .. i,
+    name = "router" .. i,
     tooltip = "Edit to set a label for this router.",
     width = 220,
     alpha = 0.75,
@@ -42,7 +42,7 @@ for i=1,numRouters do
   })
 
   local channelIn = widgets.menu("Channel In", channels, {
-    --name = "inchannel" .. i,
+    name = "inchannel" .. i,
     tooltip = "Midi in",
     showLabel = false,
     width = 75,
@@ -56,7 +56,7 @@ for i=1,numRouters do
   })
 
   local controllerIn = widgets.numBox('CC In', 101 + i, {
-    --name = "incc" .. i,
+    name = "incc" .. i,
     tooltip = "The midi control number to listen on",
     min = 0,
     max = 127,
@@ -64,7 +64,7 @@ for i=1,numRouters do
   })
 
   local controllerOut = widgets.numBox('CC Out', 101 + i, {
-    --name = "outcc" .. i,
+    name = "outcc" .. i,
     tooltip = "The midi control number to route to",
     min = 0,
     max = 127,
@@ -72,7 +72,7 @@ for i=1,numRouters do
   })
 
   local value = widgets.numBox('Value', 0, {
-    --name = "value" .. i,
+    name = "value" .. i,
     tooltip = "Shows the current value. You can send cc to the selected channel and control number by changing this value manually.",
     min = 0,
     max = 127,
@@ -83,6 +83,7 @@ for i=1,numRouters do
   })
 
   local learn = widgets.button('L', false, {
+    name = "learn" .. i,
     tooltip = "Learn controller in",
     width = 24
   })

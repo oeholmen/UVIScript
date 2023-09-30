@@ -613,6 +613,7 @@ local routers = {}
 for i=1,numRouters do
   widgets.setSection({
     width = 90,
+    cols = 8,
     x = 15,
     y = y,
     xSpacing = 5,
@@ -624,7 +625,7 @@ for i=1,numRouters do
   local label = widgets.label("Router " .. i, {
     name = "router" .. i,
     tooltip = "Edit to set a label for this router.",
-    width = 240,
+    width = 220,
     alpha = 0.75,
     fontSize = 24,
     backgroundColour = "transparent",
@@ -675,7 +676,13 @@ for i=1,numRouters do
     end
   })
 
-  table.insert(routers, {label=label,channelIn=channelIn,channelOut=channelOut,controllerIn=controllerIn,controllerOut=controllerOut,value=value})
+  local learn = widgets.button('L', false, {
+    name = "learn" .. i,
+    tooltip = "Learn controller in",
+    width = 24
+  })
+
+  table.insert(routers, {label=label,channelIn=channelIn,channelOut=channelOut,controllerIn=controllerIn,controllerOut=controllerOut,value=value,learn=learn})
 end
 
 --------------------------------------------------------------------------------
@@ -692,6 +699,10 @@ end
 function onController(e)
   local ccWasSent = false
   for i,v in ipairs(routers) do
+    if v.learn.value then
+      v.learn:setValue(false)
+      v.controllerIn:setValue(e.controller)
+    end
     local channelIn = v.channelIn.value - 1
     local isListenChannel = channelIn == 0 or channelIn == e.channel
     if e.controller == v.controllerIn.value and isListenChannel then
