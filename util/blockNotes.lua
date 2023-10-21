@@ -63,9 +63,3 @@ function onNote(e)
     postEvent(e)
   end
 end
-
-function onRelease(e)
-  if isOpen(e) then
-    postEvent(e)
-  end
-end

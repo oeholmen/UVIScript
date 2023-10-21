@@ -1071,7 +1071,7 @@ local shapeDefinitions = {
   {name = "Saw", f = shapes.sawInPhase},
   {name = "HPF Saw", f = shapes.hpfSaw},
   {name = "Analog Saw", f = shapes.sawAnalog, o = {phase = 0}},
-  {name = "Fltr Sqr",  f = shapes.filteredSquare},
+  {name = "Fltr Sqr", f = shapes.filteredSquare},
   {name = "Organ-Ish", f = shapes.organIsh},
   {name = "Tangent", f = shapes.tangent},
   {name = "Acos", f = shapes.acos},

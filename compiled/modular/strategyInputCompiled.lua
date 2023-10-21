@@ -1371,6 +1371,8 @@ local strategyInput = ""
 local strategyRestart = 1
 local voiceSlotStrategy = false
 local randomSlotStrategy = false
+local sequenceStrategy = false
+local sequencePosition = 0 -- Holds the slot position
 local strategyPos = {} -- Holds the position in the selected strategy
 local notePosition = {} -- Holds the current note position
 local unusedStrategySlotDefaultText = "Unused"
@@ -1446,7 +1448,7 @@ local function getStrategyInputText(strategy)
   return table.concat(strategy, ",")
 end
 
-local function setRandomSlot()
+local function setSlot()
   local slots = {}
   for _,v in ipairs(strategySlots) do
     if v.enabled == true then
@@ -1454,7 +1456,12 @@ local function setRandomSlot()
     end
   end
   if #slots > 0 then
-    gem.getRandomFromTable(slots):setValue(true)
+    if sequenceStrategy then
+      sequencePosition = gem.inc(sequencePosition, 1, #slots)
+    else
+      sequencePosition = gem.getRandom(#slots)
+    end
+    slots[sequencePosition]:setValue(true)
   end
 end
 
@@ -1721,13 +1728,15 @@ widgets.setSection({
   cols = 6,
 })
 
-local voiceSlotStrategyInput = widgets.menu("Play Mode", {"Active Input", "Random Slot", "Voice->Slot"}, {
+local voiceSlotStrategyInput = widgets.menu("Play Mode", {"Active Input", "Slots In Sequence", "Random Slot", "Voice->Slot"}, {
   tooltip = "Select the strategy to use for note selection. The default is using the strategy displayed in the input.",
   showLabel = false,
   changed = function(self)
-    randomSlotStrategy = self.value == 2
-    voiceSlotStrategy = self.value == 3
+    sequenceStrategy = self.value == 2
+    randomSlotStrategy = self.value == 3
+    voiceSlotStrategy = self.value == 4
     notePosition = {}
+    sequencePosition = 0
   end
 })
 
@@ -1886,8 +1895,8 @@ local function sequenceRunner()
         strategyPos = {} -- Reset strategy position
       end
     end
-    if randomSlotStrategy then
-      setRandomSlot()
+    if randomSlotStrategy or sequenceStrategy then
+      setSlot()
     end
     print("Round", round)
     waitBeat(resolutions.getResolution(resolution))
