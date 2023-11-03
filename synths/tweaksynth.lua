@@ -14,6 +14,8 @@ local snapshotPosition = 1
 local snapshotsMenu = nil
 local isPlaying = false
 local seqIndex = 0 -- Holds the unique id for the twequencer
+local preInit = true -- Used to avoid sending midi cc on startup
+local midiCcOut = true -- Used for toggling midi cc out
 
 --------------------------------------------------------------------------------
 -- Synth engine elements
@@ -331,6 +333,33 @@ local topologies = {"D->C->B->A", "D+C->B->A", "C->B,B+D->A", "D->B+C->A", "D->C
 
 local helpers = {}
 
+helpers.mapMacroValue = function(widget)
+  return gem.mapValueBetweenRanges(widget.value, widget.min, widget.max, 0, 1)
+end
+
+helpers.widgetValueToControllerValue = function(widget, tweakable)
+  local ccMin = 0
+  local ccMax = 127
+  local controllerValue = gem.mapValueBetweenRanges(widget.value, widget.min, widget.max, ccMin, ccMax)
+
+  controllerValue = gem.round(controllerValue)
+  controllerValue = math.max(ccMin, math.min(ccMax, controllerValue))
+
+  print("Send controller value:", widget.name, widget.value, controllerValue)
+  return controllerValue
+end
+
+helpers.sendControlChange = function(widget, skipSendControlChange)
+  if preInit or skipSendControlChange or midiCcOut ~= true then
+    --print("skipSendControlChange")
+    return
+  end
+  local tweakable = helpers.getTweakable(widget.name)
+  if type(tweakable) == "table" and type(tweakable.cc) == "number" then
+    controlChange(tweakable.cc, helpers.widgetValueToControllerValue(widget, tweakable))
+  end
+end
+
 helpers.getDrumOscFrequencyFilterValues = function()
   -- Get multiples of the base value (32.6875 = C0)
   local baseVal = 32.6875
@@ -387,13 +416,6 @@ helpers.setWidgetValue = function(index, widgetName, value)
   end
 end
 
---[[ helpers.setWidgetTargetValue = function(index, widgetName, value)
-  if tweakables[index] and widgetName == tweakables[index].widget.name then
-    tweakables[index].targetValue = value
-    print("Set target value: ", widgetName, value)
-  end
-end ]]
-
 helpers.recallStoredPatch = function()
   print("Recalling stored patch...")
   for _,v in ipairs(storedPatch) do
@@ -407,14 +429,6 @@ helpers.populatePatchesMenu = function()
     patchesMenu:addItem(itemName)
   end
 end
-
--- Returns a probability that is derived from the given tweaklevel. The probability returned is reduced less the higher the tweak level is.
--- *NOTE* Use this when you want something to be more likely to occur on high tweak levels.
--- Tweaklevel 90 gives a probability of 81: 90 * 0.9 = 81 (reduced by 9)
--- Tweaklevel 30 gives a probability of 9: 30 * 0.3 = 9 (reduced by 21)
---[[ local function getProbabilityFromTweakLevel(tweakLevel)
-  return tweakLevel * (tweakLevel / 100)
-end ]]
 
 -- Takes a level of uncertanty, a probability and an optional weight.
 -- *NOTE* Use this when you want something to be more likely to occur on low tweak levels.
@@ -1366,7 +1380,7 @@ panelCreators.createStackOscPanel = function(oscPanel, oscillatorNumber)
   stackShapeKnob.displayName = "Waveform"
   stackShapeKnob.fillColour = knobColour
   stackShapeKnob.outlineColour = osc1Colour
-  stackShapeKnob.changed = function(self)
+  stackShapeKnob.changed = function(self, skipSendControlChange)
     for i=1,maxOscillators do
       osc:setParameter("Waveform"..i, self.value)
     end
@@ -1379,7 +1393,7 @@ panelCreators.createStackOscPanel = function(oscPanel, oscillatorNumber)
   stackOctKnob.displayName = "Octave"
   stackOctKnob.fillColour = knobColour
   stackOctKnob.outlineColour = osc1Colour
-  stackOctKnob.changed = function(self)
+  stackOctKnob.changed = function(self, skipSendControlChange)
     for i=1,maxOscillators do
       osc:setParameter("Octave"..i, self.value)
     end
@@ -1392,7 +1406,7 @@ panelCreators.createStackOscPanel = function(oscPanel, oscillatorNumber)
   stackPitchKnob.mapper = Mapper.Quadratic
   stackPitchKnob.fillColour = knobColour
   stackPitchKnob.outlineColour = osc1Colour
-  stackPitchKnob.changed = function(self)
+  stackPitchKnob.changed = function(self, skipSendControlChange)
     for i=1,maxOscillators do
       osc:setParameter("Pitch"..i, self.value)
     end
@@ -1414,7 +1428,7 @@ panelCreators.createAnalog3OscPanel = function(oscPanel, oscillatorNumber)
   muteOscButton.backgroundColourOn = buttonBackgroundColourOn
   muteOscButton.textColourOff = buttonTextColourOff
   muteOscButton.textColourOn = buttonTextColourOn
-  muteOscButton.changed = function(self)
+  muteOscButton.changed = function(self, skipSendControlChange)
     synthOscillators[1]:setParameter("Bypass"..oscillatorNumber, self.value)
   end
   muteOscButton:changed()
@@ -1430,7 +1444,7 @@ panelCreators.createAnalog3OscPanel = function(oscPanel, oscillatorNumber)
   soloOscButton.backgroundColourOn = buttonBackgroundColourOn
   soloOscButton.textColourOff = buttonTextColourOff
   soloOscButton.textColourOn = buttonTextColourOn
-  soloOscButton.changed = function(self)
+  soloOscButton.changed = function(self, skipSendControlChange)
     local hasSoloedOscs = false
     for i=1,3 do
       local bypass = true
@@ -1453,7 +1467,7 @@ panelCreators.createAnalog3OscPanel = function(oscPanel, oscillatorNumber)
   oscShapeKnob.displayName = "Waveform"
   oscShapeKnob.fillColour = knobColour
   oscShapeKnob.outlineColour = osc1Colour
-  oscShapeKnob.changed = function(self)
+  oscShapeKnob.changed = function(self, skipSendControlChange)
     synthOscillators[1]:setParameter("Waveform"..oscillatorNumber, self.value)
     self.displayText = waveforms[self.value]
   end
@@ -1465,7 +1479,7 @@ panelCreators.createAnalog3OscPanel = function(oscPanel, oscillatorNumber)
   oscPhaseKnob.displayName = "Start Phase"
   oscPhaseKnob.fillColour = knobColour
   oscPhaseKnob.outlineColour = osc1Colour
-  oscPhaseKnob.changed = function(self)
+  oscPhaseKnob.changed = function(self, skipSendControlChange)
     synthOscillators[1]:setParameter("StartPhase"..oscillatorNumber, self.value)
   end
   oscPhaseKnob:changed()
@@ -1475,11 +1489,10 @@ panelCreators.createAnalog3OscPanel = function(oscPanel, oscillatorNumber)
   oscOctKnob.displayName = "Octave"
   oscOctKnob.fillColour = knobColour
   oscOctKnob.outlineColour = osc1Colour
-  oscOctKnob.changed = function(self)
+  oscOctKnob.changed = function(self, skipSendControlChange)
     synthOscillators[1]:setParameter("Octave"..oscillatorNumber, self.value)
     if oscillatorNumber == 1 then
-      local factor = 1 / 4
-      local value = (self.value * factor) + 0.5
+      local value = helpers.mapMacroValue(self)
       commonMacros.osc2Pitch:setParameter("Value", value)
       print("Setting sub oct:", value)
     end
@@ -1494,11 +1507,10 @@ panelCreators.createAnalog3OscPanel = function(oscPanel, oscillatorNumber)
   if oscillatorNumber > 1 then
     oscPitchKnob.mapper = Mapper.Quadratic
   end
-  oscPitchKnob.changed = function(self)
+  oscPitchKnob.changed = function(self, skipSendControlChange)
     synthOscillators[1]:setParameter("Pitch"..oscillatorNumber, self.value)
     if oscillatorNumber == 1 then
-      local factor = 1 / 48
-      local value = (self.value * factor) + 0.5
+      local value = helpers.mapMacroValue(self)
       commonMacros.osc2Pitch:setParameter("Value", value)
       print("Setting sub pitch:", value)
     end
@@ -1659,8 +1671,7 @@ panelCreators.createOsc1Panel = function()
     osc1PitchKnob.fillColour = knobColour
     osc1PitchKnob.outlineColour = osc1Colour
     osc1PitchKnob.changed = function(self)
-      local factor = 1 / 4
-      local value = (self.value * factor) + 0.5
+      local value = helpers.mapMacroValue(self)
       commonMacros.osc1Pitch:setParameter("Value", value)
     end
     osc1PitchKnob:changed()
@@ -1687,7 +1698,7 @@ panelCreators.createOsc1Panel = function()
       osc1ShapeKnob.displayName = "Waveform"
       osc1ShapeKnob.fillColour = knobColour
       osc1ShapeKnob.outlineColour = osc1Colour
-      osc1ShapeKnob.changed = function(self)
+      osc1ShapeKnob.changed = function(self, skipSendControlChange)
         local value = self.value
         if synthTypes.isDrum then
           value = value - 1
@@ -1703,7 +1714,7 @@ panelCreators.createOsc1Panel = function()
       osc1ShapeKnob.displayName = "Wave"
       osc1ShapeKnob.fillColour = knobColour
       osc1ShapeKnob.outlineColour = osc1Colour
-      osc1ShapeKnob.changed = function(self)
+      osc1ShapeKnob.changed = function(self, skipSendControlChange)
         commonMacros.osc1Shape:setParameter("Value", self.value)
       end
       osc1ShapeKnob:changed()
@@ -1714,10 +1725,9 @@ panelCreators.createOsc1Panel = function()
       osc1PartialsKnob.fillColour = knobColour
       osc1PartialsKnob.outlineColour = osc1Colour
       osc1PartialsKnob.changed = function(self)
-        local factor = 1 / 256
-        local value = self.value * factor
-        if self.value == 1 then
-          value = 0
+        local value = 0
+        if self.value > 1 then
+          value = helpers.mapMacroValue(self)
         end
         commonMacros.osc1Shape:setParameter("Value", value)
       end
@@ -1730,7 +1740,7 @@ panelCreators.createOsc1Panel = function()
       osc1EvenOddKnob.fillColour = knobColour
       osc1EvenOddKnob.outlineColour = osc1Colour
       osc1EvenOddKnob.changed = function(self)
-        local value = (self.value + 1) * 0.5
+        local value = helpers.mapMacroValue(self)
         additiveMacros["osc1EvenOdd"]:setParameter("Value", value)
       end
       osc1EvenOddKnob:changed()
@@ -1873,8 +1883,7 @@ panelCreators.createOsc1Panel = function()
     osc1PitchKnob.fillColour = knobColour
     osc1PitchKnob.outlineColour = osc1Colour
     osc1PitchKnob.changed = function(self)
-      local factor = 1 / 4
-      local value = (self.value * factor) + 0.5
+      local value = helpers.mapMacroValue(self)
       commonMacros.osc1Pitch:setParameter("Value", value)
     end
     osc1PitchKnob:changed()
@@ -1909,7 +1918,7 @@ panelCreators.createOsc1Panel = function()
       aftertouchToWaveKnob.fillColour = knobColour
       aftertouchToWaveKnob.outlineColour = filterColour
       aftertouchToWaveKnob.changed = function(self)
-        local value = (self.value + 1) * 0.5
+        local value = helpers.mapMacroValue(self)
         wavetableMacros["atToShape1"]:setParameter("Value", value)
       end
       aftertouchToWaveKnob:changed()
@@ -1921,7 +1930,7 @@ panelCreators.createOsc1Panel = function()
       wheelToWaveKnob.fillColour = knobColour
       wheelToWaveKnob.outlineColour = filterColour
       wheelToWaveKnob.changed = function(self)
-        local value = (self.value + 1) * 0.5
+        local value = helpers.mapMacroValue(self)
         wavetableMacros["wheelToShape1"]:setParameter("Value", value)
       end
       wheelToWaveKnob:changed()
@@ -2077,8 +2086,7 @@ panelCreators.createOsc2Panel = function()
     osc2PitchKnob.fillColour = knobColour
     osc2PitchKnob.outlineColour = osc2Colour
     osc2PitchKnob.changed = function(self)
-      local factor = 1 / 48
-      local value = (self.value * factor) + 0.5
+      local value = helpers.mapMacroValue(self)
       commonMacros.osc2Pitch:setParameter("Value", value)
     end
     osc2PitchKnob:changed()
@@ -2121,7 +2129,7 @@ panelCreators.createOsc2Panel = function()
       osc2ShapeKnob.displayName = "Wave"
       osc2ShapeKnob.fillColour = knobColour
       osc2ShapeKnob.outlineColour = osc2Colour
-      osc2ShapeKnob.changed = function(self)
+      osc2ShapeKnob.changed = function(self, skipSendControlChange)
         commonMacros.osc2Shape:setParameter("Value", self.value)
       end
       osc2ShapeKnob:changed()
@@ -2132,10 +2140,9 @@ panelCreators.createOsc2Panel = function()
       osc2PartialsKnob.fillColour = knobColour
       osc2PartialsKnob.outlineColour = osc2Colour
       osc2PartialsKnob.changed = function(self)
-        local factor = 1 / 256
-        local value = self.value * factor
-        if self.value == 1 then
-          value = 0
+        local value = 0
+        if self.value > 1 then
+          value = helpers.mapMacroValue(self)
         end
         commonMacros.osc2Shape:setParameter("Value", value)
       end
@@ -2148,7 +2155,7 @@ panelCreators.createOsc2Panel = function()
       osc2EvenOddKnob.fillColour = knobColour
       osc2EvenOddKnob.outlineColour = osc2Colour
       osc2EvenOddKnob.changed = function(self)
-        local value = (self.value + 1) * 0.5
+        local value = helpers.mapMacroValue(self)
         additiveMacros["osc2EvenOdd"]:setParameter("Value", value)
       end
       osc2EvenOddKnob:changed()
@@ -2204,6 +2211,7 @@ panelCreators.createOsc2Panel = function()
       osc2PitchModAmount.fillColour = knobColour
       osc2PitchModAmount.outlineColour = osc2Colour
       osc2PitchModAmount.changed = function(self)
+        
         synthOscillators[2]:setParameter("PitchModAmount", self.value)
       end
       osc2PitchModAmount:changed()
@@ -2285,19 +2293,16 @@ panelCreators.createOsc2Panel = function()
       table.insert(tweakables, {widget=osc2CutoffKnob,floor=0.6,ceiling=1.0,probability=80,default=50,useDuration=true,category="synthesis"})
     end
 
-    --if synthTypes.isDrum == false then
-      local osc2PitchKnob = osc2Panel:Knob("Osc2Pitch", 0, -24, 24, true)
-      osc2PitchKnob.displayName = "Pitch"
-      osc2PitchKnob.fillColour = knobColour
-      osc2PitchKnob.outlineColour = osc2Colour
-      osc2PitchKnob.changed = function(self)
-        local factor = 1 / 48
-        local value = (self.value * factor) + 0.5
-        commonMacros.osc2Pitch:setParameter("Value", value)
-      end
-      osc2PitchKnob:changed()
-      table.insert(tweakables, {widget=osc2PitchKnob,min=-24,max=24,integer=true,valueFilter={-24,-12,-5,0,7,12,19,24},floor=-12,ceiling=12,probability=75,default=50,zero=50,useDuration=true,category="synthesis"})
-    --end
+    local osc2PitchKnob = osc2Panel:Knob("Osc2Pitch", 0, -24, 24, true)
+    osc2PitchKnob.displayName = "Pitch"
+    osc2PitchKnob.fillColour = knobColour
+    osc2PitchKnob.outlineColour = osc2Colour
+    osc2PitchKnob.changed = function(self)
+      local value = helpers.mapMacroValue(self)
+      commonMacros.osc2Pitch:setParameter("Value", value)
+    end
+    osc2PitchKnob:changed()
+    table.insert(tweakables, {widget=osc2PitchKnob,min=-24,max=24,integer=true,valueFilter={-24,-12,-5,0,7,12,19,24},floor=-12,ceiling=12,probability=75,default=50,zero=50,useDuration=true,category="synthesis"})
 
     if synthTypes.isAnalog or synthTypes.isDrum or synthTypes.isWavetable or synthTypes.isAdditive then
       local osc2DetuneKnob = osc2Panel:Knob("Osc2FinePitch", 0, 0, 1)
@@ -2329,7 +2334,7 @@ panelCreators.createOsc2Panel = function()
       wheelToWaveKnob.fillColour = knobColour
       wheelToWaveKnob.outlineColour = filterColour
       wheelToWaveKnob.changed = function(self)
-        local value = (self.value + 1) * 0.5
+        local value = helpers.mapMacroValue(self)
         wavetableMacros["wheelToShape2"]:setParameter("Value", value)
       end
       wheelToWaveKnob:changed()
@@ -2376,8 +2381,9 @@ panelCreators.createFilterPanel = function()
     filterTypeMenu.outlineColour = menuOutlineColour
     filterTypeMenu.displayName = "Filter"
     filterTypeMenu.changed = function(self)
-      local factor = 1 / #types
-      local value = (self.value - 0.5) * factor
+      --[[ local factor = 1 / #types
+      local value = (self.value - 0.5) * factor ]]
+      local value = helpers.mapMacroValue(self)
       FMMacros["filterType"]:setParameter("Value", value)
     end
     filterTypeMenu:changed()
@@ -2395,8 +2401,9 @@ panelCreators.createFilterPanel = function()
     filterDbMenu.x = filterTypeMenu.x
     filterDbMenu.y = filterTypeMenu.y + filterTypeMenu.height + (marginY*2)
     filterDbMenu.changed = function(self)
-      local factor = 1 / #slopes
-      local value = (self.value - 0.5) * factor
+      --[[ local factor = 1 / #slopes
+      local value = (self.value - 0.5) * factor ]]
+      local value = helpers.mapMacroValue(self)
       FMMacros["filterDb"]:setParameter("Value", value)
       local resonanceKnob = helpers.getWidget("Resonance")
       if resonanceKnob then
@@ -2451,7 +2458,7 @@ panelCreators.createFilterPanel = function()
   cutoffKnob.displayName = "Cutoff"
   cutoffKnob.fillColour = knobColour
   cutoffKnob.outlineColour = filterColour
-  cutoffKnob.changed = function(self)
+  cutoffKnob.changed = function(self, skipSendControlChange)
     commonMacros.filterCutoff:setParameter("Value", self.value)
     local value = helpers.filterMapValue(self.value)
     if value < 1000 then
@@ -2467,7 +2474,7 @@ panelCreators.createFilterPanel = function()
   filterResonanceKnob.unit = Unit.PercentNormalized
   filterResonanceKnob.fillColour = knobColour
   filterResonanceKnob.outlineColour = filterColour
-  filterResonanceKnob.changed = function(self)
+  filterResonanceKnob.changed = function(self, skipSendControlChange)
     commonMacros.filterResonance:setParameter("Value", self.value)
   end
   filterResonanceKnob:changed()
@@ -2478,7 +2485,7 @@ panelCreators.createFilterPanel = function()
   filterKeyTrackingKnob.displayName = "Key Track"
   filterKeyTrackingKnob.fillColour = knobColour
   filterKeyTrackingKnob.outlineColour = filterColour
-  filterKeyTrackingKnob.changed = function(self)
+  filterKeyTrackingKnob.changed = function(self, skipSendControlChange)
     commonMacros.filterKeyTracking:setParameter("Value", self.value)
   end
   filterKeyTrackingKnob:changed()
@@ -2489,8 +2496,8 @@ panelCreators.createFilterPanel = function()
   wheelToCutoffKnob.displayName = "Modwheel"
   wheelToCutoffKnob.fillColour = knobColour
   wheelToCutoffKnob.outlineColour = filterColour
-  wheelToCutoffKnob.changed = function(self)
-    local value = (self.value + 1) * 0.5
+  wheelToCutoffKnob.changed = function(self, skipSendControlChange)
+    local value = helpers.mapMacroValue(self)
     commonMacros.wheelToCutoff:setParameter("Value", value)
   end
   wheelToCutoffKnob:changed()
@@ -2501,8 +2508,8 @@ panelCreators.createFilterPanel = function()
   atToCutoffKnob.displayName = "Aftertouch"
   atToCutoffKnob.fillColour = knobColour
   atToCutoffKnob.outlineColour = filterColour
-  atToCutoffKnob.changed = function(self)
-    local value = (self.value + 1) * 0.5
+  atToCutoffKnob.changed = function(self, skipSendControlChange)
+    local value = helpers.mapMacroValue(self)
     commonMacros.atToCutoff:setParameter("Value", value)
   end
   atToCutoffKnob:changed()
@@ -2526,7 +2533,7 @@ panelCreators.createHpFilterPanel = function()
   hpfCutoffKnob.displayName = "Cutoff"
   hpfCutoffKnob.fillColour = knobColour
   hpfCutoffKnob.outlineColour = filterColour
-  hpfCutoffKnob.changed = function(self)
+  hpfCutoffKnob.changed = function(self, skipSendControlChange)
     commonMacros.hpfCutoff:setParameter("Value", self.value)
     local value = helpers.filterMapValue(self.value)
     if value < 1000 then
@@ -2543,7 +2550,7 @@ panelCreators.createHpFilterPanel = function()
   hpfResonanceKnob.displayName = "Resonance"
   hpfResonanceKnob.fillColour = knobColour
   hpfResonanceKnob.outlineColour = filterColour
-  hpfResonanceKnob.changed = function(self)
+  hpfResonanceKnob.changed = function(self, skipSendControlChange)
     commonMacros.hpfResonance:setParameter("Value", self.value)
   end
   hpfResonanceKnob:changed()
@@ -2554,7 +2561,7 @@ panelCreators.createHpFilterPanel = function()
   hpfKeyTrackingKnob.displayName = "Key Track"
   hpfKeyTrackingKnob.fillColour = knobColour
   hpfKeyTrackingKnob.outlineColour = filterColour
-  hpfKeyTrackingKnob.changed = function(self)
+  hpfKeyTrackingKnob.changed = function(self, skipSendControlChange)
     commonMacros.hpfKeyTracking:setParameter("Value", self.value)
   end
   hpfKeyTrackingKnob:changed()
@@ -2565,8 +2572,8 @@ panelCreators.createHpFilterPanel = function()
   wheelToHpfCutoffKnob.displayName = "Modwheel"
   wheelToHpfCutoffKnob.fillColour = knobColour
   wheelToHpfCutoffKnob.outlineColour = filterColour
-  wheelToHpfCutoffKnob.changed = function(self)
-    local value = (self.value + 1) * 0.5
+  wheelToHpfCutoffKnob.changed = function(self, skipSendControlChange)
+    local value = helpers.mapMacroValue(self)
     commonMacros.wheelToHpf:setParameter("Value", value)
   end
   wheelToHpfCutoffKnob:changed()
@@ -2577,8 +2584,8 @@ panelCreators.createHpFilterPanel = function()
   atToHpfCutoffKnob.displayName = "Aftertouch"
   atToHpfCutoffKnob.fillColour = knobColour
   atToHpfCutoffKnob.outlineColour = filterColour
-  atToHpfCutoffKnob.changed = function(self)
-    local value = (self.value + 1) * 0.5
+  atToHpfCutoffKnob.changed = function(self, skipSendControlChange)
+    local value = helpers.mapMacroValue(self)
     commonMacros.atToHpf:setParameter("Value", value)
   end
   atToHpfCutoffKnob:changed()
@@ -2614,7 +2621,7 @@ panelCreators.createFilterEnvPanel = function()
   filterAttackKnob.fillColour = knobColour
   filterAttackKnob.outlineColour = filterEnvColour
   filterAttackKnob.mapper = Mapper.Quartic
-  filterAttackKnob.changed = function(self)
+  filterAttackKnob.changed = function(self, skipSendControlChange)
     if activeFilterEnvOsc == 1 or activeFilterEnvOsc == 2 then
       synthModulators.filterEnv1:setParameter("AttackTime", self.value)
     end
@@ -2634,7 +2641,7 @@ panelCreators.createFilterEnvPanel = function()
   filterDecayKnob.fillColour = knobColour
   filterDecayKnob.outlineColour = filterEnvColour
   filterDecayKnob.mapper = Mapper.Quartic
-  filterDecayKnob.changed = function(self)
+  filterDecayKnob.changed = function(self, skipSendControlChange)
     if activeFilterEnvOsc == 1 or activeFilterEnvOsc == 2 then
       synthModulators.filterEnv1:setParameter("DecayTime", self.value)
     end
@@ -2654,7 +2661,7 @@ panelCreators.createFilterEnvPanel = function()
   filterSustainKnob.displayName="Sustain"
   filterSustainKnob.fillColour = knobColour
   filterSustainKnob.outlineColour = filterEnvColour
-  filterSustainKnob.changed = function(self)
+  filterSustainKnob.changed = function(self, skipSendControlChange)
     if activeFilterEnvOsc == 1 or activeFilterEnvOsc == 2 then
       synthModulators.filterEnv1:setParameter("SustainLevel", self.value)
     end
@@ -2673,7 +2680,7 @@ panelCreators.createFilterEnvPanel = function()
   filterReleaseKnob.fillColour = knobColour
   filterReleaseKnob.outlineColour = filterEnvColour
   filterReleaseKnob.mapper = Mapper.Quartic
-  filterReleaseKnob.changed = function(self)
+  filterReleaseKnob.changed = function(self, skipSendControlChange)
     if activeFilterEnvOsc == 1 or activeFilterEnvOsc == 2 then
       synthModulators.filterEnv1:setParameter("ReleaseTime", self.value)
     end
@@ -2692,7 +2699,7 @@ panelCreators.createFilterEnvPanel = function()
   filterVelocityKnob.displayName="Velocity"
   filterVelocityKnob.fillColour = knobColour
   filterVelocityKnob.outlineColour = filterEnvColour
-  filterVelocityKnob.changed = function(self)
+  filterVelocityKnob.changed = function(self, skipSendControlChange)
     if activeFilterEnvOsc == 1 or activeFilterEnvOsc == 2 then
       synthModulators.filterEnv1:setParameter("DynamicRange", self.value)
     end
@@ -2757,8 +2764,8 @@ panelCreators.createFilterEnvTargetsPanel = function()
   envAmtKnob.displayName = "LP-Filter"
   envAmtKnob.fillColour = knobColour
   envAmtKnob.outlineColour = filterColour
-  envAmtKnob.changed = function(self)
-    local value = (self.value + 1) * 0.5
+  envAmtKnob.changed = function(self, skipSendControlChange)
+    local value = helpers.mapMacroValue(self)
     commonMacros.filterEnvAmount:setParameter("Value", value)
   end
   envAmtKnob:changed()
@@ -2769,8 +2776,8 @@ panelCreators.createFilterEnvTargetsPanel = function()
   hpfEnvAmtKnob.displayName = "HP-Filter"
   hpfEnvAmtKnob.fillColour = knobColour
   hpfEnvAmtKnob.outlineColour = filterColour
-  hpfEnvAmtKnob.changed = function(self)
-    local value = (self.value + 1) * 0.5
+  hpfEnvAmtKnob.changed = function(self, skipSendControlChange)
+    local value = helpers.mapMacroValue(self)
     commonMacros.hpfEnvAmount:setParameter("Value", value)
   end
   hpfEnvAmtKnob:changed()
@@ -2791,8 +2798,7 @@ panelCreators.createFilterEnvOscTargetsPanel = function()
     filterEnvToPitchOsc1Knob.fillColour = knobColour
     filterEnvToPitchOsc1Knob.outlineColour = filterEnvColour
     filterEnvToPitchOsc1Knob.changed = function(self)
-      local factor = 1 / 48
-      local value = self.value * factor
+      local value = helpers.mapMacroValue(self)
       commonMacros.filterEnvToPitchOsc1:setParameter("Value", value)
     end
     filterEnvToPitchOsc1Knob:changed()
@@ -2805,8 +2811,7 @@ panelCreators.createFilterEnvOscTargetsPanel = function()
     filterEnvToPitchOsc2Knob.fillColour = knobColour
     filterEnvToPitchOsc2Knob.outlineColour = filterEnvColour
     filterEnvToPitchOsc2Knob.changed = function(self)
-      local factor = 1 / 48
-      local value = self.value * factor
+      local value = helpers.mapMacroValue(self)
       commonMacros.filterEnvToPitchOsc2:setParameter("Value", value)
     end
     filterEnvToPitchOsc2Knob:changed()
@@ -2819,8 +2824,7 @@ panelCreators.createFilterEnvOscTargetsPanel = function()
     filterEnvToPitchOsc3Knob.fillColour = knobColour
     filterEnvToPitchOsc3Knob.outlineColour = filterEnvColour
     filterEnvToPitchOsc3Knob.changed = function(self)
-      local factor = 1 / 48
-      local value = self.value * factor
+      local value = helpers.mapMacroValue(self)
       analogMacros["filterEnvToPitchOsc3"]:setParameter("Value", value)
     end
     filterEnvToPitchOsc3Knob:changed()
@@ -2912,7 +2916,7 @@ panelCreators.createFilterEnvOscTargetsPanel = function()
       filterEnvToNoise1CutoffKnob.fillColour = knobColour
       filterEnvToNoise1CutoffKnob.outlineColour = filterEnvColour
       filterEnvToNoise1CutoffKnob.changed = function(self)
-        local value = (self.value + 1) * 0.5
+        local value = helpers.mapMacroValue(self)
         drumMacros["filterEnvToNoise1Cutoff"]:setParameter("Value", value)
       end
       filterEnvToNoise1CutoffKnob:changed()
@@ -2924,7 +2928,7 @@ panelCreators.createFilterEnvOscTargetsPanel = function()
       filterEnvToWT1Knob.fillColour = knobColour
       filterEnvToWT1Knob.outlineColour = lfoColour
       filterEnvToWT1Knob.changed = function(self)
-        local value = (self.value + 1) * 0.5
+        local value = helpers.mapMacroValue(self)
         wavetableMacros["filterEnvToWT1"]:setParameter("Value", value)
       end
       filterEnvToWT1Knob:changed()
@@ -2936,7 +2940,7 @@ panelCreators.createFilterEnvOscTargetsPanel = function()
       oscFilterEnvAmtKnob.fillColour = knobColour
       oscFilterEnvAmtKnob.outlineColour = filterColour
       oscFilterEnvAmtKnob.changed = function(self)
-        local value = (self.value + 1) * 0.5
+        local value = helpers.mapMacroValue(self)
         additiveMacros["filterEnvToCutoff1"]:setParameter("Value", value)
       end
       oscFilterEnvAmtKnob:changed()
@@ -2949,8 +2953,7 @@ panelCreators.createFilterEnvOscTargetsPanel = function()
     filterEnvToPitchOsc1Knob.fillColour = knobColour
     filterEnvToPitchOsc1Knob.outlineColour = filterEnvColour
     filterEnvToPitchOsc1Knob.changed = function(self)
-      local factor = 1 / 48
-      local value = self.value * factor
+      local value = helpers.mapMacroValue(self)
       commonMacros.filterEnvToPitchOsc1:setParameter("Value", value)
     end
     filterEnvToPitchOsc1Knob:changed()
@@ -2976,7 +2979,7 @@ panelCreators.createFilterEnvOscTargetsPanel = function()
       filterEnvToNoise2CutoffKnob.fillColour = knobColour
       filterEnvToNoise2CutoffKnob.outlineColour = filterEnvColour
       filterEnvToNoise2CutoffKnob.changed = function(self)
-        local value = (self.value + 1) * 0.5
+        local value = helpers.mapMacroValue(self)
         drumMacros["filterEnvToNoise2Cutoff"]:setParameter("Value", value)
       end
       filterEnvToNoise2CutoffKnob:changed()
@@ -2988,7 +2991,7 @@ panelCreators.createFilterEnvOscTargetsPanel = function()
       filterEnvToWT2Knob.fillColour = knobColour
       filterEnvToWT2Knob.outlineColour = lfoColour
       filterEnvToWT2Knob.changed = function(self)
-        local value = (self.value + 1) * 0.5
+        local value = helpers.mapMacroValue(self)
         wavetableMacros["filterEnvToWT2"]:setParameter("Value", value)
       end
       filterEnvToWT2Knob:changed()
@@ -3000,7 +3003,7 @@ panelCreators.createFilterEnvOscTargetsPanel = function()
       oscFilterEnvAmtKnob.fillColour = knobColour
       oscFilterEnvAmtKnob.outlineColour = filterColour
       oscFilterEnvAmtKnob.changed = function(self)
-        local value = (self.value + 1) * 0.5
+        local value = helpers.mapMacroValue(self)
         additiveMacros["filterEnvToCutoff2"]:setParameter("Value", value)
       end
       oscFilterEnvAmtKnob:changed()
@@ -3013,8 +3016,7 @@ panelCreators.createFilterEnvOscTargetsPanel = function()
     filterEnvToPitchOsc2Knob.fillColour = knobColour
     filterEnvToPitchOsc2Knob.outlineColour = filterEnvColour
     filterEnvToPitchOsc2Knob.changed = function(self)
-      local factor = 1 / 48
-      local value = self.value * factor
+      local value = helpers.mapMacroValue(self)
       commonMacros.filterEnvToPitchOsc2:setParameter("Value", value)
     end
     filterEnvToPitchOsc2Knob:changed()
@@ -3056,7 +3058,7 @@ panelCreators.createLfoPanel = function()
   waveFormTypeMenu.outlineColour = menuOutlineColour
   waveFormTypeMenu.displayName = "Waveform"
   waveFormTypeMenu.selected = 1
-  waveFormTypeMenu.changed = function(self)
+  waveFormTypeMenu.changed = function(self, skipSendControlChange)
     local value = self.value - 1
     if activeLfoOsc == 1 or activeLfoOsc == 2 then
       synthModulators.lfo1:setParameter("WaveFormType", value)
@@ -3084,7 +3086,7 @@ panelCreators.createLfoPanel = function()
   lfo2SyncButton.textColourOff = buttonTextColourOff
   lfo2SyncButton.textColourOn = buttonTextColourOn
   lfo2SyncButton.width = 75
-  lfo2SyncButton.changed = function(self)
+  lfo2SyncButton.changed = function(self, skipSendControlChange)
     if activeLfoOsc == 1 or activeLfoOsc == 2 then
       synthModulators.lfo1:setParameter("SyncToHost", self.value)
     end
@@ -3150,7 +3152,7 @@ panelCreators.createLfoPanel = function()
   lfo2TriggerButton.width = 75
   lfo2TriggerButton.position = {lfo2SyncButton.x,25}
   lfo2TriggerButton.displayName = "Retrigger"
-  lfo2TriggerButton.changed = function(self)
+  lfo2TriggerButton.changed = function(self, skipSendControlChange)
     local mode = 1
     if (self.value == false) then
       mode = 3
@@ -3173,7 +3175,7 @@ panelCreators.createLfoPanel = function()
   lfoFreqKeyFollowKnob.displayName = "Key Track"
   lfoFreqKeyFollowKnob.fillColour = knobColour
   lfoFreqKeyFollowKnob.outlineColour = lfoColour
-  lfoFreqKeyFollowKnob.changed = function(self)
+  lfoFreqKeyFollowKnob.changed = function(self, skipSendControlChange)
     if activeLfoOsc == 1 or activeLfoOsc == 2 then
       commonMacros.lfoFreqKeyFollow1:setParameter("Value", self.value)
     end
@@ -3194,7 +3196,7 @@ panelCreators.createLfoPanel = function()
   lfoDelayKnob.mapper = Mapper.Quartic
   lfoDelayKnob.x = waveFormTypeMenu.x
   lfoDelayKnob.y = 70
-  lfoDelayKnob.changed = function(self)
+  lfoDelayKnob.changed = function(self, skipSendControlChange)
     if activeLfoOsc == 1 or activeLfoOsc == 2 then
       synthModulators.lfo1:setParameter("DelayTime", self.value)
     end
@@ -3216,7 +3218,7 @@ panelCreators.createLfoPanel = function()
   lfoRiseKnob.mapper = Mapper.Quartic
   lfoRiseKnob.x = lfoFreqKnob.x
   lfoRiseKnob.y = lfoDelayKnob.y
-  lfoRiseKnob.changed = function(self)
+  lfoRiseKnob.changed = function(self, skipSendControlChange)
     if activeLfoOsc == 1 or activeLfoOsc == 2 then
       synthModulators.lfo1:setParameter("RiseTime", self.value)
     end
@@ -3238,7 +3240,7 @@ panelCreators.createLfoPanel = function()
   lfoSmoothKnob.mapper = Mapper.Quartic
   lfoSmoothKnob.x = lfo2SyncButton.x
   lfoSmoothKnob.y = lfoRiseKnob.y
-  lfoSmoothKnob.changed = function(self)
+  lfoSmoothKnob.changed = function(self, skipSendControlChange)
     if activeLfoOsc == 1 or activeLfoOsc == 2 then
       synthModulators.lfo1:setParameter("Smooth", self.value)
     end
@@ -3263,7 +3265,7 @@ panelCreators.createLfoPanel = function()
   lfoBipolarButton.x = lfoFreqKeyFollowKnob.x
   lfoBipolarButton.y = lfoSmoothKnob.y
   lfoBipolarButton.displayName = "Bipolar"
-  lfoBipolarButton.changed = function(self)
+  lfoBipolarButton.changed = function(self, skipSendControlChange)
     if activeLfoOsc == 1 or activeLfoOsc == 2 then
       synthModulators.lfo1:setParameter("Bipolar", self.value)
     end
@@ -3366,8 +3368,8 @@ panelCreators.createLfoTargetPanel = function()
   lfoToCutoffKnob.displayName = "LP-Filter"
   lfoToCutoffKnob.fillColour = knobColour
   lfoToCutoffKnob.outlineColour = lfoColour
-  lfoToCutoffKnob.changed = function(self)
-    local value = (self.value + 1) * 0.5
+  lfoToCutoffKnob.changed = function(self, skipSendControlChange)
+    local value = helpers.mapMacroValue(self)
     commonMacros.lfoToCutoff:setParameter("Value", value)
     if lfoNoiseOscOverride == false then
       commonMacros.lfoToNoiseLpf:setParameter("Value", value)
@@ -3381,8 +3383,8 @@ panelCreators.createLfoTargetPanel = function()
   lfoToHpfCutoffKnob.displayName = "HP-Filter"
   lfoToHpfCutoffKnob.fillColour = knobColour
   lfoToHpfCutoffKnob.outlineColour = lfoColour
-  lfoToHpfCutoffKnob.changed = function(self)
-    local value = (self.value + 1) * 0.5
+  lfoToHpfCutoffKnob.changed = function(self, skipSendControlChange)
+    local value = helpers.mapMacroValue(self)
     commonMacros.lfoToHpf:setParameter("Value", value)
     if lfoNoiseOscOverride == false then
       commonMacros.lfoToNoiseHpf:setParameter("Value", value)
@@ -3396,8 +3398,8 @@ panelCreators.createLfoTargetPanel = function()
   lfoToAmpKnob.displayName = "Amplitude"
   lfoToAmpKnob.fillColour = knobColour
   lfoToAmpKnob.outlineColour = lfoColour
-  lfoToAmpKnob.changed = function(self)
-    local value = (self.value + 1) * 0.5
+  lfoToAmpKnob.changed = function(self, skipSendControlChange)
+    local value = helpers.mapMacroValue(self)
     commonMacros.lfoToAmp:setParameter("Value", value)
     if lfoNoiseOscOverride == false then
       commonMacros.lfoToNoiseAmp:setParameter("Value", value)
@@ -3412,7 +3414,7 @@ panelCreators.createLfoTargetPanel = function()
   lfoToDetuneKnob.tooltip = "LFO to filter envelope decay"
   lfoToDetuneKnob.fillColour = knobColour
   lfoToDetuneKnob.outlineColour = lfoColour
-  lfoToDetuneKnob.changed = function(self)
+  lfoToDetuneKnob.changed = function(self, skipSendControlChange)
     commonMacros.lfoToDetune:setParameter("Value", self.value)
   end
   lfoToDetuneKnob:changed()
@@ -3423,7 +3425,7 @@ panelCreators.createLfoTargetPanel = function()
   wheelToLfoKnob.displayName = "Via Wheel"
   wheelToLfoKnob.fillColour = knobColour
   wheelToLfoKnob.outlineColour = lfoColour
-  wheelToLfoKnob.changed = function(self)
+  wheelToLfoKnob.changed = function(self, skipSendControlChange)
     commonMacros.wheelToLfo:setParameter("Value", self.value)
   end
   wheelToLfoKnob:changed()
@@ -3440,7 +3442,7 @@ panelCreators.createLfoTargetPanel = function()
     lfoToNoiseLpfCutoffKnob.fillColour = knobColour
     lfoToNoiseLpfCutoffKnob.outlineColour = lfoColour
     lfoToNoiseLpfCutoffKnob.changed = function(self)
-      local value = (self.value + 1) * 0.5
+      local value = helpers.mapMacroValue(self)
       commonMacros.lfoToNoiseLpf:setParameter("Value", value)
     end
 
@@ -3452,7 +3454,7 @@ panelCreators.createLfoTargetPanel = function()
     lfoToNoiseHpfCutoffKnob.fillColour = knobColour
     lfoToNoiseHpfCutoffKnob.outlineColour = lfoColour
     lfoToNoiseHpfCutoffKnob.changed = function(self)
-      local value = (self.value + 1) * 0.5
+      local value = helpers.mapMacroValue(self)
       commonMacros.lfoToNoiseHpf:setParameter("Value", value)
     end
 
@@ -3464,7 +3466,7 @@ panelCreators.createLfoTargetPanel = function()
     lfoToNoiseAmpKnob.fillColour = knobColour
     lfoToNoiseAmpKnob.outlineColour = lfoColour
     lfoToNoiseAmpKnob.changed = function(self)
-      local value = (self.value + 1) * 0.5
+      local value = helpers.mapMacroValue(self)
       commonMacros.lfoToNoiseAmp:setParameter("Value", value)
     end
 
@@ -3620,7 +3622,7 @@ panelCreators.createLfoTargetPanel1 = function()
       lfoToCutoffKnob.fillColour = knobColour
       lfoToCutoffKnob.outlineColour = lfoColour
       lfoToCutoffKnob.changed = function(self)
-        local value = (self.value + 1) * 0.5
+        local value = helpers.mapMacroValue(self)
         additiveMacros["lfoToOsc1Cutoff"]:setParameter("Value", value)
       end
       lfoToCutoffKnob:changed()
@@ -3632,7 +3634,7 @@ panelCreators.createLfoTargetPanel1 = function()
       lfoToOsc1ModDepthKnob.fillColour = knobColour
       lfoToOsc1ModDepthKnob.outlineColour = lfoColour
       lfoToOsc1ModDepthKnob.changed = function(self)
-        local value = (self.value + 1) * 0.5
+        local value = helpers.mapMacroValue(self)
         drumMacros["lfoToOsc1ModDepth"]:setParameter("Value", value)
       end
       lfoToOsc1ModDepthKnob:changed()
@@ -3644,7 +3646,7 @@ panelCreators.createLfoTargetPanel1 = function()
       lfoToNoise1MixKnob.fillColour = knobColour
       lfoToNoise1MixKnob.outlineColour = lfoColour
       lfoToNoise1MixKnob.changed = function(self)
-        local value = (self.value + 1) * 0.5
+        local value = helpers.mapMacroValue(self)
         drumMacros["lfoToNoise1Mix"]:setParameter("Value", value)
       end
       lfoToNoise1MixKnob:changed()
@@ -3656,7 +3658,7 @@ panelCreators.createLfoTargetPanel1 = function()
       lfoToNoise1CutoffKnob.fillColour = knobColour
       lfoToNoise1CutoffKnob.outlineColour = lfoColour
       lfoToNoise1CutoffKnob.changed = function(self)
-        local value = (self.value + 1) * 0.5
+        local value = helpers.mapMacroValue(self)
         drumMacros["lfoToNoise1Cutoff"]:setParameter("Value", value)
       end
       lfoToNoise1CutoffKnob:changed()
@@ -3668,7 +3670,7 @@ panelCreators.createLfoTargetPanel1 = function()
       lfoToOsc1FreqKnob.fillColour = knobColour
       lfoToOsc1FreqKnob.outlineColour = lfoColour
       lfoToOsc1FreqKnob.changed = function(self)
-        local value = (self.value + 1) * 0.5
+        local value = helpers.mapMacroValue(self)
         drumMacros["lfoToOsc1Freq"]:setParameter("Value", value)
       end
       lfoToOsc1FreqKnob:changed()
@@ -3691,7 +3693,7 @@ panelCreators.createLfoTargetPanel1 = function()
       lfoToWT1Knob.fillColour = knobColour
       lfoToWT1Knob.outlineColour = lfoColour
       lfoToWT1Knob.changed = function(self)
-        local value = (self.value + 1) * 0.5
+        local value = helpers.mapMacroValue(self)
         wavetableMacros["lfoToWT1"]:setParameter("Value", value)
       end
       lfoToWT1Knob:changed()
@@ -3703,7 +3705,7 @@ panelCreators.createLfoTargetPanel1 = function()
       lfoToWaveSpread1Knob.fillColour = knobColour
       lfoToWaveSpread1Knob.outlineColour = lfoColour
       lfoToWaveSpread1Knob.changed = function(self)
-        local value = (self.value + 1) * 0.5
+        local value = helpers.mapMacroValue(self)
         wavetableMacros["lfoToWaveSpread1"]:setParameter("Value", value)
       end
       lfoToWaveSpread1Knob:changed()
@@ -3761,8 +3763,7 @@ panelCreators.createLfoTargetPanel1 = function()
       lfoToPitchOsc1Knob.fillColour = knobColour
       lfoToPitchOsc1Knob.outlineColour = lfoColour
       lfoToPitchOsc1Knob.changed = function(self)
-        local factor = 1 / 48
-        local value = (self.value * factor)
+        local value = helpers.mapMacroValue(self)
         commonMacros.lfoToPitchOsc1:setParameter("Value", value)
       end
       lfoToPitchOsc1Knob:changed()
@@ -3791,8 +3792,7 @@ panelCreators.createLfoTargetPanel2 = function()
     lfoToPitchOsc1Knob.fillColour = knobColour
     lfoToPitchOsc1Knob.outlineColour = lfoColour
     lfoToPitchOsc1Knob.changed = function(self)
-      local factor = 1 / 48
-      local value = (self.value * factor)
+      local value = helpers.mapMacroValue(self)
       commonMacros.lfoToPitchOsc1:setParameter("Value", value)
     end
     lfoToPitchOsc1Knob:changed()
@@ -3805,8 +3805,7 @@ panelCreators.createLfoTargetPanel2 = function()
     lfoToPitchOsc2Knob.fillColour = knobColour
     lfoToPitchOsc2Knob.outlineColour = lfoColour
     lfoToPitchOsc2Knob.changed = function(self)
-      local factor = 1 / 48
-      local value = (self.value * factor)
+      local value = helpers.mapMacroValue(self)
       commonMacros.lfoToPitchOsc2:setParameter("Value", value)
     end
     lfoToPitchOsc2Knob:changed()
@@ -3819,8 +3818,7 @@ panelCreators.createLfoTargetPanel2 = function()
     lfoToPitchOsc3Knob.fillColour = knobColour
     lfoToPitchOsc3Knob.outlineColour = lfoColour
     lfoToPitchOsc3Knob.changed = function(self)
-      local factor = 1 / 48
-      local value = (self.value * factor)
+      local value = helpers.mapMacroValue(self)
       analogMacros["lfoToPitchOsc3"]:setParameter("Value", value)
     end
     lfoToPitchOsc3Knob:changed()
@@ -3860,7 +3858,7 @@ panelCreators.createLfoTargetPanel2 = function()
       lfoToOsc2ModDepthKnob.fillColour = knobColour
       lfoToOsc2ModDepthKnob.outlineColour = lfoColour
       lfoToOsc2ModDepthKnob.changed = function(self)
-        local value = (self.value + 1) * 0.5
+        local value = helpers.mapMacroValue(self)
         drumMacros["lfoToOsc2ModDepth"]:setParameter("Value", value)
       end
       lfoToOsc2ModDepthKnob:changed()
@@ -3872,7 +3870,7 @@ panelCreators.createLfoTargetPanel2 = function()
       lfoToNoise2MixKnob.fillColour = knobColour
       lfoToNoise2MixKnob.outlineColour = lfoColour
       lfoToNoise2MixKnob.changed = function(self)
-        local value = (self.value + 1) * 0.5
+        local value = helpers.mapMacroValue(self)
         drumMacros["lfoToNoise2Mix"]:setParameter("Value", value)
       end
       lfoToNoise2MixKnob:changed()
@@ -3884,7 +3882,7 @@ panelCreators.createLfoTargetPanel2 = function()
       lfoToNoise2CutoffKnob.fillColour = knobColour
       lfoToNoise2CutoffKnob.outlineColour = lfoColour
       lfoToNoise2CutoffKnob.changed = function(self)
-        local value = (self.value + 1) * 0.5
+        local value = helpers.mapMacroValue(self)
         drumMacros["lfoToNoise2Cutoff"]:setParameter("Value", value)
       end
       lfoToNoise2CutoffKnob:changed()
@@ -3896,7 +3894,7 @@ panelCreators.createLfoTargetPanel2 = function()
       lfoToOsc2FreqKnob.fillColour = knobColour
       lfoToOsc2FreqKnob.outlineColour = lfoColour
       lfoToOsc2FreqKnob.changed = function(self)
-        local value = (self.value + 1) * 0.5
+        local value = helpers.mapMacroValue(self)
         drumMacros["lfoToOsc2Freq"]:setParameter("Value", value)
       end
       lfoToOsc2FreqKnob:changed()
@@ -3930,7 +3928,7 @@ panelCreators.createLfoTargetPanel2 = function()
       lfoToCutoffKnob.fillColour = knobColour
       lfoToCutoffKnob.outlineColour = lfoColour
       lfoToCutoffKnob.changed = function(self)
-        local value = (self.value + 1) * 0.5
+        local value = helpers.mapMacroValue(self)
         additiveMacros["lfoToOsc2Cutoff"]:setParameter("Value", value)
       end
       lfoToCutoffKnob:changed()
@@ -3942,7 +3940,7 @@ panelCreators.createLfoTargetPanel2 = function()
       lfoToWT2Knob.fillColour = knobColour
       lfoToWT2Knob.outlineColour = lfoColour
       lfoToWT2Knob.changed = function(self)
-        local value = (self.value + 1) * 0.5
+        local value = helpers.mapMacroValue(self)
         wavetableMacros["lfoToWT2"]:setParameter("Value", value)
       end
       lfoToWT2Knob:changed()
@@ -3954,7 +3952,7 @@ panelCreators.createLfoTargetPanel2 = function()
       lfoToWaveSpread2Knob.fillColour = knobColour
       lfoToWaveSpread2Knob.outlineColour = lfoColour
       lfoToWaveSpread2Knob.changed = function(self)
-        local value = (self.value + 1) * 0.5
+        local value = helpers.mapMacroValue(self)
         wavetableMacros["lfoToWaveSpread2"]:setParameter("Value", value)
       end
       lfoToWaveSpread2Knob:changed()
@@ -4012,8 +4010,7 @@ panelCreators.createLfoTargetPanel2 = function()
       lfoToPitchOsc2Knob.fillColour = knobColour
       lfoToPitchOsc2Knob.outlineColour = lfoColour
       lfoToPitchOsc2Knob.changed = function(self)
-        local factor = 1 / 48
-        local value = (self.value * factor)
+        local value = helpers.mapMacroValue(self)
         commonMacros.lfoToPitchOsc2:setParameter("Value", value)
       end
       lfoToPitchOsc2Knob:changed()
@@ -4626,7 +4623,7 @@ panelCreators.createMixerPanel = function()
   osc1MixKnob.size = knobSize
   osc1MixKnob.fillColour = knobColour
   osc1MixKnob.outlineColour = osc1Colour
-  osc1MixKnob.changed = function(self)
+  osc1MixKnob.changed = function(self, skipSendControlChange)
     commonMacros.osc1Mix:setParameter("Value", self.value)
     self.displayText = helpers.formatGainInDb(self.value)
   end
@@ -4640,7 +4637,7 @@ panelCreators.createMixerPanel = function()
   osc2MixKnob.size = knobSize
   osc2MixKnob.fillColour = knobColour
   osc2MixKnob.outlineColour = osc2Colour
-  osc2MixKnob.changed = function(self)
+  osc2MixKnob.changed = function(self, skipSendControlChange)
     commonMacros.osc2Mix:setParameter("Value", self.value)
     self.displayText = helpers.formatGainInDb(self.value)
   end
@@ -4656,7 +4653,7 @@ panelCreators.createMixerPanel = function()
     osc3MixKnob.size = knobSize
     osc3MixKnob.fillColour = knobColour
     osc3MixKnob.outlineColour = osc2Colour
-    osc3MixKnob.changed = function(self)
+    osc3MixKnob.changed = function(self, skipSendControlChange)
       synthOscillators[1]:setParameter("Gain3", self.value)
       self.displayText = helpers.formatGainInDb(self.value)
     end
@@ -4670,7 +4667,7 @@ panelCreators.createMixerPanel = function()
     subOscMixKnob.size = {90,knobSize[2]}
     subOscMixKnob.fillColour = knobColour
     subOscMixKnob.outlineColour = osc2Colour
-    subOscMixKnob.changed = function(self)
+    subOscMixKnob.changed = function(self, skipSendControlChange)
       analogMacros["subOscMix"]:setParameter("Value", self.value)
       self.displayText = helpers.formatGainInDb(self.value)
     end
@@ -4705,7 +4702,7 @@ panelCreators.createMixerPanel = function()
   noiseMixKnob.size = knobSize
   noiseMixKnob.fillColour = knobColour
   noiseMixKnob.outlineColour = osc2Colour
-  noiseMixKnob.changed = function(self)
+  noiseMixKnob.changed = function(self, skipSendControlChange)
     commonMacros.noiseMix:setParameter("Value", self.value)
     self.displayText = helpers.formatGainInDb(self.value)
   end
@@ -4921,8 +4918,9 @@ panelCreators.createMixerPanel = function()
       elseif synthTypes.isAnalogStack then
         setStackVoices(self.value, unisonDetuneKnob.value, stereoSpreadKnob.value, randomPhaseStartKnob.value)
       elseif synthTypes.isWavetable or synthTypes.isAdditive then
-        local factor = 1 / (unisonVoicesMax + 1)
-        local value = factor * self.value
+        --local factor = 1 / (unisonVoicesMax + 1)
+        --local value = factor * self.value
+        local value = helpers.mapMacroValue(self)
         wavetableMacros["unisonVoices"]:setParameter("Value", value)
       elseif synthTypes.isAnalog3Osc then
         Program.layers[1]:setParameter("NumVoicesPerNote", self.value)
@@ -6491,35 +6489,93 @@ local tweqPanel = panelCreators.createTwequencerPanel()
 local tweakPanel = panelCreators.createPatchMakerPanel()
 
 --------------------------------------------------------------------------------
+-- Midi CC map for default routing (Korg Minilogue)
+--------------------------------------------------------------------------------
+
+local controllerToWidgetMap = {
+  CC16 = {name = "Attack", env=true, page = synthesisPageButton},
+  CC17 = {name = "Decay", env=true, page = synthesisPageButton},
+  CC18 = {name = "Sustain", page = synthesisPageButton},
+  CC19 = {name = "Release", env=true, page = synthesisPageButton},
+  CC20 = {name = "FAttack", env=true, page = filterPageButton},
+  CC21 = {name = "FDecay", env=true, page = filterPageButton},
+  CC22 = {name = "FSustain", page = filterPageButton},
+  CC23 = {name = "FRelease", env=true, page = filterPageButton},
+  CC24 = {name = "LfoFreq", page = modulationPageButton, factor = 20}, -- LFO RATE
+  CC26 = {name = "LfoToTarget", page = modulationPageButton}, -- LFO INT
+  CC27 = {name = "Drive", page = effectsPageButton}, -- Voice Mode Depth > Drive
+  CC29 = {name = "HpfCutoff", page = filterPageButton}, -- HI PASS CUTOFF
+  CC30 = {name = "HpfEnvelopeAmt", bipolar = 1, page = filterPageButton}, -- TIME
+  CC31 = {name = "TweakLevel", factor = 100}, -- FEEDBACK > Tweak level
+  CC33 = {name = "NoiseMix"}, -- NOISE
+  CC34 = {name = "Osc1StartPhase", page = synthesisPageButton}, -- VCO 1 PITCH > Start Phase 1
+  CC35 = {name = "Osc2FinePitch", page = synthesisPageButton}, -- VCO 2 PITCH > Fine pitch
+  CC36 = {name = "HardsyncOsc1", page = synthesisPageButton, factor = 36}, -- VCO1 SHAPE > Hardsync 1
+  CC37 = {name = "HardsyncOsc2", page = synthesisPageButton, factor = 36}, -- VCO2 SHAPE > Hardsync 2
+  CC39 = {name = "Osc1Mix"}, -- VCO1
+  CC40 = {name = "Osc2Mix"}, -- VCO2
+  CC41 = {name = "FilterEnvToHardsync1", page = filterPageButton}, -- CROSS MOD DEPTH > Osc 1 Hardsync FEnv Amt
+  CC42 = {name = "FilterEnvToHardsync2", page = filterPageButton}, -- PITCH EG INT > Osc 2 Hardsync FEnv Amt
+  CC43 = {name = "Cutoff", page = filterPageButton}, -- CUTOFF > Cutoff
+  CC44 = {name = "Resonance", page = filterPageButton}, -- RESONANCE > Resonance
+  CC45 = {name = "EnvelopeAmt", bipolar = 1, page = filterPageButton}, -- EG INT > Cutoff filter env amount
+  CC48 = {name = "Osc1Pitch", page = synthesisPageButton}, -- VCO 1 OCTAVE
+  CC49 = {name = "Osc2Pitch", page = synthesisPageButton}, -- VCO 2 OCTAVE
+  CC50 = {name = "Osc1Wave", page = synthesisPageButton}, -- VCO 1 WAVE
+  CC51 = {name = "Osc2Wave", page = synthesisPageButton}, -- VCO 2 WAVE
+  CC56 = {name = "ActiveLfoTargetSelector", page = modulationPageButton}, -- TARGET
+  CC57 = {name = "LfoRetrigger", page = modulationPageButton}, -- EG MOD > LFO Retrigger/Sync
+  CC58 = {name = "WaveFormTypeMenu", page = modulationPageButton}, -- LFO WAVE
+  CC80 = {name = "VibratoDepth", page = synthesisPageButton}, -- RING
+  CC81 = {name = "Arp"}, -- SYNC > Arp on/off
+  CC82 = {name = "VelocityToFilterEnv", page = filterPageButton, factor = 20}, -- VELOCITY
+  CC83 = {name = "KeyTracking", page = filterPageButton}, -- KEY TRACK
+  CC84 = {name = "FilterDb", page = filterPageButton}, -- 2/4-POLE
+  CC88 = {name = "Tweak"} -- OUTPUT ROUTING > Tweak button
+}
+
+if synthTypes.isWavetable then
+  controllerToWidgetMap.CC36 = {name = "Osc1WaveIndex", page = synthesisPageButton} -- VCO1 SHAPE -> Osc 1 Wave Index
+  controllerToWidgetMap.CC37 = {name = "Osc2WaveIndex", page = synthesisPageButton} -- VCO2 SHAPE -> Osc 2 Wave Index
+  controllerToWidgetMap.CC41 = {name = "Osc1FilterEnvToIndex", bipolar = 1, page = filterPageButton} -- CROSS MOD DEPTH > Osc 1 Hardsync FEnv Amt
+  controllerToWidgetMap.CC42 = {name = "Osc2FilterEnvToIndex", bipolar = 1, page = filterPageButton} -- PITCH EG INT > Osc 2 Hardsync FEnv Amt
+  controllerToWidgetMap.CC50 = {name = "Reverb", factor = 0.3, page = effectsPageButton} -- VCO 1 WAVE
+  controllerToWidgetMap.CC51 = {name = "Delay", factor = 0.3, page = effectsPageButton} -- VCO 2 WAVE
+elseif synthTypes.isAdditive then
+  controllerToWidgetMap.CC34 = {name = "HarmShift1", factor=48, page = synthesisPageButton} -- VCO 1 PITCH > HarmShift1
+  controllerToWidgetMap.CC36 = {name = "Osc1Partials", factor=256, page = synthesisPageButton} -- VCO1 SHAPE -> Osc 1 Partials
+  controllerToWidgetMap.CC37 = {name = "Osc2Partials", factor=256, page = synthesisPageButton} -- VCO2 SHAPE -> Osc 2 Partials
+  controllerToWidgetMap.CC41 = {name = "Osc1Cutoff", bipolar=1, page = synthesisPageButton} -- CROSS MOD DEPTH > Osc 1 Even/Odd
+  controllerToWidgetMap.CC42 = {name = "Osc2Cutoff", bipolar=1, page = synthesisPageButton}-- PITCH EG INT > Osc 2 Even/Odd
+  controllerToWidgetMap.CC50 = {name = "Osc1EvenOdd", bipolar=1, page = synthesisPageButton} -- VCO 1 WAVE > Osc 1 Even/Odd
+  controllerToWidgetMap.CC51 = {name = "Osc2EvenOdd", bipolar=1, page = synthesisPageButton}-- VCO 2 WAVE > Osc 2 Even/Odd
+elseif synthTypes.isDrum then
+  controllerToWidgetMap.CC16 = {name = "Osc1Attack", env=true, page = synthesisPageButton}
+  controllerToWidgetMap.CC17 = {name = "Osc1Decay", env=true, page = synthesisPageButton}
+  controllerToWidgetMap.CC18 = {name = "Osc2Attack", env=true, page = synthesisPageButton}
+  controllerToWidgetMap.CC19 = {name = "Osc2Decay", env=true, page = synthesisPageButton}
+  controllerToWidgetMap.CC34 = {name = "Osc1PitchModRate", page = synthesisPageButton} -- VCO 1 PITCH > Osc 1 Mod Rate
+  controllerToWidgetMap.CC35 = {name = "Osc2PitchModRate", page = synthesisPageButton} -- VCO 2 PITCH > Osc 2 Mod Rate
+  controllerToWidgetMap.CC36 = {name = "Osc1PitchModAmount", bipolar=1, factor=96, page = synthesisPageButton} -- VCO1 SHAPE -> Osc 1 Mod Amt
+  controllerToWidgetMap.CC37 = {name = "Osc2PitchModAmount", bipolar=1, factor=96, page = synthesisPageButton} -- VCO2 SHAPE -> Osc 2 Mod Amt
+  controllerToWidgetMap.CC41 = {name = "Osc1Distortion", page = synthesisPageButton} -- CROSS MOD DEPTH > Osc 1 Distortion
+  controllerToWidgetMap.CC42 = {name = "Osc2Distortion", page = synthesisPageButton}-- PITCH EG INT > Osc 2 Distortion
+end
+
+--------------------------------------------------------------------------------
 -- Map Midi CC for HW (Minilogue)
 --------------------------------------------------------------------------------
 
 local function mapMinilogueCC()
   local activeLfoTarget = {cutoff = true, pwm = false, hardsync = false}
   local activeLfoTargetValue = 64
-
-  function controllerValueToWidgetValue(controllerValue, bipolar, factor, env)
-    local max = 127
+  
+  function controllerValueToWidgetValue(controllerValue, widget, env)
     if env == true then
-      return 10 * ((controllerValue / max) ^ 4)
+      local ccMax = 127
+      return 10 * ((controllerValue / ccMax) ^ 4)
     end
-    if bipolar == 1 then
-      max = max / 2
-    else
-      bipolar = 0
-    end
-    local widgetValue = (controllerValue / max) - bipolar
-    if controllerValue == 64 then
-      if bipolar == 0 then
-        widgetValue = 0.5
-      else
-        widgetValue = 0
-      end
-    end
-    if type(factor) == "number" then
-      widgetValue = widgetValue * factor
-    end
-    return widgetValue
+    return gem.mapValueBetweenRanges(controllerValue, 0, 127, widget.min, widget.max)
   end
 
   function setLfoTargetValue()
@@ -6531,7 +6587,7 @@ local function mapMinilogueCC()
     local factor = 1
 
     if activeLfoTarget.cutoff == true then
-      helpers.getWidget("LfoToCutoff").value = controllerValueToWidgetValue(activeLfoTargetValue, bipolar, factor)
+      helpers.getWidget("LfoToCutoff").value = controllerValueToWidgetValue(activeLfoTargetValue, helpers.getWidget("LfoToCutoff"))
     else
       helpers.getWidget("LfoToCutoff").value = 0
     end
@@ -6545,8 +6601,8 @@ local function mapMinilogueCC()
       factor = 0.5
     end
     if activeLfoTarget.pwm == true then
-      helpers.getWidget("LfoTo" .. pwmKey .. "1").value = controllerValueToWidgetValue(activeLfoTargetValue, bipolar, factor)
-      helpers.getWidget("LfoTo" .. pwmKey .. "2").value = controllerValueToWidgetValue(activeLfoTargetValue, bipolar, factor)
+      helpers.getWidget("LfoTo" .. pwmKey .. "1").value = controllerValueToWidgetValue(activeLfoTargetValue, helpers.getWidget("LfoTo" .. pwmKey .. "1"))
+      helpers.getWidget("LfoTo" .. pwmKey .. "2").value = controllerValueToWidgetValue(activeLfoTargetValue, helpers.getWidget("LfoTo" .. pwmKey .. "2"))
     else
       helpers.getWidget("LfoTo" .. pwmKey .. "1").value = 0
       helpers.getWidget("LfoTo" .. pwmKey .. "2").value = 0
@@ -6565,8 +6621,8 @@ local function mapMinilogueCC()
       bipolar = 1
     end
     if activeLfoTarget.hardsync == true then
-      helpers.getWidget("LfoTo" .. hardsyncKey .. "1").value = controllerValueToWidgetValue(activeLfoTargetValue, bipolar, factor)
-      helpers.getWidget("LfoTo" .. hardsyncKey .. "2").value = controllerValueToWidgetValue(activeLfoTargetValue, bipolar, factor)
+      helpers.getWidget("LfoTo" .. hardsyncKey .. "1").value = controllerValueToWidgetValue(activeLfoTargetValue, helpers.getWidget("LfoTo" .. hardsyncKey .. "1"))
+      helpers.getWidget("LfoTo" .. hardsyncKey .. "2").value = controllerValueToWidgetValue(activeLfoTargetValue, helpers.getWidget("LfoTo" .. hardsyncKey .. "2"))
     else
       helpers.getWidget("LfoTo" .. hardsyncKey .. "1").value = 0
       helpers.getWidget("LfoTo" .. hardsyncKey .. "2").value = 0
@@ -6576,82 +6632,12 @@ local function mapMinilogueCC()
   function onController(e)
     -- TODO Add option for using patchemaker or twequencer when setting tweak level/tweak on/off
     print(e)
-    local controllerToWidgetMap = {
-      CC16 = {name = "Attack", env=true, page = synthesisPageButton},
-      CC17 = {name = "Decay", env=true, page = synthesisPageButton},
-      CC18 = {name = "Sustain", page = synthesisPageButton},
-      CC19 = {name = "Release", env=true, page = synthesisPageButton},
-      CC20 = {name = "FAttack", env=true, page = filterPageButton},
-      CC21 = {name = "FDecay", env=true, page = filterPageButton},
-      CC22 = {name = "FSustain", page = filterPageButton},
-      CC23 = {name = "FRelease", env=true, page = filterPageButton},
-      CC24 = {name = "LfoFreq", page = modulationPageButton, factor = 20}, -- LFO RATE
-      CC26 = {name = "LfoToTarget", page = modulationPageButton}, -- LFO INT
-      CC27 = {name = "Drive", page = effectsPageButton}, -- Voice Mode Depth > Drive
-      CC29 = {name = "HpfCutoff", page = filterPageButton}, -- HI PASS CUTOFF
-      CC30 = {name = "HpfEnvelopeAmt", bipolar = 1, page = filterPageButton}, -- TIME
-      CC31 = {name = "TweakLevel", factor = 100}, -- FEEDBACK > Tweak level
-      CC33 = {name = "NoiseMix"}, -- NOISE
-      CC34 = {name = "Osc1StartPhase", page = synthesisPageButton}, -- VCO 1 PITCH > Start Phase 1
-      CC35 = {name = "Osc2FinePitch", page = synthesisPageButton}, -- VCO 2 PITCH > Fine pitch
-      CC36 = {name = "HardsyncOsc1", page = synthesisPageButton, factor = 36}, -- VCO1 SHAPE > Hardsync 1
-      CC37 = {name = "HardsyncOsc2", page = synthesisPageButton, factor = 36}, -- VCO2 SHAPE > Hardsync 2
-      CC39 = {name = "Osc1Mix"}, -- VCO1
-      CC40 = {name = "Osc2Mix"}, -- VCO2
-      CC41 = {name = "FilterEnvToHardsync1", page = filterPageButton}, -- CROSS MOD DEPTH > Osc 1 Hardsync FEnv Amt
-      CC42 = {name = "FilterEnvToHardsync2", page = filterPageButton}, -- PITCH EG INT > Osc 2 Hardsync FEnv Amt
-      CC43 = {name = "Cutoff", page = filterPageButton}, -- CUTOFF > Cutoff
-      CC44 = {name = "Resonance", page = filterPageButton}, -- RESONANCE > Resonance
-      CC45 = {name = "EnvelopeAmt", bipolar = 1, page = filterPageButton}, -- EG INT > Cutoff filter env amount
-      CC48 = {name = "Osc1Pitch", page = synthesisPageButton}, -- VCO 1 OCTAVE
-      CC49 = {name = "Osc2Pitch", page = synthesisPageButton}, -- VCO 2 OCTAVE
-      CC50 = {name = "Osc1Wave", page = synthesisPageButton}, -- VCO 1 WAVE
-      CC51 = {name = "Osc2Wave", page = synthesisPageButton}, -- VCO 2 WAVE
-      CC56 = {name = "ActiveLfoTargetSelector", page = modulationPageButton}, -- TARGET
-      CC57 = {name = "LfoRetrigger", page = modulationPageButton}, -- EG MOD > LFO Retrigger/Sync
-      CC58 = {name = "WaveFormTypeMenu", page = modulationPageButton}, -- LFO WAVE
-      CC80 = {name = "VibratoDepth", page = synthesisPageButton}, -- RING
-      CC81 = {name = "Arp"}, -- SYNC > Arp on/off
-      CC82 = {name = "VelocityToFilterEnv", page = filterPageButton, factor = 20}, -- VELOCITY
-      CC83 = {name = "KeyTracking", page = filterPageButton}, -- KEY TRACK
-      CC84 = {name = "FilterDb", page = filterPageButton}, -- 2/4-POLE
-      CC88 = {name = "Tweak"} -- OUTPUT ROUTING > Tweak button
-    }
-
     if isPlaying then
       controllerToWidgetMap.CC31.page = twequencerPageButton
       controllerToWidgetMap.CC88.page = twequencerPageButton
     else
       controllerToWidgetMap.CC31.page = patchmakerPageButton
       controllerToWidgetMap.CC88.page = patchmakerPageButton
-    end
-
-    if synthTypes.isWavetable then
-      controllerToWidgetMap.CC36 = {name = "Osc1WaveIndex", page = synthesisPageButton} -- VCO1 SHAPE -> Osc 1 Wave Index
-      controllerToWidgetMap.CC37 = {name = "Osc2WaveIndex", page = synthesisPageButton} -- VCO2 SHAPE -> Osc 2 Wave Index
-      controllerToWidgetMap.CC41 = {name = "Osc1FilterEnvToIndex", bipolar = 1, page = filterPageButton} -- CROSS MOD DEPTH > Osc 1 Hardsync FEnv Amt
-      controllerToWidgetMap.CC42 = {name = "Osc2FilterEnvToIndex", bipolar = 1, page = filterPageButton} -- PITCH EG INT > Osc 2 Hardsync FEnv Amt
-      controllerToWidgetMap.CC50 = {name = "Reverb", factor = 0.3, page = effectsPageButton} -- VCO 1 WAVE
-      controllerToWidgetMap.CC51 = {name = "Delay", factor = 0.3, page = effectsPageButton} -- VCO 2 WAVE
-    elseif synthTypes.isAdditive then
-      controllerToWidgetMap.CC34 = {name = "HarmShift1", factor=48, page = synthesisPageButton} -- VCO 1 PITCH > HarmShift1
-      controllerToWidgetMap.CC36 = {name = "Osc1Partials", factor=256, page = synthesisPageButton} -- VCO1 SHAPE -> Osc 1 Partials
-      controllerToWidgetMap.CC37 = {name = "Osc2Partials", factor=256, page = synthesisPageButton} -- VCO2 SHAPE -> Osc 2 Partials
-      controllerToWidgetMap.CC41 = {name = "Osc1Cutoff", bipolar=1, page = synthesisPageButton} -- CROSS MOD DEPTH > Osc 1 Even/Odd
-      controllerToWidgetMap.CC42 = {name = "Osc2Cutoff", bipolar=1, page = synthesisPageButton}-- PITCH EG INT > Osc 2 Even/Odd
-      controllerToWidgetMap.CC50 = {name = "Osc1EvenOdd", bipolar=1, page = synthesisPageButton} -- VCO 1 WAVE > Osc 1 Even/Odd
-      controllerToWidgetMap.CC51 = {name = "Osc2EvenOdd", bipolar=1, page = synthesisPageButton}-- VCO 2 WAVE > Osc 2 Even/Odd
-    elseif synthTypes.isDrum then
-      controllerToWidgetMap.CC16 = {name = "Osc1Attack", env=true, page = synthesisPageButton}
-      controllerToWidgetMap.CC17 = {name = "Osc1Decay", env=true, page = synthesisPageButton}
-      controllerToWidgetMap.CC18 = {name = "Osc2Attack", env=true, page = synthesisPageButton}
-      controllerToWidgetMap.CC19 = {name = "Osc2Decay", env=true, page = synthesisPageButton}
-      controllerToWidgetMap.CC34 = {name = "Osc1PitchModRate", page = synthesisPageButton} -- VCO 1 PITCH > Osc 1 Mod Rate
-      controllerToWidgetMap.CC35 = {name = "Osc2PitchModRate", page = synthesisPageButton} -- VCO 2 PITCH > Osc 2 Mod Rate
-      controllerToWidgetMap.CC36 = {name = "Osc1PitchModAmount", bipolar=1, factor=96, page = synthesisPageButton} -- VCO1 SHAPE -> Osc 1 Mod Amt
-      controllerToWidgetMap.CC37 = {name = "Osc2PitchModAmount", bipolar=1, factor=96, page = synthesisPageButton} -- VCO2 SHAPE -> Osc 2 Mod Amt
-      controllerToWidgetMap.CC41 = {name = "Osc1Distortion", page = synthesisPageButton} -- CROSS MOD DEPTH > Osc 1 Distortion
-      controllerToWidgetMap.CC42 = {name = "Osc2Distortion", page = synthesisPageButton}-- PITCH EG INT > Osc 2 Distortion
     end
 
     local key = "CC" .. e.controller
@@ -6661,7 +6647,13 @@ local function mapMinilogueCC()
       if cc.page then
         cc.page:setValue(true)
       end
-      local value = controllerValueToWidgetValue(e.value, cc.bipolar, cc.factor, (cc.env==true))
+      local widget = helpers.getWidget(cc.name)
+      local value = gem.mapValueBetweenRanges(e.value, 0, 127, 0, 1)
+      if type(widget) == "userdata" then
+        value = controllerValueToWidgetValue(e.value, widget, (cc.env==true))
+      else
+        print("cc.name", cc.name)
+      end
       print("Value in/out:", e.value, value)
 
       if cc.name == "Arp" then
@@ -6674,15 +6666,15 @@ local function mapMinilogueCC()
           activeLfoTarget.cutoff = false
           activeLfoTarget.pwm = false
           activeLfoTarget.hardsync = true
-        elseif value == 0.5 then
-          -- PWM
-          activeLfoTarget.cutoff = false
-          activeLfoTarget.pwm = true
-          activeLfoTarget.hardsync = false
-        else
+        elseif value == 0 then
           -- CUTOFF
           activeLfoTarget.cutoff = true
           activeLfoTarget.pwm = false
+          activeLfoTarget.hardsync = false
+        else
+          -- PWM
+          activeLfoTarget.cutoff = false
+          activeLfoTarget.pwm = true
           activeLfoTarget.hardsync = false
         end
         setLfoTargetValue()
@@ -6694,20 +6686,20 @@ local function mapMinilogueCC()
         return
       end
       if cc.name == "TweakLevel" then
+        value = gem.mapValueBetweenRanges(e.value, 0, 127, 0, cc.factor)
         if isPlaying then
           twequencerParameters.tweakLevelKnob.value = value
         else
-          storeNewSnapshot()
           patchmakerParameters.tweakLevelKnob.value = value
         end
         return
       end
       if cc.name == "Tweak" then
-        if value == 1 then
+        if e.value == 127 then
           helpers.initPatch()
         else
           if isPlaying then
-            twequencerParameters.liveTweakButton:setValue(value == .5)
+            twequencerParameters.liveTweakButton:setValue(e.value == 64)
           else
             storeNewSnapshot()
             patchmakerParameters.tweakButton:push(true)
@@ -6730,67 +6722,63 @@ local function mapMinilogueCC()
         end
         return
       end
-      if cc.name == "FilterDb" then
-        if value == 0 then
-          value = 2
-        end
-      end
       if cc.name == "VibratoDepth" and value == 1 then
         value = 0.3
       end
       if cc.name == "Osc1Wave" or cc.name == "Osc2Wave" then
         if synthTypes.isDrum then
-          if value == 0 then
+          if e.value == 0 then
             value = 4
-          elseif value < 1 then
+          elseif e.value == 64 then
             value = 2
           else
             value = 3
           end
         else
-          if value == 0 then
+          if e.value == 0 then
             value = 2
-          elseif value < 1 then
+          elseif e.value == 64 then
             value = 3
+          else
+            value = 1
           end
         end
       end
       if cc.name == "Osc1Pitch" then
-        if value == 1 then
-          value = 2
-        elseif value > 0.6 then
-          value = 1
-        elseif value > 0.3 then
-          value = 0
-        else
+        if e.value == 0 then
           value = -1
+        elseif e.value == 42 then
+          value = 0
+        elseif e.value == 84 then
+          value = 1
+        else
+          value = 2
         end
       end
       if cc.name == "Osc2Pitch" then
-        if value == 1 then
-          value = 24
-        elseif value > 0.6 then
-          value = 12
-        elseif value > 0.3 then
-          value = 0
-        else
+        if e.value == 0 then
           value = -12
+        elseif e.value == 42 then
+          value = 0
+        elseif e.value == 84 then
+          value = 12
+        else
+          value = 24
         end
       end
       if cc.name == "WaveFormTypeMenu" then
-        if value == 0 then
+        if e.value == 0 then
           value = 6
-        elseif value == 1 then
-          value = 5
-        else
+        elseif e.value == 64 then
           value = 3
+        else
+          value = 5
         end
       end
-      print("Setting value:", value)
-      local widget = helpers.getWidget(cc.name)
-      print("Widget type:", type(widget))
       if type(widget) == "userdata" then
-        widget.value = value
+        print("Setting widget value:", widget.name, value)
+        widget:setValue(value, false)
+        widget.changed(widget, true)
       end
       return
     end
@@ -6933,6 +6921,22 @@ makePerformanceView()
 
 function onInit()
   seqIndex = 0
+  preInit = false
+  for key,v in pairs(controllerToWidgetMap) do
+    local cc = string.gsub(key, "CC", "")
+    local tweakable = helpers.getTweakable(v.name)
+    if type(tweakable) == "table" then
+      tweakable.cc = tonumber(cc)
+      tweakable.env = v.env
+      local changed = tweakable.widget.changed
+      if type(changed) == "function" then
+        tweakable.widget.changed = function(self, skipSendControlChange)
+          changed(self)
+          helpers.sendControlChange(self, skipSendControlChange)
+        end
+      end
+    end
+  end
 end
 
 function onNote(e)

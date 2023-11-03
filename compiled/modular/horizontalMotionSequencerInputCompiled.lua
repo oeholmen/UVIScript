@@ -154,6 +154,10 @@ local function getValueOrDefault(value, default)
   return default
 end
 
+local function mapValueBetweenRanges(value, fromMin, fromMax, toMin, toMax)
+  return ((value - fromMin) / (fromMax - fromMin)) * (toMax - toMin) + toMin
+end
+
 local gem = {
   e = 2.71828,
   inc = inc,
@@ -172,6 +176,7 @@ local gem = {
   getValueOrDefault = getValueOrDefault,
   getIndexFromValue = getIndexFromValue,
   getRandomFromTable = getRandomFromTable,
+  mapValueBetweenRanges = mapValueBetweenRanges,
 }
 
 --------------------------------------------------------------------------------
