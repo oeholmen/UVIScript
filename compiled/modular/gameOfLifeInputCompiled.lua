@@ -1453,10 +1453,12 @@ local function updateBoard()
 end
 
 local function evolution(uniqueId)
+  print("Start evolution", uniqueId)
   while isPlaying and seqIndex == uniqueId do
     if generationButton.value then
       updateBoard()
     end
+    print("evolutionSpeed", evolutionSpeed)
     wait(evolutionSpeed)
   end
 end
@@ -1488,13 +1490,6 @@ local function stopPlaying()
   end
   isPlaying = false
   resetCellColours()
-end
-
-local function checkPlaying(uniqueId)
-  wait(50)
-  if checkId == uniqueId and modular.getNumVoices() == 0 then
-    stopPlaying()
-  end
 end
 
 local function getPlayPos(channel)
@@ -1795,10 +1790,7 @@ end
 
 function onRelease(e)
   if modular.isTrigger(e) then
-    if modular.handleReleaseTrigger(e) then
-      checkId = gem.inc(checkId)
-      spawn(checkPlaying, checkId)
-    end
+    modular.handleReleaseTrigger(e)
   else
     postEvent(e)
   end
