@@ -640,10 +640,11 @@ for i=1,numControls do
     editable = true
   })
 
-  local learn = widgets.button('L', false, {
-    name = "learn" .. i,
-    tooltip = "Learn controller number",
-    width = 24
+  local channelOut = widgets.menu("Midi Channel", channels, {
+    name = "outchannel" .. i,
+    tooltip = "Midi out",
+    showLabel = false,
+    width = 75,
   })
 
   local controllerOut = widgets.numBox('CC', 101 + i, {
@@ -665,11 +666,10 @@ for i=1,numControls do
     end
   })
 
-  local channelOut = widgets.menu("Midi Channel", channels, {
-    name = "outchannel" .. i,
-    tooltip = "Midi out",
-    showLabel = false,
-    width = 75,
+  local learn = widgets.button('L', false, {
+    name = "learn" .. i,
+    tooltip = "Learn controller",
+    width = 24
   })
 
   table.insert(routers, {label=label,controllerOut=controllerOut,value=value,learn=learn})
