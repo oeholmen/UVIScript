@@ -53,6 +53,7 @@ luaScripts=(
   util/midiControlRouter
   util/noteLimiter
   util/noteVelocity
+  util/pitchOffset
   util/randomGate
   util/randomOctave
   util/resolutionQuantizer
