@@ -37,37 +37,47 @@ label.textColour = labelTextColour
 label.width = 140
 label.fontSize = 22
 
-local probability = panel:Knob("Probability", 50, 0, 100, true)
-probability.unit = Unit.Percent
-probability.displayName = "Probability"
-probability.tooltip = "Set the probability that the gate will open or close"
-probability.backgroundColour = widgetBackgroundColour
-probability.fillColour = knobFillColour
-probability.outlineColour = labelBackgoundColour
-probability.x = label.x + label.width + 30
-probability.width = 120
+local waitResolutionOpen = panel:Menu("WaitResolution", resolutions.getResolutionNames())
+waitResolutionOpen.displayName = "Open"
+waitResolutionOpen.tooltip = "The duration of open gate"
+waitResolutionOpen.selected = 11
+waitResolutionOpen.width = 66
+waitResolutionOpen.x = label.x + label.width + 30
+waitResolutionOpen.backgroundColour = menuBackgroundColour
+waitResolutionOpen.textColour = widgetTextColour
+waitResolutionOpen.arrowColour = menuArrowColour
+waitResolutionOpen.outlineColour = menuOutlineColour
 
-local waitResolution = panel:Menu("WaitResolution", resolutions.getResolutionNames())
-waitResolution.displayName = "Open Duration"
-waitResolution.tooltip = "The duration of open gate"
-waitResolution.selected = 11
-waitResolution.width = 120
-waitResolution.x = probability.x + probability.width + 10
-waitResolution.backgroundColour = menuBackgroundColour
-waitResolution.textColour = widgetTextColour
-waitResolution.arrowColour = menuArrowColour
-waitResolution.outlineColour = menuOutlineColour
+local probabilityOpen = panel:Knob("Probability", 50, 0, 100, true)
+probabilityOpen.unit = Unit.Percent
+probabilityOpen.displayName = "Probability"
+probabilityOpen.tooltip = "Set the probability that the gate will open"
+probabilityOpen.backgroundColour = widgetBackgroundColour
+probabilityOpen.fillColour = knobFillColour
+probabilityOpen.outlineColour = labelBackgoundColour
+probabilityOpen.x = waitResolutionOpen.x + waitResolutionOpen.width + 10
+probabilityOpen.width = 120
 
 local waitResolutionClosed = panel:Menu("WaitResolutionClosed", resolutions.getResolutionNames())
-waitResolutionClosed.displayName = "Closed Duration"
+waitResolutionClosed.displayName = "Close"
 waitResolutionClosed.tooltip = "The duration closed gate"
 waitResolutionClosed.selected = 11
-waitResolutionClosed.width = 120
-waitResolutionClosed.x = waitResolution.x + waitResolution.width + 10
+waitResolutionClosed.width = 66
+waitResolutionClosed.x = probabilityOpen.x + probabilityOpen.width + 30
 waitResolutionClosed.backgroundColour = menuBackgroundColour
 waitResolutionClosed.textColour = widgetTextColour
 waitResolutionClosed.arrowColour = menuArrowColour
 waitResolutionClosed.outlineColour = menuOutlineColour
+
+local probabilityClose = panel:Knob("ProbabilityClose", 50, 0, 100, true)
+probabilityClose.unit = Unit.Percent
+probabilityClose.displayName = "Probability"
+probabilityClose.tooltip = "Set the probability that the gate will close"
+probabilityClose.backgroundColour = widgetBackgroundColour
+probabilityClose.fillColour = knobFillColour
+probabilityClose.outlineColour = labelBackgoundColour
+probabilityClose.x = waitResolutionClosed.x + waitResolutionClosed.width + 30
+probabilityClose.width = 120
 
 local gateButton = panel:OnOffButton("GateButton", true)
 gateButton.displayName = "On"
@@ -77,8 +87,8 @@ gateButton.backgroundColourOn = "green"
 gateButton.backgroundColourOff = "303030"
 gateButton.textColourOn = "white"
 gateButton.textColourOff = "gray"
-gateButton.size = {90,20}
-gateButton.x = panel.width - 100
+gateButton.size = {30,20}
+gateButton.x = panel.width - 40
 gateButton.y = 30
 gateButton.changed = function(self)
   if self.value == true then
@@ -93,12 +103,15 @@ function arpeg()
   local waitTime = 0
   while isRunning do
     round = round + 1 -- Increment round
-    if gem.getRandomBoolean(probability.value) then
-      gateButton:setValue(gateButton.value == false)
-    end
     if gateButton.value == true then
-      waitTime = beat2ms(resolutions.getResolution(waitResolution.value))
+      if gem.getRandomBoolean(probabilityClose.value) then
+        gateButton:setValue(gateButton.value == false)
+      end
+      waitTime = beat2ms(resolutions.getResolution(waitResolutionOpen.value))
     else
+      if gem.getRandomBoolean(probabilityOpen.value) then
+        gateButton:setValue(gateButton.value == false)
+      end
       waitTime = beat2ms(resolutions.getResolution(waitResolutionClosed.value))
     end
     if round == 1 then
@@ -118,7 +131,7 @@ function onTransport(start)
   isRunning = start
   if isRunning then
     arpeg()
-  elseif probability.value > 0 then
+  elseif probabilityOpen.value > 0 then
     gateButton:setValue(true)
   end
 end
