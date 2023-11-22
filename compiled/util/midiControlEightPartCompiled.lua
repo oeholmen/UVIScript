@@ -617,11 +617,11 @@ local y = 18
 local routers = {}
 for i=1,numControls do
   widgets.setSection({
-    width = 140,
+    width = 120,
     cols = 8,
-    x = 15,
+    x = 12,
     y = y,
-    xSpacing = 15,
+    xSpacing = 12,
     ySpacing = 5,
   })
 
@@ -644,7 +644,7 @@ for i=1,numControls do
     name = "outchannel" .. i,
     tooltip = "Midi out",
     showLabel = false,
-    width = 75,
+    width = 60,
   })
 
   local controllerOut = widgets.numBox('CC', 101 + i, {
@@ -658,11 +658,26 @@ for i=1,numControls do
   local value = widgets.numBox('Value', 0, {
     name = "value" .. i,
     tooltip = "Send cc to the selected control number by changing this value.",
-    min = 0,
-    max = 127,
-    integer = true,
+    unit = Unit.Percent,
     changed = function(self)
-      controlChange(controllerOut.value, self.value, (channelOut.value-1))
+      local v = gem.round(gem.mapValueBetweenRanges(self.value, self.min, self.max, 0, 127))
+      controlChange(controllerOut.value, v, (channelOut.value-1))
+    end
+  })
+
+  local bipolar = widgets.button('Bipolar', false, {
+    name = "bipolar" .. i,
+    tooltip = "Set biploar mode",
+    width = 60,
+    changed = function(self)
+      if self.value == true then
+        value:setRange(-100,100)
+      else
+        if value.value < 0 then
+          value.value = 0
+        end
+        value:setRange(0, 100)
+      end
     end
   })
 
@@ -672,7 +687,7 @@ for i=1,numControls do
     width = 24
   })
 
-  table.insert(routers, {label=label,controllerOut=controllerOut,value=value,learn=learn})
+  table.insert(routers, {label=label,controllerOut=controllerOut,value=value,bipolar=bipolar,learn=learn})
 end
 
 --------------------------------------------------------------------------------
