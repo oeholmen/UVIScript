@@ -18,7 +18,7 @@ local y = 18
 local routers = {}
 for i=1,numControls do
   widgets.setSection({
-    width = 120,
+    width = 90,
     cols = 8,
     x = 12,
     y = y,
@@ -57,9 +57,11 @@ for i=1,numControls do
   })
 
   local value = widgets.numBox('Value', 0, {
+    width = 150,
     name = "value" .. i,
     tooltip = "Send cc to the selected control number by changing this value.",
     unit = Unit.Percent,
+    integer = false,
     changed = function(self)
       local v = gem.round(gem.mapValueBetweenRanges(self.value, self.min, self.max, 0, 127))
       controlChange(controllerOut.value, v, (channelOut.value-1))
