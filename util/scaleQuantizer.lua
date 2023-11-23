@@ -81,10 +81,12 @@ end
 function onNote(e)
   if channel == 0 or channel == e.channel then
     print("Note before", e.note)
-    e.note = notes.getNoteAccordingToScale(scale, e.note)
-    print("Note after", e.note)
+    local note = notes.getNoteAccordingToScale(scale, e.note)
+    print("Note after", note)
+    playNote(note, e.velocity)
+  else
+    postEvent(e)
   end
-  postEvent(e)
 end
 
 --------------------------------------------------------------------------------

@@ -1,4 +1,4 @@
--- util/scaleQuantizer -- 
+-- util/trigger -- 
 --------------------------------------------------------------------------------
 -- Common methods
 --------------------------------------------------------------------------------
@@ -601,364 +601,604 @@ local widgets = {
 }
 
 --------------------------------------------------------------------------------
--- Common Scales
+-- Common Resolutions
 --------------------------------------------------------------------------------
 
--- Make sure these are in sync with the scale names
--- Scales are defined by distance to the next step
-local scaleDefinitions = {
-  {def={2,2,1,2,2,2,1},name="7 Notes/Major (Ionian)",},
-  {def={2,1,2,2,1,2,2},name="7 Notes/Minor (Aeolian)",},
-  {def={2,1,2,2,2,1,2},name="7 Notes/Dorian",},
-  {def={1,2,2,2,1,2,2},name="7 Notes/Phrygian",},
-  {def={2,2,2,1,2,2,1},name="7 Notes/Lydian",},
-  {def={2,2,1,2,2,1,2},name="7 Notes/Mixolydian",},
-  {def={1,2,2,1,2,2,2},name="7 Notes/Locrian",},
-  {def={2,2,2,1,2,1,2},name="7 Notes/Acoustic",},
-  {def={2,1,2,1,1,3,2},name="7 Notes/Blues",},
-  {def={1,2,1,3,1,2,2},name="7 Notes/Alterated",},
-  {def={2,1,3,1,1,3,1},name="7 Notes/Maqam Saba",},
-  {def={1,3,1,2,3,1,1},name="7 Notes/Persian",},
-  {def={1,3,1,2,1,3,1},name="7 Notes/Arabic",},
-  {def={2,1,3,1,1,2,2},name="7 Notes/Hungarian",},
-  {def={2,2,3,2,3},name="5 Notes/Major Pentatonic",},
-  {def={3,2,2,3,2},name="5 Notes/Minor Pentatonic",},
-  {def={1,4,1,4,2},name="5 Notes/Hirajoshi",},
-  {def={1,4,2,1,4},name="5 Notes/Miyako-Bushi",},
-  {def={1,4,3,2,2},name="5 Notes/Iwato",},
-  {def={2,2,1,2,2},name="5 Notes/Ritsu",},
-  {def={2,1,4,2,1},name="5 Notes/Kumoi",},
-  {def={1,3,1,2,3},name="5 Notes/Maqam Hijaz",},
-  {def={2,1,4,1,2},name="5 Notes/Maqam Bayati",},
-  {def={3},name="Diminished",},
-  {def={2},name="Whole tone",},
-  {def={1},name="Chomatic",},
+local function getDotted(value)
+  return value * 1.5
+end
+
+local function getTriplet(value)
+  return value / 3
+end
+
+-- NOTE: Make sure resolutionValues and resolutionNames are in sync
+local resolutionValues = {
+  128, -- "32x" -- 1
+  64, -- "16x" -- 2
+  32, -- "8x" -- 3
+  28, -- "7x" -- 4
+  24, -- "6x" -- 5
+  20, -- "5x" -- 6
+  16, -- "4x" -- 7
+  12, -- "3x" -- 8
+  8, -- "2x" -- 9
+  6, -- "1/1 dot" -- 10
+  4, -- "1/1" -- 11
+  3, -- "1/2 dot" -- 12
+  getTriplet(8), -- "1/1 tri" -- 13
+  2, -- "1/2" -- 14
+  getDotted(1), -- "1/4 dot", -- 15
+  getTriplet(4), -- "1/2 tri", -- 16
+  1, -- "1/4", -- 17
+  getDotted(0.5), -- "1/8 dot", -- 18
+  getTriplet(2), -- "1/4 tri", -- 19
+  0.5,  -- "1/8", -- 20
+  getDotted(0.25), -- "1/16 dot", -- 21
+  getTriplet(1), -- "1/8 tri", -- 22
+  0.25, -- "1/16", -- 23
+  getDotted(0.125), -- "1/32 dot", -- 24
+  getTriplet(0.5), -- "1/16 tri", -- 25
+  0.125, -- "1/32" -- 26
+  getDotted(0.0625), -- "1/64 dot", -- 27
+  getTriplet(0.25), -- "1/32 tri", -- 28
+  0.0625, -- "1/64", -- 29
+  getDotted(0.03125), -- "1/128 dot" -- 30
+  getTriplet(0.125), -- "1/64 tri" -- 31
+  0.03125 -- "1/128" -- 32
 }
 
-local function getScaleNames()
-  local items = {}
-  for _,s in ipairs(scaleDefinitions) do
-    table.insert(items, s.name)
-  end
-  return items
+local resolutionNames = {
+  "32x", -- 1
+  "16x", -- 2
+  "8x", -- 3
+  "7x", -- 4
+  "6x", -- 5
+  "5x", -- 6
+  "4x", -- 7
+  "3x", -- 8
+  "2x", -- 9
+  "1/1 dot", -- 10
+  "1/1", -- 11
+  "1/2 dot", -- 12
+  "1/1 tri", -- 13
+  "1/2", -- 14
+  "1/4 dot", -- 15
+  "1/2 tri", -- 16
+  "1/4", -- 17
+  "1/8 dot", -- 18
+  "1/4 tri", -- 19
+  "1/8", -- 20
+  "1/16 dot", -- 21
+  "1/8 tri", -- 22
+  "1/16", -- 23
+  "1/32 dot", -- 24
+  "1/16 tri", -- 25
+  "1/32", -- 26
+  "1/64 dot", -- 27
+  "1/32 tri", -- 28
+  "1/64", -- 29
+  "1/128 dot", -- 30
+  "1/64 tri", -- 31
+  "1/128" -- 32
+}
+
+local function getEvenFromTriplet(value)
+  return value * 3
 end
 
-local function getScaleDefinitions()
-  local items = {}
-  for _,s in ipairs(scaleDefinitions) do
-    table.insert(items, s.def)
-  end
-  return items
+local function getEvenFromDotted(value)
+  return value / 1.5
 end
 
-local function getTextFromScaleDefinition(scaleDefinition)
-  if type(scaleDefinition) == nil or #scaleDefinition == 0 then
-    return ""
-  end
-  return table.concat(scaleDefinition, ",")
-end
+-- This variable is used by getResolutionsByType as the starting point for finding even/dot/tri resolutions
+local resolutionTypeStartPosIndex = 11 -- 1/1
 
-local function createRandomScale(resolve, probability)
-  if type(resolve) == "nil" then
-    resolve = 12 -- The sum of the definition should resolve to this
+local function getResolutionsByType(maxResolutionIndex, includeSlowResolutions)
+  if type(maxResolutionIndex) == "nil" then
+    maxResolutionIndex = #resolutionValues
   end
-  if type(probability) == "nil" then
-    probability = 50 -- Probability that the selected interval is 1 or 2
+  if type(includeSlowResolutions) == "nil" then
+    includeSlowResolutions = true
   end
-  local sum = 0 -- Current scale definion sum
-  local maxSum = 24
-  local intervals1 = {1,2}
-  local intervals2 = {1,2,3,4}
-  local scaleDefinition = {}
-  repeat
-    local interval = 1
-    if gem.getRandomBoolean(probability) then
-      interval = gem.getRandomFromTable(intervals1)
-    else
-      interval = gem.getRandomFromTable(intervals2)
+  local resOptions = {}
+  -- Create table of resolution indexes by type (1=even,2=dot,3=tri,4=slow)
+  for i=resolutionTypeStartPosIndex,resolutionTypeStartPosIndex+2 do
+    local resolutionIndex = i
+    local resolutionsOfType = {}
+    while resolutionIndex <= maxResolutionIndex do
+      table.insert(resolutionsOfType, resolutionIndex) -- insert current index in resolution options table
+      --print("Insert resolutionIndex", resolutionIndex)
+      resolutionIndex = gem.inc(resolutionIndex, 3) -- increment index
     end
-    table.insert(scaleDefinition, interval)
-    sum = gem.inc(sum, interval)
-  until #scaleDefinition > 3 and (resolve % sum == 0 or maxSum % sum == 0 or sum >= maxSum)
-  return scaleDefinition
-end
-
-local function getScaleDefinitionFromText(scaleText)
-  local scale = {}
-  if string.len(scaleText) > 0 then
-    for w in string.gmatch(scaleText, "%d+") do
-      local stepIncrement = tonumber(w)
-      if stepIncrement > 0 then
-        table.insert(scale, stepIncrement)
+    --print("#resolutionsOfType, i", #resolutionsOfType, i)
+    table.insert(resOptions, resolutionsOfType)
+  end
+  -- Add the resolutions that are whole numbers (1,2,3,4...)
+  if includeSlowResolutions then
+    local slowResolutions = {}
+    for i,resolution in ipairs(resolutionValues) do
+      if resolution % 1 == 0 then
+        table.insert(slowResolutions, i)
+        --print("getResolutionsByType - included slow resolution", resolutionValues[i], i)
       end
     end
-    print("Get scale from input", #scale)
+    --print("#slowResolutions", #slowResolutions)
+    table.insert(resOptions, slowResolutions) -- Add the "slow" x resolutions
   end
-  return scale
+  --print("resOptions", #resOptions)
+  return resOptions
 end
 
-local function getScaleDefinitionIndex(scaleDefinition)
-  -- Check if we find a scale definition that matches the given definition
-  if type(scaleDefinition) == "table" then
-    scaleDefinition = getTextFromScaleDefinition(scaleDefinition)
+local function isResolutionWithinRange(resolutionIndex, options, i)
+  if resolutionIndex < options.minResolutionIndex or resolutionIndex > options.maxResolutionIndex then
+    return false
   end
-  for i,v in ipairs(scaleDefinitions) do
-    if scaleDefinition == getTextFromScaleDefinition(v.def) then
-      print("getScaleDefinitionIndex: found scale", v.name)
-      return i
-    end
+
+  if i == 2 and resolutionIndex > options.maxDotResolutionIndex then
+    return false
   end
+
+  if i == 3 and resolutionIndex > options.maxTriResolutionIndex then
+    return false
+  end
+
+  return true
 end
 
-local function getScaleInputTooltip(scaleDefinition)
-  local sum = gem.sum(scaleDefinition)
-  local tooltip = "Scales are defined by setting semitones up from the previous note. The current scale has " .. #scaleDefinition .. " notes and the definition sum is " .. sum
-  if 12 % sum == 0 then
-    tooltip = tooltip .. ", whitch resolves every octave."
-  else
-    tooltip = tooltip .. ", whitch does not resolve every octave."
-  end
-  return tooltip
-end
-
-local function getScaleWidget(options, i)
-  -- Scale widget
+-- Returns a table of resolutions indexes that are within the given range
+local function getSelectedResolutions(resolutionsByType, options)
   if type(options) == "nil" then
     options = {}
   end
-  if type(i) == "nil" then
-    i = ""
-  end
-  options.name = gem.getValueOrDefault(options.name, "Scale" .. i)
-  options.tooltip = gem.getValueOrDefault(options.tooltip, "Select a scale")
-  options.hierarchical = true
-  options.showLabel = gem.getValueOrDefault(options.showLabel, true)
-  return widgets.menu("Scale", #scaleDefinitions, getScaleNames(), options)
-end
 
-local function getScaleInputWidget(scaleDefinition, width, i)
-  -- Scale input widget
-  if type(i) == "nil" then
-    i = ""
+  if type(options.minResolutionIndex) == "nil" then
+    options.minResolutionIndex = 1
   end
-  local options = {
-    name = "ScaleInput" .. i,
-    tooltip = getScaleInputTooltip(scaleDefinition),
-    editable = true,
-    backgroundColour = "black",
-    backgroundColourWhenEditing = "white",
-    textColourWhenEditing = "black",
-    textColour = "white",
-  }
-  if type(width) == "number" then
-    options.width = width
-  end
-  return widgets.label(getTextFromScaleDefinition(scaleDefinition), options)
-end
 
-local function handleScaleInputChanged(self, scaleMenu)
-  print("scaleInput.changed", self.text)
-  local scaleDefinition = getScaleDefinitionFromText(self.text)
-  if #scaleDefinition == 0 then
-    -- Ensure we have a scale...
-    print("No scale def. Using default scale.")
-    scaleDefinition = scaleDefinitions[#scaleDefinitions]
-    scaleMenu:setValue(#scaleDefinitions)
-    return handleScaleInputChanged(self, scaleMenu)
+  if type(options.maxResolutionIndex) == "nil" then
+    options.maxResolutionIndex = #resolutionValues
   end
-  self.tooltip = getScaleInputTooltip(scaleDefinition)
-  return scaleDefinition
-end
 
-local scales = {
-  widget = getScaleWidget,
-  inputWidget = getScaleInputWidget,
-  getScaleInputTooltip = getScaleInputTooltip,
-  getScaleDefinitionIndex = getScaleDefinitionIndex,
-  handleScaleInputChanged = handleScaleInputChanged,
-  getTextFromScaleDefinition = getTextFromScaleDefinition,
-  getScaleDefinitionFromText = getScaleDefinitionFromText,
-  getScaleDefinitions = getScaleDefinitions,
-  getScaleNames = getScaleNames,
-  createRandomScale = createRandomScale,
-  createScale = function(scaleDefinition, rootNote, maxNote)
-    if type(maxNote) ~= "number" then
-      maxNote = 127
-    end
-    while rootNote < 0 do
-      rootNote = rootNote + 12
-      print("Transpose root note up to within range", rootNote)
-    end
-    while maxNote > 127 do
-      maxNote = maxNote - 12
-      print("Transpose max note down to within range", maxNote)
-    end
-    local scale = {}
-    -- Find notes for scale
-    local pos = 1
-    while rootNote <= maxNote do
-      table.insert(scale, rootNote)
-      rootNote = rootNote + scaleDefinition[pos]
-      pos = pos + 1
-      if pos > #scaleDefinition then
-        pos = 1
+  if type(options.maxDotResolutionIndex) == "nil" then
+    options.maxDotResolutionIndex = #resolutionValues
+  end
+
+  if type(options.maxTriResolutionIndex) == "nil" then
+    options.maxTriResolutionIndex = #resolutionValues
+  end
+
+  local selectedResolutions = {}
+  for i,type in ipairs(resolutionsByType) do
+    for _,resolutionIndex in ipairs(type) do
+      if isResolutionWithinRange(resolutionIndex, options, i) then
+        table.insert(selectedResolutions, resolutionIndex)
       end
     end
-    return scale
   end
+  return selectedResolutions
+end
+
+-- Tries to adjust the given resolution by adjusting
+-- length, and/or setting a even/dot/tri value variant
+-- Options are: adjustBias (0=slow -> 100=fast), doubleOrHalfProbaility, dotOrTriProbaility, selectedResolutions
+local function getResolutionVariation(currentResolution, options)
+  local currentIndex = gem.getIndexFromValue(currentResolution, resolutionValues)
+
+  if type(currentIndex) == "nil" then
+    return currentResolution
+  end
+
+  if type(options) == "nil" then
+    options = {}
+  end
+
+  if type(options.minResolutionIndex) == "nil" then
+    options.minResolutionIndex = 1
+  end
+
+  if type(options.maxResolutionIndex) == "nil" then
+    options.maxResolutionIndex = #resolutionValues
+  end
+
+  if type(options.maxDotResolutionIndex) == "nil" then
+    options.maxDotResolutionIndex = #resolutionValues
+  end
+
+  if type(options.maxTriResolutionIndex) == "nil" then
+    options.maxTriResolutionIndex = #resolutionValues
+  end
+
+  if type(options.adjustBias) == "nil" then
+    options.adjustBias = 50
+  end
+
+  if type(options.doubleOrHalfProbaility) == "nil" then
+    options.doubleOrHalfProbaility = 50
+  end
+
+  if type(options.dotOrTriProbaility) == "nil" then
+    options.dotOrTriProbaility = 50
+  end
+
+  local resolutionsByType = getResolutionsByType()
+
+  if type(options.selectedResolutions) == "nil" then
+    options.selectedResolutions = getSelectedResolutions(resolutionsByType, options)
+  end
+
+  -- Normalize resolution
+  local resolution = currentResolution
+  if gem.tableIncludes(resolutionsByType[2], currentIndex) then
+    resolution = getEvenFromDotted(resolutionValues[currentIndex])
+    --print("getEvenFromDotted", resolution)
+  elseif gem.tableIncludes(resolutionsByType[3], currentIndex) then
+    resolution = getEvenFromTriplet(resolutionValues[currentIndex])
+    --print("getEvenFromTriplet", resolution)
+  elseif gem.tableIncludes(resolutionsByType[1], currentIndex) or gem.tableIncludes(resolutionsByType[4], currentIndex) then
+    resolution = resolutionValues[currentIndex]
+    --print("getEvenOrSlow", resolution)
+  end
+
+  if type(resolution) == "number" then
+    local doubleOrHalf = gem.getRandomBoolean(options.doubleOrHalfProbaility)
+    -- Double (slow) or half (fast) duration
+    if doubleOrHalf then
+      local doubleResIndex = gem.getIndexFromValue((resolution * 2), resolutionValues)
+      local halfResIndex = gem.getIndexFromValue((resolution / 2), resolutionValues)
+      if gem.getRandomBoolean(options.adjustBias) == false and type(doubleResIndex) == "number" and gem.tableIncludes(options.selectedResolutions, doubleResIndex) then
+        resolution = resolutionValues[doubleResIndex]
+        --print("Slower resolution", resolution)
+      elseif type(halfResIndex) == "number" and gem.tableIncludes(options.selectedResolutions, halfResIndex) then
+        resolution = resolution / 2
+        --print("Faster resolution", resolution)
+      end
+    end
+    -- Set dot or tri on duration if probability hits
+    if gem.getRandomBoolean(options.dotOrTriProbaility) then
+      if gem.tableIncludes(resolutionsByType[3], currentIndex) then
+        resolution = getTriplet(resolution)
+        --print("getTriplet", resolution)
+      else
+        local dottedResIndex = gem.getIndexFromValue(getDotted(resolution), resolutionValues)
+        if type(dottedResIndex) == "number" and gem.tableIncludes(options.selectedResolutions, dottedResIndex) then
+          resolution = resolutionValues[dottedResIndex]
+          --print("getDotted", resolution)
+        end
+      end
+    end
+  end
+  if type(resolution) == "number" then
+    currentIndex = gem.getIndexFromValue(resolution, resolutionValues)
+  end
+  --print("AFTER currentIndex", currentIndex)
+  if type(currentIndex) == "number" and gem.tableIncludes(options.selectedResolutions, currentIndex) then
+    --print("Got resolution from the current index")
+    return resolutionValues[currentIndex]
+  end
+
+  return currentResolution
+end
+
+-- If you want to add the resolutions to an existing table, give it as the second argument
+local function getResolutionsFromIndexes(indexes, resolutions)
+  if type(resolutions) == "nil" then
+    resolutions = {}
+  end
+  for _,v in ipairs(indexes) do
+    if gem.tableIncludes(resolutions, v) == false then
+      table.insert(resolutions, resolutionValues[v])
+    end
+  end
+  table.sort(resolutions, function(a,b) return a > b end) -- Ensure sorted desc
+  return resolutions
+end
+
+local quantizeOptions = {"Off", "Any", "Even", "Dot", "Tri", "Even+Dot", "Even+Tri", "Dot+Tri"}
+
+-- Quantize the given beat to the closest recognized resolution value
+local function quantizeToClosest(beat, quantizeType)
+  if type(quantizeType) == "nil" then
+    quantizeType = quantizeOptions[2] -- Any
+  end
+  if quantizeType == quantizeOptions[1] then
+    -- Quantize off, just return return the given beat value
+    return beat
+  end
+  local includeSlowResolutions = beat > resolutionValues[resolutionTypeStartPosIndex]
+  local resolutionsByType = getResolutionsByType(#resolutionValues, includeSlowResolutions)
+  local quantizeResolutions = {}
+  if includeSlowResolutions then
+    --print("Beat > resolutionsByType[1][1]", beat, resolutionValues[resolutionsByType[1][1]])
+    quantizeResolutions = getResolutionsFromIndexes(resolutionsByType[4], quantizeResolutions) -- Slow
+  else
+    for i=1,3 do
+      if quantizeType == quantizeOptions[2] or string.find(quantizeType, quantizeOptions[i+2], 1, true) then
+        quantizeResolutions = getResolutionsFromIndexes(resolutionsByType[i], quantizeResolutions)
+        --print("Add quantize resolutions", quantizeType)
+      end
+    end
+  end
+  --print("quantizeResolutions min/max/count", quantizeResolutions[1], quantizeResolutions[#quantizeResolutions], #quantizeResolutions)
+  for i,v in ipairs(quantizeResolutions) do
+    local currentValue = v
+    local nextValue = quantizeResolutions[i+1]
+    if beat == currentValue or type(nextValue) == "nil" then
+      --print("Found equal, or next is nil", beat, currentValue)
+      return currentValue
+    end
+    if beat < currentValue and beat > nextValue then
+      local diffCurrent = currentValue - beat
+      local diffNext = beat - nextValue
+      if diffCurrent < diffNext then
+        --print("Closest to current", beat, currentValue, nextValue)
+        return currentValue
+      else
+        --print("Closest to next", beat, nextValue, currentValue)
+        return nextValue
+      end
+    end
+  end
+  --print("No resolution found, returning the given beat value", beat)
+  return beat
+end
+
+local resolutions = {
+  getResolutionsFromIndexes = getResolutionsFromIndexes,
+  getSelectedResolutions = getSelectedResolutions,
+  getResolutionVariation = getResolutionVariation,
+  getResolutionsByType = getResolutionsByType,
+  quantizeToClosest = quantizeToClosest,
+  getDotted = getDotted,
+  getTriplet = getTriplet,
+  getEvenFromDotted = getEvenFromDotted,
+  getEvenFromTriplet = getEvenFromTriplet,
+  getResolution = function(i)
+    return resolutionValues[i]
+  end,
+  getQuantizeOptions = function()
+    return quantizeOptions
+  end,
+  getResolutions = function()
+    return resolutionValues
+  end,
+  getResolutionName = function(i)
+    return resolutionNames[i]
+  end,
+  getResolutionNames = function(options, max)
+    if type(max) ~= "number" then
+      max = #resolutionNames
+    end
+    local res = {}
+    for i,r in ipairs(resolutionNames) do
+      table.insert(res, r)
+      if i == max then
+        break
+      end
+    end
+    -- Add any options
+    if type(options) == "table" then
+      for _,o in ipairs(options) do
+        table.insert(res, o)
+      end
+    end
+    return res
+  end,
+  getPlayDuration = function(duration, gate)
+    if type(gate) == "nil" then
+      gate = 100
+    end
+    local maxResolution = resolutionValues[#resolutionValues]
+    return math.max(maxResolution, duration * (gate / 100)) -- Never shorter than the system max resolution
+  end  
 }
 
 --------------------------------------------------------------------------------
--- Common functions for notes
+-- Trigger
+--------------------------------------------------------------------------------
+-- Push a button to trigger a note or start a pulse with retrigger active
 --------------------------------------------------------------------------------
 
-local notenames = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}
+local backgroundColour = "202020" -- Light or Dark
+local autostart = false
+local shouldTrigger = false
+local isPlaying = false
+local seqIndex = 0 -- Holds the unique id for the sequencer
+local triggerResolutions = resolutions.getResolutionNames({"Hold"})
+local quantizeResolutions = resolutions.getResolutionNames()
+local quantize = 17
+local triggerDuration = #triggerResolutions
+local retrigger = false
+local triggerActive = false
+local note = 60
+local gate = 100
+local voiceId
+local triggerButton
 
-local notes = {
-  getNoteNames = function()
-    return notenames
-  end,
+setBackgroundColour(backgroundColour)
 
-  getOctave = function(noteNumber)
-    return math.floor(noteNumber / 12) - 2
-  end,
+local function stopNote()
+  if type(voiceId) == "userdata" then
+    releaseVoice(voiceId)
+    voiceId = nil
+    print("Note stopped")
+    if retrigger == false and triggerDuration < #triggerResolutions then
+      triggerButton:setValue(false)
+    end
+  end
+end
 
-  -- Used for mapping - does not include octave, only name of note (C, C#...)
-  getNoteMapping = function()
-    local noteNumberToNoteName = {}
-    local notenamePos = 1
-    for i=0,127 do
-      table.insert(noteNumberToNoteName, notenames[notenamePos])
-      notenamePos = notenamePos + 1
-      if notenamePos > #notenames then
-        notenamePos = 1
+local function triggerNote()
+  stopNote()
+  local duration = 0
+  if triggerDuration < #triggerResolutions then
+    local beatValue = resolutions.getResolution(triggerDuration)
+    duration = beat2ms(resolutions.getPlayDuration(beatValue, gate))
+  elseif retrigger then
+    local beatValue = resolutions.getResolution(quantize)
+    duration = beat2ms(resolutions.getPlayDuration(beatValue, gate))
+  end
+  voiceId = playNote(note, 64, duration)
+  print("Triggered note, duration", note, duration)
+  shouldTrigger = retrigger
+end
+
+local function sequenceRunner(uniqueId)
+  print("Starting sequenceRunner")
+  while isPlaying and seqIndex == uniqueId do
+    local waitResolutionIndex = quantize
+    --print("triggerActive and shouldTrigger", triggerActive, shouldTrigger)
+    if triggerActive and shouldTrigger then
+      spawn(triggerNote)
+      if triggerDuration < #triggerResolutions then
+        waitResolutionIndex = triggerDuration
       end
     end
-    return noteNumberToNoteName
-  end,
-
-  transpose = function(note, min, max)
-    --print("Check transpose", note)
-    if note < min then
-      print("note < min", note, min)
-      while note < min do
-        note = note + 12
-        print("transpose note up", note)
-      end
-    elseif note > max then
-      print("note > max", note, max)
-      while note > max do
-        note = note - 12
-        print("transpose note down", note)
-      end
+    waitBeat(resolutions.getResolution(waitResolutionIndex))
+    if retrigger == false and shouldTrigger == false and triggerDuration < #triggerResolutions then
+      --print("Stopping")
+      triggerButton:setValue(false)
     end
-    -- Ensure note is inside given min/max values
-    note = math.max(min, math.min(max, note))
-    -- Ensure note is inside valid values
-    return math.max(0, math.min(127, note))
-  end,
+  end
+end
 
-  getSemitonesBetweenNotes = function(note1, note2)
-    return math.max(note1, note2) - math.min(note1, note1)
-  end,
+local function startPlaying()
+  if isPlaying then
+    return
+  end
+  isPlaying = true
+  seqIndex = gem.inc(seqIndex)
+  run(sequenceRunner, seqIndex)
+end
 
-  getNoteAccordingToScale = function(scale, noteToPlay)
-    for _,note in ipairs(scale) do
-      if note == noteToPlay then
-        return noteToPlay
-      elseif note > noteToPlay then
-        print("Change from noteToPlay to note", noteToPlay, note)
-        return note
-      end
-    end
-    return noteToPlay
-  end,
-}
+local function stopPlaying()
+  isPlaying = false
+  triggerButton:setValue(false)
+  stopNote()
+end
 
-------------------------------------------------------------------
--- Scale Quantizer
-------------------------------------------------------------------
-
-local scale = {}
-local key = 1
-local channel = 0 -- 0 = Omni
-local scaleDefinitions = scales.getScaleDefinitions()
-local scaleDefinition = scaleDefinitions[#scaleDefinitions]
-local setScale = function() scale = scales.createScale(scaleDefinition, (key - 1)) end
-
-------------------------------------------------------------------
--- Panel
-------------------------------------------------------------------
-
-local sequencerPanel = widgets.panel({
-  width = 720,
-  height = 50,
-})
-
-widgets.label("Scale Quantizer", {
-  tooltip = "Quantize incoming notes to the set scale",
-  width = sequencerPanel.width,
-  height = 50,
-  alpha = 0.75,
-  fontSize = 30,
-  backgroundColour = "505050",
-  textColour = "3fe09f"
+widgets.panel({
+  backgroundColour = backgroundColour,
+  x = 10,
+  y = 10,
+  width = 700,
+  height = 66,
 })
 
 widgets.setSection({
-  x = 216,
+  x = 10,
+  y = 8,
   xSpacing = 15,
-  ySpacing = 5,
-  width = 110,
-  labelBackgroundColour = "transparent",
 })
 
-widgets.menu("Key", key, notes.getNoteNames(), {
+local label = widgets.label("Single Trigger", {
+  tooltip = "Trigger a note at the next quantization tick",
+  alpha = 0.5,
+  fontSize = 22,
+  height = 30,
+  editable = true
+})
+
+widgets.setSection({
+  width = 75,
+  x = 170,
+})
+
+widgets.menu("Quantize", quantize, quantizeResolutions, {
+  tooltip = "Quantize trigger start",
   changed = function(self)
-    key = self.value
-    setScale()
+    quantize = self.value
   end
 })
 
-local scaleMenu = scales.widget()
-scaleMenu.persistent = false -- Avoid running changed function on load, overwriting scaleInput
-
-widgets.label("Scale Definition", {
-  textColour = "#d0d0d0"
+widgets.menu("Duration", triggerDuration, triggerResolutions, {
+  tooltip = "Trigger duration",
+  changed = function(self)
+    triggerDuration = self.value
+    shouldTrigger = retrigger
+  end
 })
 
-widgets.menu("Channel", widgets.channels(), {
-  tooltip = "Only quantize incoming notes on this channel",
-  changed = function(self) channel = self.value - 1 end
+widgets.button("Retrigger", retrigger, {
+  tooltip = "Retrigger note every round (duration)",
+  width = 120,
+  changed = function(self)
+    retrigger = self.value
+    if triggerDuration == #triggerResolutions then
+      shouldTrigger = true
+    elseif retrigger == false then
+      triggerButton:setValue(false)
+    end
+  end
+})
+
+widgets.button("Auto Play", autostart, {
+  tooltip = "Start automatically on transport",
+  width = 96,
+  changed = function(self)
+    autostart = self.value
+  end
+})
+
+triggerButton = widgets.button("Trigger", triggerActive, {
+  tooltip = "Trigger the note at the next tick (can only trigger when sequencer is running)",
+  width = 96,
+  height = 45,
+  changed = function(self)
+    triggerActive = self.value
+    shouldTrigger = self.value
+    if triggerActive then
+      startPlaying()
+      print("Trigger active: Waiting to trigger note")
+    else
+      print("Trigger inactive: Stopping note")
+      stopNote()
+    end
+  end
+})
+
+widgets.setSection({
+  width = 75,
+  y = 13,
+  x = 170,
 })
 
 widgets.row()
-
 widgets.col(2)
 
-local scaleInput = scales.inputWidget(scaleDefinition, 110)
+widgets.numBox("Gate", gate, {
+  tooltip = "Trigger duration gate",
+  unit = Unit.Percent,
+  width = 120,
+  changed = function(self)
+    gate = self.value
+  end
+})
 
-scaleMenu.changed = function(self)
-  scaleInput.text = scales.getTextFromScaleDefinition(scaleDefinitions[self.value])
-end
-
-scaleInput.changed = function(self)
-  scaleDefinition = scales.handleScaleInputChanged(self, scaleMenu)
-  setScale()
-end
+widgets.numBox("Note", note, {
+  tooltip = "Lowest note - notes below this are passed through",
+  unit = Unit.MidiKey,
+  width = 96,
+  changed = function(self)
+    note = self.value
+    shouldTrigger = true
+  end
+})
 
 --------------------------------------------------------------------------------
--- Handle Events
+-- Events
 --------------------------------------------------------------------------------
 
-function onNote(e)
-  if channel == 0 or channel == e.channel then
-    print("Note before", e.note)
-    local note = notes.getNoteAccordingToScale(scale, e.note)
-    print("Note after", note)
-    playNote(note, e.velocity)
+function onInit()
+  seqIndex = 0
+end
+
+function onTransport(start)
+  if start then
+    triggerButton:setValue(autostart)
+    startPlaying()
   else
-    postEvent(e)
+    stopPlaying()
   end
 end
 
@@ -967,16 +1207,9 @@ end
 --------------------------------------------------------------------------------
 
 function onSave()
-  return {scaleInput.text}
+  return {label.text}
 end
 
 function onLoad(data)
-  -- Check if we find a scale definition that matches the stored definition
-  local scaleIndex = scales.getScaleDefinitionIndex(data[1])
-  if type(scaleIndex) == "number" then
-    print("onLoad, found scale", scaleIndex)
-    scaleMenu:setValue(scaleIndex)
-  end
-  scaleInput.text = data[1]
-  scaleInput:changed()
+  label.text = data[1]
 end

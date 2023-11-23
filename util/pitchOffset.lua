@@ -102,6 +102,6 @@ local function adjustPitch(note)
 end
 
 function onNote(e)
-  e.note = adjustPitch(e.note)
-  postEvent(e)
+  local note = adjustPitch(e.note)
+  playNote(note, e.velocity)
 end

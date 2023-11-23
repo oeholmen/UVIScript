@@ -61,6 +61,7 @@ luaScripts=(
   util/stripChannel
   util/sieve
   util/tempo
+  util/trigger
   util/velocityLimiter
   util/velocityRandomization
   util/velocitySequencer
