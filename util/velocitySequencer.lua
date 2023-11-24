@@ -26,6 +26,7 @@ widgets.setColours({
 })
 
 local isPlaying = false
+local seqIndex = 0 -- Holds the unique id for the sequencer
 local positionTable
 local sequencerTable
 local resolutionNames = resolutions.getResolutionNames({'Follow Input'})
@@ -151,7 +152,7 @@ end
 
 local function sequenceRunner()
   print("Starting sequenceRunner")
-  while isPlaying do
+  while isPlaying and seqIndex == uniqueId do
     setPosition()
     waitBeat(resolutions.getResolution(resolution))
     if isPlaying then
@@ -165,7 +166,8 @@ local function startPlaying()
     return
   end
   isPlaying = true
-  run(sequenceRunner)
+  seqIndex = gem.inc(seqIndex)
+  run(sequenceRunner, seqIndex)
 end
 
 local function stopPlaying()
@@ -188,6 +190,14 @@ end
 
 local function isTrigger(e)
   return channel == 0 or channel == e.channel
+end
+
+--------------------------------------------------------------------------------
+-- Events
+--------------------------------------------------------------------------------
+
+function onInit()
+  seqIndex = 0
 end
 
 function onNote(e)

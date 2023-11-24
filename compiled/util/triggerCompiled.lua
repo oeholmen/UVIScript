@@ -1002,6 +1002,7 @@ local resolutions = {
 local backgroundColour = "202020" -- Light or Dark
 local autostart = false
 local shouldTrigger = false
+local isTransportActive = false
 local isPlaying = false
 local seqIndex = 0 -- Holds the unique id for the sequencer
 local triggerResolutions = resolutions.getResolutionNames({"Hold"})
@@ -1072,6 +1073,7 @@ local function startPlaying()
 end
 
 local function stopPlaying()
+  print("Stop playing")
   isPlaying = false
   triggerButton:setValue(false)
   stopNote()
@@ -1152,7 +1154,11 @@ triggerButton = widgets.button("Trigger", triggerActive, {
       print("Trigger active: Waiting to trigger note")
     else
       print("Trigger inactive: Stopping note")
-      stopNote()
+      if isTransportActive then
+        stopNote()
+      else
+        stopPlaying()
+      end
     end
   end
 })
@@ -1194,6 +1200,7 @@ function onInit()
 end
 
 function onTransport(start)
+  isTransportActive = start
   if start then
     triggerButton:setValue(autostart)
     startPlaying()
