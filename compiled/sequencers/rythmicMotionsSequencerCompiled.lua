@@ -1462,7 +1462,7 @@ end
 local function setTableZero(theTable)
   for i=1,theTable.length do
     theTable:setValue(i, 0)
-  end  
+  end
 end
 
 local function updateShapeWidgets()

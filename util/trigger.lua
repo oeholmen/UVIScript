@@ -25,6 +25,8 @@ local note = 60
 local gate = 100
 local voiceId
 local triggerButton
+local positionTableQuantize
+local positionTableDuration
 
 local backgroundColour = "202020" -- Light or Dark
 setBackgroundColour(backgroundColour)
@@ -32,6 +34,12 @@ setBackgroundColour(backgroundColour)
 --------------------------------------------------------------------------------
 -- Functions
 --------------------------------------------------------------------------------
+
+local function setTableZero(theTable)
+  for i=1,theTable.length do
+    theTable:setValue(i, 0)
+  end
+end
 
 local function stopNote()
   if type(voiceId) == "userdata" then
@@ -62,10 +70,16 @@ end
 
 local function triggerSequenceRunner(uniqueId)
   print("Starting triggerSequenceRunner", uniqueId)
+  local index = 1
   while isPlaying and triggerSeqIndex == uniqueId do
     if shouldTrigger then
       spawn(triggerNote)
     end
+
+    setTableZero(positionTableDuration)
+    positionTableDuration:setValue(index, 1)
+    index = gem.inc(index, 1, positionTableDuration.length)
+
     waitBeat(resolutions.getResolution(triggerDuration))
     if retrigger == false and shouldTrigger == false then
       print("Stopping triggerSequenceRunner")
@@ -79,7 +93,12 @@ end
 local function sequenceRunner(uniqueId)
   print("Starting sequenceRunner", uniqueId)
   local currentTriggerSeqIndex = -1
+  local index = 1
   while isPlaying and seqIndex == uniqueId do
+    setTableZero(positionTableQuantize)
+    positionTableQuantize:setValue(index, 1)
+    index = gem.inc(index, 1, positionTableQuantize.length)
+  
     if triggerDuration < #triggerResolutions then
       if shouldTrigger and currentTriggerSeqIndex < triggerSeqIndex then
         currentTriggerSeqIndex = triggerSeqIndex
@@ -107,6 +126,8 @@ local function stopPlaying()
   isPlaying = false
   triggerButton:setValue(false)
   stopNote()
+  setTableZero(positionTableQuantize)
+  setTableZero(positionTableDuration)
 end
 
 --------------------------------------------------------------------------------
@@ -151,7 +172,8 @@ widgets.menu("Duration", triggerDuration, triggerResolutions, {
   tooltip = "Trigger duration",
   changed = function(self)
     triggerDuration = self.value
-    shouldTrigger = retrigger and triggerActive
+    --shouldTrigger = retrigger and triggerActive
+    shouldTrigger = triggerActive
     triggerSeqIndex = gem.inc(triggerSeqIndex)
     print("Trigger seq restart")
   end
@@ -238,6 +260,30 @@ widgets.button("Trigger on note", triggerOnNote, {
   changed = function(self)
     triggerOnNote = self.value
   end
+})
+
+widgets.row()
+
+positionTableQuantize = widgets.table("Position", 0, 2, {
+  width = 75,
+  max = 2,
+  integer = true,
+  enabled = false,
+  persistent = false,
+  sliderColour = "yellow",
+  backgroundColour = "cfffe",
+  height = 3,
+})
+
+positionTableDuration = widgets.table("Position", 0, 2, {
+  width = 75,
+  max = 2,
+  integer = true,
+  enabled = false,
+  persistent = false,
+  sliderColour = "yellow",
+  backgroundColour = "cfffe",
+  height = 3,
 })
 
 --------------------------------------------------------------------------------
