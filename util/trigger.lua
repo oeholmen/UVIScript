@@ -55,7 +55,7 @@ local function triggerNote()
     duration = beat2ms(resolutions.getPlayDuration(beatValue, gate))
   end
   voiceId = playNote(note, 64, duration)
-  print("Triggered note, duration", note, duration)
+  --print("Triggered note, duration", note, duration)
   shouldTrigger = retrigger and triggerActive
 end
 
@@ -63,14 +63,14 @@ local function triggerSequenceRunner(uniqueId)
   print("Starting triggerSequenceRunner", uniqueId)
   while isPlaying and triggerSeqIndex == uniqueId do
     if shouldTrigger then
-      triggerNote()
+      spawn(triggerNote)
     end
     waitBeat(resolutions.getResolution(triggerDuration))
     if retrigger == false and shouldTrigger == false then
       print("Stopping triggerSequenceRunner")
       triggerButton:setValue(false)
     else
-      print("triggerSequenceRunner round")
+      --print("triggerSequenceRunner round")
     end
   end
 end
@@ -85,10 +85,10 @@ local function sequenceRunner(uniqueId)
         spawn(triggerSequenceRunner, triggerSeqIndex)
       end
     elseif shouldTrigger then
-      triggerNote()
+      spawn(triggerNote)
     end
     waitBeat(resolutions.getResolution(quantize))
-    print("sequenceRunner round")
+    --print("sequenceRunner round")
   end
 end
 
@@ -151,10 +151,8 @@ widgets.menu("Duration", triggerDuration, triggerResolutions, {
   changed = function(self)
     triggerDuration = self.value
     shouldTrigger = retrigger and triggerActive
-    if triggerDuration == #triggerResolutions then
-      triggerSeqIndex = gem.inc(triggerSeqIndex)
-      print("Trigger seq stopped")
-    end
+    triggerSeqIndex = gem.inc(triggerSeqIndex)
+    print("Trigger seq restart")
   end
 })
 
@@ -223,7 +221,7 @@ widgets.numBox("Gate", gate, {
 })
 
 widgets.numBox("Note", note, {
-  tooltip = "Lowest note - notes below this are passed through",
+  tooltip = "The note to trigger",
   unit = Unit.MidiKey,
   width = 96,
   changed = function(self)
