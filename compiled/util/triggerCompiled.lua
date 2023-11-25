@@ -1000,6 +1000,7 @@ local resolutions = {
 --------------------------------------------------------------------------------
 
 local autostart = false
+local triggerOnNote = false
 local triggerActive = false
 local shouldTrigger = false
 local isTransportActive = false
@@ -1148,7 +1149,7 @@ widgets.menu("Duration", triggerDuration, triggerResolutions, {
 })
 
 widgets.button("Retrigger", retrigger, {
-  tooltip = "Retrigger note every round (duration)",
+  tooltip = "Retrigger note every round",
   width = 120,
   changed = function(self)
     retrigger = self.value
@@ -1168,10 +1169,10 @@ widgets.button("Auto Play", autostart, {
   end
 })
 
-triggerButton = widgets.button("Trigger", triggerActive, {
+triggerButton = widgets.button("Play", triggerActive, {
   tooltip = "Trigger the note at the next tick (can only trigger when sequencer is running)",
   width = 96,
-  height = 45,
+  --height = 45,
   changed = function(self)
     triggerActive = self.value
     shouldTrigger = self.value
@@ -1217,7 +1218,16 @@ widgets.numBox("Note", note, {
   width = 96,
   changed = function(self)
     note = self.value
+    triggerButton:setValue(triggerOnNote)
     shouldTrigger = triggerActive
+  end
+})
+
+widgets.button("Trigger on note", triggerOnNote, {
+  tooltip = "Start playing automatically on note change",
+  width = 96,
+  changed = function(self)
+    triggerOnNote = self.value
   end
 })
 
