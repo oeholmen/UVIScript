@@ -999,30 +999,34 @@ local resolutions = {
 -- Push a button to trigger a note or start a pulse with retrigger active
 --------------------------------------------------------------------------------
 
-local backgroundColour = "202020" -- Light or Dark
 local autostart = false
+local triggerActive = false
 local shouldTrigger = false
 local isTransportActive = false
 local isPlaying = false
 local seqIndex = 0 -- Holds the unique id for the sequencer
+local triggerSeqIndex = 0 -- Holds the unique id for the trigger sequencer
 local triggerResolutions = resolutions.getResolutionNames({"Hold"})
 local quantizeResolutions = resolutions.getResolutionNames()
 local quantize = 17
 local triggerDuration = #triggerResolutions
 local retrigger = false
-local triggerActive = false
 local note = 60
 local gate = 100
 local voiceId
 local triggerButton
 
+local backgroundColour = "202020" -- Light or Dark
 setBackgroundColour(backgroundColour)
+
+--------------------------------------------------------------------------------
+-- Functions
+--------------------------------------------------------------------------------
 
 local function stopNote()
   if type(voiceId) == "userdata" then
     releaseVoice(voiceId)
     voiceId = nil
-    print("Note stopped")
     if retrigger == false and triggerDuration < #triggerResolutions then
       triggerButton:setValue(false)
     end
@@ -1032,34 +1036,50 @@ end
 local function triggerNote()
   stopNote()
   local duration = 0
+  local beatValue = 0
   if triggerDuration < #triggerResolutions then
-    local beatValue = resolutions.getResolution(triggerDuration)
-    duration = beat2ms(resolutions.getPlayDuration(beatValue, gate))
+    beatValue = resolutions.getResolution(triggerDuration)
   elseif retrigger then
-    local beatValue = resolutions.getResolution(quantize)
+    beatValue = resolutions.getResolution(quantize)
+  end
+  if beatValue > 0 then
     duration = beat2ms(resolutions.getPlayDuration(beatValue, gate))
   end
   voiceId = playNote(note, 64, duration)
   print("Triggered note, duration", note, duration)
-  shouldTrigger = retrigger
+  shouldTrigger = retrigger and triggerActive
+end
+
+local function triggerSequenceRunner(uniqueId)
+  print("Starting triggerSequenceRunner", uniqueId)
+  while isPlaying and triggerSeqIndex == uniqueId do
+    if shouldTrigger then
+      triggerNote()
+    end
+    waitBeat(resolutions.getResolution(triggerDuration))
+    if retrigger == false and shouldTrigger == false then
+      print("Stopping triggerSequenceRunner")
+      triggerButton:setValue(false)
+    else
+      print("triggerSequenceRunner round")
+    end
+  end
 end
 
 local function sequenceRunner(uniqueId)
-  print("Starting sequenceRunner")
+  print("Starting sequenceRunner", uniqueId)
+  local currentTriggerSeqIndex = -1
   while isPlaying and seqIndex == uniqueId do
-    local waitResolutionIndex = quantize
-    --print("triggerActive and shouldTrigger", triggerActive, shouldTrigger)
-    if triggerActive and shouldTrigger then
-      spawn(triggerNote)
-      if triggerDuration < #triggerResolutions then
-        waitResolutionIndex = triggerDuration
+    if triggerDuration < #triggerResolutions then
+      if shouldTrigger and currentTriggerSeqIndex < triggerSeqIndex then
+        currentTriggerSeqIndex = triggerSeqIndex
+        spawn(triggerSequenceRunner, triggerSeqIndex)
       end
+    elseif shouldTrigger then
+      triggerNote()
     end
-    waitBeat(resolutions.getResolution(waitResolutionIndex))
-    if retrigger == false and shouldTrigger == false and triggerDuration < #triggerResolutions then
-      --print("Stopping")
-      triggerButton:setValue(false)
-    end
+    waitBeat(resolutions.getResolution(quantize))
+    print("sequenceRunner round")
   end
 end
 
@@ -1078,6 +1098,10 @@ local function stopPlaying()
   triggerButton:setValue(false)
   stopNote()
 end
+
+--------------------------------------------------------------------------------
+-- Widgets
+--------------------------------------------------------------------------------
 
 widgets.panel({
   backgroundColour = backgroundColour,
@@ -1117,7 +1141,11 @@ widgets.menu("Duration", triggerDuration, triggerResolutions, {
   tooltip = "Trigger duration",
   changed = function(self)
     triggerDuration = self.value
-    shouldTrigger = retrigger
+    shouldTrigger = retrigger and triggerActive
+    if triggerDuration == #triggerResolutions then
+      triggerSeqIndex = gem.inc(triggerSeqIndex)
+      print("Trigger seq stopped")
+    end
   end
 })
 
@@ -1127,7 +1155,7 @@ widgets.button("Retrigger", retrigger, {
   changed = function(self)
     retrigger = self.value
     if triggerDuration == #triggerResolutions then
-      shouldTrigger = true
+      shouldTrigger = triggerActive
     elseif retrigger == false then
       triggerButton:setValue(false)
     end
@@ -1149,11 +1177,15 @@ triggerButton = widgets.button("Trigger", triggerActive, {
   changed = function(self)
     triggerActive = self.value
     shouldTrigger = self.value
-    if triggerActive then
+    if shouldTrigger then
       startPlaying()
       print("Trigger active: Waiting to trigger note")
     else
-      print("Trigger inactive: Stopping note")
+      print("Trigger stopped")
+      if triggerDuration < #triggerResolutions then
+        triggerSeqIndex = gem.inc(triggerSeqIndex)
+        print("Trigger seq stopped")
+      end
       if isTransportActive then
         stopNote()
       else
@@ -1187,7 +1219,7 @@ widgets.numBox("Note", note, {
   width = 96,
   changed = function(self)
     note = self.value
-    shouldTrigger = true
+    shouldTrigger = triggerActive
   end
 })
 
@@ -1197,6 +1229,7 @@ widgets.numBox("Note", note, {
 
 function onInit()
   seqIndex = 0
+  triggerSeqIndex = 0
 end
 
 function onTransport(start)
