@@ -1059,6 +1059,11 @@ local function triggerNote()
   shouldTrigger = retrigger and triggerActive
 end
 
+local function stopNoteAfter()
+  waitBeat(resolutions.getResolution(triggerDuration))
+  stopNote()
+end
+
 local function triggerSequenceRunner(uniqueId)
   print("Starting triggerSequenceRunner", uniqueId)
   local index = 1
@@ -1163,8 +1168,11 @@ widgets.menu("Duration", triggerDuration, triggerResolutions, {
   tooltip = "Trigger duration",
   changed = function(self)
     triggerDuration = self.value
-    --shouldTrigger = retrigger and triggerActive
-    shouldTrigger = triggerActive
+    shouldTrigger = retrigger and triggerActive
+    if triggerDuration < #triggerResolutions and isPlaying then
+      spawn(stopNoteAfter)
+    end
+    --shouldTrigger = triggerActive
     triggerSeqIndex = gem.inc(triggerSeqIndex)
     print("Trigger seq restart")
   end
@@ -1194,7 +1202,6 @@ widgets.button("Auto Play", autostart, {
 triggerButton = widgets.button("Play", triggerActive, {
   tooltip = "Trigger the note at the next tick (can only trigger when sequencer is running)",
   width = 96,
-  --height = 45,
   changed = function(self)
     triggerActive = self.value
     shouldTrigger = self.value
