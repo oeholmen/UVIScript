@@ -54,6 +54,7 @@ luaScripts=(
   util/noteLimiter
   util/noteVelocity
   util/pitchOffset
+  util/quantizedTrigger
   util/randomGate
   util/randomOctave
   util/resolutionQuantizer
@@ -61,7 +62,6 @@ luaScripts=(
   util/stripChannel
   util/sieve
   util/tempo
-  util/trigger
   util/velocityLimiter
   util/velocityRandomization
   util/velocitySequencer

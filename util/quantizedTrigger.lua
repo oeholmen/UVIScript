@@ -1,7 +1,7 @@
 --------------------------------------------------------------------------------
--- Trigger
+-- Quantized Trigger
 --------------------------------------------------------------------------------
--- Push a button to trigger a note or start a pulse with retrigger active
+-- Push a button to trigger a note or start a pulse (when retrigger is active)
 --------------------------------------------------------------------------------
 
 local gem = require "includes.common"

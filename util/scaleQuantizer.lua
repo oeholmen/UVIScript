@@ -12,6 +12,7 @@ local channel = 0 -- 0 = Omni
 local scaleDefinitions = scales.getScaleDefinitions()
 local scaleDefinition = scaleDefinitions[#scaleDefinitions]
 local setScale = function() scale = scales.createScale(scaleDefinition, (key - 1)) end
+-- TODO Add probability
 
 ------------------------------------------------------------------
 -- Panel

@@ -1,4 +1,4 @@
--- util/trigger -- 
+-- util/quantizedTrigger -- 
 --------------------------------------------------------------------------------
 -- Common methods
 --------------------------------------------------------------------------------
@@ -994,9 +994,9 @@ local resolutions = {
 }
 
 --------------------------------------------------------------------------------
--- Trigger
+-- Quantized Trigger
 --------------------------------------------------------------------------------
--- Push a button to trigger a note or start a pulse with retrigger active
+-- Push a button to trigger a note or start a pulse (when retrigger is active)
 --------------------------------------------------------------------------------
 
 local autostart = false
@@ -1172,7 +1172,6 @@ widgets.menu("Duration", triggerDuration, triggerResolutions, {
     if triggerDuration < #triggerResolutions and isPlaying then
       spawn(stopNoteAfter)
     end
-    --shouldTrigger = triggerActive
     triggerSeqIndex = gem.inc(triggerSeqIndex)
     print("Trigger seq restart")
   end
