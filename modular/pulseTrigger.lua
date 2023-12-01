@@ -13,7 +13,7 @@ local isPlaying = false
 local seqIndex = 0 -- Holds the unique id for the sequencer
 local channel = 1
 local resolutionNames = resolutions.getResolutionNames()
-local velocity = 75
+local velocity = 64
 local resolution = 23
 local gate = 90
 
@@ -123,6 +123,7 @@ function onNote(e)
   if autoplayButton.value == true then
     postEvent(e)
   else
+    velocity = e.velocity
     playButton:setValue(true)
   end
 end

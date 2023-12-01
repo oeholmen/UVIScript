@@ -1887,6 +1887,7 @@ function onNote(e)
   if autoplayButton.value == true then
     postEvent(e)
   else
+    velocity = e.velocity
     playButton:setValue(true)
   end
 end

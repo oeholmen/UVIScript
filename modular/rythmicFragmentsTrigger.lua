@@ -66,6 +66,7 @@ local randomizeCurrentResolutionProbability
 local adjustBias
 local voiceToSourceMapping = {} -- Holds the sources for each voice
 local fragmentSlots = {}
+local velocity = 64
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
@@ -122,7 +123,6 @@ local function play(voice, uniqueId, partDuration)
   local fragmentRepeatProbability = 0
   local reverseFragment = false
   local fragmentRepeatCount = 0
-  local velocity = 64
   local gatePos = 1
   local gate = nil
   -- Start loop
@@ -810,6 +810,7 @@ function onNote(e)
   if autoplayButton.value == true then
     postEvent(e)
   else
+    velocity = e.velocity
     playButton:setValue(true)
   end
 end

@@ -1713,6 +1713,7 @@ local resolutionNames = resolutions.getResolutionNames()
 local resolution = #resolutionNames
 local legato = true
 local voiceId = nil -- Holds the id of the created note event
+local velocity = 64
 
 --------------------------------------------------------------------------------
 -- Sequencer Functions
@@ -1783,7 +1784,6 @@ local function playTrigger()
   if noteEventId > 0 then
     -- Release the voice if active
     release()
-    local velocity = 64
     voiceId = playNote(0, velocity, -1, nil, channel)
     print("Creating trigger")
     -- Mark the position that initiated the event
@@ -2058,6 +2058,7 @@ function onNote(e)
   if autoplayButton.value == true then
     postEvent(e)
   else
+    velocity = e.velocity
     playButton:setValue(true)
   end
 end
