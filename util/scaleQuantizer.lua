@@ -2,6 +2,7 @@
 -- Scale Quantizer
 ------------------------------------------------------------------
 
+local gem = require "includes.common"
 local widgets = require "includes.widgets"
 local notes = require "includes.notes"
 local scales = require "includes.scales"
@@ -12,29 +13,41 @@ local channel = 0 -- 0 = Omni
 local scaleDefinitions = scales.getScaleDefinitions()
 local scaleDefinition = scaleDefinitions[#scaleDefinitions]
 local setScale = function() scale = scales.createScale(scaleDefinition, (key - 1)) end
--- TODO Add probability
+local quantizeProbability = 100
 
 ------------------------------------------------------------------
 -- Panel
 ------------------------------------------------------------------
 
+local backgroundColour = "505050" -- Light or Dark
+setBackgroundColour(backgroundColour)
+
 local sequencerPanel = widgets.panel({
   width = 720,
-  height = 50,
+  height = 60,
+  backgroundColour = backgroundColour,
+})
+
+widgets.setSection({
+  x = 10,
+  xSpacing = 15,
+  ySpacing = 5,
+  width = 110,
 })
 
 widgets.label("Scale Quantizer", {
   tooltip = "Quantize incoming notes to the set scale",
   width = sequencerPanel.width,
-  height = 50,
+  height = 60,
   alpha = 0.75,
   fontSize = 30,
-  backgroundColour = "505050",
+  backgroundColour = backgroundColour,
   textColour = "3fe09f"
 })
 
 widgets.setSection({
   x = 216,
+  y = 5,
   xSpacing = 15,
   ySpacing = 5,
   width = 110,
@@ -42,6 +55,7 @@ widgets.setSection({
 })
 
 widgets.menu("Key", key, notes.getNoteNames(), {
+  width = 45,
   changed = function(self)
     key = self.value
     setScale()
@@ -52,19 +66,37 @@ local scaleMenu = scales.widget()
 scaleMenu.persistent = false -- Avoid running changed function on load, overwriting scaleInput
 
 widgets.label("Scale Definition", {
-  textColour = "#d0d0d0"
+  textColour = "#d0d0d0",
+  width = 90,
 })
 
 widgets.menu("Channel", widgets.channels(), {
   tooltip = "Only quantize incoming notes on this channel",
+  width = 60,
   changed = function(self) channel = self.value - 1 end
+})
+
+widgets.label("Quantize Probability", {
+  textColour = "#d0d0d0",
 })
 
 widgets.row()
 
-widgets.col(2)
+widgets.col(1, 45)
+widgets.col(1, 110)
 
-local scaleInput = scales.inputWidget(scaleDefinition, 110)
+local scaleInput = scales.inputWidget(scaleDefinition, 90)
+
+widgets.col(1, 60)
+
+widgets.numBox("Probability", quantizeProbability, {
+  tooltip = "Probability that a note will be quantized to the selected scale",
+  showLabel = false,
+  unit = Unit.Percent,
+  changed = function(self)
+    quantizeProbability = self.value
+  end
+})
 
 scaleMenu.changed = function(self)
   scaleInput.text = scales.getTextFromScaleDefinition(scaleDefinitions[self.value])
@@ -80,7 +112,7 @@ end
 --------------------------------------------------------------------------------
 
 function onNote(e)
-  if channel == 0 or channel == e.channel then
+  if (channel == 0 or channel == e.channel) and gem.getRandomBoolean(quantizeProbability) then
     print("Note before", e.note)
     local note = notes.getNoteAccordingToScale(scale, e.note)
     print("Note after", note)

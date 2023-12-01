@@ -1139,21 +1139,26 @@ widgets.panel({
 })
 
 widgets.setSection({
-  x = 10,
-  y = 8,
+  x = 0,
+  y = 12,
   xSpacing = 15,
 })
 
-local label = widgets.label("Single Trigger", {
+local label = widgets.label("Quantized Trigger", {
   tooltip = "Trigger a note at the next quantization tick",
-  alpha = 0.5,
+  alpha = 0.75,
+  width = 160,
   fontSize = 22,
+  backgroundColour = backgroundColour,
+  textColourWhenEditing = "silver",
+  textColour = "orange",
   height = 30,
   editable = true
 })
 
 widgets.setSection({
   width = 75,
+  y = 6,
   x = 170,
 })
 
@@ -1199,7 +1204,7 @@ widgets.button("Auto Play", autostart, {
 })
 
 triggerButton = widgets.button("Play", triggerActive, {
-  tooltip = "Trigger the note at the next tick (can only trigger when sequencer is running)",
+  tooltip = "Trigger the selected note at the next quantization tick",
   width = 96,
   changed = function(self)
     triggerActive = self.value
@@ -1252,7 +1257,7 @@ widgets.numBox("Note", note, {
 })
 
 widgets.button("Trigger on note", triggerOnNote, {
-  tooltip = "Start playing automatically on note change",
+  tooltip = "Trigger automatically on note change",
   width = 96,
   changed = function(self)
     triggerOnNote = self.value
@@ -1261,7 +1266,7 @@ widgets.button("Trigger on note", triggerOnNote, {
 
 widgets.row()
 
-positionTableQuantize = widgets.table("Position", 0, 2, {
+positionTableQuantize = widgets.table("PositionQuantize", 0, 2, {
   width = 75,
   max = 2,
   integer = true,
@@ -1272,7 +1277,7 @@ positionTableQuantize = widgets.table("Position", 0, 2, {
   height = 3,
 })
 
-positionTableDuration = widgets.table("Position", 0, 2, {
+positionTableDuration = widgets.table("PositionDuration", 0, 2, {
   width = 75,
   max = 2,
   integer = true,
