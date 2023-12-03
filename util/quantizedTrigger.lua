@@ -14,7 +14,9 @@ local triggerActive = false
 local shouldTrigger = false
 local isTransportActive = false
 local isPlaying = false
-local seqIndex = 0 -- Holds the unique id for the sequencer
+local restartQuantizeSequencer = false
+local baseSeqIndex = 0 -- Holds the unique id for the base sequencer
+local quantizeSeqIndex = 0 -- Holds the unique id for the quantize sequence runnder
 local triggerSeqIndex = 0 -- Holds the unique id for the trigger sequencer
 local triggerResolutions = resolutions.getResolutionNames({"Hold"})
 local quantizeResolutions = resolutions.getResolutionNames()
@@ -99,7 +101,7 @@ local function sequenceRunner(uniqueId)
   print("Starting sequenceRunner", uniqueId)
   local currentTriggerSeqIndex = -1
   local index = 1
-  while isPlaying and seqIndex == uniqueId do
+  while isPlaying and quantizeSeqIndex == uniqueId do
     setTableZero(positionTableQuantize)
     positionTableQuantize:setValue(index, 1)
     index = gem.inc(index, 1, positionTableQuantize.length)
@@ -113,7 +115,22 @@ local function sequenceRunner(uniqueId)
       spawn(triggerNote)
     end
     waitBeat(resolutions.getResolution(quantize))
-    --print("sequenceRunner round")
+  end
+end
+
+local function baseRunner(uniqueId)
+  local currentSeqIndex = -1
+  while isPlaying and baseSeqIndex == uniqueId do
+    if currentSeqIndex < quantizeSeqIndex then
+      currentSeqIndex = quantizeSeqIndex
+      spawn(sequenceRunner, quantizeSeqIndex)
+    end
+    waitBeat(1)
+    if restartQuantizeSequencer then
+      print("Quantize seq restart")
+      quantizeSeqIndex = gem.inc(quantizeSeqIndex)
+      restartQuantizeSequencer = false
+    end
   end
 end
 
@@ -122,8 +139,8 @@ local function startPlaying()
     return
   end
   isPlaying = true
-  seqIndex = gem.inc(seqIndex)
-  run(sequenceRunner, seqIndex)
+  baseSeqIndex = gem.inc(baseSeqIndex)
+  run(baseRunner, baseSeqIndex)
 end
 
 local function stopPlaying()
@@ -175,6 +192,7 @@ widgets.menu("Quantize", quantize, quantizeResolutions, {
   tooltip = "Quantize trigger start",
   changed = function(self)
     quantize = self.value
+    restartQuantizeSequencer = true
   end
 })
 
@@ -223,6 +241,7 @@ triggerButton = widgets.button("Play", triggerActive, {
       print("Trigger active: Waiting to trigger note")
     else
       print("Trigger stopped")
+      restartQuantizeSequencer = true
       if triggerDuration < #triggerResolutions then
         triggerSeqIndex = gem.inc(triggerSeqIndex)
         print("Trigger seq stopped")
@@ -302,7 +321,8 @@ positionTableDuration = widgets.table("PositionDuration", 0, 2, {
 --------------------------------------------------------------------------------
 
 function onInit()
-  seqIndex = 0
+  baseSeqIndex = 0
+  quantizeSeqIndex = 0
   triggerSeqIndex = 0
 end
 
