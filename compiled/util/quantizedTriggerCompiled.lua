@@ -1006,6 +1006,7 @@ local shouldTrigger = false
 local isTransportActive = false
 local isPlaying = false
 local restartQuantizeSequencer = false
+local baseSequenceResolution = 1
 local baseSeqIndex = 0 -- Holds the unique id for the base sequencer
 local quantizeSeqIndex = 0 -- Holds the unique id for the quantize sequence runnder
 local triggerSeqIndex = 0 -- Holds the unique id for the trigger sequencer
@@ -1106,7 +1107,6 @@ local function sequenceRunner(uniqueId)
       spawn(triggerNote)
     end
     waitBeat(resolutions.getResolution(quantize))
-    --print("sequenceRunner round")
   end
 end
 
@@ -1117,8 +1117,7 @@ local function baseRunner(uniqueId)
       currentSeqIndex = quantizeSeqIndex
       spawn(sequenceRunner, quantizeSeqIndex)
     end
-    --print("baseRunner round")
-    waitBeat(1)
+    waitBeat(baseSequenceResolution)
     if restartQuantizeSequencer then
       print("Quantize seq restart")
       quantizeSeqIndex = gem.inc(quantizeSeqIndex)
@@ -1234,7 +1233,6 @@ triggerButton = widgets.button("Play", triggerActive, {
       print("Trigger active: Waiting to trigger note")
     else
       print("Trigger stopped")
-      restartQuantizeSequencer = true
       if triggerDuration < #triggerResolutions then
         triggerSeqIndex = gem.inc(triggerSeqIndex)
         print("Trigger seq stopped")
