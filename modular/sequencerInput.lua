@@ -106,7 +106,7 @@ local noteInput = widgets.numBox("Root Note", baseNote, {
 
 local listenButton = widgets.button("Note Learn")
 
-widgets.numBox("Steps", tableLength, {
+local numStepsBox = widgets.numBox("Steps", tableLength, {
   min = 2,
   max = 128,
   integer = true,
@@ -256,9 +256,30 @@ end
 --------------------------------------------------------------------------------
 
 function onSave()
-  return {sequencerLabel.text}
+  local data = {}
+  local sequencerTableData = {}
+  
+  for i=1, numStepsBox.value do
+    table.insert(sequencerTableData, sequencerTable:getValue(i))
+  end
+  
+  table.insert(data, sequencerLabel.text)
+  table.insert(data, numStepsBox.value)
+  table.insert(data, sequencerTableData)
+  
+  return data
 end
 
 function onLoad(data)
   sequencerLabel.text = data[1]
+  local numSteps = data[2]
+  local sequencerTableData = data[3]
+
+  if type(numSteps) ~= "nil" then
+    tableLength = numSteps
+    numStepsBox:setValue(tableLength)
+    for i=1, numStepsBox.value do
+      sequencerTable:setValue(i, sequencerTableData[i])
+    end
+  end
 end
