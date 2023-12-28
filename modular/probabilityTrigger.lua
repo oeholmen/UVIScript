@@ -21,19 +21,23 @@ setBackgroundColour(backgroundColour)
 --------------------------------------------------------------------------------
 
 local isPlaying = false
-local seqIndex = 0 -- Holds the unique id for the sequencer
+local baseSeqIndex = 0 -- Holds the unique id for the base sequencer
+local quantizeSeqIndex = 0 -- Holds the unique id for the quantize sequence runner
 local channel = 1
 local resolutionNames = resolutions.getResolutionNames()
-local resolution = 23
+local baseResolution = 17
+local resolution = 20
 local voiceId = nil -- Holds the id of the created note event
 local probability = 50
 local velocity = 64
 local legato = false
+local strict = 100 -- The probability that the sequenceRunner will be reset at each base round
 local beatFactor = .5
 local beatFactorMin = .01
 local beatFactorMax = 4
 local beatFactorProbability = 50
 local beatFactorRandomizationAmount = 0
+local restartQuantizeSequencer = false
 local quantizeToClosest = true
 
 --------------------------------------------------------------------------------
@@ -48,7 +52,7 @@ local function release()
 end
 
 local function sequenceRunner(uniqueId)
-  while isPlaying and seqIndex == uniqueId do
+  while isPlaying and quantizeSeqIndex == uniqueId do
     local beat = resolutions.getResolution(resolution)
     if gem.getRandomBoolean(probability) then
       release()
@@ -71,13 +75,30 @@ local function sequenceRunner(uniqueId)
   end
 end
 
+local function baseRunner(uniqueId)
+  local currentSeqIndex = -1
+  while isPlaying and baseSeqIndex == uniqueId do
+    if currentSeqIndex < quantizeSeqIndex then
+      currentSeqIndex = quantizeSeqIndex
+      spawn(sequenceRunner, quantizeSeqIndex)
+    end
+    waitBeat(resolutions.getResolution(baseResolution))
+    restartQuantizeSequencer = gem.getRandomBoolean(strict)
+    if restartQuantizeSequencer then
+      print("Quantize seq restart")
+      quantizeSeqIndex = gem.inc(quantizeSeqIndex)
+      restartQuantizeSequencer = false
+    end
+  end
+end
+
 local function startPlaying()
   if isPlaying then
     return
   end
   isPlaying = true
-  seqIndex = gem.inc(seqIndex)
-  run(sequenceRunner, seqIndex)
+  baseSeqIndex = gem.inc(baseSeqIndex)
+  run(baseRunner, baseSeqIndex)
 end
 
 local function stopPlaying()
@@ -146,7 +167,7 @@ widgets.panel({
   x = widgets.getPanel().x,
   y = widgets.posUnder(widgets.getPanel()),
   width = widgets.getPanel().width,
-  height = 205,
+  height = 228,
 })
 
 local noteWidgetColSpacing = 10
@@ -156,7 +177,7 @@ local xySpeedFactor = widgets.getPanel():XY('Probability', 'BeatFactorProbabilit
 xySpeedFactor.x = 10
 xySpeedFactor.y = 10
 xySpeedFactor.width = 480
-xySpeedFactor.height = 190
+xySpeedFactor.height = 210
 
 widgets.setSection({
   width = 205,
@@ -168,26 +189,35 @@ widgets.setSection({
   cols = 1,
 })
 
-local resolutionInput = widgets.menu("Quantize", resolution, resolutionNames, {
-  tooltip = "Event triggers are quantized to this resolution",
-  width = 93,
+local baseResolutionInput = widgets.menu("Base", baseResolution, resolutionNames, {
+  tooltip = "The duration of each round. Use strict to set how often the sequencer is reset.",
+  width = 97,
   height = 48,
   increment = false,
-  changed = function(self) resolution = self.value end,
+  changed = function(self) baseResolution = self.value end,
 })
 
-widgets.button("Legato", legato, {
-  tooltip = "In legato mode notes are held until the next note is played",
-  x = widgets.posSide(resolutionInput) + noteWidgetColSpacing,
-  width = resolutionInput.width,
-  changed = function(self) legato = self.value end
+widgets.menu("Quantize", resolution, resolutionNames, {
+  tooltip = "Event triggers are quantized to this resolution",
+  width = baseResolutionInput.width,
+  height = 48,
+  changed = function(self)
+    resolution = self.value
+    restartQuantizeSequencer = true
+  end,
 })
 
 widgets.button("Quantize Closest", quantizeToClosest, {
   tooltip = "Quantize to closest resolution when using beat factor",
-  x = widgets.posSide(resolutionInput) + noteWidgetColSpacing,
-  width = resolutionInput.width,
+  width = baseResolutionInput.width,
+  increment = false,
   changed = function(self) quantizeToClosest = self.value end
+})
+
+widgets.button("Legato", legato, {
+  tooltip = "In legato mode notes are held until the next note is played",
+  width = baseResolutionInput.width,
+  changed = function(self) legato = self.value end
 })
 
 widgets.numBox("Trigger Probability", probability, {
@@ -219,12 +249,10 @@ widgets.numBox("Beat Factor Randomization", beatFactorRandomizationAmount, {
   changed = function(self) beatFactorRandomizationAmount = self.value end
 })
 
-widgets.numBox("Velocity", velocity, {
-  name = "Velocity",
-  min = 1,
-  max = 127,
-  tooltip = "Set the velocity amount",
-  changed = function(self) velocity = self.value end
+widgets.numBox("Strict", strict, {
+  tooltip = "The probability that the sequencer will be reset at each base round",
+  unit = Unit.Percent,
+  changed = function(self) strict = self.value end
 })
 
 --------------------------------------------------------------------------------
@@ -232,7 +260,8 @@ widgets.numBox("Velocity", velocity, {
 --------------------------------------------------------------------------------
 
 function onInit()
-  seqIndex = 0
+  baseSeqIndex = 0
+  quantizeSeqIndex = 0
 end
 
 function onNote(e)
