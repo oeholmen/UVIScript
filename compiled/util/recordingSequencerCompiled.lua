@@ -1001,10 +1001,7 @@ local resolutions = {
 --------------------------------------------------------------------------------
 
 -- TODO Record only selected midi channel?
--- TODO Use takes when recording?
--- TODO Handle undo
 -- TODO Show recorded notes - editable!
--- TODO Option to persist quantization for a voice/take?
 
 local resolutionNames = resolutions.getResolutionNames()
 local quantizeResolutions = {
@@ -1027,30 +1024,23 @@ local quantizeResolutions = {
 local resolution = #resolutionNames
 local isPlaying = false
 local recordActive = true
+local recordActivatedDuringRun = false
+local recordButton
+local recordOptions
 local positionTable
 local countIn = 4
 local baseSequenceResolution = 1 -- 1/4 TODO Metronome/tick?
 local seqIndex = 0 -- Holds the unique id for the base sequencer
 local tickResolution = resolutions.getTriplet(resolutions.getPlayDuration())
 local steps = 16
+local maxSteps = 128
 local ticks = steps / tickResolution
 local tickCounter = 0 -- Holds the current sequence tick (position)
 local sequence = {} -- Holds the recorded sequence
+local quantizedSequence = {} -- Holds the quantized sequence if any
 local takesCounter = 0 -- Holds the counter for takes
 local createTakeForEachRound = false -- Whether to create a take for each round
 local backgroundColour = "117744" -- Light or Dark
-
---[[ widgets.setColours({
-  backgroundColour = backgroundColour,
-  widgetBackgroundColour = "black",
-  widgetTextColour = "3EC1D3",
-  labelTextColour = "black",
-  labelBackgoundColour = "black",
-  menuBackgroundColour = "01011F",
-  menuArrowColour = "66" .. "black",
-  menuOutlineColour = "5f" .. "3EC1D3",
-  backgroundColourOff = "red",
-}) ]]
 
 setBackgroundColour(backgroundColour)
 
@@ -1072,37 +1062,63 @@ local function isQuantizeOn()
   return isQuantizeOff() == false
 end
 
-local function playTick()
-  local startPos = tickCounter
-  local endPos = tickCounter
+local function getEventsForTick(tick)
+  if type(quantizedSequence[tick]) == "table" then
+    --print("Found events in quantized sequence", tick)
+    return quantizedSequence[tick]
+  end
+
+  local startPos = tick
+  local endPos = tick
 
   if isQuantizeOn() then
     local quantizeTo = resolutions.getResolution(resolution)
     local ticksInResolution = quantizeTo / tickResolution
     local ticksInQuantization = math.floor(ticksInResolution / 2)
-    startPos = math.max(-ticksInQuantization, (tickCounter - ticksInQuantization))
-    endPos = math.min(ticks, (tickCounter + ticksInQuantization - 1))
+    startPos = math.max(-ticksInQuantization, (tick - ticksInQuantization))
+    endPos = math.min(ticks, (tick + ticksInQuantization - 1))
   end
-  --print("startPos, endPos", startPos, endPos)
+
+  local tickEvents = {}
+
   for i=startPos,endPos do
     local tickPos = i
     if tickPos < 1 then
       tickPos = tickPos + ticks
     end
     for _,e in ipairs(sequence[tickPos]) do
-      if isKeyDown(e.note) == false then
-        if type(e.endPos) == "nil" then
-          e.endPos = ticks
-          print("Missing end pos")
-        end
-        local diff = e.endPos - e.startPos
-        if diff < 0 then
-          diff = diff + ticks
-        end
-        local duration = diff * tickResolution
-        playNote(e.note, e.velocity, beat2ms(duration))
-        --print("note, startPos, endPos, diff, duration", e.note, e.startPos, e.endPos, diff, duration)
+      table.insert(tickEvents, e)
+    end
+  end
+
+  --print("Found tickEvents for tick", #tickEvents, tick)
+
+  return tickEvents
+end
+
+local function quantizeSequence()
+  quantizedSequence = {}
+  for i=1,ticks do
+    table.insert(quantizedSequence, getEventsForTick(i))
+  end
+  print("quantizedSequence", #quantizedSequence)
+end
+
+local function playTick()
+  local tickEvents = getEventsForTick(tickCounter)
+  for _,e in ipairs(tickEvents) do
+    if isKeyDown(e.note) == false then
+      if type(e.endPos) == "nil" then
+        e.endPos = ticks
+        print("Missing end pos")
       end
+      local diff = e.endPos - e.startPos
+      if diff < 0 then
+        diff = diff + ticks
+      end
+      local duration = diff * tickResolution
+      playNote(e.note, e.velocity, beat2ms(duration), nil, e.channel)
+      --print("note, startPos, endPos, diff, duration", e.note, e.startPos, e.endPos, diff, duration)
     end
   end
 end
@@ -1155,15 +1171,25 @@ local function sequenceRunner(uniqueId)
   local countInQuantizeTo = 1 -- 1/4
   local countInTicksInResolution = countInQuantizeTo / tickResolution
   local countInTicksDurationForResolution = tickResolution * countInTicksInResolution
+  local roundCounter = 0
   --print("tickCounter", tickCounter)
   while isPlaying and seqIndex == uniqueId do
     tickCounter = gem.inc(tickCounter, 1, ticks)
     internalTickCounter = gem.inc(internalTickCounter, 1, ticks)
-    if internalTickCounter == 1 and createTakeForEachRound then
-      incrementTakesCounter()
+    if internalTickCounter == 1 then
+      roundCounter = gem.inc(roundCounter)
+      if recordActive and recordOptions.text == "Punch Out" and roundCounter > 1 then
+        if recordActivatedDuringRun or countInActive then
+          recordActivatedDuringRun = false
+        else
+          recordButton:setValue(false)
+        end
+      end
+      if createTakeForEachRound then
+        incrementTakesCounter()
+      end
     end
     if (internalTickCounter - 1) % countInTicksInResolution == 0 and countInQuantizeTo == countInTicksDurationForResolution then
-      --print("1/4", internalTickCounter)
       if countInActive then
         if countInPos == countIn then
           countInActive = false
@@ -1172,7 +1198,7 @@ local function sequenceRunner(uniqueId)
         elseif countInPos < countIn then
           positionTable.sliderColour = "orange"
         end
-        countInPos = gem.inc(countInPos, 1)
+        countInPos = gem.inc(countInPos)
       end
 
       if countInActive == false then
@@ -1226,6 +1252,7 @@ local function removeTake()
   end
 
   sequence = newSequence -- Set sequence
+  quantizedSequence = {}
 end
 
 local function adjustSequenceTable()
@@ -1239,12 +1266,14 @@ local function adjustSequenceTable()
     table.insert(newSequence, tickEvents)
   end
   sequence = newSequence -- Set sequence
+  quantizedSequence = {}
 end
 
 local function initSequenceTable()
   print("Delete recording")
   takesCounter = 0
   sequence = {}
+  quantizedSequence = {}
   for i=1,ticks do
     table.insert(sequence, {})
   end
@@ -1295,14 +1324,16 @@ local labelWidget = widgets.label("Recording Sequencer", {
 
 widgets.col()
 
-local recordButton = widgets.button("Record", recordActive, {
+recordButton = widgets.button("Record", recordActive, {
   tooltip = "When record is enabled, the count in will play before the sequencer starts. Use transport or the Play button to start recording.",
   width = 96,
   changed = function(self)
     recordActive = self.value
     if recordActive then
+      recordActivatedDuringRun = isPlaying
       positionTable.sliderColour = "red"
     else
+      recordActivatedDuringRun = false
       positionTable.sliderColour = "green"
     end
   end
@@ -1367,7 +1398,7 @@ widgets.setSection({
 widgets.numBox("Steps", steps, {
   tooltip = "Lowest note - notes below this are passed through",
   min = 4,
-  max = 64,
+  max = maxSteps,
   integer = true,
   changed = function(self)
     steps = self.value
@@ -1379,9 +1410,9 @@ widgets.numBox("Steps", steps, {
 
 widgets.menu("Quantize", #quantizeResolutions, quantizeResolutions, {
   tooltip = "Set the quantize resolution",
-  --showLabel = false,
   changed = function(self)
     local resolutionIndex = gem.getIndexFromValue(self.text, resolutionNames)
+    quantizedSequence = {}
     if type(resolutionIndex) == "nil" then
       resolution = #resolutionNames
     else
@@ -1391,18 +1422,23 @@ widgets.menu("Quantize", #quantizeResolutions, quantizeResolutions, {
   end
 })
 
-local options = {
+recordOptions = widgets.menu("Record Mode", 1, {
+  "Punch Out",
+  "Loop",
+})
+
+widgets.menu("Actions", 1, {
   "Select...",
   "Undo last take",
-  --"Set quantization on sequence",
+  --"Set quantization", -- TODO Must test better - must be set dirty when recording notes
   "--- Danger Zone ---",
   "Clear sequence",
-}
-
-widgets.menu("Actions", 1, options, {
+}, {
   changed = function(self)
     if self.text == "Clear sequence" then
       initSequenceTable()
+    elseif self.text == "Set quantization" then
+      quantizeSequence()
     elseif self.text == "Undo last take" then
       removeTake()
     end
@@ -1445,7 +1481,7 @@ function onNote(e)
     if takesCounter < 1 then
       incrementTakesCounter()
     end
-    table.insert(sequence[tickPos], {note = e.note, velocity = e.velocity, startPos = tickPos, take = takesCounter})
+    table.insert(sequence[tickPos], {note = e.note, velocity = e.velocity, channel = e.channel, startPos = tickPos, take = takesCounter})
     print("Set note, startPos, take, #events@pos", e.note, tickPos, takesCounter, #sequence[tickPos])
   end
   postEvent(e)
@@ -1470,10 +1506,11 @@ end
 --------------------------------------------------------------------------------
 
 function onSave()
-  return {labelWidget.text, sequence}
+  return {labelWidget.text, sequence, quantizedSequence}
 end
 
 function onLoad(data)
   labelWidget.text = data[1]
   sequence = data[2]
+  quantizedSequence = data[3]
 end
