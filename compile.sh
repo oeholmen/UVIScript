@@ -57,6 +57,7 @@ luaScripts=(
   util/quantizedTrigger
   util/randomGate
   util/randomOctave
+  util/recordingSequencer
   util/resolutionQuantizer
   util/scaleQuantizer
   util/stripChannel

@@ -839,6 +839,9 @@ local resolutions = {
     return res
   end,
   getPlayDuration = function(duration, gate)
+    if type(duration) == "nil" then
+      duration = 0
+    end
     if type(gate) == "nil" then
       gate = 100
     end
@@ -1670,6 +1673,7 @@ for i=1,numPartsBox.max do
   generateScalePart.showLabel = false
   generateScalePart.height = 20
   generateScalePart.width = boxWidth
+  generateScalePart.hierarchical = true
   generateScalePart.x = generateKeyPart.x
   generateScalePart.y = generateKeyPart.y + generateKeyPart.height + 5
   generateScalePart.backgroundColour = menuBackgroundColour

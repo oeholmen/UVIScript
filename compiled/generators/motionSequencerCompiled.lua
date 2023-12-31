@@ -1096,6 +1096,9 @@ local resolutions = {
     return res
   end,
   getPlayDuration = function(duration, gate)
+    if type(duration) == "nil" then
+      duration = 0
+    end
     if type(gate) == "nil" then
       gate = 100
     end

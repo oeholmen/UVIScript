@@ -564,6 +564,9 @@ local resolutions = {
     return res
   end,
   getPlayDuration = function(duration, gate)
+    if type(duration) == "nil" then
+      duration = 0
+    end
     if type(gate) == "nil" then
       gate = 100
     end
@@ -646,14 +649,16 @@ sequencerPanel.width = 700
 sequencerPanel.height = numParts * (tableHeight + 25) + 10
 
 local label = sequencerPanel:Label("Label")
+label.tooltip = "A polyphonic sequencer for up to four voices"
 label.text = title
 label.align = "left"
-label.backgroundColour = "#272727"
+label.backgroundColour = "green"
 label.fontSize = 22
 label.position = {0,0}
 label.size = {200,25}
 
 local holdButton = sequencerPanel:OnOffButton("HoldOnOff", false)
+holdButton.tooltip = "Hold the played notes"
 holdButton.backgroundColourOff = "#ff084486"
 holdButton.backgroundColourOn = "#ff02ACFE"
 holdButton.textColourOff = "#ff22FFFF"
@@ -751,9 +756,9 @@ for i=1,numParts do
   seqGateTable.x = tableX
   seqGateTable.y = seqVelTable.y + seqVelTable.height + 2
   
-  local seqRatchetTable = sequencerPanel:Table("Subdivision" .. i, 8, 1, 1, 4, true)
-  seqRatchetTable.displayName = "Subdivision"
-  seqRatchetTable.tooltip = "Subdivision for this step"
+  local seqRatchetTable = sequencerPanel:Table("Ratchet" .. i, 8, 1, 1, 4, true)
+  seqRatchetTable.displayName = "Ratchet"
+  seqRatchetTable.tooltip = "Ratchet for this step"
   seqRatchetTable.showPopupDisplay = true
   seqRatchetTable.showLabel = false
   seqRatchetTable.fillStyle = "solid"
@@ -813,9 +818,9 @@ for i=1,numParts do
   gateRand.x = directionProbability.x
   gateRand.y = velRand.y + velRand.height + numBoxSpacing
 
-  local ratchetRand = sequencerPanel:NumBox("SubdivisionRandomization" .. i, 0, 0, 100, true)
-  ratchetRand.displayName = "Subdivision"
-  ratchetRand.tooltip = "Subdivision radomization amount"
+  local ratchetRand = sequencerPanel:NumBox("RatchetRandomization" .. i, 0, 0, 100, true)
+  ratchetRand.displayName = "Ratchet"
+  ratchetRand.tooltip = "Ratchet radomization amount"
   ratchetRand.unit = Unit.Percent
   ratchetRand.size = directionProbability.size
   ratchetRand.x = directionProbability.x
@@ -862,7 +867,7 @@ for i=1,numParts do
     setNumSteps(i)
   end
 
-  local ratchetMax = sequencerPanel:NumBox("SubdivisionMax" .. i, 4, 2, 16, true)
+  local ratchetMax = sequencerPanel:NumBox("RatchetMax" .. i, 4, 2, 16, true)
   ratchetMax.displayName = "Subdiv Max"
   ratchetMax.tooltip = "Set the maximum allowed subdivision that can be selected for each step"
   ratchetMax.backgroundColour = menuBackgroundColour
