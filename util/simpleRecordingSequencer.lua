@@ -112,28 +112,6 @@ local function playTick()
   end
 end
 
-local function getPreviousTick(tick, step)
-  if type(step) == "nil" then
-    step = 1
-  end
-  local previousTick = tick - math.abs(step)
-  if previousTick < 1 then
-    previousTick = previousTick + ticks
-  end
-  return previousTick
-end
-
-local function getNextTick(tick, step)
-  if type(step) == "nil" then
-    step = 1
-  end
-  local nextTick = tick + step
-  if nextTick > ticks then
-    nextTick = nextTick - ticks
-  end
-  return nextTick
-end
-
 local function shouldPlayTick(tick)
   if isQuantizeOff() then
     return true
@@ -144,41 +122,6 @@ local function shouldPlayTick(tick)
   local ticksDurationForResolution = tickResolution * ticksInResolution
 
   return (tick - 1) % ticksInResolution == 0 and quantizeTo == ticksDurationForResolution
-end
-
-local function getQantizedPos(tick)
-  local quantizedPos = tick
-  local forward = tick
-  local backward = tick
-
-  while shouldPlayTick(forward) == false do
-    forward = gem.inc(forward)
-  end
-
-  while shouldPlayTick(backward) == false do
-    backward = gem.inc(backward, -1)
-  end
-
-  local diffForward = forward - tick
-  local diffBackward = backward - tick
-
-  if math.abs(diffBackward) > diffForward then
-    -- Go forward
-    quantizedPos = forward
-    if quantizedPos > ticks then
-      quantizedPos = ticks - quantizedPos
-    end
-  else
-    -- Go backward
-    quantizedPos = backward
-    if quantizedPos < 1 then
-      quantizedPos = quantizedPos + ticks
-    end
-  end
-
-  --print("tick, forward, backward, diffForward, diffBackward, quantizedPos", tick, forward, backward, diffForward, diffBackward, quantizedPos)
-
-  return quantizedPos
 end
 
 local function lastTakeIsEmpty()
@@ -338,7 +281,7 @@ end
 local function stopPlaying()
   isPlaying = false
   setTableZero(positionTable)
-  if recordOptions.text == "Punch Out" then
+  if recordOptions.text == "Punch Out" and lastTakeIsEmpty() == false then
     recordButton:setValue(false)
   end
 end
