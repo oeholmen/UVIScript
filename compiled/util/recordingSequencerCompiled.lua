@@ -1061,6 +1061,28 @@ local function isQuantizeOn()
   return isQuantizeOff() == false
 end
 
+local function getPreviousTick(tick, step)
+  if type(step) == "nil" then
+    step = 1
+  end
+  local previousTick = tick - math.abs(step)
+  if previousTick < 1 then
+    previousTick = previousTick + ticks
+  end
+  return previousTick
+end
+
+local function getNextTick(tick, step)
+  if type(step) == "nil" then
+    step = 1
+  end
+  local nextTick = tick + step
+  if nextTick > ticks then
+    nextTick = nextTick - ticks
+  end
+  return nextTick
+end
+
 local function getSequenceForNote(note)
   for _,v in ipairs(noteSequence) do
     if note == v.note then
@@ -1112,7 +1134,6 @@ local function getEventsForTick(tick)
       local eventLength = 0
       local endPos = tick
       while eventLength < ticks and v.table:getValue(endPos) > 0 do
-        -- TODO Handle eternal loop
         endPos = getNextTick(endPos)
         eventLength = gem.inc(eventLength)
       end
@@ -1120,81 +1141,25 @@ local function getEventsForTick(tick)
         note = v.note,
         startPos = tick,
         endPos = endPos,
-        velocity = 64,
-        channel = nil,
+        length = eventLength,
+        velocity = 75, -- TODO Get from original recording event
+        channel = nil, -- TODO Get from original recording event
       })
     end
   end
 
   return tickEvents
-  -- TODO Use events from note tables
-  --[[ local startPos = tick
-  local endPos = tick
-
-  if isQuantizeOn() then
-    local quantizeTo = resolutions.getResolution(resolution)
-    local ticksInResolution = quantizeTo / tickResolution
-    local ticksInQuantization = math.floor(ticksInResolution / 2)
-    startPos = math.max(-ticksInQuantization, (tick - ticksInQuantization))
-    endPos = math.min(ticks, (tick + ticksInQuantization - 1))
-  end
-
-  local tickEvents = {}
-
-  for i=startPos,endPos do
-    local tickPos = i
-    if tickPos < 1 then
-      tickPos = tickPos + ticks
-    end
-    for _,e in ipairs(sequence[tickPos]) do
-      table.insert(tickEvents, e)
-    end
-  end
-
-  --print("Found tickEvents for tick", #tickEvents, tick)
-
-  return tickEvents ]]
 end
 
 local function playTick()
   local tickEvents = getEventsForTick(tickCounter)
   for _,e in ipairs(tickEvents) do
     if isKeyDown(e.note) == false then
-      if type(e.endPos) == "nil" then
-        e.endPos = ticks
-        print("Missing end pos")
-      end
-      local diff = e.endPos - e.startPos
-      if diff < 0 then
-        diff = diff + ticks
-      end
-      local duration = diff * tickResolution
+      local duration = e.length * tickResolution
       playNote(e.note, e.velocity, beat2ms(duration), nil, e.channel)
-      --print("note, startPos, endPos, diff, duration", e.note, e.startPos, e.endPos, diff, duration)
+      --print("note, startPos, endPos, length, duration", e.note, e.startPos, e.endPos, e.length, duration)
     end
   end
-end
-
-local function getPreviousTick(tick, step)
-  if type(step) == "nil" then
-    step = 1
-  end
-  local previousTick = tick - math.abs(step)
-  if previousTick < 1 then
-    previousTick = previousTick + ticks
-  end
-  return previousTick
-end
-
-local function getNextTick(tick, step)
-  if type(step) == "nil" then
-    step = 1
-  end
-  local nextTick = tick + step
-  if nextTick > ticks then
-    nextTick = nextTick - ticks
-  end
-  return nextTick
 end
 
 local function shouldPlayTick(tick)
@@ -1298,6 +1263,7 @@ local function quantizeSequence()
           qantizedStartPos = qantizedStartPos,
           eventLength = eventLength,
         })
+        eventLength = 0 -- Reset event length
       end
     end
     v.events = events
@@ -1465,7 +1431,7 @@ end
 local function stopPlaying()
   isPlaying = false
   setTableZero(positionTable)
-  if recordOptions.text == "Punch Out" then
+  if recordOptions.text == "Punch Out" and lastTakeIsEmpty() == false then
     recordButton:setValue(false)
   end
 end
@@ -1716,4 +1682,5 @@ end
 function onLoad(data)
   labelWidget.text = data[1]
   sequence = data[2]
+  -- TODO Save noteSequence
 end

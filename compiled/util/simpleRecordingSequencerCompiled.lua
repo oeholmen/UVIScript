@@ -1257,7 +1257,6 @@ local function initSequenceTable()
   for i=1,ticks do
     table.insert(sequence, {})
   end
-  clearNoteTables()
 end
 
 local function startPlaying()
