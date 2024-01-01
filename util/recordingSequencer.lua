@@ -43,7 +43,6 @@ local ticks = steps / tickResolution
 local tickCounter = 0 -- Holds the current sequence tick (position)
 local sequence = {} -- Holds the recorded sequence
 local noteSequence = {} -- Holds the sequence per note
---local quantizedSequence = {} -- Holds the quantized sequence if any
 local takesCounter = 0 -- Holds the counter for takes
 local createTakeForEachRound = false -- Whether to create a take for each round
 local backgroundColour = "117744" -- Light or Dark
@@ -111,11 +110,6 @@ local function drawNoteTicks(tickPos, eventPos, value)
 end
 
 local function getEventsForTick(tick)
-  --[[ if type(quantizedSequence[tick]) == "table" then
-    --print("Found events in quantized sequence", tick)
-    return quantizedSequence[tick]
-  end ]]
-
   local startPos = tick
   local endPos = tick
 
@@ -404,7 +398,6 @@ local function initSequenceTable()
   print("Delete recording")
   takesCounter = 0
   sequence = {}
-  --quantizedSequence = {}
   for i=1,ticks do
     table.insert(sequence, {})
   end
@@ -505,7 +498,8 @@ widgets.setSection({
 })
 
 for i=84,24,-1 do
-  local noteTable = widgets.table("TickTable", 0, ticks, {
+  local noteTable = widgets.table("Note", 0, ticks, {
+    name = "Note_" .. i,
     max = 1,
     integer = true,
     persistent = false,
@@ -657,7 +651,6 @@ function onRelease(e)
         if e.note == tickEvent.note and type(tickEvent.endPos) == "nil" then
           sequence[tick][i].endPos = tickCounter
           print("Set note, endPos", e.note, sequence[tick][i].endPos)
-          --drawNoteInTable(e.note, tick)
           drawNoteTicks(tick, i)
         end
       end
