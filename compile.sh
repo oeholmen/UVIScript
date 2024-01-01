@@ -60,6 +60,7 @@ luaScripts=(
   util/recordingSequencer
   util/resolutionQuantizer
   util/scaleQuantizer
+  util/simpleRecordingSequencer
   util/stripChannel
   util/sieve
   util/tempo

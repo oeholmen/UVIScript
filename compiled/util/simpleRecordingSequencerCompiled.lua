@@ -1,4 +1,4 @@
--- util/recordingSequencer -- 
+-- util/simpleRecordingSequencer -- 
 --------------------------------------------------------------------------------
 -- Common methods
 --------------------------------------------------------------------------------
@@ -997,10 +997,8 @@ local resolutions = {
 }
 
 --------------------------------------------------------------------------------
--- Recording Sequencer - A sequencer with recording
+-- Simple Recording Sequencer - A sequencer with recording
 --------------------------------------------------------------------------------
-
--- TODO Record only selected midi channel?
 
 local resolutionNames = resolutions.getResolutionNames()
 local quantizeResolutions = {
@@ -1036,7 +1034,6 @@ local maxSteps = 128
 local ticks = steps / tickResolution
 local tickCounter = 0 -- Holds the current sequence tick (position)
 local sequence = {} -- Holds the recorded sequence
-local noteSequence = {} -- Holds the sequence per note
 local takesCounter = 0 -- Holds the counter for takes
 local createTakeForEachRound = false -- Whether to create a take for each round
 local backgroundColour = "117744" -- Light or Dark
@@ -1061,74 +1058,8 @@ local function isQuantizeOn()
   return isQuantizeOff() == false
 end
 
-local function getSequenceForNote(note)
-  for _,v in ipairs(noteSequence) do
-    if note == v.note then
-      return v
-    end
-  end
-end
-
-local function drawNoteInTable(note, tickPos, value)
-  if type(value) == "nil" then
-    value = 1
-  end
-  local seq = getSequenceForNote(note)
-  if type(seq) == "table" then
-    seq.table:setValue(tickPos, value)
-  end
-end
-
-local function drawNoteTicks(tickPos, eventPos, value)
-  local note = sequence[tickPos][eventPos].note
-  local startPos = sequence[tickPos][eventPos].startPos
-  local endPos = sequence[tickPos][eventPos].endPos
-
-  if type(endPos) == "nil" then
-    endPos = startPos
-  end
-
-  if startPos > endPos then
-    startPos = startPos - ticks
-  end
-
-  print("drawNoteTicks, note, tickPos, startPos, endPos, value", note, tickPos, startPos, endPos, value)
-
-  for i=startPos, endPos do
-    local tick = i
-    if tick < 1 then
-      tick = tick + ticks
-    end
-    drawNoteInTable(note, tick, value)
-  end
-end
-
 local function getEventsForTick(tick)
-  local tickEvents = {}
-
-  for _,v in ipairs(noteSequence) do
-    local isStart = v.table:getValue(tick) > 0 and v.table:getValue(getPreviousTick(tick)) == 0
-    if isStart then
-      local eventLength = 0
-      local endPos = tick
-      while eventLength < ticks and v.table:getValue(endPos) > 0 do
-        -- TODO Handle eternal loop
-        endPos = getNextTick(endPos)
-        eventLength = gem.inc(eventLength)
-      end
-      table.insert(tickEvents, {
-        note = v.note,
-        startPos = tick,
-        endPos = endPos,
-        velocity = 64,
-        channel = nil,
-      })
-    end
-  end
-
-  return tickEvents
-  -- TODO Use events from note tables
-  --[[ local startPos = tick
+  local startPos = tick
   local endPos = tick
 
   if isQuantizeOn() then
@@ -1153,7 +1084,7 @@ local function getEventsForTick(tick)
 
   --print("Found tickEvents for tick", #tickEvents, tick)
 
-  return tickEvents ]]
+  return tickEvents
 end
 
 local function playTick()
@@ -1162,7 +1093,7 @@ local function playTick()
     if isKeyDown(e.note) == false then
       if type(e.endPos) == "nil" then
         e.endPos = ticks
-        print("Missing end pos")
+        --print("Missing end pos")
       end
       local diff = e.endPos - e.startPos
       if diff < 0 then
@@ -1244,78 +1175,17 @@ local function getQantizedPos(tick)
   return quantizedPos
 end
 
-local function clearNoteTables()
-  for _,v in ipairs(noteSequence) do
-    setTableZero(v.table)
-  end
-end
-
-local function drawNoteTables(startPosKey)
-  if type(startPosKey) == "nil" then
-    startPosKey = "qantizedStartPos"
-  end
-  for _,v in ipairs(noteSequence) do
-    if #v.events > 0 then
-      setTableZero(v.table)
-    end
-    for _,e in ipairs(v.events) do
-      local startPos = math.max(1, e[startPosKey])
-      local endPos = math.min(ticks, startPos + e.eventLength)
-      print("Draw note from "..startPosKey.." to endPos", v.note, startPos, endPos)
-      for tickPos=startPos,endPos do
-        v.table:setValue(tickPos, 1)
-      end
-    end
-  end
-end
-
-local function quantizeSequence()
-  for _,v in ipairs(noteSequence) do
-    --print("Quantize note events", v.note)
-    local events = {} -- Reset current events for this note
-    local isStart = false
-    local isEnd = false
-    local eventLength = 0
-    local startPos
-    local qantizedStartPos
-    for tick=1,v.table.length do
-      local tickIsActive = v.table:getValue(tick) > 0
-      if tickIsActive then
-        eventLength = gem.inc(eventLength)
-        --print("Note is active @ tick", tick)
-      end
-      isStart = tickIsActive and (tick == 1 or v.table:getValue(getPreviousTick(tick)) == 0)
-      isEnd = tickIsActive and (tick == ticks or v.table:getValue(getNextTick(tick)) == 0)
-      if isStart then
-        startPos = tick
-        qantizedStartPos = getQantizedPos(tick)
-        print("Event started @ tick", tick)
-      end
-      if isEnd then
-        print("Event ended @ tick, length", tick, eventLength)
-        table.insert(events, {
-          startPos = startPos,
-          qantizedStartPos = qantizedStartPos,
-          eventLength = eventLength,
-        })
-      end
-    end
-    v.events = events
-  end
-  drawNoteTables()
-end
-
 local function lastTakeIsEmpty()
   for i,tickEvents in ipairs(sequence) do
     for i,v in ipairs(tickEvents) do
       if v.take == takesCounter then
-        print("Found an event for take", takesCounter)
+        --print("Found an event for take", takesCounter)
         return false
       end
     end
   end
 
-  print("No events for take", takesCounter)
+  --print("No events for take", takesCounter)
   return true
 end
 
@@ -1325,7 +1195,7 @@ local function incrementTakesCounter()
   end
 
   takesCounter = gem.inc(takesCounter, 1)
-  print("Set takesCounter", takesCounter)
+  --print("Set takesCounter", takesCounter)
 end
 
 local function sequenceRunner(uniqueId)
@@ -1386,7 +1256,7 @@ local function sequenceRunner(uniqueId)
 
     if countInActive == false then
       if tickCounter ~= internalTickCounter then
-        print("tickCounter ~= internalTickCounter", tickCounter, internalTickCounter)
+        --print("tickCounter ~= internalTickCounter", tickCounter, internalTickCounter)
       end
 
       if shouldPlayTick(internalTickCounter) then
@@ -1412,11 +1282,9 @@ local function removeTake()
     local tickEvents = {}
     for j,v in ipairs(sequence[i]) do
       if v.take == takesCounter then
-        print("Skipping event for take", takesCounter)
-        drawNoteTicks(i, j, 0)
-        -- TODO Update events on noteSequence
+        --print("Skipping event for take", takesCounter)
       else
-        print("Keeping event for take", v.take)
+        --print("Keeping event for take", v.take)
         table.insert(tickEvents, v)
       end
     end
@@ -1427,7 +1295,7 @@ local function removeTake()
 end
 
 local function adjustSequenceTable()
-  print("Adjust sequence length, ticks", ticks)
+  --print("Adjust sequence length, ticks", ticks)
   local newSequence = {}
   for i=1,ticks do
     local tickEvents = {}
@@ -1437,11 +1305,10 @@ local function adjustSequenceTable()
     table.insert(newSequence, tickEvents)
   end
   sequence = newSequence -- Set sequence
-  -- TODO Update events on noteSequence
 end
 
 local function initSequenceTable()
-  print("Delete recording")
+  --print("Delete recording")
   takesCounter = 0
   sequence = {}
   for i=1,ticks do
@@ -1488,15 +1355,15 @@ widgets.setSection({
   xSpacing = 15,
 })
 
-local labelWidget = widgets.label("Recording Sequencer", {
+local labelWidget = widgets.label("Simple Recording Sequencer", {
   tooltip = "Record and play back a sequence",
   alpha = 0.5,
   fontSize = 22,
-  width = 210,
+  width = 240,
   editable = true,
 })
 
-widgets.col()
+widgets.col(1, 100)
 
 recordButton = widgets.button("Record", recordActive, {
   tooltip = "When record is enabled, the count in will play before the sequencer starts. Use transport or the Play button to start recording.",
@@ -1534,36 +1401,13 @@ widgets.panel({
   x = widgets.getPanel().x,
   y = widgets.posUnder(widgets.getPanel()),
   width = widgets.getPanel().width,
-  height = 380,
+  height = 30,
 })
 
 widgets.setSection({
   x = 0,
-  y = 5,
-  ySpacing = 1,
+  y = 15,
 })
-
-for i=84,24,-1 do
-  local noteTable = widgets.table("Note", 0, ticks, {
-    name = "Note_" .. i,
-    max = 1,
-    integer = true,
-    persistent = false,
-    sliderColour = "blue",
-    backgroundColour = "gray",
-    width = 714,
-    height = 6,
-  })
-  table.insert(noteSequence, {
-    note = i,
-    events = {},
-    table = noteTable
-  })
-
-  widgets.row(1, 5)
-end
-
-print("noteSequence", #noteSequence)
 
 positionTable = widgets.table("SequencePosition", 0, steps, {
   max = 1,
@@ -1600,9 +1444,6 @@ widgets.numBox("Steps", steps, {
     steps = self.value
     ticks = steps / tickResolution
     positionTable.length = steps
-    for _,v in ipairs(noteSequence) do
-      v.table.length = ticks
-    end
     adjustSequenceTable()
   end
 }):changed()
@@ -1616,8 +1457,7 @@ widgets.menu("Quantize", #quantizeResolutions, quantizeResolutions, {
     else
       resolution = resolutionIndex
     end
-    print("Quantize resolution", resolution)
-    quantizeSequence()
+    --print("Quantize resolution", resolution)
   end
 })
 
@@ -1629,18 +1469,12 @@ recordOptions = widgets.menu("Record Mode", 1, {
 widgets.menu("Actions", 1, {
   "Select...",
   "Undo last take",
-  "Quantize",
-  "Undo Quantize",
   "--- Danger Zone ---",
   "Clear sequence",
 }, {
   changed = function(self)
     if self.text == "Clear sequence" then
       initSequenceTable()
-    elseif self.text == "Quantize" then
-      quantizeSequence()
-    elseif self.text == "Undo Quantize" then
-      drawNoteTables("startPos")
     elseif self.text == "Undo last take" then
       removeTake()
     end
@@ -1684,7 +1518,6 @@ function onNote(e)
       incrementTakesCounter()
     end
     table.insert(sequence[tickPos], {note = e.note, velocity = e.velocity, channel = e.channel, startPos = tickPos, take = takesCounter})
-    drawNoteInTable(e.note, tickPos)
     --print("Set note, startPos, take, #events@pos", e.note, tickPos, takesCounter, #sequence[tickPos])
   end
   postEvent(e)
@@ -1696,8 +1529,7 @@ function onRelease(e)
       for i,tickEvent in ipairs(events) do
         if e.note == tickEvent.note and type(tickEvent.endPos) == "nil" then
           sequence[tick][i].endPos = tickCounter
-          print("Set note, endPos", e.note, sequence[tick][i].endPos)
-          drawNoteTicks(tick, i)
+          --print("Set note, endPos", e.note, sequence[tick][i].endPos)
         end
       end
     end
