@@ -515,16 +515,18 @@ widgets.setSection({
   ySpacing = 1,
 })
 
-for i=84,24,-1 do
+local noteMin = 36
+local noteMax = noteMin + (12 * 3)
+for i=noteMax,noteMin,-1 do
   local noteTable = widgets.table("Note", 0, ticks, {
     name = "Note_" .. i,
     max = 1,
     integer = true,
     persistent = false,
-    sliderColour = "blue",
-    backgroundColour = "gray",
+    sliderColour = "black",
+    backgroundColour = "00" .. i .. i,
     width = 714,
-    height = 6,
+    height = 10,
   })
   table.insert(noteSequence, {
     note = i,
@@ -532,7 +534,7 @@ for i=84,24,-1 do
     table = noteTable
   })
 
-  widgets.row(1, 5)
+  widgets.row(1, 9)
 end
 
 print("noteSequence", #noteSequence)

@@ -39,6 +39,7 @@ luaScripts=(
   sequencers/jumpingSequencer
   sequencers/midiControlSequencer
   sequencers/polyphonicSequencer
+  sequencers/polyphonicRecordingSequencer
   sequencers/rythmicMotionsSequencer
   sequencers/stochasticDrumSequencer
   sequencers/stochasticSequencer
@@ -57,7 +58,6 @@ luaScripts=(
   util/quantizedTrigger
   util/randomGate
   util/randomOctave
-  util/recordingSequencer
   util/resolutionQuantizer
   util/scaleQuantizer
   util/simpleRecordingSequencer
@@ -216,6 +216,17 @@ for luaScript in "${luaScripts[@]}"; do
     echo "$input_file" > $trigger_file
     echo
     echo "Compiling $luaScript to $trigger_file"
+    echo "Done!"
+  fi
+
+  # Create monophonic sequencer from polyphonicRecordingSequencer
+  if [ $luaScript == 'sequencers/polyphonicRecordingSequencer' ]; then
+    input_file=$(cat "$output_file")
+    input_file=$(echo "$input_file" | sed 's/local numParts = 4/local numParts = 1/g')
+    output_file=./compiled/sequencers/monophonicRecordingSequencer.lua
+    echo "$input_file" > $output_file
+    echo
+    echo "Compiling $luaScript to $output_file"
     echo "Done!"
   fi
 
