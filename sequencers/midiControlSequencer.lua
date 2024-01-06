@@ -27,7 +27,7 @@ setBackgroundColour(modseq.colours.backgroundColour)
 for page=1,modseq.getMaxPages() do
   local tableX = 0
   local tableY = 0
-  local tableWidth = 640
+  local tableWidth = 698
   local tableHeight = 63
   local buttonRowHeight = 60
   local buttonSpacing = 10
@@ -213,11 +213,11 @@ for page=1,modseq.getMaxPages() do
       width = 58,
     })
 
-    local xyShapeMorph = widgets.getPanel():XY('ShapePhase' .. i, 'ShapeMorph' .. i)
+    --[[ local xyShapeMorph = widgets.getPanel():XY('ShapePhase' .. i, 'ShapeMorph' .. i)
     xyShapeMorph.x = widgets.posSide(seqValueTable) - 8
     xyShapeMorph.y = seqValueTable.y
     xyShapeMorph.width = 58
-    xyShapeMorph.height = seqValueTable.height
+    xyShapeMorph.height = seqValueTable.height ]]
 
     modseq.addPartParams({shapeWidgets=shapeWidgets,shapeMenu=shapeMenu,stepButton=stepButton,smoothButton=smoothButton,valueRandomization=valueRandomization,midiControlNumber=midiControlNumber,seqValueTable=seqValueTable,channelBox=channelBox,positionTable=positionTable,stepResolution=stepResolution,numStepsBox=numStepsBox,partLabelInput=partLabelInput})
 

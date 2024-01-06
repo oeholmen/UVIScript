@@ -1118,8 +1118,9 @@ actionMenu.changed = function(self)
       for i=1,paramsPerPart[partIndex].numStepsBox.value do
         paramsPerPart[partIndex].seqRatchetTable:setValue(i, 0)
         paramsPerPart[partIndex].seqPitchTable:setValue(i, 0)
+        paramsPerPart[partIndex].seqPitchTable:setRange(-12, 12)
         paramsPerPart[partIndex].tieStepTable:setValue(i, 0)
-        paramsPerPart[partIndex].seqVelocityTable:setValue(i, 90)
+        paramsPerPart[partIndex].seqVelocityTable:setValue(i, 1)
       end
     end
   end
@@ -1599,7 +1600,7 @@ local function recordNoteEventStart(e)
       if tickPosition > (ticksInResolution - ticksPerSubdivision) then
         currentPosition = gem.inc(currentPosition, 1, numStepsInPart)
       end
-      table.insert(paramsPerPart[partIndex].sequence, {note=e.note, velocity=e.velocity, startPos=currentPosition,tickPosition=tickPosition})
+      table.insert(paramsPerPart[partIndex].sequence, {note=e.note, velocity=e.velocity, startPos=currentPosition})
       local distanceFromBase = e.note - basePitch
       --print("Record startPos, note, distanceFromBase", currentPosition, e.note, distanceFromBase)
       if distanceFromBase < seqPitchTable.min then
