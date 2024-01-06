@@ -223,7 +223,7 @@ for luaScript in "${luaScripts[@]}"; do
   if [ $luaScript == 'sequencers/polyphonicRecordingSequencer' ]; then
     input_file=$(cat "$output_file")
     input_file=$(echo "$input_file" | sed 's/local numParts = 4/local numParts = 1/g')
-    output_file=./compiled/sequencers/monophonicRecordingSequencer.lua
+    output_file=./compiled/sequencers/monophonicRecordingSequencerCompiled.lua
     echo "$input_file" > $output_file
     echo
     echo "Compiling $luaScript to $output_file"
