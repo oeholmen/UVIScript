@@ -679,12 +679,12 @@ for page=1,maxPages do
     tieStepTable.sliderColour = "#3fcc3300"
     tieStepTable.width = tableWidth
     tieStepTable.x = tableX
-    tieStepTable.height = 12
-    tieStepTable.y = seqPitchTable.y + seqPitchTable.height + 2
+    tieStepTable.height = 9
+    tieStepTable.y = seqPitchTable.y + seqPitchTable.height
 
     local valMin = 1
     local valMax = 127
-    local valDefault = 90
+    local valDefault = valMin
     local seqVelocityTable = sequencerPanel:Table("Velocity" .. i, numStepsDefault, valDefault, valMin, valMax, true)
     seqVelocityTable.visible = isVisible
     seqVelocityTable.displayName = "Velocity"
@@ -717,7 +717,7 @@ for page=1,maxPages do
       seqRatchetTable.backgroundColour = "#3f000000"
     end
     seqRatchetTable.width = tableWidth
-    seqRatchetTable.height = tableHeight * 0.2
+    seqRatchetTable.height = tableHeight * 0.23
     seqRatchetTable.x = tableX
     seqRatchetTable.y = seqVelocityTable.y + seqVelocityTable.height + 2
 
@@ -945,11 +945,11 @@ local function recordNoteEventStart(e)
     if isPlaying and paramsPerPart[partIndex].recordButton.value then
       local numStepsInPart = paramsPerPart[partIndex].numStepsBox.value
       local basePitch = paramsPerPart[partIndex].triggerNote.value
-      local pitchTable = paramsPerPart[partIndex].seqPitchTable
-      local velocityTable = paramsPerPart[partIndex].seqVelocityTable
-      local ratchetTable = paramsPerPart[partIndex].seqRatchetTable
-      local noteMin = basePitch + pitchTable.min
-      local noteMax = basePitch + pitchTable.max
+      local seqPitchTable = paramsPerPart[partIndex].seqPitchTable
+      local seqVelocityTable = paramsPerPart[partIndex].seqVelocityTable
+      local seqRatchetTable = paramsPerPart[partIndex].seqRatchetTable
+      local noteMin = basePitch + seqPitchTable.min
+      local noteMax = basePitch + seqPitchTable.max
       local currentPosition = paramsPerPart[partIndex].currentPosition
       local tickPosition = paramsPerPart[partIndex].tickPosition
       local resolution = paramsPerPart[partIndex].stepResolution.value
@@ -962,16 +962,16 @@ local function recordNoteEventStart(e)
       table.insert(paramsPerPart[partIndex].sequence, {note=e.note, velocity=e.velocity, startPos=currentPosition,tickPosition=tickPosition})
       local distanceFromBase = e.note - basePitch
       --print("Record startPos, note, distanceFromBase", currentPosition, e.note, distanceFromBase)
-      if distanceFromBase < pitchTable.min then
-        pitchTable:setRange(distanceFromBase, pitchTable.max)
+      if distanceFromBase < seqPitchTable.min then
+        seqPitchTable:setRange(distanceFromBase, seqPitchTable.max)
         --print("setRange min", distanceFromBase)
-      elseif distanceFromBase > pitchTable.max then
-        pitchTable:setRange(pitchTable.min, distanceFromBase)
+      elseif distanceFromBase > seqPitchTable.max then
+        seqPitchTable:setRange(seqPitchTable.min, distanceFromBase)
         --print("setRange max", distanceFromBase)
       end
-      pitchTable:setValue(currentPosition, distanceFromBase)
-      velocityTable:setValue(currentPosition, e.velocity)
-      ratchetTable:setValue(currentPosition, 1)
+      seqPitchTable:setValue(currentPosition, distanceFromBase)
+      seqVelocityTable:setValue(currentPosition, e.velocity)
+      seqRatchetTable:setValue(currentPosition, 1)
     end
   end
 end
