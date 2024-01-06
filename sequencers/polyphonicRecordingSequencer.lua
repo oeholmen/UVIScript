@@ -25,8 +25,8 @@ local numParts = 4
 local maxPages = 8
 local numStepsDefault = 16
 local numStepsMax = 512
-local quantizeSubdivision = 4
-local tickResolution = resolutions.getPlayDuration()
+local quantizeSubdivision = 3
+local tickResolution = resolutions.getTriplet(resolutions.getPlayDuration())
 local title = "Polyphonic Recording Sequencer"
 local changePageProbability
 local cyclePagesButton
@@ -323,7 +323,10 @@ local function stopPlaying()
   for page=1,numPages do
     for part=1,numParts do
       local partIndex = getPartIndex(part, page)
-      paramsPerPart[partIndex].recordButton:setValue(false)
+      if paramsPerPart[partIndex].recordButton.value == true then
+        paramsPerPart[partIndex].recordButton:setValue(#paramsPerPart[partIndex].sequence == 0)
+      end
+      paramsPerPart[partIndex].sequence = {}
     end
   end
   clearPosition()
@@ -979,11 +982,16 @@ local function recordNoteEventEnd(e)
     for _,event in ipairs(paramsPerPart[partIndex].sequence) do
       if event.note == e.note and type(event.endPos) == "nil" then
         local tieStepTable = paramsPerPart[partIndex].tieStepTable
-        local currentPosition = paramsPerPart[partIndex].currentPosition - 1
+        local currentPosition = paramsPerPart[partIndex].currentPosition
         local tickPosition = paramsPerPart[partIndex].tickPosition
-        -- TODO Use tickPosition to determine tie length
+        local resolution = paramsPerPart[partIndex].stepResolution.value
+        local quantizeTo = resolutions.getResolution(resolution)
+        local ticksInResolution = quantizeTo / tickResolution
+        local ticksPerSubdivision = ticksInResolution / quantizeSubdivision
+        if tickPosition < (ticksInResolution - ticksPerSubdivision) then
+          currentPosition = currentPosition - 1
+        end
         event.endPos = math.max(event.startPos, currentPosition)
-        --print("Record startPos, endPos, note", event.startPos, event.endPos, e.note)
         local prevPos = event.startPos - 1
         if prevPos > 1 then
           tieStepTable:setValue(prevPos, 0)
