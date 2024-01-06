@@ -665,6 +665,8 @@ local numParts = 4
 local maxPages = 8
 local numStepsDefault = 16
 local numStepsMax = 512
+local quantizeSubdivision = 4
+local tickResolution = resolutions.getPlayDuration()
 local title = "Polyphonic Recording Sequencer"
 local changePageProbability
 local cyclePagesButton
@@ -747,22 +749,16 @@ local function setNumSteps(partIndex, numSteps)
   setPageDuration(page)
 end
 
-local function setRecordingPosition(partIndex, baseDuration, stepDuration)
-  local division = 3
-  local tickDuration = baseDuration / division
+local function setRecordingPosition(partIndex, quantizeTo, stepDuration)
+  local beatDuration = math.min(tickResolution, quantizeTo)
+  local ticksInResolution = quantizeTo / beatDuration
   local totalDuration = 0
-  local numStepsInPart = paramsPerPart[partIndex].numStepsBox.value
   while totalDuration < stepDuration do
-    local beatDuration = tickDuration * (division - 1)
-    totalDuration = totalDuration + beatDuration
-    waitBeat(beatDuration)
-    paramsPerPart[partIndex].currentPosition = gem.inc(paramsPerPart[partIndex].currentPosition, 1, numStepsInPart)
-    if paramsPerPart[partIndex].currentPosition == 1 then
-      paramsPerPart[partIndex].sequence = {} -- Clear sequence at the start of each round
+    for tickPosition=1,ticksInResolution do
+      paramsPerPart[partIndex].tickPosition = tickPosition
+      waitBeat(beatDuration)
+      totalDuration = gem.inc(totalDuration, beatDuration)
     end
-    totalDuration = totalDuration + tickDuration
-    waitBeat(tickDuration)
-    --print("Set current position, totalDuration, partIndex", paramsPerPart[partIndex].currentPosition, totalDuration, partIndex)
   end
 end
 
@@ -789,7 +785,6 @@ local function arpeg(uniqueId, part)
     end
 
     -- Flip position if playing backwards
-    --local startStep = 1
     if partDirectionBackward == true then
       local endStep = numStepsInPart
       local diff = currentPosition - 1
@@ -820,7 +815,7 @@ local function arpeg(uniqueId, part)
 
     -- Randomize ratchet
     if gem.getRandomBoolean(ratchetRandomizationAmount) then
-      local min = seqRatchetTable.min
+      local min = math.max(1, seqRatchetTable.min)
       local max = seqRatchetTable.max
       ratchet = gem.getRandom(min, max)
     end
@@ -1562,7 +1557,7 @@ for page=1,maxPages do
     ratchetRand.arrowColour = menuArrowColour
     ratchetRand.outlineColour = menuOutlineColour
 
-    table.insert(paramsPerPart, {muteButton=muteButton,ratchetMax=ratchetMax,pitchRand=pitchRand,tieRand=tieRand,velocityRand=velocityRand,ratchetRand=ratchetRand,triggerNote=triggerNote,recordButton=recordButton,listenButton=listenButton,channelBox=channelBox,positionTable=positionTable,seqPitchTable=seqPitchTable,tieStepTable=tieStepTable,seqVelocityTable=seqVelocityTable,seqRatchetTable=seqRatchetTable,stepResolution=stepResolution,directionProbability=directionProbability,numStepsBox=numStepsBox,currentPosition=0,sequence={}})
+    table.insert(paramsPerPart, {muteButton=muteButton,ratchetMax=ratchetMax,pitchRand=pitchRand,tieRand=tieRand,velocityRand=velocityRand,ratchetRand=ratchetRand,triggerNote=triggerNote,recordButton=recordButton,listenButton=listenButton,channelBox=channelBox,positionTable=positionTable,seqPitchTable=seqPitchTable,tieStepTable=tieStepTable,seqVelocityTable=seqVelocityTable,seqRatchetTable=seqRatchetTable,stepResolution=stepResolution,directionProbability=directionProbability,numStepsBox=numStepsBox,currentPosition=0,tickPosition=0,sequence={}})
 
     local yOffset = 25
     tableY = tableY + tableHeight + yOffset
@@ -1577,32 +1572,15 @@ footerPanel.y = paramsPerPage[1].sequencerPanel.y + paramsPerPage[1].sequencerPa
 -- Events
 --------------------------------------------------------------------------------
 
-function onInit()
-  -- Reset play indexes
- seqIndex = 0
- playIndex = 0
-end
-
-function onNote(e)
-  if pageTrigger.enabled == true then
-    for page=1, numPages do
-      if pageTrigger.value == e.note then
-        advancePage()
-        break
-      elseif (pageTrigger.value + page) == e.note then
-        pageButtons[page]:setValue(true)
-        break
-      end
-    end
-  end
-
-  for i=1,numParts do
-    local partIndex = getPartIndex(i)
+local function recordNoteEventStart(e)
+  for part=1,numParts do
+    local partIndex = getPartIndex(part)
     if paramsPerPart[partIndex].listenButton.value then
       paramsPerPart[partIndex].triggerNote:setValue(e.note)
       paramsPerPart[partIndex].listenButton:setValue(false)
     end
     if isPlaying and paramsPerPart[partIndex].recordButton.value then
+      local numStepsInPart = paramsPerPart[partIndex].numStepsBox.value
       local basePitch = paramsPerPart[partIndex].triggerNote.value
       local pitchTable = paramsPerPart[partIndex].seqPitchTable
       local velocityTable = paramsPerPart[partIndex].seqVelocityTable
@@ -1610,44 +1588,42 @@ function onNote(e)
       local noteMin = basePitch + pitchTable.min
       local noteMax = basePitch + pitchTable.max
       local currentPosition = paramsPerPart[partIndex].currentPosition
-      table.insert(paramsPerPart[partIndex].sequence, {note=e.note, velocity=e.velocity, startPos=currentPosition})
-      --local note = notes.transpose(e.note, noteMin, noteMax)
-      -- base = 60
-      -- noteMax = 72
-      -- noteMin = 48
-      -- note = 84
-      local diff = e.note - basePitch
-      --local value = basePitch - diff
-      print("Record startPos, note, diff", currentPosition, e.note, diff)
-      if diff < pitchTable.min then
-        pitchTable:setRange(diff, pitchTable.max)
-        print("setRange min", diff)
-      elseif diff > pitchTable.max then
-        pitchTable:setRange(pitchTable.min, diff)
-        print("setRange max", diff)
+      local tickPosition = paramsPerPart[partIndex].tickPosition
+      local resolution = paramsPerPart[partIndex].stepResolution.value
+      local quantizeTo = resolutions.getResolution(resolution)
+      local ticksInResolution = quantizeTo / tickResolution
+      local ticksPerSubdivision = ticksInResolution / quantizeSubdivision
+      if tickPosition > (ticksInResolution - ticksPerSubdivision) then
+        currentPosition = gem.inc(currentPosition, 1, numStepsInPart)
       end
-      pitchTable:setValue(currentPosition, diff)
+      table.insert(paramsPerPart[partIndex].sequence, {note=e.note, velocity=e.velocity, startPos=currentPosition,tickPosition=tickPosition})
+      local distanceFromBase = e.note - basePitch
+      --print("Record startPos, note, distanceFromBase", currentPosition, e.note, distanceFromBase)
+      if distanceFromBase < pitchTable.min then
+        pitchTable:setRange(distanceFromBase, pitchTable.max)
+        --print("setRange min", distanceFromBase)
+      elseif distanceFromBase > pitchTable.max then
+        pitchTable:setRange(pitchTable.min, distanceFromBase)
+        --print("setRange max", distanceFromBase)
+      end
+      pitchTable:setValue(currentPosition, distanceFromBase)
       velocityTable:setValue(currentPosition, e.velocity)
       ratchetTable:setValue(currentPosition, 1)
     end
   end
-
-  if autoplayButton.value == true then
-    postEvent(e)
-  else
-    playButton:setValue(true)
-  end
 end
 
-function onRelease(e)
+local function recordNoteEventEnd(e)
   for part=1,numParts do
     local partIndex = getPartIndex(part)
     for _,event in ipairs(paramsPerPart[partIndex].sequence) do
       if event.note == e.note and type(event.endPos) == "nil" then
         local tieStepTable = paramsPerPart[partIndex].tieStepTable
         local currentPosition = paramsPerPart[partIndex].currentPosition - 1
+        local tickPosition = paramsPerPart[partIndex].tickPosition
+        -- TODO Use tickPosition to determine tie length
         event.endPos = math.max(event.startPos, currentPosition)
-        print("Record startPos, endPos, note", event.startPos, event.endPos, e.note)
+        --print("Record startPos, endPos, note", event.startPos, event.endPos, e.note)
         local prevPos = event.startPos - 1
         if prevPos > 1 then
           tieStepTable:setValue(prevPos, 0)
@@ -1661,6 +1637,38 @@ function onRelease(e)
       end
     end
   end
+end
+
+function onInit()
+  -- Reset play indexes
+ seqIndex = 0
+ playIndex = 0
+end
+
+function onNote(e)
+  if pageTrigger.enabled == true then
+    for page=1,numPages do
+      if pageTrigger.value == e.note then
+        advancePage()
+        break
+      elseif (pageTrigger.value + page) == e.note then
+        pageButtons[page]:setValue(true)
+        break
+      end
+    end
+  end
+
+  recordNoteEventStart(e)
+
+  if autoplayButton.value == true then
+    postEvent(e)
+  else
+    playButton:setValue(true)
+  end
+end
+
+function onRelease(e)
+  recordNoteEventEnd(e)
 
   if autoplayButton.value == true then
     postEvent(e)
