@@ -874,7 +874,9 @@ local function arpeg(uniqueId, part)
     -- Apply ratchet on duration
     stepDuration = tieDuration / math.max(1, ratchet)
 
-    spawn(setRecordingPosition, partIndex, baseDuration, stepDuration)
+    if paramsPerPart[partIndex].recordButton.value == true then
+      spawn(setRecordingPosition, partIndex, baseDuration, stepDuration)
+    end
 
     -- Play subdivision
     for ratchetIndex=1,math.max(1, ratchet) do
