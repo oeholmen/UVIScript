@@ -1036,7 +1036,6 @@ local tickCounter = 0 -- Holds the current sequence tick (position)
 local sequence = {} -- Holds the recorded sequence
 local noteSequence = {} -- Holds the sequence per note
 local takesCounter = 0 -- Holds the counter for takes
-local createTakeForEachRound = false -- Whether to create a take for each round
 local backgroundColour = "117744" -- Light or Dark
 
 setBackgroundColour(backgroundColour)
@@ -1131,8 +1130,10 @@ local function drawNoteTicks(tickPos, eventPos, value)
     startPos = startPos - ticks
   end
 
+  local eventLength = endPos - startPos
+
   startPos = getQantizedPos(startPos)
-  endPos = startPos + (endPos - startPos)
+  endPos = startPos + eventLength
   endPos = math.min(endPos, ticks)
 
   --print("drawNoteTicks, note, tickPos, startPos, endPos, value", note, tickPos, startPos, endPos, value)
@@ -1243,15 +1244,12 @@ local function sequenceRunner(uniqueId)
     internalTickCounter = gem.inc(internalTickCounter, 1, ticks)
     if internalTickCounter == 1 then
       roundCounter = gem.inc(roundCounter)
-      if recordActive and recordOptions.text == "Punch Out" and roundCounter > 1 then
+      if recordActive and recordOptions.text == "Punch Out" and roundCounter > 1 and #sequence > 0 then
         if recordActivatedDuringRun or countInActive then
           recordActivatedDuringRun = false
         else
           recordButton:setValue(false)
         end
-      end
-      if createTakeForEachRound then
-        incrementTakesCounter()
       end
     end
     if (internalTickCounter - 1) % countInTicksInResolution == 0 and countInQuantizeTo == countInTicksDurationForResolution then
@@ -1296,6 +1294,7 @@ end
 local function clearNoteTables()
   for _,v in ipairs(noteSequence) do
     setTableZero(v.table)
+    v.table.length = ticks
   end
 end
 
@@ -1332,6 +1331,7 @@ local function removeTake()
   end
 
   sequence = newSequence -- Set sequence
+  writeSequenceToNoteTables()
 end
 
 local function adjustSequenceTable()
@@ -1363,7 +1363,7 @@ local function startPlaying()
     return
   end
   isPlaying = true
-  if recordActive and createTakeForEachRound == false then
+  if recordActive then
     incrementTakesCounter()
   end
   seqIndex = gem.inc(seqIndex)
@@ -1417,6 +1417,7 @@ recordButton = widgets.button("Record", recordActive, {
     else
       recordActivatedDuringRun = false
       positionTable.sliderColour = "green"
+      incrementTakesCounter()
       writeSequenceToNoteTables()
     end
   end
@@ -1443,16 +1444,19 @@ widgets.panel({
   x = widgets.getPanel().x,
   y = widgets.posUnder(widgets.getPanel()),
   width = widgets.getPanel().width,
-  height = 350,
+  height = 320,
 })
 
 widgets.setSection({
   x = 0,
   y = 5,
+  width = 714,
+  height = 10,
+  cols = 1,
 })
 
-local noteMin = 12
-local noteMax = noteMin + (12 * 7)
+local noteMin = 36
+local noteMax = noteMin + (12 * 4)
 for i=noteMax,noteMin,-1 do
   local noteTable = widgets.table("Note", 0, ticks, {
     name = "Note_" .. i,
@@ -1461,17 +1465,14 @@ for i=noteMax,noteMin,-1 do
     persistent = false,
     enabled = false,
     sliderColour = "black",
-    backgroundColour = i .. "66" .. i,
-    width = 714,
-    height = 5,
+    backgroundColour = "006633",
+    height = 6,
   })
   table.insert(noteSequence, {
     note = i,
     events = {},
     table = noteTable
   })
-
-  widgets.row(1, 4)
 end
 
 positionTable = widgets.table("SequencePosition", 0, steps, {
@@ -1481,8 +1482,6 @@ positionTable = widgets.table("SequencePosition", 0, steps, {
   persistent = false,
   sliderColour = "green",
   backgroundColour = "cfffe",
-  width = 714,
-  height = 6,
 })
 
 widgets.panel({
@@ -1498,6 +1497,9 @@ widgets.setSection({
   y = 10,
   ySpacing = 5,
   xSpacing = 15,
+  height = 20,
+  width = 160,
+  cols = 6,
 })
 
 widgets.numBox("Steps", steps, {
