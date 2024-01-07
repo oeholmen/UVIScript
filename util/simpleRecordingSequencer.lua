@@ -37,9 +37,10 @@ local seqIndex = 0 -- Holds the unique id for the base sequencer
 local tickResolution = resolutions.getTriplet(resolutions.getPlayDuration())
 local steps = 16
 local maxSteps = 128
-local ticks = steps / tickResolution
+local ticks = steps / tickResolution -- Holds total number if ticks in sequence
 local tickCounter = 0 -- Holds the current sequence tick (position)
 local sequence = {} -- Holds the recorded sequence
+local noteSequence = {} -- Holds the sequence per note
 local takesCounter = 0 -- Holds the counter for takes
 local createTakeForEachRound = false -- Whether to create a take for each round
 local backgroundColour = "117744" -- Light or Dark
@@ -50,18 +51,111 @@ setBackgroundColour(backgroundColour)
 -- Functions
 --------------------------------------------------------------------------------
 
-local function setTableZero(theTable)
-  for i=1,theTable.length do
-    theTable:setValue(i, 0)
-  end
-end
-
 local function isQuantizeOff()
   return resolution == #resolutionNames
 end
 
 local function isQuantizeOn()
   return isQuantizeOff() == false
+end
+
+local function shouldPlayTick(tick)
+  if isQuantizeOff() then
+    return true
+  end
+
+  local quantizeTo = resolutions.getResolution(resolution)
+  local ticksInResolution = quantizeTo / tickResolution
+  local ticksDurationForResolution = tickResolution * ticksInResolution
+
+  return (tick - 1) % ticksInResolution == 0 and quantizeTo == ticksDurationForResolution
+end
+
+local function getQantizedPos(tick)
+  local quantizedPos = tick
+  local forward = tick
+  local backward = tick
+
+  while shouldPlayTick(forward) == false do
+    forward = gem.inc(forward)
+  end
+
+  while shouldPlayTick(backward) == false do
+    backward = gem.inc(backward, -1)
+  end
+
+  local diffForward = forward - tick
+  local diffBackward = backward - tick
+
+  if math.abs(diffBackward) > diffForward then
+    -- Go forward
+    quantizedPos = forward
+    if quantizedPos > ticks then
+      quantizedPos = ticks - quantizedPos
+    end
+  else
+    -- Go backward
+    quantizedPos = backward
+    if quantizedPos < 1 then
+      quantizedPos = quantizedPos + ticks
+    end
+  end
+
+  --print("tick, forward, backward, diffForward, diffBackward, quantizedPos", tick, forward, backward, diffForward, diffBackward, quantizedPos)
+
+  return quantizedPos
+end
+
+local function getSequenceForNote(note)
+  for _,v in ipairs(noteSequence) do
+    if note == v.note then
+      return v
+    end
+  end
+end
+
+local function drawNoteInTable(note, tickPos, value)
+  if type(value) == "nil" then
+    value = 1
+  end
+  local seq = getSequenceForNote(note)
+  if type(seq) == "table" then
+    seq.table:setValue(tickPos, value)
+  end
+end
+
+local function drawNoteTicks(tickPos, eventPos, value)
+  local note = sequence[tickPos][eventPos].note
+  local startPos = sequence[tickPos][eventPos].startPos
+  local endPos = sequence[tickPos][eventPos].endPos
+
+  if type(endPos) == "nil" then
+    endPos = startPos
+  end
+
+  if startPos > endPos then
+    startPos = startPos - ticks
+  end
+
+  startPos = getQantizedPos(startPos)
+  endPos = startPos + (endPos - startPos)
+  endPos = math.min(endPos, ticks)
+
+  --print("drawNoteTicks, note, tickPos, startPos, endPos, value", note, tickPos, startPos, endPos, value)
+
+  for i=startPos, endPos do
+    local tick = i
+    if tick < 1 then
+      tick = tick + ticks
+    end
+    drawNoteInTable(note, tick, value)
+  end
+end
+
+local function setTableZero(theTable)
+  for i=1,theTable.length do
+    theTable:setValue(i, 0)
+  end
 end
 
 local function getEventsForTick(tick)
@@ -110,18 +204,6 @@ local function playTick()
       --print("note, startPos, endPos, diff, duration", e.note, e.startPos, e.endPos, diff, duration)
     end
   end
-end
-
-local function shouldPlayTick(tick)
-  if isQuantizeOff() then
-    return true
-  end
-
-  local quantizeTo = resolutions.getResolution(resolution)
-  local ticksInResolution = quantizeTo / tickResolution
-  local ticksDurationForResolution = tickResolution * ticksInResolution
-
-  return (tick - 1) % ticksInResolution == 0 and quantizeTo == ticksDurationForResolution
 end
 
 local function lastTakeIsEmpty()
@@ -217,6 +299,21 @@ local function sequenceRunner(uniqueId)
   end
 end
 
+local function clearNoteTables()
+  for _,v in ipairs(noteSequence) do
+    setTableZero(v.table)
+  end
+end
+
+local function writeSequenceToNoteTables()
+  clearNoteTables()
+  for tick,events in ipairs(sequence) do
+    for i,tickEvent in ipairs(events) do
+      drawNoteTicks(tick, i)
+    end
+  end
+end
+
 local function removeTake()
   if lastTakeIsEmpty() then
     takesCounter = gem.inc(takesCounter, -1)
@@ -254,6 +351,7 @@ local function adjustSequenceTable()
     table.insert(newSequence, tickEvents)
   end
   sequence = newSequence -- Set sequence
+  writeSequenceToNoteTables()
 end
 
 local function initSequenceTable()
@@ -263,6 +361,7 @@ local function initSequenceTable()
   for i=1,ticks do
     table.insert(sequence, {})
   end
+  clearNoteTables()
 end
 
 local function startPlaying()
@@ -324,6 +423,7 @@ recordButton = widgets.button("Record", recordActive, {
     else
       recordActivatedDuringRun = false
       positionTable.sliderColour = "green"
+      writeSequenceToNoteTables()
     end
   end
 })
@@ -349,13 +449,36 @@ widgets.panel({
   x = widgets.getPanel().x,
   y = widgets.posUnder(widgets.getPanel()),
   width = widgets.getPanel().width,
-  height = 30,
+  height = 350,
 })
 
 widgets.setSection({
   x = 0,
-  y = 15,
+  y = 5,
 })
+
+local noteMin = 12
+local noteMax = noteMin + (12 * 7)
+for i=noteMax,noteMin,-1 do
+  local noteTable = widgets.table("Note", 0, ticks, {
+    name = "Note_" .. i,
+    max = 1,
+    integer = true,
+    persistent = false,
+    enabled = false,
+    sliderColour = "black",
+    backgroundColour = i .. "66" .. i,
+    width = 714,
+    height = 5,
+  })
+  table.insert(noteSequence, {
+    note = i,
+    events = {},
+    table = noteTable
+  })
+
+  widgets.row(1, 4)
+end
 
 positionTable = widgets.table("SequencePosition", 0, steps, {
   max = 1,
@@ -405,6 +528,7 @@ widgets.menu("Quantize", #quantizeResolutions, quantizeResolutions, {
     else
       resolution = resolutionIndex
     end
+    writeSequenceToNoteTables()
     --print("Quantize resolution", resolution)
   end
 })
@@ -466,6 +590,7 @@ function onNote(e)
       incrementTakesCounter()
     end
     table.insert(sequence[tickPos], {note = e.note, velocity = e.velocity, channel = e.channel, startPos = tickPos, take = takesCounter})
+    drawNoteInTable(e.note, tickPos)
     --print("Set note, startPos, take, #events@pos", e.note, tickPos, takesCounter, #sequence[tickPos])
   end
   postEvent(e)
@@ -477,6 +602,7 @@ function onRelease(e)
       for i,tickEvent in ipairs(events) do
         if e.note == tickEvent.note and type(tickEvent.endPos) == "nil" then
           sequence[tick][i].endPos = tickCounter
+          drawNoteTicks(tick, i)
           --print("Set note, endPos", e.note, sequence[tick][i].endPos)
         end
       end
@@ -496,4 +622,5 @@ end
 function onLoad(data)
   labelWidget.text = data[1]
   sequence = data[2]
+  writeSequenceToNoteTables()
 end
