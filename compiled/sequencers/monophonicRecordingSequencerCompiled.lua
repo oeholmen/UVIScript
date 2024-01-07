@@ -666,7 +666,6 @@ local maxPages = 8
 local numStepsDefault = 16
 local numStepsMax = 512
 local quantizeSubdivision = 3
-local tickResolution = resolutions.getTriplet(resolutions.getPlayDuration())
 local title = "Polyphonic Recording Sequencer"
 local changePageProbability
 local cyclePagesButton
@@ -750,12 +749,11 @@ local function setNumSteps(partIndex, numSteps)
 end
 
 local function setRecordingPosition(partIndex, quantizeTo, stepDuration)
-  local beatDuration = math.min(tickResolution, quantizeTo)
-  local ticksInResolution = quantizeTo / beatDuration
+  local beatDuration = quantizeTo / quantizeSubdivision
   local totalDuration = 0
   while totalDuration < stepDuration do
-    for tickPosition=1,ticksInResolution do
-      paramsPerPart[partIndex].tickPosition = tickPosition
+    for subPosition=1,quantizeSubdivision do
+      paramsPerPart[partIndex].subPosition = subPosition
       waitBeat(beatDuration)
       totalDuration = gem.inc(totalDuration, beatDuration)
     end
@@ -1561,7 +1559,7 @@ for page=1,maxPages do
     ratchetRand.arrowColour = menuArrowColour
     ratchetRand.outlineColour = menuOutlineColour
 
-    table.insert(paramsPerPart, {muteButton=muteButton,ratchetMax=ratchetMax,pitchRand=pitchRand,tieRand=tieRand,velocityRand=velocityRand,ratchetRand=ratchetRand,triggerNote=triggerNote,recordButton=recordButton,listenButton=listenButton,channelBox=channelBox,positionTable=positionTable,seqPitchTable=seqPitchTable,tieStepTable=tieStepTable,seqVelocityTable=seqVelocityTable,seqRatchetTable=seqRatchetTable,stepResolution=stepResolution,directionProbability=directionProbability,numStepsBox=numStepsBox,currentPosition=0,tickPosition=0,sequence={}})
+    table.insert(paramsPerPart, {muteButton=muteButton,ratchetMax=ratchetMax,pitchRand=pitchRand,tieRand=tieRand,velocityRand=velocityRand,ratchetRand=ratchetRand,triggerNote=triggerNote,recordButton=recordButton,listenButton=listenButton,channelBox=channelBox,positionTable=positionTable,seqPitchTable=seqPitchTable,tieStepTable=tieStepTable,seqVelocityTable=seqVelocityTable,seqRatchetTable=seqRatchetTable,stepResolution=stepResolution,directionProbability=directionProbability,numStepsBox=numStepsBox,currentPosition=0,subPosition=0,sequence={}})
 
     local yOffset = 25
     tableY = tableY + tableHeight + yOffset
@@ -1592,12 +1590,8 @@ local function recordNoteEventStart(e)
       local noteMin = basePitch + seqPitchTable.min
       local noteMax = basePitch + seqPitchTable.max
       local currentPosition = paramsPerPart[partIndex].currentPosition
-      local tickPosition = paramsPerPart[partIndex].tickPosition
-      local resolution = paramsPerPart[partIndex].stepResolution.value
-      local quantizeTo = resolutions.getResolution(resolution)
-      local ticksInResolution = quantizeTo / tickResolution
-      local ticksPerSubdivision = ticksInResolution / quantizeSubdivision
-      if tickPosition > (ticksInResolution - ticksPerSubdivision) then
+      local subPosition = paramsPerPart[partIndex].subPosition
+      if subPosition == quantizeSubdivision then
         currentPosition = gem.inc(currentPosition, 1, numStepsInPart)
       end
       table.insert(paramsPerPart[partIndex].sequence, {note=e.note, velocity=e.velocity, startPos=currentPosition})
@@ -1624,12 +1618,8 @@ local function recordNoteEventEnd(e)
       if event.note == e.note and type(event.endPos) == "nil" then
         local tieStepTable = paramsPerPart[partIndex].tieStepTable
         local currentPosition = paramsPerPart[partIndex].currentPosition
-        local tickPosition = paramsPerPart[partIndex].tickPosition
-        local resolution = paramsPerPart[partIndex].stepResolution.value
-        local quantizeTo = resolutions.getResolution(resolution)
-        local ticksInResolution = quantizeTo / tickResolution
-        local ticksPerSubdivision = ticksInResolution / quantizeSubdivision
-        if tickPosition < (ticksInResolution - ticksPerSubdivision) then
+        local subPosition = paramsPerPart[partIndex].subPosition
+        if subPosition < quantizeSubdivision then
           currentPosition = currentPosition - 1
         end
         event.endPos = math.max(event.startPos, currentPosition)
