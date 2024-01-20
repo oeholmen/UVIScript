@@ -1,4 +1,4 @@
--- util/midiControlRouter -- 
+-- util/midiControl -- 
 --------------------------------------------------------------------------------
 -- Common methods
 --------------------------------------------------------------------------------
@@ -600,37 +600,37 @@ local widgets = {
   end,
 }
 
----------------------------------------------------------------------------------
--- The midi control router, routes incoming midi cc to the selected midi channel
----------------------------------------------------------------------------------
+------------------------------------------------------------------------
+-- The midi control script sends midi cc to the selected midi channel
+------------------------------------------------------------------------
 
-local numRouters = 1 -- Number of routers
+local numControls = 16 -- Number of routers
 local panelHeight = 24 -- Height of each router panel
 local channels = widgets.channels()
 
 widgets.panel({
   width = 720,
-  height = panelHeight + (panelHeight * numRouters)
+  height = panelHeight + (panelHeight * numControls)
 })
 
 local y = 18
 local routers = {}
-for i=1,numRouters do
+for i=1,numControls do
   widgets.setSection({
     width = 90,
     cols = 8,
-    x = 15,
+    x = 12,
     y = y,
-    xSpacing = 5,
+    xSpacing = 12,
     ySpacing = 5,
   })
 
   y = y + 24 -- Increment y pos
 
-  local label = widgets.label("Router " .. i, {
+  local label = widgets.label("Midi CC " .. i, {
     name = "router" .. i,
     tooltip = "Edit to set a label for this router.",
-    width = 220,
+    width = 240,
     alpha = 0.75,
     fontSize = 24,
     backgroundColour = "transparent",
@@ -640,29 +640,14 @@ for i=1,numRouters do
     editable = true
   })
 
-  local channelIn = widgets.menu("Channel In", channels, {
-    name = "inchannel" .. i,
-    tooltip = "Midi in",
-    showLabel = false,
-    width = 75,
-  })
-
-  local channelOut = widgets.menu("Channel Out", channels, {
+  local channelOut = widgets.menu("Midi Channel", channels, {
     name = "outchannel" .. i,
     tooltip = "Midi out",
     showLabel = false,
-    width = 75,
+    width = 60,
   })
 
-  local controllerIn = widgets.numBox('CC In', i-1, {
-    name = "incc" .. i,
-    tooltip = "The midi control number to listen on",
-    min = 0,
-    max = 127,
-    integer = true,
-  })
-
-  local controllerOut = widgets.numBox('CC Out', i-1, {
+  local controllerOut = widgets.numBox('CC', i-1, {
     name = "outcc" .. i,
     tooltip = "The midi control number to route to",
     min = 0,
@@ -671,23 +656,40 @@ for i=1,numRouters do
   })
 
   local value = widgets.numBox('Value', 0, {
+    width = 150,
     name = "value" .. i,
-    tooltip = "Shows the current value. You can send cc to the selected channel and control number by changing this value manually.",
-    min = 0,
-    max = 127,
-    integer = true,
+    tooltip = "Send cc to the selected control number by changing this value.",
+    unit = Unit.Percent,
+    integer = false,
     changed = function(self)
-      controlChange(controllerOut.value, self.value, (channelOut.value-1))
+      local v = gem.round(gem.mapValueBetweenRanges(self.value, self.min, self.max, 0, 127))
+      controlChange(controllerOut.value, v, (channelOut.value-1))
+    end
+  })
+
+  local bipolar = widgets.button('Bipolar', false, {
+    name = "bipolar" .. i,
+    tooltip = "Set biploar mode",
+    width = 60,
+    changed = function(self)
+      if self.value == true then
+        value:setRange(-100,100)
+      else
+        if value.value < 0 then
+          value.value = 0
+        end
+        value:setRange(0, 100)
+      end
     end
   })
 
   local learn = widgets.button('L', false, {
     name = "learn" .. i,
-    tooltip = "Learn controller in",
+    tooltip = "Learn controller",
     width = 24
   })
 
-  table.insert(routers, {label=label,channelIn=channelIn,channelOut=channelOut,controllerIn=controllerIn,controllerOut=controllerOut,value=value,learn=learn})
+  table.insert(routers, {label=label,controllerOut=controllerOut,value=value,bipolar=bipolar,learn=learn})
 end
 
 --------------------------------------------------------------------------------
@@ -702,24 +704,13 @@ local function flashLabel(i)
 end
 
 function onController(e)
-  local ccWasSent = false
   for i,v in ipairs(routers) do
     if v.learn.value then
       v.learn:setValue(false)
-      v.controllerIn:setValue(e.controller)
-    end
-    local channelIn = v.channelIn.value - 1
-    local isListenChannel = channelIn == 0 or channelIn == e.channel
-    if e.controller == v.controllerIn.value and isListenChannel then
-      print("Routing from controller to controller", e.controller, v.controllerOut.value)
-      v.value:setValue(e.value) -- This triggers changed event that sends the cc value
-      spawn(flashLabel, i)
-      ccWasSent = true
+      v.controllerOut:setValue(e.controller)
     end
   end
-  if ccWasSent == false then
-    postEvent(e)
-  end
+  postEvent(e)
 end
 
 --------------------------------------------------------------------------------

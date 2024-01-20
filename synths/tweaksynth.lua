@@ -2376,12 +2376,12 @@ panelCreators.createFilterPanel = function()
     end
     filterDbMenu:changed()
     table.insert(tweakables, {widget=filterDbMenu,min=#slopes,default=85,category="filter"})
-  elseif synthTypes.isAnalog or synthTypes.isDrum or synthTypes.isWavetable or synthTypes.isAnalog3Osc then
-    local slopes = {"12dB", "24dB"}
+  elseif synthTypes.isAnalog or synthTypes.isDrum or synthTypes.isWavetable or synthTypes.isAnalog3Osc or synthTypes.isAnalogStack then
+    local slopes = {"24dB", "12dB"}
     if synthTypes.isMinilogue then
       slopes = {"2-pole", "4-pole"}
     end
-    local filterDbMenu = filterPanel:Menu("FilterDb", slopes, #slopes)
+    local filterDbMenu = filterPanel:Menu("FilterDb", slopes)
     filterDbMenu.backgroundColour = menuBackgroundColour
     filterDbMenu.textColour = menuTextColour
     filterDbMenu.arrowColour = menuArrowColour
@@ -6642,7 +6642,7 @@ local function mapMinilogueCC()
   end
 
   function onController(e)
-    -- TODO Add option for using patchemaker or twequencer when setting tweak level/tweak on/off
+    -- TODO Add option for using patchmaker or twequencer when setting tweak level/tweak on/off
     print(e)
     if isPlaying then
       controllerToWidgetMap.CC31.page = twequencerPageButton

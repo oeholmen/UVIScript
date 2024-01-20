@@ -605,12 +605,12 @@ local widgets = {
 ---------------------------------------------------------------------------------
 
 local numRouters = 8 -- Number of routers
-local panelHeight = 27 -- Height of each router panel
+local panelHeight = 24 -- Height of each router panel
 local channels = widgets.channels()
 
 widgets.panel({
   width = 720,
-  height = panelHeight * numRouters
+  height = panelHeight + (panelHeight * numRouters)
 })
 
 local y = 18
@@ -654,7 +654,7 @@ for i=1,numRouters do
     width = 75,
   })
 
-  local controllerIn = widgets.numBox('CC In', 101 + i, {
+  local controllerIn = widgets.numBox('CC In', i-1, {
     name = "incc" .. i,
     tooltip = "The midi control number to listen on",
     min = 0,
@@ -662,7 +662,7 @@ for i=1,numRouters do
     integer = true,
   })
 
-  local controllerOut = widgets.numBox('CC Out', 101 + i, {
+  local controllerOut = widgets.numBox('CC Out', i-1, {
     name = "outcc" .. i,
     tooltip = "The midi control number to route to",
     min = 0,

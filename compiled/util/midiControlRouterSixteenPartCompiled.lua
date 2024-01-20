@@ -604,7 +604,7 @@ local widgets = {
 -- The midi control router, routes incoming midi cc to the selected midi channel
 ---------------------------------------------------------------------------------
 
-local numRouters = 1 -- Number of routers
+local numRouters = 16 -- Number of routers
 local panelHeight = 24 -- Height of each router panel
 local channels = widgets.channels()
 
