@@ -15,7 +15,8 @@ local snapshotsMenu = nil
 local isPlaying = false
 local seqIndex = 0 -- Holds the unique id for the twequencer
 local preInit = true -- Used to avoid sending midi cc on startup
-local midiCcOut = true -- Used for toggling midi cc out
+local midiCcIn = false -- Used for toggling midi cc in (minilogue mapping on/off)
+local midiCcOut = false -- Used for toggling midi cc out
 
 --------------------------------------------------------------------------------
 -- Synth engine elements
@@ -5822,11 +5823,27 @@ function createSettingsPanel()
   label.y = 0
   label.height = 25
 
+  local midiCcInButton = settingsPanel:OnOffButton("MidiCcIn", midiCcIn)
+  midiCcInButton.displayName = "CC In"
+  midiCcInButton.tooltip = "Toggle minilogue mapping on/off"
+  midiCcInButton.width = 54
+  midiCcInButton.height = 25
+  midiCcInButton.x = 144
+  midiCcInButton.y = label.y
+  midiCcInButton.backgroundColourOff = buttonBackgroundColourOff
+  midiCcInButton.backgroundColourOn = buttonBackgroundColourOn
+  midiCcInButton.textColourOff = buttonTextColourOff
+  midiCcInButton.textColourOn = buttonTextColourOn
+  midiCcInButton.changed = function(self)
+    midiCcIn = self.value
+  end
+
   local midiCcOutButton = settingsPanel:OnOffButton("MidiCcOut", midiCcOut)
-  midiCcOutButton.displayName = "Midi CC Out"
-  midiCcOutButton.width = 90
+  midiCcOutButton.displayName = "CC Out"
+  midiCcOutButton.tooltip = "Toggle sending midi CC out on/off"
+  midiCcOutButton.width = midiCcInButton.width
   midiCcOutButton.height = 25
-  midiCcOutButton.x = 171
+  midiCcOutButton.x = midiCcInButton.x + midiCcInButton.width + 10
   midiCcOutButton.y = label.y
   midiCcOutButton.backgroundColourOff = buttonBackgroundColourOff
   midiCcOutButton.backgroundColourOn = buttonBackgroundColourOn
@@ -6019,6 +6036,7 @@ function createSettingsPanel()
       print("widget.default", selectedTweakable.widget.default)
     end
 
+    midiCcInButton.visible = false
     midiCcOutButton.visible = false
     settingsPageMenu.visible = false
     allOffButton.visible = false
@@ -6088,6 +6106,7 @@ function createSettingsPanel()
   
   function hideSelectedTweakable()
     closeButton.visible = false
+    midiCcInButton.visible = true
     midiCcOutButton.visible = true
     settingsPageMenu.visible = true
     allOffButton.visible = true
@@ -6643,7 +6662,11 @@ local function mapMinilogueCC()
 
   function onController(e)
     -- TODO Add option for using patchmaker or twequencer when setting tweak level/tweak on/off
-    print(e)
+    postEvent(e)
+    if midiCcIn == false then
+      return
+    end
+    --print(e)
     if isPlaying then
       controllerToWidgetMap.CC31.page = twequencerPageButton
       controllerToWidgetMap.CC88.page = twequencerPageButton
@@ -6794,12 +6817,9 @@ local function mapMinilogueCC()
       end
       return
     end
-
-    postEvent(e)
   end
 end
 
--- TODO Add a button in settings for disabling mapping
 mapMinilogueCC()
 
 --------------------------------------------------------------------------------
