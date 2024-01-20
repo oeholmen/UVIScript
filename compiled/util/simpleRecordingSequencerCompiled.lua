@@ -1589,7 +1589,12 @@ function onNote(e)
     drawNoteInTable(e.note, tickPos)
     --print("Set note, startPos, take, #events@pos", e.note, tickPos, takesCounter, #sequence[tickPos])
   end
-  postEvent(e)
+
+  if autoplayButton.value == true then
+    postEvent(e)
+  else
+    playButton:setValue(true)
+  end
 end
 
 function onRelease(e)
@@ -1604,7 +1609,12 @@ function onRelease(e)
       end
     end
   end
-  postEvent(e)
+
+  if autoplayButton.value == true then
+    postEvent(e)
+  else
+    playButton:setValue(false)
+  end
 end
 
 --------------------------------------------------------------------------------
