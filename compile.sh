@@ -53,6 +53,7 @@ luaScripts=(
   util/midiControl
   util/midiControlRouter
   util/noteLimiter
+  util/noteToMidiControl
   util/noteVelocity
   util/pitchOffset
   util/quantizedTrigger
@@ -235,6 +236,25 @@ for luaScript in "${luaScripts[@]}"; do
     input_file=$(cat "$output_file")
     input_file=$(echo "$input_file" | sed 's/local maxVoices = 4/local maxVoices = 8/g')
     output_file=./compiled/modular/rythmicFragmentsTriggerEightPartCompiled.lua
+    echo "$input_file" > $output_file
+    echo
+    echo "Compiling $luaScript to $output_file"
+    echo "Done!"
+  fi
+
+  # Create eight and sixteen part from noteToMidiControl
+  if [ $luaScript == 'util/noteToMidiControl' ]; then
+    input_file=$(cat "$output_file")
+    input_file=$(echo "$input_file" | sed 's/local numRouters = 1/local numRouters = 8/g')
+    output_file=./compiled/util/noteToMidiControlEightPartCompiled.lua
+    echo "$input_file" > $output_file
+    echo
+    echo "Compiling $luaScript to $output_file"
+    echo "Done!"
+
+    input_file=$(cat "$output_file")
+    input_file=$(echo "$input_file" | sed 's/local numRouters = 8/local numRouters = 16/g')
+    output_file=./compiled/util/noteToMidiControlSixteenPartCompiled.lua
     echo "$input_file" > $output_file
     echo
     echo "Compiling $luaScript to $output_file"
