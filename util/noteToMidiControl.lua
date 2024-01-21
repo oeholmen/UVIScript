@@ -38,7 +38,7 @@ for i=1,numRouters do
     backgroundColourWhenEditing = "white",
     textColourWhenEditing = "black",
     textColour = "865DFF",
-    editable = true
+    editable = true,
   })
 
   local channelIn = widgets.menu("Midi Channel In", channels, {
@@ -86,9 +86,6 @@ for i=1,numRouters do
     min = 0,
     max = 127,
     integer = true,
-    changed = function(self)
-      controlChange(controllerOut.value, self.value, (channelOut.value-1))
-    end
   })
 
   local valMax = widgets.numBox('Max', 127, {
@@ -97,15 +94,12 @@ for i=1,numRouters do
     min = 0,
     max = 127,
     integer = true,
-    changed = function(self)
-      controlChange(controllerOut.value, self.value, (channelOut.value-1))
-    end
   })
 
   local learn = widgets.button('L', false, {
     name = "learn" .. i,
     tooltip = "Learn controller",
-    width = 24
+    width = 24,
   })
 
   local isOn = false
@@ -133,6 +127,7 @@ function onNote(e)
       v.noteIn:setValue(e.note)
     end
 
+    local useVelocity = false -- TODO Activate to map note velocity to cc value. Param?
     local channelIn = v.channelIn.value - 1
     local isListenChannel = channelIn == 0 or channelIn == e.channel
     if e.note == v.noteIn.value and isListenChannel then
@@ -144,7 +139,11 @@ function onNote(e)
         end
       else
         v.isOn = true
-        controlChange(v.controllerOut.value, v.valMax.value, (v.channelOut.value-1))
+        if useVelocity then
+          controlChange(v.controllerOut.value, e.velocity, (v.channelOut.value-1))
+        else
+          controlChange(v.controllerOut.value, v.valMax.value, (v.channelOut.value-1))
+        end
       end
       toggleLabel(i, v.isOn)
     end
@@ -168,6 +167,24 @@ function onRelease(e)
           v.isOn = false
           toggleLabel(i, false)
         end
+      end
+    end
+  end
+  if eventWasFound == false then
+    postEvent(e)
+  end
+end
+
+function onPolyAfterTouch(e)
+  local eventWasFound = false
+  for i,v in ipairs(routers) do
+    local channelIn = v.channelIn.value - 1
+    local isListenChannel = channelIn == 0 or channelIn == e.channel
+    if e.note == v.noteIn.value and isListenChannel then
+      eventWasFound = true
+      -- TODO Param to disable?
+      if v.isOn and v.ccStrategy.text == "Hold" then
+        controlChange(v.controllerOut.value, e.value, (v.channelOut.value-1))
       end
     end
   end
