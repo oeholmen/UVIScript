@@ -18,7 +18,7 @@ local y = 18
 local routers = {}
 for i=1,numRouters do
   widgets.setSection({
-    width = 90,
+    width = 84,
     cols = 8,
     x = 15,
     y = y,
@@ -31,7 +31,7 @@ for i=1,numRouters do
   local label = widgets.label("Router " .. i, {
     name = "router" .. i,
     tooltip = "Edit to set a label for this router.",
-    width = 220,
+    width = 200,
     alpha = 0.75,
     fontSize = 24,
     backgroundColour = "transparent",
@@ -43,21 +43,21 @@ for i=1,numRouters do
 
   local channelIn = widgets.menu("Channel In", channels, {
     name = "inchannel" .. i,
-    tooltip = "Midi in",
+    tooltip = "Listen on midi in channel",
     showLabel = false,
-    width = 75,
+    width = 54,
   })
 
   local channelOut = widgets.menu("Channel Out", channels, {
     name = "outchannel" .. i,
-    tooltip = "Midi out",
+    tooltip = "Route to midi out channel",
     showLabel = false,
-    width = 75,
+    width = channelIn.width,
   })
 
   local controllerIn = widgets.numBox('CC In', i-1, {
     name = "incc" .. i,
-    tooltip = "The midi control number to listen on",
+    tooltip = "Listen on midi control number",
     min = 0,
     max = 127,
     integer = true,
@@ -65,10 +65,23 @@ for i=1,numRouters do
 
   local controllerOut = widgets.numBox('CC Out', i-1, {
     name = "outcc" .. i,
-    tooltip = "The midi control number to route to",
+    tooltip = "Route to midi control number",
     min = 0,
     max = 127,
     integer = true,
+    enabled = false,
+  })
+
+  widgets.button('Route CC Out', false, {
+    name = "mapoutcc" .. i,
+    tooltip = "Toggle midi cc out routing",
+    min = 0,
+    max = 127,
+    integer = true,
+    width = 75,
+    changed = function(self)
+      controllerOut.enabled = self.value
+    end
   })
 
   local value = widgets.numBox('Value', 0, {
@@ -78,7 +91,11 @@ for i=1,numRouters do
     max = 127,
     integer = true,
     changed = function(self)
-      controlChange(controllerOut.value, self.value, (channelOut.value-1))
+      local ccValue = controllerIn.value
+      if controllerOut.enabled then
+        ccValue = controllerOut.value
+      end
+      controlChange(ccValue, self.value, (channelOut.value-1))
     end
   })
 
@@ -112,7 +129,6 @@ function onController(e)
     local channelIn = v.channelIn.value - 1
     local isListenChannel = channelIn == 0 or channelIn == e.channel
     if e.controller == v.controllerIn.value and isListenChannel then
-      print("Routing from controller to controller", e.controller, v.controllerOut.value)
       v.value:setValue(e.value) -- This triggers changed event that sends the cc value
       spawn(flashLabel, i)
       ccWasSent = true
