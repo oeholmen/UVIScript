@@ -18,17 +18,25 @@ widgets.label("Strip Channel", {
   textColour = "3fe09f"
 })
 
-widgets.label("Removes channel on incoming note events", {
-  width = 300,
+widgets.label("Removes channel on incoming events", {
+  width = 260,
   backgroundColour = "transparent",
   textColour = "a0a0a0",
   x = 240,
   y = 15,
 })
 
-local activeButton = widgets.button("Active", true, {
-  tooltip = "Toggle state",
-  x = 580,
+local notesActiveButton = widgets.button("Notes", true, {
+  tooltip = "Strip channel on notes",
+  width = 90,
+  x = 510,
+  y = 15,
+})
+
+local midiControlActiveButton = widgets.button("Midi CC", true, {
+  tooltip = "Strip channel on midi cc",
+  width = notesActiveButton.width,
+  x = notesActiveButton.x + notesActiveButton.width + 10,
   y = 15,
 })
 
@@ -36,15 +44,22 @@ local activeButton = widgets.button("Active", true, {
 -- Handle Events
 --------------------------------------------------------------------------------
 
+function onController(e)
+  if midiControlActiveButton.value then
+    e.channel = nil
+  end
+  postEvent(e)
+end
+
 function onNote(e)
-  if activeButton.value then
+  if notesActiveButton.value then
     e.channel = nil
   end
   postEvent(e)
 end
 
 function onRelease(e)
-  if activeButton.value then
+  if notesActiveButton.value then
     e.channel = nil
   end
   postEvent(e)
