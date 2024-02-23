@@ -341,6 +341,8 @@ function arpeg(partIndex)
     local numStepsInPart = paramsPerPart[partIndex].numStepsBox.value
     local currentPosition = (index % numStepsInPart) + 1
     local channel = paramsPerPart[partIndex].channelBox.value
+    local newRound = paramsPerPart[partIndex].currentPosition > currentPosition
+    paramsPerPart[partIndex].currentPosition = currentPosition
     print("Playing currentPosition/part/channel", currentPosition, partIndex, channel)
     if channel == 0 then
       channel = nil -- Play all channels
@@ -370,7 +372,7 @@ function arpeg(partIndex)
 
     print("partIndex/isPartActive", partIndex, isPartActive)
 
-    if currentPosition == 1 then
+    if newRound == true then
       -- Set direction for this part
       local directionProbability = paramsPerPart[partIndex].directionProbability.value
       partDirectionBackward = gem.getRandomBoolean(directionProbability)
