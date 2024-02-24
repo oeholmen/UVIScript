@@ -1027,9 +1027,15 @@ local singleResolutions = {14,15,17,18,20,23} -- Resolution indexes
 local resolutionsForEvolve = {} -- Resolutions used when evolving
 local resolutionsByType = resolutions.getResolutionsByType()
 local maxResolutionIndex = resolutionsByType[1][#resolutionsByType[1]] -- Set max resolution to the highest even resolution index
+local recallFragmentActiveState = true -- Disable to avoid recalling the state of the buttons that toggle active state for each fragment
 
 local function setMaxResolutionIndex(i)
   maxResolutionIndex = i
+end
+
+local function setRecallFragmentActiveState(flag)
+  recallFragmentActiveState = flag
+  --print("recallFragmentActiveState set to", recallFragmentActiveState)
 end
 
 -- Turn all recognized fragment items into note names
@@ -1316,7 +1322,9 @@ end
 local function setFragmentState(state)
   local fragments = state
   for i,v in ipairs(paramsPerFragment) do
-    v.fragmentActive.value = fragments[i].fragmentActive
+    if recallFragmentActiveState then
+      v.fragmentActive.value = fragments[i].fragmentActive
+    end
     v.lockedForEvolve.value = fragments[i].lockedForEvolve or false
     v.fragmentInput.text = fragments[i].fragmentInput
     v.fragmentPlayProbability.value = fragments[i].playProbability
@@ -1865,6 +1873,7 @@ local rythmicFragments = {
   getFragmentInputText = getFragmentInputText,
   fragmentDefinitionToResolutionNames = fragmentDefinitionToResolutionNames,
   setMaxResolutionIndex = setMaxResolutionIndex,
+  setRecallFragmentActiveState = setRecallFragmentActiveState,
 }
 
 --------------------------------------------------------------------------------
@@ -2303,7 +2312,7 @@ paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, nil, colou
 local loadFragmentMenu = rythmPanel:Menu("LoadFragmentMenu", {"Load..."})
 loadFragmentMenu.enabled = false
 
-local storeButton = rythmPanel:Button("StoreButton")
+local storeButton = rythmPanel:OnOffButton("StoreButton")
 storeButton.displayName = "Store"
 storeButton.tooltip = "Store the current state of the fragments"
 storeButton.width = 75
@@ -2444,7 +2453,7 @@ end
 
 --- Evolve ---
 
-local recallButton = rythmPanel:Button("RecallButton")
+local recallButton = rythmPanel:OnOffButton("RecallButton")
 recallButton.displayName = "Recall"
 recallButton.enabled = false
 recallButton.tooltip = "Recall the last stored fragment state"
@@ -2542,6 +2551,7 @@ storeButton.changed = function(self)
   recallButton.enabled = true
   loadFragmentMenu.enabled = true
   loadFragmentMenu:addItem("State " .. #storedFragments)
+  self.value = false
 end
 
 recallButton.changed = function(self)
@@ -2550,6 +2560,7 @@ recallButton.changed = function(self)
   if isPlaying == false then
     recall()
   end
+  self.value = false
 end
 
 --------------------------------------------------------------------------------
@@ -2658,6 +2669,15 @@ widgets.numBox("Pattern Length", 8, {
 gateRandomization = widgets.numBox("Gate Randomization", 0, {
   tooltip = "Amount of radomization applied to note gate",
   unit = Unit.Percent,
+})
+
+widgets.col()
+
+widgets.button("Recall active state", true, {
+  tooltip = "Recall the fragments active state when recalling fragment state",
+  changed = function(self)
+    rythmicFragments.setRecallFragmentActiveState(self.value)
+  end
 })
 
 --------------------------------------------------------------------------------

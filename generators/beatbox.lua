@@ -965,7 +965,7 @@ end
 local loadFragmentMenu = rythmPanel:Menu("LoadFragmentMenu", {"Load..."})
 loadFragmentMenu.enabled = false
 
-local storeButton = rythmPanel:Button("StoreButton")
+local storeButton = rythmPanel:OnOffButton("StoreButton")
 storeButton.displayName = "Store"
 storeButton.tooltip = "Store the current state of the fragments"
 storeButton.width = 75
@@ -1107,7 +1107,7 @@ end
 
 --- Evolve ---
 
-local recallButton = rythmPanel:Button("RecallButton")
+local recallButton = rythmPanel:OnOffButton("RecallButton")
 recallButton.displayName = "Recall"
 recallButton.enabled = false
 recallButton.tooltip = "Recall the last stored fragment state"
@@ -1205,6 +1205,7 @@ storeButton.changed = function(self)
   recallButton.enabled = true
   loadFragmentMenu.enabled = true
   loadFragmentMenu:addItem("State " .. #storedFragments)
+  self.value = false
 end
 
 recallButton.changed = function(self)
@@ -1213,6 +1214,7 @@ recallButton.changed = function(self)
   if isPlaying == false then
     recall()
   end
+  self.value = false
 end
 
 --------------------------------------------------------------------------------

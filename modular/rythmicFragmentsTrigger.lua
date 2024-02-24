@@ -439,7 +439,7 @@ paramsPerFragment = rythmicFragments.getParamsPerFragment(rythmPanel, nil, colou
 local loadFragmentMenu = rythmPanel:Menu("LoadFragmentMenu", {"Load..."})
 loadFragmentMenu.enabled = false
 
-local storeButton = rythmPanel:Button("StoreButton")
+local storeButton = rythmPanel:OnOffButton("StoreButton")
 storeButton.displayName = "Store"
 storeButton.tooltip = "Store the current state of the fragments"
 storeButton.width = 75
@@ -580,7 +580,7 @@ end
 
 --- Evolve ---
 
-local recallButton = rythmPanel:Button("RecallButton")
+local recallButton = rythmPanel:OnOffButton("RecallButton")
 recallButton.displayName = "Recall"
 recallButton.enabled = false
 recallButton.tooltip = "Recall the last stored fragment state"
@@ -678,6 +678,7 @@ storeButton.changed = function(self)
   recallButton.enabled = true
   loadFragmentMenu.enabled = true
   loadFragmentMenu:addItem("State " .. #storedFragments)
+  self.value = false
 end
 
 recallButton.changed = function(self)
@@ -686,6 +687,7 @@ recallButton.changed = function(self)
   if isPlaying == false then
     recall()
   end
+  self.value = false
 end
 
 --------------------------------------------------------------------------------
@@ -794,6 +796,15 @@ widgets.numBox("Pattern Length", 8, {
 gateRandomization = widgets.numBox("Gate Randomization", 0, {
   tooltip = "Amount of radomization applied to note gate",
   unit = Unit.Percent,
+})
+
+widgets.col()
+
+widgets.button("Recall active state", true, {
+  tooltip = "Recall the fragments active state when recalling fragment state",
+  changed = function(self)
+    rythmicFragments.setRecallFragmentActiveState(self.value)
+  end
 })
 
 --------------------------------------------------------------------------------

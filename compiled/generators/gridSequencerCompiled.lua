@@ -881,9 +881,15 @@ local singleResolutions = {14,15,17,18,20,23} -- Resolution indexes
 local resolutionsForEvolve = {} -- Resolutions used when evolving
 local resolutionsByType = resolutions.getResolutionsByType()
 local maxResolutionIndex = resolutionsByType[1][#resolutionsByType[1]] -- Set max resolution to the highest even resolution index
+local recallFragmentActiveState = true -- Disable to avoid recalling the state of the buttons that toggle active state for each fragment
 
 local function setMaxResolutionIndex(i)
   maxResolutionIndex = i
+end
+
+local function setRecallFragmentActiveState(flag)
+  recallFragmentActiveState = flag
+  --print("recallFragmentActiveState set to", recallFragmentActiveState)
 end
 
 -- Turn all recognized fragment items into note names
@@ -1170,7 +1176,9 @@ end
 local function setFragmentState(state)
   local fragments = state
   for i,v in ipairs(paramsPerFragment) do
-    v.fragmentActive.value = fragments[i].fragmentActive
+    if recallFragmentActiveState then
+      v.fragmentActive.value = fragments[i].fragmentActive
+    end
     v.lockedForEvolve.value = fragments[i].lockedForEvolve or false
     v.fragmentInput.text = fragments[i].fragmentInput
     v.fragmentPlayProbability.value = fragments[i].playProbability
@@ -1719,6 +1727,7 @@ local rythmicFragments = {
   getFragmentInputText = getFragmentInputText,
   fragmentDefinitionToResolutionNames = fragmentDefinitionToResolutionNames,
   setMaxResolutionIndex = setMaxResolutionIndex,
+  setRecallFragmentActiveState = setRecallFragmentActiveState,
 }
 
 --------------------------------------------------------------------------------
