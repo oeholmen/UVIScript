@@ -1002,6 +1002,7 @@ local resolutions = {
 -- Push a button to trigger a note or start a pulse (when retrigger is active)
 --------------------------------------------------------------------------------
 
+local channel = nil
 local autostart = false
 local triggerOnNote = false
 local triggerActive = false
@@ -1024,6 +1025,7 @@ local voiceId
 local triggerButton
 local positionTableQuantize
 local positionTableDuration
+local stopNoteAfterWasCancelled = false
 
 local backgroundColour = "202020" -- Light or Dark
 setBackgroundColour(backgroundColour)
@@ -1060,7 +1062,7 @@ local function triggerNote()
   if beatValue > 0 then
     duration = beat2ms(resolutions.getPlayDuration(beatValue, gate))
   end
-  voiceId = playNote(note, 64, duration)
+  voiceId = playNote(note, 64, duration, nil, channel)
   --print("Triggered note, duration", note, duration)
   shouldTrigger = retrigger and triggerActive
 end
@@ -1071,7 +1073,7 @@ local function stopNoteAfter()
 end
 
 local function triggerSequenceRunner(uniqueId)
-  print("Starting triggerSequenceRunner", uniqueId)
+  --print("Starting triggerSequenceRunner", uniqueId)
   local index = 1
   while isPlaying and triggerSeqIndex == uniqueId do
     if shouldTrigger then
@@ -1084,8 +1086,13 @@ local function triggerSequenceRunner(uniqueId)
 
     waitBeat(resolutions.getResolution(triggerDuration))
     if retrigger == false and shouldTrigger == false then
-      print("Stopping triggerSequenceRunner")
-      triggerButton:setValue(false)
+      if stopNoteAfterWasCancelled then
+        print("Stopping triggerSequenceRunner was cancelled")
+        stopNoteAfterWasCancelled = false
+      else
+        print("Stopping triggerSequenceRunner")
+        triggerButton:setValue(false)
+      end
     else
       --print("triggerSequenceRunner round")
     end
@@ -1093,7 +1100,7 @@ local function triggerSequenceRunner(uniqueId)
 end
 
 local function sequenceRunner(uniqueId)
-  print("Starting sequenceRunner", uniqueId)
+  --print("Starting sequenceRunner", uniqueId)
   local currentTriggerSeqIndex = -1
   local index = 1
   while isPlaying and quantizeSeqIndex == uniqueId do
@@ -1122,7 +1129,7 @@ local function baseRunner(uniqueId)
     end
     waitBeat(baseSequenceResolution)
     if restartQuantizeSequencer then
-      print("Quantize seq restart")
+      --print("Quantize seq restart")
       quantizeSeqIndex = gem.inc(quantizeSeqIndex)
       restartQuantizeSequencer = false
     end
@@ -1139,7 +1146,7 @@ local function startPlaying()
 end
 
 local function stopPlaying()
-  print("Stop playing")
+  --print("Stop playing")
   isPlaying = false
   triggerButton:setValue(false)
   stopNote()
@@ -1161,20 +1168,39 @@ widgets.panel({
 
 widgets.setSection({
   x = 0,
-  y = 12,
+  y = 0,
   xSpacing = 15,
 })
 
 local label = widgets.label("Quantized Trigger", {
   tooltip = "Trigger a note at the next quantization tick",
   alpha = 0.75,
-  width = 160,
+  width = 170,
   fontSize = 22,
   backgroundColour = backgroundColour,
   textColourWhenEditing = "silver",
   textColour = "orange",
   height = 30,
   editable = true
+})
+
+widgets.row()
+
+widgets.numBox('Channel', 0, {
+  tooltip = "Send note events on this channel. 0 = omni.",
+  x = 5,
+  y = widgets.posUnder(label) + 2,
+  width = 150,
+  min = 0,
+  max = 16,
+  integer = true,
+  changed = function(self)
+    if self.value > 0 then
+      channel = self.value
+    else
+      channel = nil
+    end
+  end
 })
 
 widgets.setSection({
@@ -1200,7 +1226,6 @@ widgets.menu("Duration", triggerDuration, triggerResolutions, {
       spawn(stopNoteAfter)
     end
     triggerSeqIndex = gem.inc(triggerSeqIndex)
-    print("Trigger seq restart")
   end
 })
 
@@ -1239,6 +1264,7 @@ triggerButton = widgets.button("Play", triggerActive, {
       if triggerDuration < #triggerResolutions then
         triggerSeqIndex = gem.inc(triggerSeqIndex)
         print("Trigger seq stopped")
+        stopNoteAfterWasCancelled = true
       end
       if isTransportActive then
         stopNote()
