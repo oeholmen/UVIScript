@@ -22,7 +22,7 @@ These are scripts that contain common code, and are not meant to be used directl
 ### Misc
 Just ignore. Old stuff.
 ### Modular
-This folder contains modular event processors that require at least one other script to function as intended.
+This folder contains modular event processors that work by sending triggers from one script that the other scripts use as input.
 ### Modulators
 This folder contains scripts that can be used with the "Script event modulation" source in UVI Falcon.
 ### Resources
