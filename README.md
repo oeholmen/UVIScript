@@ -22,7 +22,8 @@ These are scripts that contain common code, and are not meant to be used directl
 ### Misc
 Just ignore. Old stuff.
 ### Modular
-The modular event processors are similar to the generators in that they do not require input. Instead they work by sending triggers that other scripts can use as input.
+The modular event processors are similar to the generators in that they do not require input. But where the generators create both rythm and tone in one script,
+the modular processors have separated rythm and note generation in separate scripts. This means that modular triggers and inputs can be combined in any way you want.
 ### Modulators
 This folder contains scripts that can be used with the "Script event modulation" source in UVI Falcon.
 ### Resources

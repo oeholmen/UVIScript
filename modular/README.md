@@ -7,7 +7,7 @@ Modular event processors are scripts that require at least one other script to f
 1. Scripts that send events (triggers)
 2. Scripts that recieve events (inputs)
 
-Since there are no custom events in Falcon, the scripts use the note event to communicate. The triggers send standard note events where the note is set to 0. Channels are used for filtering what events are listened to in the inputs.
+Since there are no custom events in Falcon, the scripts use note events to communicate. The triggers send standard note events where the note is set to 0. Channels are used for filtering what events are listened to in the inputs.
 
 ## Usage
 
