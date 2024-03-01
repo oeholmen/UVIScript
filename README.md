@@ -21,6 +21,8 @@ Generators are scripts that send note events. They do not require input, but the
 These are scripts that contain common code, and are not meant to be used directly. They are however required for the other scripts to run.
 ### Misc
 Just ignore. Old stuff.
+### Modular
+This folder contains modular event processors that require at least one other script to function as intended.
 ### Modulators
 This folder contains scripts that can be used with the "Script event modulation" source in UVI Falcon.
 ### Resources
