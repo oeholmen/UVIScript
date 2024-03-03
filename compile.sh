@@ -52,6 +52,7 @@ luaScripts=(
   util/humanizer
   util/midiControl
   util/midiControlRouter
+  util/midiRouter
   util/noteLimiter
   util/noteToMidiControl
   util/noteVelocity
