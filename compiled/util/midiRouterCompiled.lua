@@ -629,12 +629,12 @@ local label = widgets.label("Midi Router", {
   textColour = "865DFF"
 })
 
-local channelIn = widgets.numBox("Channel In", 1, {
+local channelIn = widgets.numBox("Channel In", 0, {
   name = "inchannel",
-  min = 1,
+  min = 0,
   max = 16,
   integer = true,
-  tooltip = "Listen on midi in channel",
+  tooltip = "Listen on midi in channel. 0 = omni.",
 })
 
 local channelOut = widgets.numBox("Channel Out", 1, {
@@ -666,7 +666,7 @@ local function flashLabel()
 end
 
 function onEvent(e)
-  if channelIn.enabled and channelIn.value == e.channel then
+  if channelIn.enabled and (channelIn.value == 0 or channelIn.value == e.channel) then
     spawn(flashLabel)
     e.channel = channelOut.value
   end
