@@ -323,7 +323,7 @@ for i=1,numParts do
   channelBox.x = 0
   channelBox.y = ratchetMax.y + ratchetMax.height + leftButtonSpacing
 
-  table.insert(paramsPerPart, {muteButton=muteButton,pitchRand=pitchRand,tieRand=tieRand,velRand=velRand,gateRand=gateRand,ratchetRand=ratchetRand,triggerNote=triggerNote,channelBox=channelBox,positionTable=positionTable,seqPitchTable=seqPitchTable,tieStepTable=tieStepTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,seqRatchetTable=seqRatchetTable,stepResolution=stepResolution,directionProbability=directionProbability,numStepsBox=numStepsBox})
+  table.insert(paramsPerPart, {muteButton=muteButton,pitchRand=pitchRand,tieRand=tieRand,velRand=velRand,gateRand=gateRand,ratchetRand=ratchetRand,triggerNote=triggerNote,channelBox=channelBox,positionTable=positionTable,seqPitchTable=seqPitchTable,tieStepTable=tieStepTable,seqVelTable=seqVelTable,seqGateTable=seqGateTable,seqRatchetTable=seqRatchetTable,stepResolution=stepResolution,directionProbability=directionProbability,numStepsBox=numStepsBox,currentPosition=0})
   tableY = tableY + tableHeight + 20
 end
 
@@ -399,7 +399,7 @@ function arpeg(partIndex)
     local pitchAdjustment = seqPitchTable:getValue(currentPosition) -- get pitch adjustment
     local tieNext = tieStepTable:getValue(currentPosition)
     local vel = seqVelTable:getValue(currentPosition) -- get velocity
-    local gate = seqGateTable:getValue(currentPosition) -- get trigger probability
+    local gate = seqGateTable:getValue(currentPosition) -- get gate
     local ratchet = seqRatchetTable:getValue(currentPosition) -- get ratchet
 
     -- Get randomization amounts
@@ -491,7 +491,7 @@ function arpeg(partIndex)
       if isPartActive and shouldTrigger then
         local duration = beat2ms(resolutions.getPlayDuration(stepDuration, gate)) - 1 -- Make sure note is not played into the next
         playNote((note + pitchAdjustment), vel, duration, nil, channel)
-        print("Playing note/vel/gate/ratchet/stepDuration/partIndex", note, vel, gate, ratchet, stepDuration, partIndex)
+        print("Playing note/vel/gate/ratchet/stepDuration/actualDuration/partIndex", note, vel, gate, ratchet, stepDuration, ms2beat(duration), partIndex)
       end
 
       -- WAIT FOR NEXT BEAT
