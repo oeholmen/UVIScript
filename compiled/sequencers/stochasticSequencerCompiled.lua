@@ -592,6 +592,12 @@ local numParts = 1
 local heldNotes = {}
 local paramsPerPart = {}
 local partSelect = {}
+local channels = {"Omni"}
+local listenOnChannel = 0 -- 0 = Omni
+
+for i=1,16 do
+  table.insert(channels, "" .. i)
+end
 
 setBackgroundColour("#3f3f3f")
 
@@ -650,7 +656,7 @@ focusButton.displayName = "Focus Part"
 focusButton.tooltip = "When focus is active, only the part selected for editing is shown and played"
 focusButton.fillColour = "#dd000061"
 focusButton.size = {102,22}
-focusButton.x = 374
+focusButton.x = 260
 focusButton.y = 0
 focusButton.changed = function(self)
   setTableWidths()
@@ -683,6 +689,21 @@ holdButton.changed = function(self)
     heldNotes = {}
     clearPosition()
   end
+end
+
+local channelMenu = sequencerPanel:Menu("Channel", channels)
+channelMenu.showLabel = false
+channelMenu.backgroundColour = menuBackgroundColour
+channelMenu.textColour = menuTextColour
+channelMenu.arrowColour = menuArrowColour
+channelMenu.outlineColour = menuOutlineColour
+channelMenu.displayName = "Channel"
+channelMenu.tooltip = "Listen to input on this channel"
+channelMenu.size = holdButton.size
+channelMenu.x = holdButton.x + holdButton.width + 10
+channelMenu.y = 0
+channelMenu.changed = function(self)
+  listenOnChannel = self.value - 1
 end
 
 local editPartMenu = sequencerPanel:Menu("EditPart", partSelect)
@@ -1767,24 +1788,28 @@ function onInit()
 end
 
 function onNote(e)
-  if holdButton.value == true then
-    for i,v in ipairs(heldNotes) do
-      if v.note == e.note then
-        -- When hold button is active
-        -- we remove the note from held notes
-        -- if table has more than one note
-        if #heldNotes > 1 then
-          table.remove(heldNotes, i)
+  if listenOnChannel == 0 or listenOnChannel == e.channel then
+    if holdButton.value == true then
+      for i,v in ipairs(heldNotes) do
+        if v.note == e.note then
+          -- When hold button is active
+          -- we remove the note from held notes
+          -- if table has more than one note
+          if #heldNotes > 1 then
+            table.remove(heldNotes, i)
+          end
+          break
         end
-        break
       end
     end
-  end
-  table.insert(heldNotes, e)
-  if #heldNotes == 1 and isPlaying == false then
-    isPlaying = true
-    seqIndex = gem.inc(seqIndex)
-    spawn(arpeg, seqIndex)
+    table.insert(heldNotes, e)
+    if #heldNotes == 1 and isPlaying == false then
+      isPlaying = true
+      seqIndex = gem.inc(seqIndex)
+      spawn(arpeg, seqIndex)
+    end
+  else
+    postEvent(e)
   end
 end
 

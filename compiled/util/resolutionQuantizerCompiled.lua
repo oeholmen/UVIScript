@@ -1002,7 +1002,7 @@ local resolutions = {
 
 -- TODO Quantize duration/set gate?
 
-local backgroundColour = "595959" -- Light or Dark
+local backgroundColour = "484848" -- Light or Dark
 local labelTextColour = "15133C" -- Dark
 local labelBackgoundColour = "66ff99" -- Light
 local sliderColour = "5FB5FF"
@@ -1024,6 +1024,7 @@ setBackgroundColour(backgroundColour)
 
 local currentEvent = nil
 local voiceId = nil
+local seqIndex = 0 -- Holds the unique id for the sequencer
 local isPlaying = false
 local resolutionNames = resolutions.getResolutionNames({'Bypass'})
 local resolution = 23
@@ -1034,9 +1035,9 @@ local channel = 0 -- 0 = Omni
 -- Functions
 --------------------------------------------------------------------------------
 
-local function sequenceRunner()
+local function sequenceRunner(uniqueId)
   print("Starting sequenceRunner")
-  while isPlaying do
+  while isPlaying and seqIndex == uniqueId do
     local hasEvent = type(currentEvent) == "table"
     if type(voiceId) == "userdata" and ((legato and hasEvent) or legato == false) then
       releaseVoice(voiceId)
@@ -1057,7 +1058,8 @@ local function startPlaying()
     return
   end
   isPlaying = true
-  run(sequenceRunner)
+  seqIndex = gem.inc(seqIndex)
+  run(sequenceRunner, seqIndex)
 end
 
 local function stopPlaying()
@@ -1079,21 +1081,21 @@ end
 --------------------------------------------------------------------------------
 
 widgets.panel({
-  width = 700,
+  width = 720,
   height = 60,
   x = 0,
   y = 0,
+  backgroundColour = backgroundColour
 })
 
 widgets.setSection({
   x = 15,
   y = 18,
-  xSpacing = 30,
+  xSpacing = 36,
 })
 
 local sequencerLabel = widgets.label("Resolution Quantizer", {
   tooltip = "Quantize incoming notes to the given resolution",
-  editable = true,
   alpha = 0.5,
   fontSize = 22,
   width = 180,
@@ -1129,6 +1131,10 @@ widgets.button("Legato", legato, {
 --------------------------------------------------------------------------------
 -- Handle note events
 --------------------------------------------------------------------------------
+
+function onInit()
+  seqIndex = 0
+end
 
 function onNote(e)
   if isTrigger(e) and resolution < #resolutionNames then
