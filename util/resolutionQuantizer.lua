@@ -28,13 +28,12 @@ widgets.setColours({
 
 setBackgroundColour(backgroundColour)
 
-local currentEvent = nil
-local voiceId = nil
+local recordedEvents = {}
 local seqIndex = 0 -- Holds the unique id for the sequencer
 local isPlaying = false
 local resolutionNames = resolutions.getResolutionNames({'Bypass'})
 local resolution = 23
-local legato = false
+--local legato = false
 local channel = 0 -- 0 = Omni
 
 --------------------------------------------------------------------------------
@@ -44,17 +43,10 @@ local channel = 0 -- 0 = Omni
 local function sequenceRunner(uniqueId)
   print("Starting sequenceRunner")
   while isPlaying and seqIndex == uniqueId do
-    local hasEvent = type(currentEvent) == "table"
-    if type(voiceId) == "userdata" and ((legato and hasEvent) or legato == false) then
-      releaseVoice(voiceId)
-      voiceId = nil
-      --print("Releasing voice")
+    for _,e in ipairs(recordedEvents) do
+      playNote(e.note, e.velocity, -1, nil, e.channel)
     end
-    if hasEvent then
-      voiceId = playNote(currentEvent.note, currentEvent.velocity, -1, nil, currentEvent.channel)
-      currentEvent = nil
-      --print("Event posted!")
-    end
+    recordedEvents = {}
     waitBeat(resolutions.getResolution(resolution))
   end
 end
@@ -70,12 +62,8 @@ end
 
 local function stopPlaying()
   print("Stop playing")
-  if type(voiceId) == "userdata" then
-    releaseVoice(voiceId)
-  end
   isPlaying = false
-  voiceId = nil
-  currentEvent = nil
+  recordedEvents = {}
 end
 
 local function isTrigger(e)
@@ -130,16 +118,11 @@ widgets.menu("Channel", widgets.channels(), {
   changed = function(self) channel = self.value - 1 end
 })
 
--- TODO Playmode: single, held, legato
--- single: play a single note (like current default)
--- hold: hold until next note (like current legato)
--- legato: hold while note events are held - include all incoming notes (new)
-
-widgets.button("Legato", legato, {
+--[[ widgets.button("Legato", legato, {
   tooltip = "Note events are held until the next event is received and ready to play",
   y = 30,
   changed = function(self) legato = self.value end
-})
+}) ]]
 
 --------------------------------------------------------------------------------
 -- Handle note events
@@ -151,16 +134,10 @@ end
 
 function onNote(e)
   if isTrigger(e) and resolution < #resolutionNames then
-    currentEvent = e
+    table.insert(recordedEvents, e)
     print("Event received!")
     startPlaying()
   else
-    postEvent(e)
-  end
-end
-
-function onRelease(e)
-  if isTrigger(e) == false or resolution == #resolutionNames then
     postEvent(e)
   end
 end

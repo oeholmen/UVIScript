@@ -647,7 +647,6 @@ actionMenu.outlineColour = menuOutlineColour
 actionMenu.showLabel = false
 
 local focusButton = sequencerPanel:OnOffButton("FocusPartOnOff", false)
-focusButton.persistent = false -- This is not meant for saving, just for focusing on a part for editing.
 focusButton.backgroundColourOff = "#ff084486"
 focusButton.backgroundColourOn = "#ff02ACFE"
 focusButton.textColourOff = "#ff22FFFF"
@@ -706,6 +705,7 @@ channelMenu.changed = function(self)
   listenOnChannel = self.value - 1
 end
 
+-- TODO Make sure the correct part is selected after loading, if part focus is active
 local editPartMenu = sequencerPanel:Menu("EditPart", partSelect)
 editPartMenu.backgroundColour = menuBackgroundColour
 editPartMenu.textColour = menuTextColour

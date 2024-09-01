@@ -287,10 +287,15 @@ end
 helpers.widgetValueToControllerValue = function(widget, tweakable)
   local ccMin = 0
   local ccMax = 127
-  local controllerValue = gem.mapValueBetweenRanges(widget.value, widget.min, widget.max, ccMin, ccMax)
+  local controllerValue = 0
 
-  controllerValue = gem.round(controllerValue)
-  controllerValue = math.max(ccMin, math.min(ccMax, controllerValue))
+  if tweakable.attack == true or tweakable.decay == true or tweakable.release == true then
+    controllerValue = ((widget.value / 10) ^ (1/4)) * ccMax
+  else
+    controllerValue = gem.mapValueBetweenRanges(widget.value, widget.min, widget.max, ccMin, ccMax)
+  end
+
+  controllerValue = math.max(ccMin, math.min(ccMax, gem.round(controllerValue)))
 
   print("Send controller value:", widget.name, widget.value, controllerValue)
   return controllerValue
