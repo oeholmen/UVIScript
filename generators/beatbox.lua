@@ -215,6 +215,7 @@ local templates = {
   "Program 24",
   "Soul Drums",
   "Super 7",
+  "TR-8S",
   --- Templates ---
   "--- Templates ---",
   "Kick on down, snare on up",
@@ -320,6 +321,11 @@ templateMenu.changed = function(self)
     elseif self.selectedText == "Super 7" then
       noteMap = {36,38,42,39,41,49,37,50}
       noteLabels = {"Kick", "Snare", "Hihat", "Clap", "Low Tom", "Cymbal", "Rimshot", "Perc"}
+      v.noteInput.value = noteMap[part]
+      v.noteInputLabel.text = noteLabels[part]
+    elseif self.selectedText == "TR-8S" then
+      noteMap = {36,38,45,37,39,42,56,51}
+      noteLabels = {"Bass Drum", "Snare Drum", "Low Tom", "Rim Shot", "Hand Clap", "Closed Hi-Hat", "Cowbewll", "Ride Cymbal"}
       v.noteInput.value = noteMap[part]
       v.noteInputLabel.text = noteLabels[part]
     elseif self.selectedText == "Mute all" then
