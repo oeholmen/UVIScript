@@ -324,8 +324,8 @@ templateMenu.changed = function(self)
       v.noteInput.value = noteMap[part]
       v.noteInputLabel.text = noteLabels[part]
     elseif self.selectedText == "TR-8S" then
-      noteMap = {36,38,45,37,39,42,56,51}
-      noteLabels = {"Bass Drum", "Snare Drum", "Low Tom", "Rim Shot", "Hand Clap", "Closed Hi-Hat", "Cowbewll", "Ride Cymbal"}
+      noteMap = {36,38,42,39,45,37,51,49}
+      noteLabels = {"Kick", "Snare", "Hihat", "Clap", "Low Tom", "Rimshot", "Cowbewll", "Ride Cymbal"}
       v.noteInput.value = noteMap[part]
       v.noteInputLabel.text = noteLabels[part]
     elseif self.selectedText == "Mute all" then
