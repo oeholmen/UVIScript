@@ -1,0 +1,12 @@
+{
+    "mcpServers": {
+        "uvi-script-and-lua-docs": {
+            "type": "http",
+            "url": "https://portal.coreai.no/mcp/assistant",
+            "headers": {
+                "Authorization": "Bearer 442|4VewZl6haEmd9QiEGQBFNhZ2f7N8VWwkXly85UAp327ad5ce",
+                "X-Assistant-Id": "cf1637fc-6fcd-421d-afb0-8e64b2cfed9b"
+            }
+        }
+    }
+}
