@@ -35,6 +35,48 @@ This generator lets you define tonal "strategies", short sequences, that are pla
 ### gridSeqencer.lua (Grid Sequencer)
 This generator lets you arrange notes in a grid, and play them back as single notes or chords/clusters.
 
+### cellularAutomatonDrums.lua (Cellular Automaton Drums)
+A drum machine where eight drum tracks are derived mathematically from a single 16-step seed row using an [elementary cellular automaton](https://en.wikipedia.org/wiki/Elementary_cellular_automaton) rule. Because every track is a descendant of the same seed, the patterns share rhythmic structure while remaining distinct — kicks, snares, hats and percussion are all related but never identical.
+
+#### How it works
+An elementary CA operates on a row of binary cells. Each cell's next state is determined by itself and its two neighbours, giving eight possible 3-cell neighbourhoods. A rule number (0–255) encodes one output bit for each neighbourhood, fully defining how the row evolves. Track 1 is the seed itself; each subsequent track is computed by stepping the CA forward by *Gen Gap* generations from the previous track's row.
+
+#### Settings
+
+| Parameter | Description |
+|-----------|-------------|
+| **Rule** (0–255) | The elementary CA rule number. Changing the rule rewrites all eight tracks immediately. |
+| **Preset** | Quick-pick menu for well-known rules: *30* (chaotic/noise), *90* (Sierpinski triangle), *110* (universal computation), *150* (XOR), *184* (traffic flow), *18*, *54*, *60*, *126*, *22*. |
+| **Evolution** | How the seed changes between bars: *Static* — seed loops forever; *Evolve* — the last drum row becomes the new seed each bar, continuously drifting the patterns; *Mutate* — small random bit-flips are applied to the seed each bar. |
+| **Mutation %** | Probability (per cell) of a random flip when Evolution is set to *Mutate*. Higher values create faster drift. |
+| **Gen Gap** (1–8) | How many CA generations separate adjacent drum tracks. Low values make neighbouring tracks nearly identical; high values make them more independent. |
+| **Random Seed** | Randomise all 16 seed cells at once. Momentary button — does not stay pressed. |
+| **Clear Seed** | Set all 16 seed cells to off. Momentary button — does not stay pressed. |
+
+#### Seed row
+Sixteen toggle buttons showing the generation-0 pattern. Click any cell to flip it on or off. All eight drum tracks update live as you edit.
+
+#### Per-track controls (one row per drum)
+
+| Control | Description |
+|---------|-------------|
+| **Label** | Editable track name (click to rename). Colour-coded per track for easy reading. |
+| **Pattern display** | Read-only bar chart showing the 16-step pattern for this track. Colour matches the track label. |
+| **Note** | MIDI note number sent when this track fires (default: General MIDI drum map). |
+| **L** (Learn) | Note learn. Press the button, then play any MIDI note — the track note is set automatically and the button turns off. |
+| **Mute** | Silence this track without removing it from the grid display. |
+| **Vel** | Fixed velocity for all hits on this track (1–127). |
+
+#### Footer
+
+| Control | Description |
+|---------|-------------|
+| **Resolution** | Step length (default 1/8 — sixteen steps equals two bars). |
+| **Gate** | Note length as a percentage of the step duration. 100 % = held until the next step; lower values give a more staccato feel. |
+| **Multichannel** | When enabled, each drum track is sent on a separate MIDI channel (base channel + track index − 1), allowing per-drum instrument routing in Falcon. |
+| **Channel** | Base MIDI channel (1–16). |
+| **Step** | Live display of the current playback position within the 16-step cycle. |
+
 ### noteFragmentGenerator.lua (Note Fragment Generator)
 This generator lets you pick the exact notes that you want to include. The notes are selected by random when playing.
 

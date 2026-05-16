@@ -6,6 +6,7 @@
 luaScripts=(
   effects/noteBouncer
   generators/beatbox
+  generators/cellularAutomatonDrums
   generators/drunkenSequencer
   generators/generativeChorder
   generators/generativeStrategySequencer

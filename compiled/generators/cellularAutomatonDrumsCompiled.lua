@@ -1,0 +1,1589 @@
+-- generators/cellularAutomatonDrums -- 
+--------------------------------------------------------------------------------
+-- Common methods
+--------------------------------------------------------------------------------
+
+local function getRandom(min, max, factor)
+  if type(min) == "number" and type(max) == "number" and min < max then
+    return math.random(min, max)
+  elseif type(min) == "number" then
+    return math.random(min)
+  end
+  local value = math.random()
+  if type(factor) == "number" then
+    value = value * factor
+  end
+  return value
+end
+
+local function getRandomBoolean(probability)
+  -- Default probability of getting true is 50%
+  if type(probability) ~= "number" then
+    probability = 50
+  end
+  return getRandom(100) <= probability
+end
+
+local function getChangeMax(max, probabilityLevel)
+  return math.ceil(max * (probabilityLevel / 100))
+end
+
+local function getIndexFromValue(value, selection)
+  for i,v in ipairs(selection) do
+    if v == value then
+      return i
+    end
+  end
+  return nil
+end
+
+local function randomizeValue(value, limitMin, limitMax, randomizationAmount)
+  if randomizationAmount == 0 then
+    return value
+  end
+  local limitRange = limitMax - limitMin
+  local changeMax = getChangeMax(limitRange, randomizationAmount)
+  local min = math.max(limitMin, (value - changeMax))
+  local max = math.min(limitMax, (value + changeMax))
+  return getRandom(min, max)
+end
+
+-- sign function: -1 if x<0; 1 if x>0
+local function sign(x)
+  if x < 0 then
+    return -1
+  end
+  return 1
+end
+
+local function sum(t)
+  local sum = 0
+  for _,v in pairs(t) do -- Get the sum of all numbers in t
+    sum = sum + v
+  end
+  return sum
+end
+
+local function avg(t)
+  return sum(t) / #t
+end
+
+local function round(value)
+  local int, frac = math.modf(value)
+  if math.abs(frac) < 0.5 then
+    value = int
+  elseif value < 0 then
+    value = int - 1
+  else
+    value = int + 1
+  end
+  return value
+end
+
+local function tableIncludes(theTable, theItem)
+  return type(getIndexFromValue(theItem, theTable)) == "number"
+end
+
+local function getRandomFromTable(theTable, except)
+  if #theTable == 0 then
+    return nil
+  end
+  if #theTable == 1 then
+    return theTable[1]
+  end
+  local index = getRandom(#theTable)
+  local value = theTable[index]
+  if type(except) ~= "nil" then
+    local maxRounds = 10
+    while value == except and maxRounds > 0 do
+      value = theTable[getRandom(#theTable)]
+      maxRounds = maxRounds - 1
+    end
+  end
+  return value
+end
+
+local function trimStartAndEnd(s)
+  return s:match("^%s*(.-)%s*$")
+end
+
+local function getChangePerStep(valueRange, numSteps)
+  return valueRange / (numSteps - 1)
+end
+
+local function inc(val, inc, resetAt, resetTo)
+  if type(inc) ~= "number" then
+    inc = 1
+  end
+  if type(resetTo) ~= "number" then
+    resetTo = 1
+  end
+  val = val + inc
+  if type(resetAt) == "number" then
+    if (inc > 0 and val > resetAt) or (inc < 0 and val < resetAt) then
+      val = resetTo
+    end
+  end
+  return val
+end
+
+local function advanceValue(bounds, value, min, max, direction)
+  local valueRange = bounds.max - bounds.min
+  local changeFactor = max - min
+  local changePerStep = getChangePerStep(changeFactor, valueRange)
+
+  if direction < 0 then
+    changePerStep = -changePerStep
+  end
+
+  value = inc(value, changePerStep)
+  if value > max then
+    direction = -1
+    value = max
+  elseif value < min then
+    direction = 1
+    value = min
+  end
+  return value, direction
+end
+
+local function getValueOrDefault(value, default)
+  if type(value) ~= "nil" then
+    return value
+  end
+  return default
+end
+
+local function mapValueBetweenRanges(value, fromMin, fromMax, toMin, toMax)
+  return ((value - fromMin) / (fromMax - fromMin)) * (toMax - toMin) + toMin
+end
+
+local gem = {
+  e = 2.71828,
+  inc = inc,
+  avg = avg,
+  sum = sum,
+  sign = sign,
+  round = round,
+  getRandom = getRandom,
+  getChangeMax = getChangeMax,
+  advanceValue = advanceValue,
+  tableIncludes = tableIncludes,
+  randomizeValue = randomizeValue,
+  trimStartAndEnd = trimStartAndEnd,
+  getChangePerStep = getChangePerStep,
+  getRandomBoolean = getRandomBoolean,
+  getValueOrDefault = getValueOrDefault,
+  getIndexFromValue = getIndexFromValue,
+  getRandomFromTable = getRandomFromTable,
+  mapValueBetweenRanges = mapValueBetweenRanges,
+}
+
+--------------------------------------------------------------------------------
+-- Functions for creating an positioning widgets
+--------------------------------------------------------------------------------
+
+local panelNameIndex = 1
+local widgetNameIndex = 1
+local currentX = 0
+local currentY = 0
+
+local widgetDefaults = {
+  panel = Panel("DefaultPanel"),
+  width = 120,
+  height = 20,
+  menuHeight = 45,
+  knobHeight = 45,
+  xOffset = 0,
+  yOffset = 0,
+  xSpacing = 0,
+  ySpacing = 0,
+  col = 0,
+  row = 0,
+  rowDirection = 1,
+  cols = 6
+}
+
+local widgetColours = {
+  backgroundColour = "202020",
+  panelBackgroundColour = "202020",
+  widgetBackgroundColour = "01011F", -- Dark
+  menuBackgroundColour = "01011F", -- widgetBackgroundColour
+  widgetTextColour = "9f02ACFE", -- Light
+  tableBackgroundColour = "191E25",
+  sliderColour = "5FB5FF", -- Table slider colour
+  labelTextColour = "black", -- Light
+  labelBackgroundColour = "CFFFFE",
+  menuArrowColour = "66AEFEFF", -- labelTextColour
+  menuOutlineColour = "5f9f02ACFE", -- widgetTextColour
+  menuTextColour = "9f02ACFE",
+  backgroundColourOff = "ff084486",
+  backgroundColourOn = "ff02ACFE",
+  textColourOff = "ff22FFFF",
+  textColourOn = "efFFFFFF",
+  buttonBackgroundColourOff = "#606060",
+  buttonBackgroundColourOn = "#303030",
+  buttonTextColourOff = "white",
+  buttonTextColourOn = "silver",
+}
+
+local function getValueOrDefault(value, default)
+  if type(value) == "nil" then
+    return default
+  elseif type(value) == "function" then
+    return value(default, widgetDefaults)
+  end
+  return value
+end
+
+local function setColours(colours)
+  widgetColours.backgroundColour = getValueOrDefault(colours.backgroundColour, widgetColours.backgroundColour)
+  widgetColours.panelBackgroundColour = getValueOrDefault(colours.panelBackgroundColour, widgetColours.panelBackgroundColour)
+  widgetColours.widgetBackgroundColour = getValueOrDefault(colours.widgetBackgroundColour, widgetColours.widgetBackgroundColour)
+  widgetColours.menuBackgroundColour = getValueOrDefault(colours.menuBackgroundColour, widgetColours.menuBackgroundColour)
+  widgetColours.widgetTextColour = getValueOrDefault(colours.widgetTextColour, widgetColours.widgetTextColour)
+  widgetColours.tableBackgroundColour = getValueOrDefault(colours.tableBackgroundColour, widgetColours.tableBackgroundColour)
+  widgetColours.sliderColour = getValueOrDefault(colours.sliderColour, widgetColours.sliderColour)
+  widgetColours.labelTextColour = getValueOrDefault(colours.labelTextColour, widgetColours.labelTextColour)
+  widgetColours.labelBackgroundColour = getValueOrDefault(colours.labelBackgroundColour, widgetColours.labelBackgroundColour)
+  widgetColours.menuArrowColour = getValueOrDefault(colours.menuArrowColour, widgetColours.menuArrowColour)
+  widgetColours.menuOutlineColour = getValueOrDefault(colours.menuOutlineColour, widgetColours.menuOutlineColour)
+  widgetColours.menuTextColour = getValueOrDefault(colours.menuTextColour, widgetColours.menuTextColour)
+  widgetColours.backgroundColourOff = getValueOrDefault(colours.backgroundColourOff, widgetColours.backgroundColourOff)
+  widgetColours.backgroundColourOn = getValueOrDefault(colours.backgroundColourOn, widgetColours.backgroundColourOn)
+  widgetColours.textColourOff = getValueOrDefault(colours.textColourOff, widgetColours.textColourOff)
+  widgetColours.textColourOn = getValueOrDefault(colours.textColourOn, widgetColours.textColourOn)
+  widgetColours.buttonBackgroundColourOff = getValueOrDefault(colours.buttonBackgroundColourOff, widgetColours.buttonBackgroundColourOff)
+  widgetColours.buttonBackgroundColourOn = getValueOrDefault(colours.buttonBackgroundColourOn, widgetColours.buttonBackgroundColourOn)
+  widgetColours.buttonTextColourOff = getValueOrDefault(colours.buttonTextColourOff, widgetColours.buttonTextColourOff)
+  widgetColours.buttonTextColourOn = getValueOrDefault(colours.buttonTextColourOn, widgetColours.buttonTextColourOn)
+end
+
+local function setSection(settings)
+  if type(settings) ~= "table" then
+    settings = {}
+  end
+  setColours(settings)
+  widgetDefaults.width = getValueOrDefault(settings.width, widgetDefaults.width)
+  widgetDefaults.height = getValueOrDefault(settings.height, widgetDefaults.height)
+  widgetDefaults.menuHeight = getValueOrDefault(settings.menuHeight, widgetDefaults.menuHeight)
+  widgetDefaults.knobHeight = getValueOrDefault(settings.knobHeight, widgetDefaults.knobHeight)
+  widgetDefaults.xOffset = getValueOrDefault(settings.xOffset, widgetDefaults.xOffset)
+  widgetDefaults.yOffset = getValueOrDefault(settings.yOffset, widgetDefaults.yOffset)
+  widgetDefaults.xOffset = getValueOrDefault(settings.x, widgetDefaults.xOffset)
+  widgetDefaults.yOffset = getValueOrDefault(settings.y, widgetDefaults.yOffset)
+  widgetDefaults.xSpacing = getValueOrDefault(settings.xSpacing, widgetDefaults.xSpacing)
+  widgetDefaults.ySpacing = getValueOrDefault(settings.ySpacing, widgetDefaults.ySpacing)
+  widgetDefaults.cols = getValueOrDefault(settings.cols, widgetDefaults.cols)
+  widgetDefaults.col = getValueOrDefault(settings.col, 0)
+  widgetDefaults.row = getValueOrDefault(settings.row, 0)
+  widgetDefaults.rowDirection = getValueOrDefault(settings.rowDirection, 1)
+  currentX = widgetDefaults.xOffset
+  if widgetDefaults.rowDirection < 0 and widgetDefaults.row > 0 then
+    -- Find y when direction is reverse
+    local heightPerRow = widgetDefaults.height + widgetDefaults.ySpacing
+    currentY = (heightPerRow * widgetDefaults.row) + widgetDefaults.ySpacing
+  else
+    currentY = widgetDefaults.yOffset
+  end
+end
+
+local function getWidgetName(name, displayName, useDisplayNameAsWidgetName, panel)
+  if panel then
+    name = getValueOrDefault(name, "Panel" .. panelNameIndex)
+    panelNameIndex = panelNameIndex + 1
+  elseif type(name) == "nil" then
+    name = ""
+    if useDisplayNameAsWidgetName and type(displayName) == "string" then
+      name = string.gsub(displayName, "[^a-zA-Z]+", "")
+    end
+    if string.len(name) == 0 then
+      name = "Widget" .. widgetNameIndex
+      widgetNameIndex = widgetNameIndex + 1
+    end
+  end
+  --print("Widget name", name)
+  return name
+end
+
+local function incrementRow(row, h)
+  if type(row) == "nil" then
+    row = 1
+  end
+  if type(h) == "nil" then
+    h = widgetDefaults.height
+  end
+  widgetDefaults.row = widgetDefaults.row + row
+  widgetDefaults.col = 0
+  currentX = widgetDefaults.xOffset
+
+  local height = math.max(1, row) * h
+  local ySpacing = math.max(1, row) * widgetDefaults.ySpacing
+  local yAdjust = height + ySpacing
+  if row > 0 then
+    currentY = currentY + yAdjust
+  else
+    currentY = currentY - yAdjust
+  end
+end
+
+local function incrementCol(col, w, h)
+  if type(col) == "nil" then
+    col = 1
+  end
+  if type(w) == "nil" then
+    w = widgetDefaults.width
+  end
+
+  local width = math.max(1, col) * w
+  local xSpacing = math.max(1, col) * widgetDefaults.xSpacing
+  currentX = currentX + width + xSpacing
+
+  widgetDefaults.col = widgetDefaults.col + col
+  if widgetDefaults.col >= widgetDefaults.cols then
+    incrementRow(widgetDefaults.rowDirection, h)
+  end
+end
+
+local function getWidgetBounds(options, increment)
+  local x = getValueOrDefault(options.x, currentX)
+  local y = getValueOrDefault(options.y, currentY)
+  local w = getValueOrDefault(options.width, widgetDefaults.width)
+  local h = getValueOrDefault(options.height, widgetDefaults.height)
+
+  -- Increment position
+  if increment then
+    if type(options.increment) == "boolean" then
+      if options.increment then
+        options.increment = 1
+      else
+        options.increment = 0
+      end
+    end
+    local i = getValueOrDefault(options.increment, 1)
+    incrementCol(i, w, h)
+  end
+
+  return {x, y, w, h}
+end
+
+local function getWidgetOptions(options, displayName, default, panel)
+  if type(options) ~= "table" then
+    options = {}
+  end
+  options.default = getValueOrDefault(default, options.default)
+  options.name = getWidgetName(options.name, displayName, type(default) ~= "nil", panel)
+  options.displayName = getValueOrDefault(displayName, options.name)
+  options.tooltip = getValueOrDefault(options.tooltip, options.displayName)
+  options.integer = getValueOrDefault(options.integer, (options.unit == Unit.Percent or options.unit == Unit.MidiKey))
+  options.min = getValueOrDefault(options.min, 0)
+  options.default = getValueOrDefault(options.default, options.min)
+  if options.unit == Unit.MidiKey then
+    options.max = getValueOrDefault(options.max, 127)
+  elseif options.unit == Unit.Percent then
+    options.max = getValueOrDefault(options.max, 100)
+  else
+    options.max = getValueOrDefault(options.max, 1)
+  end
+  return options
+end
+
+local function setOptional(widget, options)
+  if type(options.changed) == "function" then
+    widget.changed = options.changed
+  end
+  if type(options.alpha) == "number" then
+    widget.alpha = options.alpha
+  end
+  if type(options.fontSize) == "number" then
+    widget.fontSize = options.fontSize
+  end
+  if type(options.unit) == "number" then
+    widget.unit = options.unit
+  end
+  if type(options.mapper) == "number" then
+    widget.mapper = options.mapper
+  end
+  if type(options.showLabel) == "boolean" then
+    widget.showLabel = options.showLabel
+  end
+  if type(options.persistent) == "boolean" then
+    widget.persistent = options.persistent
+  end
+  if type(options.enabled) == "boolean" then
+    widget.enabled = options.enabled
+  end
+  if type(options.showPopupDisplay) == "boolean" then
+    widget.showPopupDisplay = options.showPopupDisplay
+  end
+  if type(options.hierarchical) == "boolean" then
+    widget.hierarchical = options.hierarchical
+  end
+  if type(options.editable) == "boolean" then
+    widget.editable = options.editable
+  end
+  if type(options.visible) == "boolean" then
+    widget.visible = options.visible
+  end
+  if type(options.backgroundColour) == "string" then
+    widget.backgroundColour = options.backgroundColour
+  end
+  if type(options.fillStyle) == "string" then
+    widget.fillStyle = options.fillStyle
+  end
+  if type(options.sliderColour) == "string" then
+    widget.sliderColour = options.sliderColour
+  end
+  if type(options.backgroundColourWhenEditing) == "string" then
+    widget.backgroundColourWhenEditing = options.backgroundColourWhenEditing
+  end
+  if type(options.textColourWhenEditing) == "string" then
+    widget.textColourWhenEditing = options.textColourWhenEditing
+  end
+  if type(options.textColour) == "string" then
+    widget.textColour = options.textColour
+  end
+  if type(options.backgroundColourOff) == "string" then
+    widget.backgroundColourOff = options.backgroundColourOff
+  end
+  if type(options.backgroundColourOn) == "string" then
+    widget.backgroundColourOn = options.backgroundColourOn
+  end
+  if type(options.textColourOff) == "string" then
+    widget.textColourOff = options.textColourOff
+  end
+  if type(options.textColourOn) == "string" then
+    widget.textColourOn = options.textColourOn
+  end
+end
+
+local widgets = {
+  setColours = setColours,
+  setSection = setSection,
+  section = setSection,
+  channels = function()
+    local channels = {"Omni"}
+    for j=1,16 do
+      table.insert(channels, "" .. j)
+    end
+    return channels
+  end,
+  getColours = function() return widgetColours end,
+  getPanel = function() return widgetDefaults.panel end,
+  getSectionValue = function(k) return widgetDefaults[k] end,
+  xOffset = function(val) widgetDefaults.xOffset = val end,
+  yOffset = function(val) widgetDefaults.yOffset = val end,
+  x = function(val) widgetDefaults.xOffset = val end,
+  y = function(val) widgetDefaults.yOffset = val end,
+  xSpacing = function(val) widgetDefaults.xSpacing = val end,
+  ySpacing = function(val) widgetDefaults.ySpacing = val end,
+  posSide = function(widget) return widget.x + widget.width + widgetDefaults.xSpacing end,
+  posUnder = function(widget) return widget.y + widget.height + widgetDefaults.ySpacing end,
+  width = function(val) widgetDefaults.width = val end,
+  height = function(val) widgetDefaults.height = val end,
+  col = function(i, w, h) incrementCol(i, w, h) end,
+  row = function(i, h) incrementRow(i, h) end,
+  panel = function(options)
+    if type(options) ~= "table" then
+      options = {}
+    end
+    -- The first time, we use the default panel
+    local create = panelNameIndex > 1
+    if create == false then
+      options.name = widgetDefaults.panel.name
+    end
+    options = getWidgetOptions(options, nil, nil, true)
+    if create then
+      widgetDefaults.panel = Panel(options.name)
+      --print("Created panel", options.name)
+    end
+    widgetDefaults.panel.backgroundColour = widgetColours.panelBackgroundColour
+    widgetDefaults.panel.bounds = getWidgetBounds(options, false)
+    setOptional(widgetDefaults.panel, options)
+    return widgetDefaults.panel
+  end,
+  button = function(displayName, default, options)
+    local isOnOff = true
+    if type(default) == "table" then
+      options = default
+      default = nil
+      isOnOff = false
+    end
+    options = getWidgetOptions(options, displayName, default)
+    local widget
+    if isOnOff then
+      widget = widgetDefaults.panel:OnOffButton(options.name, (options.default == true))
+      widget.backgroundColourOff = widgetColours.backgroundColourOff
+      widget.backgroundColourOn = widgetColours.backgroundColourOn
+      widget.textColourOff = widgetColours.textColourOff
+      widget.textColourOn = widgetColours.textColourOn
+    else
+      widget = widgetDefaults.panel:Button(options.name)
+      widget.backgroundColourOff = widgetColours.buttonBackgroundColourOff
+      widget.backgroundColourOn = widgetColours.buttonBackgroundColourOn
+      widget.textColourOff = widgetColours.buttonTextColourOff
+      widget.textColourOn = widgetColours.buttonTextColourOn
+    end
+    widget.displayName = options.displayName
+    widget.tooltip = options.tooltip
+    widget.bounds = getWidgetBounds(options, true)
+    setOptional(widget, options)
+    return widget
+  end,
+  label = function(displayName, options)
+    options = getWidgetOptions(options, displayName)
+    local widget = widgetDefaults.panel:Label("Label")
+    widget.text = options.displayName
+    widget.tooltip = options.tooltip
+    widget.backgroundColour = widgetColours.labelBackgroundColour
+    widget.textColour = widgetColours.labelTextColour
+    widget.bounds = getWidgetBounds(options, true)
+    setOptional(widget, options)
+    return widget
+  end,
+  menu = function(displayName, default, items, options)
+    if type(default) == "table" then
+      options = items
+      items = default
+      default = 1
+    end
+    options = getWidgetOptions(options, displayName, default)
+    local widget = widgetDefaults.panel:Menu(options.name, items)
+    widget.selected = options.default
+    widget.displayName = options.displayName
+    widget.tooltip = options.tooltip
+    widget.backgroundColour = widgetColours.menuBackgroundColour
+    widget.textColour = widgetColours.menuTextColour
+    widget.arrowColour = widgetColours.menuArrowColour
+    widget.outlineColour = widgetColours.menuOutlineColour
+    setOptional(widget, options)
+    if widget.showLabel == true then
+      options.height = getValueOrDefault(options.height, widgetDefaults.menuHeight)
+    end
+    widget.bounds = getWidgetBounds(options, true)
+    return widget
+  end,
+  numBox = function(displayName, default, options)
+    options = getWidgetOptions(options, displayName, default)
+    local widget = widgetDefaults.panel:NumBox(options.name, options.default, options.min, options.max, options.integer)
+    widget.displayName = options.displayName
+    widget.tooltip = options.tooltip
+    widget.backgroundColour = widgetColours.widgetBackgroundColour
+    widget.textColour = widgetColours.widgetTextColour
+    widget.bounds = getWidgetBounds(options, true)
+    setOptional(widget, options)
+    return widget
+  end,
+  knob = function(displayName, default, options)
+    options = getWidgetOptions(options, displayName, default)
+    local widget = widgetDefaults.panel:Knob(options.name, options.default, options.min, options.max, options.integer)
+    widget.displayName = options.displayName
+    widget.tooltip = options.tooltip
+    widget.backgroundColour = widgetColours.widgetBackgroundColour
+    widget.textColour = widgetColours.widgetTextColour
+    if widget.showLabel == true then
+      options.height = getValueOrDefault(options.height, widgetDefaults.knobHeight)
+    end
+    widget.bounds = getWidgetBounds(options, true)
+    setOptional(widget, options)
+    return widget
+  end,
+  table = function(displayName, default, size, options)
+    options = getWidgetOptions(options, displayName, default)
+    local widget = widgetDefaults.panel:Table(options.name, size, options.default, options.min, options.max, options.integer)
+    widget.fillStyle = "solid"
+    widget.backgroundColour = widgetColours.tableBackgroundColour
+    widget.sliderColour = widgetColours.sliderColour
+    widget.bounds = getWidgetBounds(options, true)
+    setOptional(widget, options)
+    return widget
+  end,
+}
+
+--------------------------------------------------------------------------------
+-- Common Resolutions
+--------------------------------------------------------------------------------
+
+local function getDotted(value)
+  return value * 1.5
+end
+
+local function getTriplet(value)
+  return value / 3
+end
+
+-- NOTE: Make sure resolutionValues and resolutionNames are in sync
+local resolutionValues = {
+  128, -- "32x" -- 1
+  64, -- "16x" -- 2
+  32, -- "8x" -- 3
+  28, -- "7x" -- 4
+  24, -- "6x" -- 5
+  20, -- "5x" -- 6
+  16, -- "4x" -- 7
+  12, -- "3x" -- 8
+  8, -- "2x" -- 9
+  6, -- "1/1 dot" -- 10
+  4, -- "1/1" -- 11
+  3, -- "1/2 dot" -- 12
+  getTriplet(8), -- "1/1 tri" -- 13
+  2, -- "1/2" -- 14
+  getDotted(1), -- "1/4 dot", -- 15
+  getTriplet(4), -- "1/2 tri", -- 16
+  1, -- "1/4", -- 17
+  getDotted(0.5), -- "1/8 dot", -- 18
+  getTriplet(2), -- "1/4 tri", -- 19
+  0.5,  -- "1/8", -- 20
+  getDotted(0.25), -- "1/16 dot", -- 21
+  getTriplet(1), -- "1/8 tri", -- 22
+  0.25, -- "1/16", -- 23
+  getDotted(0.125), -- "1/32 dot", -- 24
+  getTriplet(0.5), -- "1/16 tri", -- 25
+  0.125, -- "1/32" -- 26
+  getDotted(0.0625), -- "1/64 dot", -- 27
+  getTriplet(0.25), -- "1/32 tri", -- 28
+  0.0625, -- "1/64", -- 29
+  getDotted(0.03125), -- "1/128 dot" -- 30
+  getTriplet(0.125), -- "1/64 tri" -- 31
+  0.03125 -- "1/128" -- 32
+}
+
+local resolutionNames = {
+  "32x", -- 1
+  "16x", -- 2
+  "8x", -- 3
+  "7x", -- 4
+  "6x", -- 5
+  "5x", -- 6
+  "4x", -- 7
+  "3x", -- 8
+  "2x", -- 9
+  "1/1 dot", -- 10
+  "1/1", -- 11
+  "1/2 dot", -- 12
+  "1/1 tri", -- 13
+  "1/2", -- 14
+  "1/4 dot", -- 15
+  "1/2 tri", -- 16
+  "1/4", -- 17
+  "1/8 dot", -- 18
+  "1/4 tri", -- 19
+  "1/8", -- 20
+  "1/16 dot", -- 21
+  "1/8 tri", -- 22
+  "1/16", -- 23
+  "1/32 dot", -- 24
+  "1/16 tri", -- 25
+  "1/32", -- 26
+  "1/64 dot", -- 27
+  "1/32 tri", -- 28
+  "1/64", -- 29
+  "1/128 dot", -- 30
+  "1/64 tri", -- 31
+  "1/128" -- 32
+}
+
+local function getEvenFromTriplet(value)
+  return value * 3
+end
+
+local function getEvenFromDotted(value)
+  return value / 1.5
+end
+
+-- This variable is used by getResolutionsByType as the starting point for finding even/dot/tri resolutions
+local resolutionTypeStartPosIndex = 11 -- 1/1
+
+local function getResolutionsByType(maxResolutionIndex, includeSlowResolutions)
+  if type(maxResolutionIndex) == "nil" then
+    maxResolutionIndex = #resolutionValues
+  end
+  if type(includeSlowResolutions) == "nil" then
+    includeSlowResolutions = true
+  end
+  local resOptions = {}
+  -- Create table of resolution indexes by type (1=even,2=dot,3=tri,4=slow)
+  for i=resolutionTypeStartPosIndex,resolutionTypeStartPosIndex+2 do
+    local resolutionIndex = i
+    local resolutionsOfType = {}
+    while resolutionIndex <= maxResolutionIndex do
+      table.insert(resolutionsOfType, resolutionIndex) -- insert current index in resolution options table
+      --print("Insert resolutionIndex", resolutionIndex)
+      resolutionIndex = gem.inc(resolutionIndex, 3) -- increment index
+    end
+    --print("#resolutionsOfType, i", #resolutionsOfType, i)
+    table.insert(resOptions, resolutionsOfType)
+  end
+  -- Add the resolutions that are whole numbers (1,2,3,4...)
+  if includeSlowResolutions then
+    local slowResolutions = {}
+    for i,resolution in ipairs(resolutionValues) do
+      if resolution % 1 == 0 then
+        table.insert(slowResolutions, i)
+        --print("getResolutionsByType - included slow resolution", resolutionValues[i], i)
+      end
+    end
+    --print("#slowResolutions", #slowResolutions)
+    table.insert(resOptions, slowResolutions) -- Add the "slow" x resolutions
+  end
+  --print("resOptions", #resOptions)
+  return resOptions
+end
+
+local function isResolutionWithinRange(resolutionIndex, options, i)
+  if resolutionIndex < options.minResolutionIndex or resolutionIndex > options.maxResolutionIndex then
+    return false
+  end
+
+  if i == 2 and resolutionIndex > options.maxDotResolutionIndex then
+    return false
+  end
+
+  if i == 3 and resolutionIndex > options.maxTriResolutionIndex then
+    return false
+  end
+
+  return true
+end
+
+-- Returns a table of resolutions indexes that are within the given range
+local function getSelectedResolutions(resolutionsByType, options)
+  if type(options) == "nil" then
+    options = {}
+  end
+
+  if type(options.minResolutionIndex) == "nil" then
+    options.minResolutionIndex = 1
+  end
+
+  if type(options.maxResolutionIndex) == "nil" then
+    options.maxResolutionIndex = #resolutionValues
+  end
+
+  if type(options.maxDotResolutionIndex) == "nil" then
+    options.maxDotResolutionIndex = #resolutionValues
+  end
+
+  if type(options.maxTriResolutionIndex) == "nil" then
+    options.maxTriResolutionIndex = #resolutionValues
+  end
+
+  local selectedResolutions = {}
+  for i,type in ipairs(resolutionsByType) do
+    for _,resolutionIndex in ipairs(type) do
+      if isResolutionWithinRange(resolutionIndex, options, i) then
+        table.insert(selectedResolutions, resolutionIndex)
+      end
+    end
+  end
+  return selectedResolutions
+end
+
+-- Tries to adjust the given resolution by adjusting
+-- length, and/or setting a even/dot/tri value variant
+-- Options are: adjustBias (0=slow -> 100=fast), doubleOrHalfProbaility, dotOrTriProbaility, selectedResolutions
+local function getResolutionVariation(currentResolution, options)
+  local currentIndex = gem.getIndexFromValue(currentResolution, resolutionValues)
+
+  if type(currentIndex) == "nil" then
+    return currentResolution
+  end
+
+  if type(options) == "nil" then
+    options = {}
+  end
+
+  if type(options.minResolutionIndex) == "nil" then
+    options.minResolutionIndex = 1
+  end
+
+  if type(options.maxResolutionIndex) == "nil" then
+    options.maxResolutionIndex = #resolutionValues
+  end
+
+  if type(options.maxDotResolutionIndex) == "nil" then
+    options.maxDotResolutionIndex = #resolutionValues
+  end
+
+  if type(options.maxTriResolutionIndex) == "nil" then
+    options.maxTriResolutionIndex = #resolutionValues
+  end
+
+  if type(options.adjustBias) == "nil" then
+    options.adjustBias = 50
+  end
+
+  if type(options.doubleOrHalfProbaility) == "nil" then
+    options.doubleOrHalfProbaility = 50
+  end
+
+  if type(options.dotOrTriProbaility) == "nil" then
+    options.dotOrTriProbaility = 50
+  end
+
+  local resolutionsByType = getResolutionsByType()
+
+  if type(options.selectedResolutions) == "nil" then
+    options.selectedResolutions = getSelectedResolutions(resolutionsByType, options)
+  end
+
+  -- Normalize resolution
+  local resolution = currentResolution
+  if gem.tableIncludes(resolutionsByType[2], currentIndex) then
+    resolution = getEvenFromDotted(resolutionValues[currentIndex])
+    --print("getEvenFromDotted", resolution)
+  elseif gem.tableIncludes(resolutionsByType[3], currentIndex) then
+    resolution = getEvenFromTriplet(resolutionValues[currentIndex])
+    --print("getEvenFromTriplet", resolution)
+  elseif gem.tableIncludes(resolutionsByType[1], currentIndex) or gem.tableIncludes(resolutionsByType[4], currentIndex) then
+    resolution = resolutionValues[currentIndex]
+    --print("getEvenOrSlow", resolution)
+  end
+
+  if type(resolution) == "number" then
+    local doubleOrHalf = gem.getRandomBoolean(options.doubleOrHalfProbaility)
+    -- Double (slow) or half (fast) duration
+    if doubleOrHalf then
+      local doubleResIndex = gem.getIndexFromValue((resolution * 2), resolutionValues)
+      local halfResIndex = gem.getIndexFromValue((resolution / 2), resolutionValues)
+      if gem.getRandomBoolean(options.adjustBias) == false and type(doubleResIndex) == "number" and gem.tableIncludes(options.selectedResolutions, doubleResIndex) then
+        resolution = resolutionValues[doubleResIndex]
+        --print("Slower resolution", resolution)
+      elseif type(halfResIndex) == "number" and gem.tableIncludes(options.selectedResolutions, halfResIndex) then
+        resolution = resolution / 2
+        --print("Faster resolution", resolution)
+      end
+    end
+    -- Set dot or tri on duration if probability hits
+    if gem.getRandomBoolean(options.dotOrTriProbaility) then
+      if gem.tableIncludes(resolutionsByType[3], currentIndex) then
+        resolution = getTriplet(resolution)
+        --print("getTriplet", resolution)
+      else
+        local dottedResIndex = gem.getIndexFromValue(getDotted(resolution), resolutionValues)
+        if type(dottedResIndex) == "number" and gem.tableIncludes(options.selectedResolutions, dottedResIndex) then
+          resolution = resolutionValues[dottedResIndex]
+          --print("getDotted", resolution)
+        end
+      end
+    end
+  end
+  if type(resolution) == "number" then
+    currentIndex = gem.getIndexFromValue(resolution, resolutionValues)
+  end
+  --print("AFTER currentIndex", currentIndex)
+  if type(currentIndex) == "number" and gem.tableIncludes(options.selectedResolutions, currentIndex) then
+    --print("Got resolution from the current index")
+    return resolutionValues[currentIndex]
+  end
+
+  return currentResolution
+end
+
+-- If you want to add the resolutions to an existing table, give it as the second argument
+local function getResolutionsFromIndexes(indexes, resolutions)
+  if type(resolutions) == "nil" then
+    resolutions = {}
+  end
+  for _,v in ipairs(indexes) do
+    if gem.tableIncludes(resolutions, v) == false then
+      table.insert(resolutions, resolutionValues[v])
+    end
+  end
+  table.sort(resolutions, function(a,b) return a > b end) -- Ensure sorted desc
+  return resolutions
+end
+
+local quantizeOptions = {"Off", "Any", "Even", "Dot", "Tri", "Even+Dot", "Even+Tri", "Dot+Tri"}
+
+-- Quantize the given beat to the closest recognized resolution value
+local function quantizeToClosest(beat, quantizeType)
+  if type(quantizeType) == "nil" then
+    quantizeType = quantizeOptions[2] -- Any
+  end
+  if quantizeType == quantizeOptions[1] then
+    -- Quantize off, just return return the given beat value
+    return beat
+  end
+  local includeSlowResolutions = beat > resolutionValues[resolutionTypeStartPosIndex]
+  local resolutionsByType = getResolutionsByType(#resolutionValues, includeSlowResolutions)
+  local quantizeResolutions = {}
+  if includeSlowResolutions then
+    --print("Beat > resolutionsByType[1][1]", beat, resolutionValues[resolutionsByType[1][1]])
+    quantizeResolutions = getResolutionsFromIndexes(resolutionsByType[4], quantizeResolutions) -- Slow
+  else
+    for i=1,3 do
+      if quantizeType == quantizeOptions[2] or string.find(quantizeType, quantizeOptions[i+2], 1, true) then
+        quantizeResolutions = getResolutionsFromIndexes(resolutionsByType[i], quantizeResolutions)
+        --print("Add quantize resolutions", quantizeType)
+      end
+    end
+  end
+  --print("quantizeResolutions min/max/count", quantizeResolutions[1], quantizeResolutions[#quantizeResolutions], #quantizeResolutions)
+  for i,v in ipairs(quantizeResolutions) do
+    local currentValue = v
+    local nextValue = quantizeResolutions[i+1]
+    if beat == currentValue or type(nextValue) == "nil" then
+      --print("Found equal, or next is nil", beat, currentValue)
+      return currentValue
+    end
+    if beat < currentValue and beat > nextValue then
+      local diffCurrent = currentValue - beat
+      local diffNext = beat - nextValue
+      if diffCurrent < diffNext then
+        --print("Closest to current", beat, currentValue, nextValue)
+        return currentValue
+      else
+        --print("Closest to next", beat, nextValue, currentValue)
+        return nextValue
+      end
+    end
+  end
+  --print("No resolution found, returning the given beat value", beat)
+  return beat
+end
+
+local resolutions = {
+  getResolutionsFromIndexes = getResolutionsFromIndexes,
+  getSelectedResolutions = getSelectedResolutions,
+  getResolutionVariation = getResolutionVariation,
+  getResolutionsByType = getResolutionsByType,
+  quantizeToClosest = quantizeToClosest,
+  getDotted = getDotted,
+  getTriplet = getTriplet,
+  getEvenFromDotted = getEvenFromDotted,
+  getEvenFromTriplet = getEvenFromTriplet,
+  getResolution = function(i)
+    return resolutionValues[i]
+  end,
+  getQuantizeOptions = function()
+    return quantizeOptions
+  end,
+  getResolutions = function()
+    return resolutionValues
+  end,
+  getResolutionName = function(i)
+    return resolutionNames[i]
+  end,
+  getResolutionNames = function(options, max)
+    if type(max) ~= "number" then
+      max = #resolutionNames
+    end
+    local res = {}
+    for i,r in ipairs(resolutionNames) do
+      table.insert(res, r)
+      if i == max then
+        break
+      end
+    end
+    -- Add any options
+    if type(options) == "table" then
+      for _,o in ipairs(options) do
+        table.insert(res, o)
+      end
+    end
+    return res
+  end,
+  getPlayDuration = function(duration, gate)
+    if type(duration) == "nil" then
+      duration = 0
+    end
+    if type(gate) == "nil" then
+      gate = 100
+    end
+    local maxResolution = resolutionValues[#resolutionValues]
+    return math.max(maxResolution, duration * (gate / 100)) -- Never shorter than the system max resolution
+  end  
+}
+
+-----------------------------------------------------------------------------------------------------------------
+-- Cellular Automaton Drums - 8 drum tracks generated by evolving a seed row using an elementary CA rule (0-255)
+-----------------------------------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+-- Variables
+--------------------------------------------------------------------------------
+
+local numTracks = 8
+local numSteps = 16
+local isPlaying = false
+local seqIndex = 0
+local playStep = 1
+
+local rule = 90 -- Default Sierpinski rule
+local generationGap = 1 -- CA generations between consecutive tracks
+local evolveMode = 1 -- 1 = Static, 2 = Evolve, 3 = Mutate
+local mutationProbability = 5
+
+local seedPattern = {} -- 16 booleans (the seed row)
+local grid = {} -- 8 rows of 16 booleans (the derived drum patterns)
+local seedButtons = {} -- UI references for the seed cells
+local trackTables = {} -- UI references for the per-track pattern displays
+local trackNotes = {}
+local trackMutes = {}
+local trackListens = {}
+local trackLabels = {}
+local trackVelocities = {}
+local noteListen = nil
+
+-- General MIDI drum map defaults
+local defaultNoteMap = {36, 38, 42, 39, 41, 49, 54, 66}
+local defaultNoteLabels = {"Kick", "Snare", "Hihat", "Clap", "Low Tom", "Cymbal", "Tambourine", "Perc"}
+
+-- Famous elementary CA rules
+local rulePresets = {
+  {name = "30 (Chaotic)",       value = 30},
+  {name = "90 (Sierpinski)",    value = 90},
+  {name = "110 (Universal)",    value = 110},
+  {name = "150 (XOR)",          value = 150},
+  {name = "184 (Traffic)",      value = 184},
+  {name = "18 (Sparse)",        value = 18},
+  {name = "54 (Class IV)",      value = 54},
+  {name = "60 (Linear)",        value = 60},
+  {name = "126 (Triangles)",    value = 126},
+  {name = "22 (Fractal)",       value = 22},
+}
+
+--------------------------------------------------------------------------------
+-- Cellular Automaton Logic
+--------------------------------------------------------------------------------
+
+-- Apply elementary CA rule to a 3-cell neighborhood (each cell 0 or 1).
+-- Rule is a number 0-255; bit i = output for neighborhood pattern i (0-7).
+local function applyRule(left, center, right, ruleValue)
+  local idx = (left and 4 or 0) + (center and 2 or 0) + (right and 1 or 0)
+  return (math.floor(ruleValue / (2 ^ idx)) % 2) == 1
+end
+
+-- Evolve a row once using the current rule. Wraps horizontally (toroidal).
+local function evolveRow(row, ruleValue)
+  local next = {}
+  local n = #row
+  for i = 1, n do
+    local L = row[((i - 2) % n) + 1]
+    local C = row[i]
+    local R = row[(i % n) + 1]
+    next[i] = applyRule(L, C, R, ruleValue)
+  end
+  return next
+end
+
+-- Apply a small random mutation to a row (each cell has `prob` % chance to flip).
+local function mutateRow(row, prob)
+  local out = {}
+  for i = 1, #row do
+    if gem.getRandomBoolean(prob) then
+      out[i] = not row[i]
+    else
+      out[i] = row[i]
+    end
+  end
+  return out
+end
+
+-- Rebuild the 8 drum rows by evolving the seed `generationGap` steps per row.
+local function rebuildGrid()
+  local current = {}
+  for i = 1, numSteps do current[i] = seedPattern[i] end
+  for track = 1, numTracks do
+    for _ = 1, generationGap do
+      current = evolveRow(current, rule)
+    end
+    grid[track] = current
+    -- copy so subsequent evolves don't mutate the stored row
+    local copy = {}
+    for i = 1, numSteps do copy[i] = current[i] end
+    current = copy
+  end
+end
+
+local function refreshDisplay()
+  if trackTables[1] == nil then return end
+  for track = 1, numTracks do
+    for step = 1, numSteps do
+      trackTables[track]:setValue(step, grid[track][step] and 1 or 0)
+    end
+  end
+end
+
+local function randomizeSeed()
+  for i = 1, numSteps do
+    seedPattern[i] = gem.getRandomBoolean(35)
+    if seedButtons[i] then seedButtons[i]:setValue(seedPattern[i], false) end
+  end
+  rebuildGrid()
+  refreshDisplay()
+end
+
+local function clearSeed()
+  for i = 1, numSteps do
+    seedPattern[i] = false
+    if seedButtons[i] then seedButtons[i]:setValue(false, false) end
+  end
+  rebuildGrid()
+  refreshDisplay()
+end
+
+-- Initialise the seed with a single live cell in the middle (classic CA seed)
+for i = 1, numSteps do seedPattern[i] = (i == math.floor(numSteps / 2)) end
+rebuildGrid()
+
+--------------------------------------------------------------------------------
+-- Header Panel
+--------------------------------------------------------------------------------
+
+widgets.setColours({
+  labelBackgroundColour = "B5C8B0",
+  backgroundColour = "2D3142",
+})
+
+local sequencerPanel = widgets.panel({
+  width = 720,
+  height = 30,
+})
+
+widgets.label("Cellular Automaton Drums", {
+  tooltip = "Eight drum tracks generated by evolving a seed row using an elementary CA rule",
+  width = sequencerPanel.width,
+  height = 30,
+  alpha = 0.5,
+  fontSize = 22,
+})
+
+widgets.setSection({
+  width = 90,
+  xOffset = 525,
+  yOffset = 5,
+  xSpacing = 5,
+  ySpacing = 5,
+})
+
+local autoplayButton = widgets.button("Auto Play", true, {
+  tooltip = "Play automatically when the host transport starts",
+})
+
+local playButton = widgets.button("Play", false, {
+  tooltip = "Start/stop the sequencer manually",
+  changed = function(self)
+    if self.value then
+      startPlaying()
+    else
+      stopPlaying()
+    end
+  end
+})
+
+--------------------------------------------------------------------------------
+-- Settings Panel
+--------------------------------------------------------------------------------
+
+widgets.setSection({ xOffset = 0, yOffset = 0, xSpacing = 0, ySpacing = 0 })
+
+local settingsPanel = widgets.panel({
+  x = sequencerPanel.x,
+  y = widgets.posUnder(sequencerPanel),
+  width = sequencerPanel.width,
+  height = 40,
+})
+
+widgets.setSection({
+  width = 90,
+  height = 22,
+  xOffset = 5,
+  yOffset = 9,
+  xSpacing = 5,
+  ySpacing = 0,
+  cols = 8,
+})
+
+local ruleInput = widgets.numBox("Rule", rule, {
+  tooltip = "Elementary CA rule (0-255). Each rule defines how each 3-cell neighborhood evolves.",
+  min = 0, max = 255, integer = true,
+  changed = function(self)
+    rule = self.value
+    rebuildGrid()
+    refreshDisplay()
+  end
+})
+
+local presetNames = {}
+for _, p in ipairs(rulePresets) do table.insert(presetNames, p.name) end
+table.insert(presetNames, 1, "Preset...")
+
+widgets.menu("Preset", 1, presetNames, {
+  tooltip = "Quick-pick well-known CA rules",
+  showLabel = false,
+  width = 140,
+  changed = function(self)
+    if self.value > 1 then
+      ruleInput:setValue(rulePresets[self.value - 1].value)
+      self.value = 1
+    end
+  end
+})
+
+widgets.menu("Evolution", evolveMode, {"Static", "Evolve", "Mutate"}, {
+  tooltip = "Static: seed repeats. Evolve: last row becomes next seed. Mutate: small random flips each bar.",
+  showLabel = false,
+  width = 90,
+  changed = function(self) evolveMode = self.value end
+})
+
+widgets.numBox("Mutation", mutationProbability, {
+  tooltip = "Per-cell flip probability (%) when Evolution mode is set to Mutate",
+  min = 0, max = 100, integer = true, unit = Unit.Percent,
+  changed = function(self) mutationProbability = self.value end
+})
+
+widgets.numBox("Gen Gap", generationGap, {
+  tooltip = "Number of CA generations between adjacent drum tracks (higher = more variation between drums)",
+  min = 1, max = 8, integer = true,
+  changed = function(self)
+    generationGap = self.value
+    rebuildGrid()
+    refreshDisplay()
+  end
+})
+
+widgets.button("Random Seed", false, {
+  tooltip = "Randomize the seed pattern",
+  persistent = false,
+  width = 95,
+  changed = function(self)
+    if self.value then
+      randomizeSeed()
+      self:setValue(false, false)
+    end
+  end
+})
+
+widgets.button("Clear Seed", false, {
+  tooltip = "Clear all cells in the seed pattern",
+  persistent = false,
+  width = 80,
+  changed = function(self)
+    if self.value then
+      clearSeed()
+      self:setValue(false, false)
+    end
+  end
+})
+
+--------------------------------------------------------------------------------
+-- Seed Row Panel
+--------------------------------------------------------------------------------
+
+widgets.setSection({ xOffset = 0, yOffset = 0, xSpacing = 0, ySpacing = 0 })
+
+local seedPanel = widgets.panel({
+  x = sequencerPanel.x,
+  y = widgets.posUnder(settingsPanel),
+  width = sequencerPanel.width,
+  height = 32,
+})
+
+widgets.setSection({
+  width = 65,
+  height = 22,
+  xOffset = 5,
+  yOffset = 5,
+  xSpacing = 0,
+  ySpacing = 0,
+})
+
+widgets.label("Seed", {
+  tooltip = "Generation 0 - the source pattern that all drum tracks are derived from",
+})
+
+-- 16 clickable seed cells
+widgets.setSection({
+  width = 28,
+  height = 22,
+  xOffset = 76,
+  yOffset = 5,
+  xSpacing = 2,
+  ySpacing = 0,
+  cols = numSteps,
+})
+
+for i = 1, numSteps do
+  seedButtons[i] = widgets.button(tostring(i), seedPattern[i], {
+    tooltip = "Step " .. i .. " - click to toggle the seed cell",
+    backgroundColourOff = "303040",
+    backgroundColourOn = "66FF99",
+    textColourOff = "606080",
+    textColourOn = "202020",
+    changed = function(self)
+      seedPattern[i] = self.value
+      rebuildGrid()
+      refreshDisplay()
+    end
+  })
+end
+
+--------------------------------------------------------------------------------
+-- Tracks Panel
+--------------------------------------------------------------------------------
+
+widgets.setSection({ xOffset = 0, yOffset = 0, xSpacing = 0, ySpacing = 0 })
+
+local tracksPanel = widgets.panel({
+  x = sequencerPanel.x,
+  y = widgets.posUnder(seedPanel),
+  width = sequencerPanel.width,
+  height = numTracks * 28 + 4,
+})
+
+local trackColours = {
+  "FF6B6B", "FFD93D", "6BCB77", "4D96FF",
+  "B983FF", "FF6BCB", "FFA94D", "9DD9D2",
+}
+
+for track = 1, numTracks do
+  local rowY = 4 + (track - 1) * 28
+
+  -- Track label (editable name)
+  widgets.setSection({
+    width = 65, height = 22,
+    x = 5, y = rowY,
+    cols = 1,
+  })
+  trackLabels[track] = widgets.label(defaultNoteLabels[track], {
+    tooltip = "Track " .. track .. " name",
+    editable = true,
+    backgroundColour = "transparent",
+    backgroundColourWhenEditing = "white",
+    textColourWhenEditing = "black",
+    textColour = trackColours[track],
+  })
+
+  -- Pattern display table (16 cells)
+  widgets.setSection({
+    width = 400, height = 22,
+    x = 75, y = rowY,
+    cols = 1,
+  })
+  trackTables[track] = widgets.table("Track" .. track, 0, numSteps, {
+    enabled = false,
+    persistent = false,
+    fillStyle = "solid",
+    backgroundColour = "191E25",
+    sliderColour = trackColours[track],
+    min = 0, max = 1, integer = true,
+  })
+
+  -- Note input
+  widgets.setSection({
+    width = 48, height = 22,
+    x = 482, y = rowY,
+    cols = 1,
+  })
+  trackNotes[track] = widgets.numBox("Note", defaultNoteMap[track], {
+    name = "Note" .. track,
+    tooltip = "MIDI note number for " .. defaultNoteLabels[track],
+    showLabel = false,
+    min = 0, max = 127, integer = true,
+  })
+
+  -- Learn
+  widgets.setSection({
+    width = 36, height = 22,
+    x = 534, y = rowY,
+    cols = 1,
+  })
+  trackListens[track] = widgets.button("L", false, {
+    name = "Learn" .. track,
+    tooltip = "Note learn - play a note to set the track note",
+    persistent = false,
+    backgroundColourOn = "006600",
+    textColourOn = "white",
+    changed = function(self)
+      if self.value then
+        noteListen = track
+      elseif noteListen == track then
+        noteListen = nil
+      end
+    end
+  })
+
+  -- Mute
+  widgets.setSection({
+    width = 48, height = 22,
+    x = 574, y = rowY,
+    cols = 1,
+  })
+  trackMutes[track] = widgets.button("Mute", false, {
+    name = "Mute" .. track,
+    tooltip = "Mute " .. defaultNoteLabels[track],
+  })
+
+  -- Velocity
+  widgets.setSection({
+    width = 48, height = 22,
+    x = 626, y = rowY,
+    cols = 1,
+  })
+  trackVelocities[track] = widgets.numBox("Vel", 100, {
+    name = "Vel" .. track,
+    tooltip = "Velocity for " .. defaultNoteLabels[track],
+    showLabel = false,
+    min = 1, max = 127, integer = true,
+  })
+end
+
+refreshDisplay()
+
+--------------------------------------------------------------------------------
+-- Footer Panel
+--------------------------------------------------------------------------------
+
+widgets.setSection({ xOffset = 0, yOffset = 0, xSpacing = 0, ySpacing = 0 })
+
+local footerPanel = widgets.panel({
+  x = sequencerPanel.x,
+  y = widgets.posUnder(tracksPanel),
+  width = sequencerPanel.width,
+  height = 40,
+})
+
+widgets.setSection({
+  width = 110,
+  height = 22,
+  xOffset = 5,
+  yOffset = 9,
+  xSpacing = 5,
+  ySpacing = 0,
+  cols = 8,
+})
+
+local resolutionInput = widgets.menu("Resolution", 20, resolutions.getResolutionNames(), {
+  tooltip = "Time per step (default 1/8 - one bar of 16 steps = 2 bars at this resolution)",
+  showLabel = false,
+})
+
+local gateInput = widgets.numBox("Gate", 80, {
+  tooltip = "Note length as % of step duration",
+  min = 1, max = 200, integer = true, unit = Unit.Percent,
+  width = 90,
+})
+
+local channelButton = widgets.button("Multichannel", false, {
+  tooltip = "When enabled, each track is sent to a separate MIDI channel (track 1 = base channel, track 2 = +1, etc.)",
+  width = 110,
+})
+
+local channelInput = widgets.numBox("Channel", 1, {
+  tooltip = "Base MIDI channel (1-16). In multichannel mode each track uses base + track number - 1.",
+  min = 1, max = 16, integer = true,
+  width = 90,
+})
+
+local stepLabel = widgets.label("Step 1 / " .. numSteps, {
+  tooltip = "Current playback position",
+  width = 130,
+})
+
+--------------------------------------------------------------------------------
+-- Sequencer
+--------------------------------------------------------------------------------
+
+function startPlaying()
+  if isPlaying then return end
+  seqIndex = gem.inc(seqIndex)
+  isPlaying = true
+  run(sequenceRunner, seqIndex)
+end
+
+function stopPlaying()
+  if isPlaying == false then return end
+  isPlaying = false
+  playStep = 1
+  if stepLabel then stepLabel.text = "Step 1 / " .. numSteps end
+end
+
+local function getTrackChannel(track)
+  if channelButton.value then
+    return ((channelInput.value + track - 2) % 16) + 1
+  end
+  return channelInput.value
+end
+
+local function applyEvolution()
+  if evolveMode == 1 then
+    return
+  elseif evolveMode == 2 then
+    -- Use last drum row as new seed
+    local lastRow = grid[numTracks]
+    for i = 1, numSteps do
+      seedPattern[i] = lastRow[i]
+      if seedButtons[i] then seedButtons[i]:setValue(seedPattern[i], false) end
+    end
+  elseif evolveMode == 3 then
+    seedPattern = mutateRow(seedPattern, mutationProbability)
+    for i = 1, numSteps do
+      if seedButtons[i] then seedButtons[i]:setValue(seedPattern[i], false) end
+    end
+  end
+  rebuildGrid()
+  refreshDisplay()
+end
+
+function sequenceRunner(uniqueId)
+  playStep = 1
+  while isPlaying and seqIndex == uniqueId do
+    local stepDuration = resolutions.getResolution(resolutionInput.value)
+    local gate = gateInput.value
+    local playDuration = resolutions.getPlayDuration(stepDuration, gate)
+    local playDurationMs = beat2ms(playDuration)
+
+    -- Trigger all live cells in this column
+    for track = 1, numTracks do
+      if trackMutes[track].value == false and grid[track][playStep] then
+        local note = trackNotes[track].value
+        local velocity = trackVelocities[track].value
+        playNote(note, velocity, playDurationMs, nil, getTrackChannel(track))
+      end
+    end
+
+    if stepLabel then stepLabel.text = "Step " .. playStep .. " / " .. numSteps end
+
+    waitBeat(stepDuration)
+
+    playStep = playStep + 1
+    if playStep > numSteps then
+      playStep = 1
+      applyEvolution()
+    end
+  end
+end
+
+--------------------------------------------------------------------------------
+-- Handle Events
+--------------------------------------------------------------------------------
+
+function onNote(e)
+  if type(noteListen) == "number" then
+    trackNotes[noteListen]:setValue(e.note)
+    trackListens[noteListen]:setValue(false, false)
+    noteListen = nil
+  end
+  if autoplayButton.value == true then
+    postEvent(e)
+  else
+    playButton:setValue(true)
+  end
+end
+
+function onRelease(e)
+  if autoplayButton.value == true then
+    postEvent(e)
+  else
+    playButton:setValue(false)
+  end
+end
+
+function onTransport(start)
+  if autoplayButton.value == true then
+    playButton:setValue(start)
+  end
+end
