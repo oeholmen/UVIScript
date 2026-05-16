@@ -14,11 +14,13 @@ luaScripts=(
   generators/noteFragmentGenerator
   modular/bounceTrigger
   modular/chorderInput
+  modular/euclideanTrigger
   modular/gameOfLifeInput
   modular/gameOfLifeTrigger
   modular/gridSequencerInput
   modular/horizontalMotionSequencerInput
   modular/lifeTrigger
+  modular/markovChainInput
   modular/motionSequencerInput
   modular/noteSelectInput
   modular/probabilityTrigger
