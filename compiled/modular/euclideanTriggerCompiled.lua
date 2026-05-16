@@ -1122,7 +1122,7 @@ widgets.label("Euclidean Trigger", {
 widgets.setSection({
   width = 100,
   height = 22,
-  xOffset = 415,
+  xOffset = 405,
   yOffset = (widgets.getPanel().height / 2) - 11,
   xSpacing = 5,
 })

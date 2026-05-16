@@ -155,7 +155,6 @@ local weightsPanel = widgets.panel({
 
 widgets.label("Move Weights", {
   tooltip = "Relative weight of each scale-step move from the current note. Move 0 means repeat.",
-  alpha = 0.75,
   width = sequencerPanel.width,
   height = 22,
 })
@@ -169,13 +168,11 @@ widgets.setSection({
   xSpacing = 5,
   ySpacing = 0,
   cols = 7,
-  labelBackgroundColour = "transparent",
 })
 
 for i = 1, #moveLabels do
   widgets.label(moveLabels[i], {
     tooltip = "Weight for move " .. moveLabels[i] .. " scale steps",
-    alpha = 0.6,
     fontSize = 14,
   })
 end
@@ -256,7 +253,6 @@ widgets.button("Reset", false, {
 
 positionLabel = widgets.label("Step 1 / 0", {
   tooltip = "Current position in the note pool",
-  alpha = 0.5,
   width = 200,
 })
 
@@ -277,7 +273,6 @@ local notePanel = widgets.panel({
 
 local noteLabel = widgets.label("Notes", {
   tooltip = "Select notes manually, or by selecting a scale",
-  alpha = 0.75,
   width = sequencerPanel.width,
   height = 22,
 })
