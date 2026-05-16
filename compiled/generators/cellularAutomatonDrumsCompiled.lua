@@ -425,6 +425,12 @@ local function setOptional(widget, options)
   if type(options.visible) == "boolean" then
     widget.visible = options.visible
   end
+  if type(options.interceptsMouseClicks) == "boolean" then
+    widget.interceptsMouseClicks = options.interceptsMouseClicks
+  end
+  if type(options.align) == "string" then
+    widget.align = options.align
+  end
   if type(options.backgroundColour) == "string" then
     widget.backgroundColour = options.backgroundColour
   end
@@ -1351,7 +1357,7 @@ for track = 1, numTracks do
   trackLabels[track] = widgets.label(defaultNoteLabels[track], {
     tooltip = "Track " .. track .. " name",
     editable = true,
-    backgroundColour = "transparent",
+    backgroundColour = "111111",
     backgroundColourWhenEditing = "white",
     textColourWhenEditing = "black",
     textColour = trackColours[track],
@@ -1585,5 +1591,26 @@ end
 function onTransport(start)
   if autoplayButton.value == true then
     playButton:setValue(start)
+  end
+end
+
+--------------------------------------------------------------------------------
+-- Save / Load
+--------------------------------------------------------------------------------
+
+function onSave()
+  local labelData = {}
+  for i = 1, numTracks do
+    table.insert(labelData, trackLabels[i].text)
+  end
+  return {labelData}
+end
+
+function onLoad(data)
+  local labelData = data[1]
+  if type(labelData) == "table" then
+    for i = 1, math.min(#labelData, numTracks) do
+      trackLabels[i].text = labelData[i]
+    end
   end
 end

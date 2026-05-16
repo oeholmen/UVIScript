@@ -425,6 +425,12 @@ local function setOptional(widget, options)
   if type(options.visible) == "boolean" then
     widget.visible = options.visible
   end
+  if type(options.interceptsMouseClicks) == "boolean" then
+    widget.interceptsMouseClicks = options.interceptsMouseClicks
+  end
+  if type(options.align) == "string" then
+    widget.align = options.align
+  end
   if type(options.backgroundColour) == "string" then
     widget.backgroundColour = options.backgroundColour
   end
