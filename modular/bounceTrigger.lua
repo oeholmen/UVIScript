@@ -22,7 +22,7 @@ local waitResolution = 17
 local waitResolutionMin = 26
 local bounceProbability = 100
 local skipProbability = 0
-local oneDirection = false -- TODO Make it possible to go only on direction before resetting
+local oneDirection = false -- TODO Make it possible to go only one direction before resetting
 local waitBetweenRounds = false -- TODO Make it possible to insert a wait between bounces
 
 --------------------------------------------------------------------------------

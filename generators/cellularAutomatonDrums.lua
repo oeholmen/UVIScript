@@ -386,9 +386,10 @@ for track = 1, numTracks do
   })
   trackNotes[track] = widgets.numBox("Note", defaultNoteMap[track], {
     name = "Note" .. track,
-    tooltip = "MIDI note number for " .. defaultNoteLabels[track],
+    tooltip = "MIDI note for " .. defaultNoteLabels[track],
     showLabel = false,
     min = 0, max = 127, integer = true,
+    unit = Unit.MidiKey,
   })
 
   -- Learn
